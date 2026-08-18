@@ -61,12 +61,18 @@ export class FetchClient extends BaseClient {
       request.headers.set("content-length", String(request.contentLength));
     }
 
+    // A `Uint8Array` is a `BufferSource`, so it is a body the platform accepts. Whether the
+    // type system agrees depends on which lib resolves the buffer generic, and the answer
+    // differs between a machine's global cache and the lockfile CI pins — the annotation is
+    // what makes the two agree.
+    const payload: BodyInit | undefined = hasBody ? (await body.toBytes()) as BodyInit : undefined;
+
     let answered: globalThis.Response;
     try {
       answered = await fetch(request.url, {
         method: request.method,
         headers: request.headers,
-        body: hasBody ? await body.toBytes() : undefined,
+        body: payload,
         redirect: request.followRedirects ? "follow" : "manual",
       });
     } catch (cause) {
