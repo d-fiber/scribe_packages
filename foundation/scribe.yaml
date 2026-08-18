@@ -5,7 +5,7 @@ optional: false
 requires: []
 
 ops:
-  services: [redis, nats, rest]
+  services: [db, redis, nats, rest, db-migrate]
   profile: null
   gateway: []
   env: [REDIS_PASSWORD, NATS_PASSWORD, JWT_SECRET, POSTGRES_PASSWORD]

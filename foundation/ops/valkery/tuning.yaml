@@ -2,7 +2,7 @@ services:
   redis:
     command:
       [
-        "redis-server",
+        "valkey-server",
         "--requirepass",
         "${REDIS_PASSWORD}",
         "--appendonly",

@@ -7,3 +7,18 @@ services:
           memory: "{{rest_mem_limit}}"
         reservations:
           memory: "{{rest_mem_res}}"
+
+  db:
+    cpu_shares: 4096
+    deploy:
+      resources:
+        limits:
+          memory: "{{db_mem_limit}}"
+        reservations:
+          memory: "{{db_mem_res}}"
+
+  db-migrate:
+    deploy:
+      resources:
+        limits:
+          memory: "{{db_migrate_mem_limit}}"
