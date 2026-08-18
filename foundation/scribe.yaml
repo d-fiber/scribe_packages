@@ -1,0 +1,17 @@
+name: foundation
+title: What every project gets, whether or not it asks.
+optional: false
+
+requires: []
+
+ops:
+  services: []
+  profile: null
+  gateway: []
+  env: []
+
+sql: null
+protocol: null
+export: ./foundation
+
+routes: []
