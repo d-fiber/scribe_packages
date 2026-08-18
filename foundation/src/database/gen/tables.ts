@@ -33,8 +33,8 @@
 // This file is auto-generated do not edit manually.
 // Run: poppin gen code
 
-import { from, TablesBase } from "@scribe/core/clients/database/tables.ts";
-import type { TypedQueryBuilder } from "@scribe/core/clients/database/query/builder.ts";
+import { from, TablesBase } from "@scribe/foundation/src/database/tables.ts";
+import type { TypedQueryBuilder } from "@scribe/foundation/src/database/query/builder.ts";
 import type {
   InternalTAdminUsersPermissionsRelations,
   InternalTAdminUsersRelations,
@@ -43,8 +43,8 @@ import type {
   InternalTAppUsersRelations,
   InternalTDynamicLinksRelations,
   InternalTEmailTemplatesRelations,
-  InternalTInAppNotificationTemplatesRelations,
   InternalTInAppNotificationsRelations,
+  InternalTInAppNotificationTemplatesRelations,
   InternalTMailsRelations,
   InternalTNotificationPushesRelations,
   InternalTPushTemplatesRelations,
@@ -53,12 +53,12 @@ import type {
 } from "./relations.ts";
 import type {
   InternalTAdminTopicMembersRow,
-  InternalTAdminUsersRow,
   InternalTAdminUsersDevicesRow,
   InternalTAdminUsersPermissionsRow,
   InternalTAdminUsersProfilesRow,
   InternalTAdminUsersRolePermissionsRow,
   InternalTAdminUsersRolesRow,
+  InternalTAdminUsersRow,
   InternalTAdminUsersSettingsRow,
   InternalTAdminUsersVpnRow,
   InternalTAppUserDevicesRow,
@@ -66,24 +66,24 @@ import type {
   InternalTAppUserIssueReportsRow,
   InternalTAppUserSettingsRow,
   InternalTAppUsersRow,
-  InternalTDynamicLinkStatisticsRow,
   InternalTDynamicLinksRow,
+  InternalTDynamicLinkStatisticsRow,
   InternalTEmailCampaignsRow,
   InternalTEmailTemplatesRow,
   InternalTInAppNotificationCampaignsRow,
   InternalTInAppNotificationOpensRow,
   InternalTInAppNotificationReadsRow,
-  InternalTInAppNotificationTemplatesRow,
   InternalTInAppNotificationsRow,
-  InternalTMailStatisticsRow,
+  InternalTInAppNotificationTemplatesRow,
   InternalTMailsRow,
-  InternalTNotificationPushOpensRow,
+  InternalTMailStatisticsRow,
   InternalTNotificationPushesRow,
+  InternalTNotificationPushOpensRow,
   InternalTOtpPendingTokensRow,
   InternalTPushCampaignsRow,
   InternalTPushTemplatesRow,
-  InternalTRemoteConfigStatisticsRow,
   InternalTRemoteConfigsRow,
+  InternalTRemoteConfigStatisticsRow,
   InternalTResponsesRow,
   InternalTSmtpAccountsRow,
   InternalTSyncEventsRow,
@@ -94,14 +94,25 @@ export class Tables extends TablesBase {
   internal_t__admin_topic_members(): TypedQueryBuilder<InternalTAdminTopicMembersRow> {
     return from<InternalTAdminTopicMembersRow>(this.db, "internal_t__admin_topic_members");
   }
-  internal_t__admin_users(): TypedQueryBuilder<InternalTAdminUsersRow, InternalTAdminUsersRow, InternalTAdminUsersRelations> {
+  internal_t__admin_users(): TypedQueryBuilder<
+    InternalTAdminUsersRow,
+    InternalTAdminUsersRow,
+    InternalTAdminUsersRelations
+  > {
     return from<InternalTAdminUsersRow, InternalTAdminUsersRelations>(this.db, "internal_t__admin_users");
   }
   internal_t__admin_users_devices(): TypedQueryBuilder<InternalTAdminUsersDevicesRow> {
     return from<InternalTAdminUsersDevicesRow>(this.db, "internal_t__admin_users_devices");
   }
-  internal_t__admin_users_permissions(): TypedQueryBuilder<InternalTAdminUsersPermissionsRow, InternalTAdminUsersPermissionsRow, InternalTAdminUsersPermissionsRelations> {
-    return from<InternalTAdminUsersPermissionsRow, InternalTAdminUsersPermissionsRelations>(this.db, "internal_t__admin_users_permissions");
+  internal_t__admin_users_permissions(): TypedQueryBuilder<
+    InternalTAdminUsersPermissionsRow,
+    InternalTAdminUsersPermissionsRow,
+    InternalTAdminUsersPermissionsRelations
+  > {
+    return from<InternalTAdminUsersPermissionsRow, InternalTAdminUsersPermissionsRelations>(
+      this.db,
+      "internal_t__admin_users_permissions",
+    );
   }
   internal_t__admin_users_profiles(): TypedQueryBuilder<InternalTAdminUsersProfilesRow> {
     return from<InternalTAdminUsersProfilesRow>(this.db, "internal_t__admin_users_profiles");
@@ -109,8 +120,15 @@ export class Tables extends TablesBase {
   internal_t__admin_users_role_permissions(): TypedQueryBuilder<InternalTAdminUsersRolePermissionsRow> {
     return from<InternalTAdminUsersRolePermissionsRow>(this.db, "internal_t__admin_users_role_permissions");
   }
-  internal_t__admin_users_roles(): TypedQueryBuilder<InternalTAdminUsersRolesRow, InternalTAdminUsersRolesRow, InternalTAdminUsersRolesRelations> {
-    return from<InternalTAdminUsersRolesRow, InternalTAdminUsersRolesRelations>(this.db, "internal_t__admin_users_roles");
+  internal_t__admin_users_roles(): TypedQueryBuilder<
+    InternalTAdminUsersRolesRow,
+    InternalTAdminUsersRolesRow,
+    InternalTAdminUsersRolesRelations
+  > {
+    return from<InternalTAdminUsersRolesRow, InternalTAdminUsersRolesRelations>(
+      this.db,
+      "internal_t__admin_users_roles",
+    );
   }
   internal_t__admin_users_settings(): TypedQueryBuilder<InternalTAdminUsersSettingsRow> {
     return from<InternalTAdminUsersSettingsRow>(this.db, "internal_t__admin_users_settings");
@@ -118,7 +136,11 @@ export class Tables extends TablesBase {
   internal_t__admin_users_vpn(): TypedQueryBuilder<InternalTAdminUsersVpnRow> {
     return from<InternalTAdminUsersVpnRow>(this.db, "internal_t__admin_users_vpn");
   }
-  internal_t__app_user_devices(): TypedQueryBuilder<InternalTAppUserDevicesRow, InternalTAppUserDevicesRow, InternalTAppUserDevicesRelations> {
+  internal_t__app_user_devices(): TypedQueryBuilder<
+    InternalTAppUserDevicesRow,
+    InternalTAppUserDevicesRow,
+    InternalTAppUserDevicesRelations
+  > {
     return from<InternalTAppUserDevicesRow, InternalTAppUserDevicesRelations>(this.db, "internal_t__app_user_devices");
   }
   internal_t__app_user_feedback(): TypedQueryBuilder<InternalTAppUserFeedbackRow> {
@@ -136,13 +158,21 @@ export class Tables extends TablesBase {
   internal_t__dynamic_link_statistics(): TypedQueryBuilder<InternalTDynamicLinkStatisticsRow> {
     return from<InternalTDynamicLinkStatisticsRow>(this.db, "internal_t__dynamic_link_statistics");
   }
-  internal_t__dynamic_links(): TypedQueryBuilder<InternalTDynamicLinksRow, InternalTDynamicLinksRow, InternalTDynamicLinksRelations> {
+  internal_t__dynamic_links(): TypedQueryBuilder<
+    InternalTDynamicLinksRow,
+    InternalTDynamicLinksRow,
+    InternalTDynamicLinksRelations
+  > {
     return from<InternalTDynamicLinksRow, InternalTDynamicLinksRelations>(this.db, "internal_t__dynamic_links");
   }
   internal_t__email_campaigns(): TypedQueryBuilder<InternalTEmailCampaignsRow> {
     return from<InternalTEmailCampaignsRow>(this.db, "internal_t__email_campaigns");
   }
-  internal_t__email_templates(): TypedQueryBuilder<InternalTEmailTemplatesRow, InternalTEmailTemplatesRow, InternalTEmailTemplatesRelations> {
+  internal_t__email_templates(): TypedQueryBuilder<
+    InternalTEmailTemplatesRow,
+    InternalTEmailTemplatesRow,
+    InternalTEmailTemplatesRelations
+  > {
     return from<InternalTEmailTemplatesRow, InternalTEmailTemplatesRelations>(this.db, "internal_t__email_templates");
   }
   internal_t__in_app_notification_campaigns(): TypedQueryBuilder<InternalTInAppNotificationCampaignsRow> {
@@ -154,11 +184,25 @@ export class Tables extends TablesBase {
   internal_t__in_app_notification_reads(): TypedQueryBuilder<InternalTInAppNotificationReadsRow> {
     return from<InternalTInAppNotificationReadsRow>(this.db, "internal_t__in_app_notification_reads");
   }
-  internal_t__in_app_notification_templates(): TypedQueryBuilder<InternalTInAppNotificationTemplatesRow, InternalTInAppNotificationTemplatesRow, InternalTInAppNotificationTemplatesRelations> {
-    return from<InternalTInAppNotificationTemplatesRow, InternalTInAppNotificationTemplatesRelations>(this.db, "internal_t__in_app_notification_templates");
+  internal_t__in_app_notification_templates(): TypedQueryBuilder<
+    InternalTInAppNotificationTemplatesRow,
+    InternalTInAppNotificationTemplatesRow,
+    InternalTInAppNotificationTemplatesRelations
+  > {
+    return from<InternalTInAppNotificationTemplatesRow, InternalTInAppNotificationTemplatesRelations>(
+      this.db,
+      "internal_t__in_app_notification_templates",
+    );
   }
-  internal_t__in_app_notifications(): TypedQueryBuilder<InternalTInAppNotificationsRow, InternalTInAppNotificationsRow, InternalTInAppNotificationsRelations> {
-    return from<InternalTInAppNotificationsRow, InternalTInAppNotificationsRelations>(this.db, "internal_t__in_app_notifications");
+  internal_t__in_app_notifications(): TypedQueryBuilder<
+    InternalTInAppNotificationsRow,
+    InternalTInAppNotificationsRow,
+    InternalTInAppNotificationsRelations
+  > {
+    return from<InternalTInAppNotificationsRow, InternalTInAppNotificationsRelations>(
+      this.db,
+      "internal_t__in_app_notifications",
+    );
   }
   internal_t__mail_statistics(): TypedQueryBuilder<InternalTMailStatisticsRow> {
     return from<InternalTMailStatisticsRow>(this.db, "internal_t__mail_statistics");
@@ -169,8 +213,15 @@ export class Tables extends TablesBase {
   internal_t__notification_push_opens(): TypedQueryBuilder<InternalTNotificationPushOpensRow> {
     return from<InternalTNotificationPushOpensRow>(this.db, "internal_t__notification_push_opens");
   }
-  internal_t__notification_pushes(): TypedQueryBuilder<InternalTNotificationPushesRow, InternalTNotificationPushesRow, InternalTNotificationPushesRelations> {
-    return from<InternalTNotificationPushesRow, InternalTNotificationPushesRelations>(this.db, "internal_t__notification_pushes");
+  internal_t__notification_pushes(): TypedQueryBuilder<
+    InternalTNotificationPushesRow,
+    InternalTNotificationPushesRow,
+    InternalTNotificationPushesRelations
+  > {
+    return from<InternalTNotificationPushesRow, InternalTNotificationPushesRelations>(
+      this.db,
+      "internal_t__notification_pushes",
+    );
   }
   internal_t__otp_pending_tokens(): TypedQueryBuilder<InternalTOtpPendingTokensRow> {
     return from<InternalTOtpPendingTokensRow>(this.db, "internal_t__otp_pending_tokens");
@@ -178,19 +229,31 @@ export class Tables extends TablesBase {
   internal_t__push_campaigns(): TypedQueryBuilder<InternalTPushCampaignsRow> {
     return from<InternalTPushCampaignsRow>(this.db, "internal_t__push_campaigns");
   }
-  internal_t__push_templates(): TypedQueryBuilder<InternalTPushTemplatesRow, InternalTPushTemplatesRow, InternalTPushTemplatesRelations> {
+  internal_t__push_templates(): TypedQueryBuilder<
+    InternalTPushTemplatesRow,
+    InternalTPushTemplatesRow,
+    InternalTPushTemplatesRelations
+  > {
     return from<InternalTPushTemplatesRow, InternalTPushTemplatesRelations>(this.db, "internal_t__push_templates");
   }
   internal_t__remote_config_statistics(): TypedQueryBuilder<InternalTRemoteConfigStatisticsRow> {
     return from<InternalTRemoteConfigStatisticsRow>(this.db, "internal_t__remote_config_statistics");
   }
-  internal_t__remote_configs(): TypedQueryBuilder<InternalTRemoteConfigsRow, InternalTRemoteConfigsRow, InternalTRemoteConfigsRelations> {
+  internal_t__remote_configs(): TypedQueryBuilder<
+    InternalTRemoteConfigsRow,
+    InternalTRemoteConfigsRow,
+    InternalTRemoteConfigsRelations
+  > {
     return from<InternalTRemoteConfigsRow, InternalTRemoteConfigsRelations>(this.db, "internal_t__remote_configs");
   }
   internal_t__responses(): TypedQueryBuilder<InternalTResponsesRow> {
     return from<InternalTResponsesRow>(this.db, "internal_t__responses");
   }
-  internal_t__smtp_accounts(): TypedQueryBuilder<InternalTSmtpAccountsRow, InternalTSmtpAccountsRow, InternalTSmtpAccountsRelations> {
+  internal_t__smtp_accounts(): TypedQueryBuilder<
+    InternalTSmtpAccountsRow,
+    InternalTSmtpAccountsRow,
+    InternalTSmtpAccountsRelations
+  > {
     return from<InternalTSmtpAccountsRow, InternalTSmtpAccountsRelations>(this.db, "internal_t__smtp_accounts");
   }
   internal_t__sync_events(): TypedQueryBuilder<InternalTSyncEventsRow> {

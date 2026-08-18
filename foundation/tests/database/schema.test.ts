@@ -30,13 +30,31 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { PostgrestClients } from "./client.ts";
-import { registerTableOwners } from "./schema.ts";
-import { TABLE_OWNERS } from "./gen/metadata.ts";
-import { Tables } from "./gen/tables.ts";
+import { ownerOf, registerTableOwners } from "@scribe/foundation/src/database/schema.ts";
+import { assertEquals } from "@std/assert";
 
-registerTableOwners(TABLE_OWNERS);
+Deno.test("a table nobody registered has no owner column", () => {
+  registerTableOwners({ t__orders: "user_id" });
 
-export class DatabaseClient extends Tables {}
+  assertEquals(ownerOf("t__orders"), "user_id");
+  assertEquals(ownerOf("t__unregistered"), null);
+});
 
-export const database: DatabaseClient = new DatabaseClient(() => PostgrestClients.service());
+Deno.test("an Object.prototype member is not mistaken for an owner column", () => {
+  registerTableOwners({ t__orders: "user_id" });
+
+  for (const inherited of ["constructor", "toString", "valueOf", "hasOwnProperty", "__proto__"]) {
+    assertEquals(
+      ownerOf(inherited),
+      null,
+      `${inherited} must not resolve through the prototype chain`,
+    );
+  }
+});
+
+Deno.test("a registered owner is always a string, never a borrowed function", () => {
+  registerTableOwners({ toString: "user_id" });
+
+  assertEquals(typeof ownerOf("toString"), "string");
+  assertEquals(ownerOf("toString"), "user_id");
+});

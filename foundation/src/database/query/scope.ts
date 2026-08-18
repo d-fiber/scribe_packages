@@ -30,13 +30,30 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { PostgrestClients } from "./client.ts";
-import { registerTableOwners } from "./schema.ts";
-import { TABLE_OWNERS } from "./gen/metadata.ts";
-import { Tables } from "./gen/tables.ts";
+import { currentIdentity } from "@scribe/core/runtime/http/accessors/identity.ts";
+import { ownerOf } from "../schema.ts";
 
-registerTableOwners(TABLE_OWNERS);
+const ADMIN_COLUMN = "admin_id";
+const USER_COLUMN = "user_id";
 
-export class DatabaseClient extends Tables {}
+export type ScopeDecision =
+  | { readonly kind: "open" }
+  | { readonly kind: "scoped"; readonly column: string; readonly id: string }
+  | { readonly kind: "denied"; readonly column: string };
 
-export const database: DatabaseClient = new DatabaseClient(() => PostgrestClients.service());
+const OPEN: ScopeDecision = { kind: "open" };
+
+export function ownerScope(table: string): ScopeDecision {
+  const column = ownerOf(table);
+  if (column === null) return OPEN;
+
+  const identity = currentIdentity();
+  if (!identity) return OPEN;
+
+  const callerColumn = "rules" in identity ? ADMIN_COLUMN : USER_COLUMN;
+  if (column === callerColumn) return { kind: "scoped", column, id: identity.id };
+
+  if (callerColumn === ADMIN_COLUMN) return OPEN;
+
+  return { kind: "denied", column };
+}

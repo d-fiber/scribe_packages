@@ -30,13 +30,16 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { PostgrestClients } from "./client.ts";
-import { registerTableOwners } from "./schema.ts";
-import { TABLE_OWNERS } from "./gen/metadata.ts";
-import { Tables } from "./gen/tables.ts";
+const owners = new Map<string, string>();
 
-registerTableOwners(TABLE_OWNERS);
+export function registerTableOwners(
+  tableOwners: Record<string, string>,
+): void {
+  for (const [table, column] of Object.entries(tableOwners)) {
+    owners.set(table, column);
+  }
+}
 
-export class DatabaseClient extends Tables {}
-
-export const database: DatabaseClient = new DatabaseClient(() => PostgrestClients.service());
+export function ownerOf(table: string): string | null {
+  return owners.get(table) ?? null;
+}
