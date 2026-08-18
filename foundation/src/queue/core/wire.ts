@@ -33,15 +33,27 @@
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
+/**
+ * What travels on a queue subject.
+ *
+ * The envelope carries the payload and nothing else. How many times a message has been
+ * delivered used to travel with it; it is now read from `JsMsg.info`, which the server keeps
+ * and which no producer can get wrong.
+ *
+ * The `data` key stays in the shape for a reason that outlives the field it replaced: a
+ * message published before this change carries `{ data, attempts }`, and reading `.data`
+ * decodes both shapes without a guess. A bare payload would have made the two ambiguous.
+ */
 export interface WireMessage<T> {
   readonly data: T;
-  readonly attempts: number;
 }
 
+/** Serializes a payload for publication. */
 export function encode<T>(message: WireMessage<T>): Uint8Array {
   return encoder.encode(JSON.stringify(message));
 }
 
+/** Reads a payload back, whichever of the two envelope shapes carried it. */
 export function decode<T>(payload: Uint8Array): WireMessage<T> {
   return JSON.parse(decoder.decode(payload)) as WireMessage<T>;
 }

@@ -38,16 +38,16 @@ import {
   SHARED_STREAM,
   subjectOf,
 } from "@scribe/foundation/src/queue/core/naming.ts";
-import {
-  AckPolicy,
-  type JetStreamManager,
-  RetentionPolicy,
-  StorageType,
-} from "@nats-io/jetstream";
+import { AckPolicy, type JetStreamManager, RetentionPolicy, StorageType } from "@nats-io/jetstream";
 import type { TopologyPlan } from "./plan.ts";
 
-const MAX_DELIVER_SAFETY_NET = 10;
-
+/**
+ * Creates the streams and consumers a plan calls for, and widens what already exists.
+ *
+ * Provisioning is idempotent because it runs on every start-up of every replica: a stream
+ * that exists is left alone, and a consumer an older deployment created is widened rather
+ * than replaced.
+ */
 export class TopologyProvisioner {
   readonly #manager: JetStreamManager;
 
@@ -65,13 +65,13 @@ export class TopologyProvisioner {
     );
     await this.#stream(DEAD_STREAM, ["dead.>"], RetentionPolicy.Limits, plan);
 
-    await this.#consumer(SHARED_STREAM, SHARED_CONSUMER, "q.>", plan.ackWaitMs);
+    await this.#consumer(SHARED_STREAM, SHARED_CONSUMER, "q.>", plan);
     for (const name of plan.dedicated) {
       await this.#consumer(
         DEDICATED_STREAM,
         sanitize(name),
         subjectOf(name, true),
-        plan.ackWaitMs,
+        plan,
       );
     }
   }
@@ -101,9 +101,9 @@ export class TopologyProvisioner {
     stream: string,
     durable: string,
     filterSubject: string,
-    ackWaitMs: number,
+    plan: TopologyPlan,
   ): Promise<void> {
-    const ackWaitNs = ackWaitMs * 1_000_000;
+    const ackWaitNs = plan.ackWaitMs * 1_000_000;
     const existing = await this.#manager.consumers
       .info(stream, durable)
       .catch(() => null);
@@ -113,21 +113,28 @@ export class TopologyProvisioner {
         durable_name: durable,
         filter_subject: filterSubject,
         ack_policy: AckPolicy.Explicit,
-        max_deliver: MAX_DELIVER_SAFETY_NET,
+        max_deliver: plan.maxDeliver,
         ack_wait: ackWaitNs,
       });
       return;
     }
 
-    if ((existing.config.ack_wait ?? 0) >= ackWaitNs) return;
+    // A consumer an earlier deployment created may be narrower than what the queues
+    // declared since. Either bound left too low silently breaks a policy that depends on
+    // it: too short an ack_wait redelivers work still in progress, and too low a
+    // max_deliver stops the server before the dead letter is ever written.
+    const widened: Record<string, number> = {};
+    if ((existing.config.ack_wait ?? 0) < ackWaitNs) widened.ack_wait = ackWaitNs;
+    if ((existing.config.max_deliver ?? 0) < plan.maxDeliver) {
+      widened.max_deliver = plan.maxDeliver;
+    }
+    if (Object.keys(widened).length === 0) return;
 
     try {
-      await this.#manager.consumers.update(stream, durable, {
-        ack_wait: ackWaitNs,
-      });
+      await this.#manager.consumers.update(stream, durable, widened);
     } catch (error) {
       console.error(
-        `[queue] could not widen ack_wait on "${stream}/${durable}":`,
+        `[queue] could not widen "${stream}/${durable}" to ${JSON.stringify(widened)}:`,
         error,
       );
     }

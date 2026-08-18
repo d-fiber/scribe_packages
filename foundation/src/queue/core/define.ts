@@ -30,33 +30,48 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type {
-  BatchHandler,
-  JobHandler,
-  QueueOptions,
-} from "@scribe/foundation/contracts/queue/queue.ts";
-import {
-  limitsFrom,
-  type RegisteredQueue,
-  subjectsOf,
-} from "./declaration.ts";
+import type { BatchHandler, JobHandler, QueueOptions } from "@scribe/foundation/contracts/queue/queue.ts";
+import { limitsFrom, type RegisteredQueue, subjectsOf } from "./declaration.ts";
 import { type Queue, QueueProducer } from "./producer.ts";
 import { queueRegistry } from "./registry.ts";
 
+/** What declaring a queue takes. */
 export interface QueueDefinition {
   readonly name: string;
   readonly options?: QueueOptions;
   readonly dedicated?: boolean;
 }
 
+/**
+ * A declaration whose handler is called with a group.
+ *
+ * `lingerMs` is how long a partial group waits for company before it is handed over.
+ */
 export interface BatchQueueDefinition extends QueueDefinition {
   readonly batch: { readonly lingerMs?: number };
 }
 
+/**
+ * Declares a queue and its body in one call, and answers its producer.
+ *
+ * Declaration and handling stay in the same file on purpose: a queue whose body lives
+ * elsewhere is a queue nobody can read the meaning of from its name. The presence of
+ * `batch` picks the overload, and with it the shape of the handler.
+ *
+ * `batch` groups the **consumption**, never the production. A producer on a hot path still
+ * pays one round trip per push, and the way out of that is a message that carries several
+ * items, not this option.
+ */
 export function defineQueue<TJob>(
   definition: BatchQueueDefinition,
   handler: BatchHandler<TJob>,
 ): Queue<TJob>;
+/**
+ * Declares a queue whose body is called once per message, and answers its producer.
+ *
+ * Each message is acknowledged on its own, so one failure never makes its neighbours run
+ * again. See the batch form above for when a group is the better unit.
+ */
 export function defineQueue<TJob>(
   definition: QueueDefinition,
   handler: JobHandler<TJob>,

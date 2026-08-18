@@ -32,12 +32,29 @@
 
 import { QUEUE_DEFAULTS, type RegisteredQueue } from "../declaration.ts";
 
+/**
+ * What the streams and consumers must look like for the declared queues to work.
+ *
+ * The three streams are shared by every queue, so each number here is the most permissive a
+ * declaration asked for: a queue that wants less is not entitled to constrain its neighbours.
+ */
 export interface TopologyPlan {
   readonly maxPerSubject: number;
   readonly ackWaitMs: number;
+  /** How many times the server will deliver a message before it stops on its own. */
+  readonly maxDeliver: number;
   readonly dedicated: readonly string[];
 }
 
+/**
+ * Derives the plan the declared queues need.
+ *
+ * `maxDeliver` sits one above the longest retry policy on purpose. The server has to keep
+ * delivering for as long as {@link FailurePolicy} intends to retry, or it would stop first
+ * and the message would be dropped with nothing but an advisory to show for it — the dead
+ * letter would never be written. The extra delivery covers a replica that dies between
+ * receiving the last attempt and answering for it.
+ */
 export function planFor(queues: readonly RegisteredQueue[]): TopologyPlan {
   return {
     maxPerSubject: Math.max(
@@ -48,6 +65,10 @@ export function planFor(queues: readonly RegisteredQueue[]): TopologyPlan {
       QUEUE_DEFAULTS.processingTimeout.ms,
       ...queues.map((queue) => queue.processingTimeoutMs),
     ),
+    maxDeliver: Math.max(
+      QUEUE_DEFAULTS.maxRetries,
+      ...queues.map((queue) => queue.maxRetries),
+    ) + 1,
     dedicated: queues
       .filter((queue) => queue.dedicated)
       .map((queue) => queue.name)
@@ -55,6 +76,12 @@ export function planFor(queues: readonly RegisteredQueue[]): TopologyPlan {
   };
 }
 
+/** A stable string for a plan, so an unchanged one is not provisioned twice. */
 export function planSignature(plan: TopologyPlan): string {
-  return `${plan.maxPerSubject}/${plan.ackWaitMs}/${plan.dedicated.join(",")}`;
+  return [
+    plan.maxPerSubject,
+    plan.ackWaitMs,
+    plan.maxDeliver,
+    plan.dedicated.join(","),
+  ].join("/");
 }

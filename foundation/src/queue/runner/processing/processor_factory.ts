@@ -35,8 +35,7 @@ import { BatchProcessor } from "./batch_processor.ts";
 import { JobProcessor } from "./job_processor.ts";
 import type { MessageProcessor } from "./base_processor.ts";
 
+/** The processor a queue's mode calls for. */
 export function processorFor(queue: RegisteredQueue): MessageProcessor {
-  return queue.mode === "batch"
-    ? new BatchProcessor(queue)
-    : new JobProcessor(queue);
+  return queue.mode === "batch" ? new BatchProcessor(queue) : new JobProcessor(queue);
 }

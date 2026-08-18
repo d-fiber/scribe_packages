@@ -40,6 +40,12 @@ import { ensureTopology } from "./topology/ready.ts";
 import { topology } from "./topology/topology.ts";
 import { encode } from "./wire.ts";
 
+/**
+ * The producer side of a queue: what {@link defineQueue} answers to its declarer.
+ *
+ * Draining is deliberately absent. A pass over a queue belongs to the runner, and `core/`
+ * is not allowed to reach into `runner/`.
+ */
 export interface Queue<TJob> {
   readonly name: string;
   push(data: TJob, opts?: PushOptions): Promise<string>;
@@ -50,6 +56,7 @@ export interface Queue<TJob> {
   status(): Promise<QueueStatus>;
 }
 
+/** The only implementation of {@link Queue}. */
 export class QueueProducer<TJob> implements Queue<TJob> {
   readonly #queue: RegisteredQueue;
 
@@ -67,7 +74,6 @@ export class QueueProducer<TJob> implements Queue<TJob> {
         this.#queue.name,
         this.#queue.subject,
         data,
-        0,
         opts.delay.ms,
       );
     }
@@ -107,9 +113,6 @@ export class QueueProducer<TJob> implements Queue<TJob> {
   }
 
   #publish(data: TJob): Promise<string> {
-    return topology.publish(
-      this.#queue.subject,
-      encode({ data, attempts: 0 }),
-    );
+    return topology.publish(this.#queue.subject, encode({ data }));
   }
 }

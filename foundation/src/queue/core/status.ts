@@ -36,6 +36,7 @@ import { DEAD_STREAM, streamOf } from "./naming.ts";
 import { queueRegistry } from "./registry.ts";
 import { topology } from "./topology/topology.ts";
 
+/** What a queue is holding right now, across the three places a job can be waiting. */
 export interface QueueStatus {
   readonly name: string;
   readonly mode: QueueMode;
@@ -90,4 +91,5 @@ class QueueStatusReader {
   }
 }
 
+/** Reads the standing of one queue or of all of them. */
 export const queueStatus: QueueStatusReader = new QueueStatusReader();

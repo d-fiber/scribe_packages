@@ -43,14 +43,22 @@ function connection(): Promise<NatsConnection> {
   return _connection;
 }
 
+/**
+ * The one connection this process opens to NATS, made on first use.
+ *
+ * Connecting at import would make the URL mandatory to import anything that merely touches
+ * a queue, tests included. The three accessors share the same underlying connection.
+ */
 export function natsConnection(): Promise<NatsConnection> {
   return connection();
 }
 
+/** The JetStream client, for publishing and consuming. */
 export async function js(): Promise<JetStreamClient> {
   return jetstream(await connection());
 }
 
+/** The JetStream manager, for creating streams and consumers and for counting. */
 export async function jsm(): Promise<JetStreamManager> {
   return jetstreamManager(await connection());
 }

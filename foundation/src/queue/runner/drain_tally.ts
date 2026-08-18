@@ -32,8 +32,10 @@
 
 import type { DrainResult } from "@scribe/foundation/contracts/queue/queue.ts";
 
+/** What became of one message. */
 export type JobOutcome = "done" | "retried" | "dead";
 
+/** Counts the outcomes of a pass, so a drain can report what it did. */
 export class DrainTally {
   #done = 0;
   #retried = 0;

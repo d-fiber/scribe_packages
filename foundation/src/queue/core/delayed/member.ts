@@ -30,20 +30,34 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+/** The single sorted set every delayed job of every queue waits in. */
 export const DELAYED_KEY = "queue:delayed";
 
+/**
+ * A job waiting for its due date.
+ *
+ * Only an explicitly delayed push waits here. A retry does not: the server holds the message
+ * and redelivers it, so nothing about a failing job is written to Redis.
+ */
 export interface DelayedMember {
   readonly id: string;
   readonly queue: string;
   readonly subject: string;
   readonly data: unknown;
-  readonly attempts: number;
 }
 
+/** Serializes a member for the sorted set. */
 export function encodeMember(member: DelayedMember): string {
   return JSON.stringify(member);
 }
 
+/**
+ * Reads a member back, or `null` when nothing usable can be made of it.
+ *
+ * Returning `null` rather than throwing is what keeps one corrupt member from stopping every
+ * delayed job: the promoter drops what it cannot read instead of tripping over it on each
+ * pass. See `promoter.ts`.
+ */
 export function decodeMember(raw: string): DelayedMember | null {
   let parsed: Partial<DelayedMember>;
 
@@ -55,9 +69,7 @@ export function decodeMember(raw: string): DelayedMember | null {
 
   const readable = typeof parsed.id === "string" &&
     typeof parsed.queue === "string" &&
-    typeof parsed.subject === "string" &&
-    typeof parsed.attempts === "number" &&
-    Number.isFinite(parsed.attempts);
+    typeof parsed.subject === "string";
 
   return readable ? (parsed as DelayedMember) : null;
 }

@@ -33,6 +33,13 @@
 import type { RegisteredQueue } from "./declaration.ts";
 import { DEDICATED_STREAM, SHARED_STREAM } from "./naming.ts";
 
+/**
+ * The dispatch table: which declared queue a name, or an arriving subject, belongs to.
+ *
+ * Indexing by subject as well as by name is what lets the runner take a batch the shared
+ * consumer handed it — mixed, from any number of queues — and find each message's body
+ * without asking the server anything.
+ */
 export class QueueRegistry {
   readonly #byName = new Map<string, RegisteredQueue>();
   readonly #bySubject = new Map<string, RegisteredQueue>();
@@ -78,4 +85,5 @@ export class QueueRegistry {
   }
 }
 
+/** The registry every declaration writes into, one per process. */
 export const queueRegistry: QueueRegistry = new QueueRegistry();

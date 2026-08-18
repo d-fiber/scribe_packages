@@ -37,6 +37,12 @@ import type { JsMsg } from "@nats-io/jetstream";
 import type { DrainTally } from "../drain_tally.ts";
 import { BaseProcessor } from "./base_processor.ts";
 
+/**
+ * Calls the body once with the whole group, and acknowledges it whole.
+ *
+ * On failure each message goes through the policy **individually**, so every one keeps its
+ * own delivery count — but one poisonous message makes the whole group run again.
+ */
 export class BatchProcessor extends BaseProcessor {
   override async process(
     messages: readonly JsMsg[],
@@ -54,9 +60,7 @@ export class BatchProcessor extends BaseProcessor {
       tally.record("done", messages.length);
     } catch (error) {
       this.reportFailure(error, messages.length);
-      await runPooled(messages, this.queue.concurrency, (message) =>
-        this.fail(message, tally),
-      );
+      await runPooled(messages, this.queue.concurrency, (message) => this.fail(message, tally));
     }
   }
 }

@@ -47,6 +47,13 @@ function groupBySubject(
   return groups;
 }
 
+/**
+ * Hands a mixed batch to the right body, one group per subject.
+ *
+ * The shared consumer returns whatever was waiting, from any queue, so the batch has to be
+ * split before anything can run. The groups are handled in parallel: a pass then lasts as
+ * long as its slowest group rather than the sum of them.
+ */
 export class MessageDispatcher {
   async dispatch(
     messages: readonly JsMsg[],
@@ -55,9 +62,7 @@ export class MessageDispatcher {
     if (messages.length === 0) return;
 
     await Promise.all(
-      [...groupBySubject(messages)].map(([subject, group]) =>
-        this.#dispatchGroup(subject, group, tally)
-      ),
+      [...groupBySubject(messages)].map(([subject, group]) => this.#dispatchGroup(subject, group, tally)),
     );
   }
 

@@ -31,16 +31,23 @@
 // LICENSE file, the LICENSE file governs.
 
 import { kv } from "@scribe/core/runtime/redis/mod.ts";
-import { DELAYED_KEY, decodeMember } from "./member.ts";
+import { decodeMember, DELAYED_KEY } from "./member.ts";
 
 const SCAN_PAGE = 500;
 const SCAN_MAX = 50_000;
 
+/**
+ * How many delayed jobs each queue is holding, and whether the count is complete.
+ *
+ * `truncated` exists so the answer never lies by omission: a scan that hit its cap, or a
+ * Redis that did not answer, reports a lower bound rather than a confident zero.
+ */
 export interface DelayedCounts {
   readonly counts: Record<string, number>;
   readonly truncated: boolean;
 }
 
+/** Counts the delayed jobs per queue, up to the scan cap. */
 export async function delayedCounts(): Promise<DelayedCounts> {
   const counts: Record<string, number> = {};
   let scanned = 0;

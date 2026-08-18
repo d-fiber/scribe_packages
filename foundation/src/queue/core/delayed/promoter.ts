@@ -34,11 +34,17 @@ import { kv } from "@scribe/core/runtime/redis/mod.ts";
 import { runPooled } from "@scribe/core/runtime/support/async/pool.ts";
 import { topology } from "../topology/topology.ts";
 import { encode } from "../wire.ts";
-import { DELAYED_KEY, type DelayedMember, decodeMember } from "./member.ts";
+import { decodeMember, DELAYED_KEY, type DelayedMember } from "./member.ts";
 
 const PROMOTE_BATCH = 500;
 const PROMOTE_CONCURRENCY = 16;
 
+/**
+ * Publishes every delayed job whose due date has passed, and answers how many went out.
+ *
+ * The order is publish then remove, never the reverse: a crash between the two leaves a job
+ * duplicated rather than lost, which is the side the at-least-once contract already sits on.
+ */
 export async function promoteDue(): Promise<number> {
   const due = await dueMembers();
   if (due.length === 0) return 0;
@@ -89,10 +95,12 @@ async function promote(raw: string): Promise<boolean> {
   return true;
 }
 
+// The message id lets JetStream drop a duplicate on its own if two replicas promote the
+// same member inside the stream's duplicate window.
 function publish(member: DelayedMember): Promise<string> {
   return topology.publish(
     member.subject,
-    encode({ data: member.data, attempts: member.attempts }),
+    encode({ data: member.data }),
     `${member.queue}:${member.id}`,
   );
 }

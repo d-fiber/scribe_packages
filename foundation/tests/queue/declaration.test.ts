@@ -36,15 +36,9 @@ import {
   type RegisteredQueue,
   subjectsOf,
 } from "@scribe/foundation/src/queue/core/declaration.ts";
-import {
-  planFor,
-  planSignature,
-} from "@scribe/foundation/src/queue/core/topology/plan.ts";
+import { planFor, planSignature } from "@scribe/foundation/src/queue/core/topology/plan.ts";
 import { defineQueue } from "@scribe/foundation/src/queue/mod.ts";
-import {
-  graceFor,
-  IMMEDIATE_GRACE_MS,
-} from "@scribe/foundation/src/queue/runner/grace.ts";
+import { graceFor, IMMEDIATE_GRACE_MS } from "@scribe/foundation/src/queue/runner/grace.ts";
 import { Time } from "@scribe/core/contracts/common/time.ts";
 import { assertEquals, assertNotEquals } from "@std/assert";
 
@@ -118,6 +112,20 @@ Deno.test("planFor holds without a single queue declared", () => {
 
   assertEquals(plan.maxPerSubject, QUEUE_DEFAULTS.maxLen);
   assertEquals(plan.dedicated, []);
+});
+
+Deno.test("planFor lets the server deliver for as long as the policy retries", () => {
+  const plan = planFor([queue({ maxRetries: 20 }), queue({ maxRetries: 3 })]);
+
+  // The server has to outlast the longest retry policy. Stopping first would drop the
+  // message with nothing but an advisory, and the dead letter would never be written.
+  assertEquals(plan.maxDeliver > 20, true, `${plan.maxDeliver} must exceed 20`);
+});
+
+Deno.test("planFor never lets the server stop before the default policy is done", () => {
+  const plan = planFor([queue({ maxRetries: 1 })]);
+
+  assertEquals(plan.maxDeliver > QUEUE_DEFAULTS.maxRetries, true);
 });
 
 Deno.test("planFor lists the dedicated queues only", () => {

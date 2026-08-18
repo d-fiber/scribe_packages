@@ -37,10 +37,17 @@ import type { JsMsg } from "@nats-io/jetstream";
 import type { DrainTally } from "../drain_tally.ts";
 import { FailurePolicy } from "../failure_policy.ts";
 
+/** Runs a group of messages that all belong to the same queue. */
 export interface MessageProcessor {
   process(messages: readonly JsMsg[], tally: DrainTally): Promise<void>;
 }
 
+/**
+ * What both processing modes share: the deadline, the failure path and the reporting.
+ *
+ * The two subclasses differ only in how they call the body and when they acknowledge, which
+ * is the whole reason the split exists.
+ */
 export abstract class BaseProcessor implements MessageProcessor {
   protected readonly queue: RegisteredQueue;
   readonly #failures: FailurePolicy;

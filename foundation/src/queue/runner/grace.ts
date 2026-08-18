@@ -32,8 +32,15 @@
 
 import { queueRegistry } from "@scribe/foundation/src/queue/core/registry.ts";
 
+/**
+ * How long a queue that does not group waits for company.
+ *
+ * Just enough to pick up what lands in the same millisecond, and short enough that nobody
+ * notices it.
+ */
 export const IMMEDIATE_GRACE_MS = 25;
 
+/** The grace a subject is entitled to: its linger, or the immediate one. */
 export function graceFor(subject: string): number {
   return queueRegistry.bySubject(subject)?.lingerMs ?? IMMEDIATE_GRACE_MS;
 }

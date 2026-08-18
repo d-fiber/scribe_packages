@@ -30,24 +30,20 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type {
-  JobHandler,
-  QueueMessage,
-} from "@scribe/foundation/contracts/queue/queue.ts";
+import type { JobHandler, QueueMessage } from "@scribe/foundation/contracts/queue/queue.ts";
 import { decode } from "@scribe/foundation/src/queue/core/wire.ts";
 import { runPooled } from "@scribe/core/runtime/support/async/pool.ts";
 import type { JsMsg } from "@nats-io/jetstream";
 import type { DrainTally } from "../drain_tally.ts";
 import { BaseProcessor } from "./base_processor.ts";
 
+/** Calls the body once per message, with the queue's concurrency, and acks each on its own. */
 export class JobProcessor extends BaseProcessor {
   override process(
     messages: readonly JsMsg[],
     tally: DrainTally,
   ): Promise<void> {
-    return runPooled(messages, this.queue.concurrency, (message) =>
-      this.#processOne(message, tally),
-    );
+    return runPooled(messages, this.queue.concurrency, (message) => this.#processOne(message, tally));
   }
 
   async #processOne(message: JsMsg, tally: DrainTally): Promise<void> {
@@ -55,7 +51,7 @@ export class JobProcessor extends BaseProcessor {
     const envelope: QueueMessage<unknown> = {
       id: String(message.seq),
       data: wire.data,
-      attempts: wire.attempts,
+      attempts: message.info.deliveryCount,
     };
 
     try {

@@ -58,17 +58,23 @@ interface FakeMsg {
   readonly subject: string;
   readonly data: Uint8Array;
   readonly seq: number;
+  // How many times the server says it has handed this message out. It is where the attempt
+  // count comes from now, so a fake that leaves it out no longer stands for a real message.
+  readonly info: { deliveryCount: number };
   acked: boolean;
   termed: boolean;
+  naked: boolean;
 }
 
 function message(subject: string, data: unknown, seq = 1): FakeMsg {
   const msg: FakeMsg = {
     subject,
-    data: encoder.encode(JSON.stringify({ data, attempts: 0 })),
+    data: encoder.encode(JSON.stringify({ data })),
     seq,
+    info: { deliveryCount: 1 },
     acked: false,
     termed: false,
+    naked: false,
   };
   return Object.assign(msg, {
     ack: () => {
@@ -76,6 +82,9 @@ function message(subject: string, data: unknown, seq = 1): FakeMsg {
     },
     term: () => {
       msg.termed = true;
+    },
+    nak: () => {
+      msg.naked = true;
     },
   });
 }

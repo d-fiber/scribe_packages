@@ -31,19 +31,11 @@
 // LICENSE file, the LICENSE file governs.
 
 export { defineQueue } from "./core/define.ts";
-export type {
-  BatchQueueDefinition,
-  QueueDefinition,
-} from "./core/define.ts";
+export type { BatchQueueDefinition, QueueDefinition } from "./core/define.ts";
 export type { Queue } from "./core/producer.ts";
 export { queueRegistry } from "./core/registry.ts";
 export { QUEUE_DEFAULTS } from "./core/declaration.ts";
-export type {
-  QueueDefaults,
-  QueueLimits,
-  QueueMode,
-  RegisteredQueue,
-} from "./core/declaration.ts";
+export type { QueueDefaults, QueueLimits, QueueMode, RegisteredQueue } from "./core/declaration.ts";
 export { queueStatus } from "./core/status.ts";
 export type { QueueStatus } from "./core/status.ts";
 export type {

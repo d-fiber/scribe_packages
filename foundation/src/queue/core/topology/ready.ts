@@ -34,6 +34,7 @@ import { queueRegistry } from "../registry.ts";
 import { planFor } from "./plan.ts";
 import { topology } from "./topology.ts";
 
+/** Provisions what the queues declared so far need, once per plan and per process. */
 export function ensureTopology(): Promise<void> {
   return topology.ensure(planFor(queueRegistry.list()));
 }

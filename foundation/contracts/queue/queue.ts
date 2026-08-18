@@ -32,36 +32,70 @@
 
 import type { Time } from "@scribe/core/contracts/common/time.ts";
 
+/**
+ * What a declaration can tune about a queue.
+ *
+ * Every field is optional, and what is left out is filled from the package defaults. The
+ * numbers are shared by every queue on a stream, so what is asked for here is a floor and
+ * not a ceiling: the topology takes the most permissive of the declarations.
+ */
 export interface QueueOptions {
+  /** Deliveries after which a job goes to the dead letter. */
   readonly maxRetries?: number;
+  /** How many messages one subject holds before the oldest are dropped. */
   readonly maxLen?: number;
+  /** How many messages of this queue are handled at once inside a pass. */
   readonly concurrency?: number;
+  /** The first retry delay; each further attempt doubles it. */
   readonly retryBackoff?: Time;
+  /** The ceiling the doubling stops at. */
   readonly retryBackoffMax?: Time;
+  /** How long a handler is given before it is treated as failed. */
   readonly processingTimeout?: Time;
 }
 
+/** What a single push can decide for itself. */
 export interface PushOptions {
+  /** How long the job waits before it becomes available. */
   readonly delay?: Time;
 }
 
+/** A message as its handler sees it. */
 export interface QueueMessage<T> {
   readonly id: string;
   readonly data: T;
+  /**
+   * How many times this message has been delivered, starting at one.
+   *
+   * It is the server's count, not the payload's, so it cannot drift from what happened.
+   */
   readonly attempts: number;
 }
 
+/**
+ * A body called once per message.
+ *
+ * It must be idempotent. Delivery is at-least-once, so a replica that dies between handling
+ * a message and acknowledging it will see that message again.
+ */
 export type JobHandler<T> = (
   data: T,
   message: QueueMessage<T>,
 ) => Promise<void>;
 
+/**
+ * A body called once with a group of payloads.
+ *
+ * The group succeeds or fails whole. On failure each message is retried on its own count,
+ * but the group runs again in full.
+ */
 export type BatchHandler<T> = (items: readonly T[]) => Promise<void>;
 
+/** What one pass over the queues did. */
 export interface DrainResult {
   readonly done: number;
   readonly retried: number;
   readonly dead: number;
+  /** Delayed jobs whose due date had passed and that were published by this pass. */
   readonly promoted: number;
 }
-

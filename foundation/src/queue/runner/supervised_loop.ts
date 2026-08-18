@@ -37,9 +37,17 @@ const RESTART_DELAY_MS = 5_000;
 const PASS_BACKOFF_MS = 1_000;
 const PASS_BACKOFF_MAX_MS = 30_000;
 
+/** One turn of a loop. */
 export type Pass = () => Promise<void>;
+/** What runs once before the first turn. */
 export type Prepare = () => Promise<void>;
 
+/**
+ * Runs a pass over and over, backs off when it fails, and restarts when it dies.
+ *
+ * A queue loop that stops on an error stops for good and nothing says so, which is why the
+ * supervision is here rather than in each caller.
+ */
 export class SupervisedLoop {
   readonly #label: string;
   readonly #pass: Pass;

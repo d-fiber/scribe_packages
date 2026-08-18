@@ -33,6 +33,11 @@
 import { js } from "@scribe/foundation/src/queue/nats.ts";
 import type { Consumer } from "@nats-io/jetstream";
 
+/**
+ * Keeps the resolved consumers of this process, so a fetch does not re-resolve one.
+ *
+ * Resolving asks the server, and a runner loop would pay that on every pass.
+ */
 export class ConsumerCache {
   readonly #resolved = new Map<string, Consumer>();
 

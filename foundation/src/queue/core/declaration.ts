@@ -31,11 +31,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Time } from "@scribe/core/contracts/common/time.ts";
-import type {
-  BatchHandler,
-  JobHandler,
-  QueueOptions,
-} from "@scribe/foundation/contracts/queue/queue.ts";
+import type { BatchHandler, JobHandler, QueueOptions } from "@scribe/foundation/contracts/queue/queue.ts";
 import { deadSubjectOf, subjectOf } from "./naming.ts";
 
 /** The options a queue gets when its declaration leaves them out. */
@@ -48,6 +44,7 @@ export interface QueueDefaults {
   readonly processingTimeout: Time;
 }
 
+/** The values a declaration inherits when it leaves an option out. */
 export const QUEUE_DEFAULTS: QueueDefaults = {
   maxRetries: 5,
   maxLen: 100_000,
@@ -57,8 +54,15 @@ export const QUEUE_DEFAULTS: QueueDefaults = {
   processingTimeout: Time.minutes(10),
 };
 
+/**
+ * Whether a handler is called per message or per group.
+ *
+ * The mode decides the acknowledgement too: a job answers for itself, a batch succeeds or
+ * fails whole.
+ */
 export type QueueMode = "immediate" | "batch";
 
+/** The declaration's numbers, resolved and in milliseconds. */
 export interface QueueLimits {
   readonly maxRetries: number;
   readonly maxLen: number;
@@ -68,11 +72,13 @@ export interface QueueLimits {
   readonly processingTimeoutMs: number;
 }
 
+/** The two subjects a queue writes to. */
 export interface QueueSubjects {
   readonly subject: string;
   readonly deadSubject: string;
 }
 
+/** Everything the runner needs about a queue, from its name to its body. */
 export interface RegisteredQueue extends QueueLimits, QueueSubjects {
   readonly name: string;
   readonly mode: QueueMode;
@@ -81,6 +87,7 @@ export interface RegisteredQueue extends QueueLimits, QueueSubjects {
   readonly handler: JobHandler<unknown> | BatchHandler<unknown>;
 }
 
+/** Derives both subjects of a queue from its name. */
 export function subjectsOf(name: string, dedicated: boolean): QueueSubjects {
   return {
     subject: subjectOf(name, dedicated),
@@ -88,6 +95,12 @@ export function subjectsOf(name: string, dedicated: boolean): QueueSubjects {
   };
 }
 
+/**
+ * Fills a declaration's gaps with the defaults, in milliseconds.
+ *
+ * Concurrency is floored at one: a limit of zero would give a pool no workers and the
+ * messages would never be handled, silently.
+ */
 export function limitsFrom(options: QueueOptions = {}): QueueLimits {
   return {
     maxRetries: options.maxRetries ?? QUEUE_DEFAULTS.maxRetries,

@@ -31,13 +31,24 @@
 // LICENSE file, the LICENSE file governs.
 
 import { ExponentialBackoff } from "@scribe/core/runtime/support/async/backoff.ts";
-import { pushDelayed } from "@scribe/foundation/src/queue/core/delayed/schedule.ts";
 import type { RegisteredQueue } from "@scribe/foundation/src/queue/core/declaration.ts";
-import { type WireMessage, encode } from "@scribe/foundation/src/queue/core/wire.ts";
+import { encode, type WireMessage } from "@scribe/foundation/src/queue/core/wire.ts";
 import { topology } from "@scribe/foundation/src/queue/core/topology/topology.ts";
 import type { JsMsg } from "@nats-io/jetstream";
 import type { JobOutcome } from "./drain_tally.ts";
 
+/**
+ * What becomes of a message whose handler threw.
+ *
+ * Retrying is the server's own mechanism: the message is negatively acknowledged with the
+ * delay it should come back after, and JetStream holds it in the meantime. Nothing about a
+ * failing job is written anywhere else, which is what makes a retry cost one local call
+ * rather than a term, two Redis commands, a re-encode and a republish.
+ *
+ * The attempt count is read from the message rather than carried in it. The server counts
+ * deliveries, so the number cannot drift from what actually happened, and a payload that
+ * loses a round trip no longer loses its history with it.
+ */
 export class FailurePolicy {
   readonly #queue: RegisteredQueue;
   readonly #backoff: ExponentialBackoff;
@@ -50,29 +61,26 @@ export class FailurePolicy {
     );
   }
 
+  /**
+   * Sends a failed message back for another attempt, or to the dead letter.
+   *
+   * @param message - The message being given up on for now.
+   * @param wire - Its decoded payload, needed only on the dead-letter path.
+   */
   async apply(
     message: JsMsg,
     wire: WireMessage<unknown>,
   ): Promise<Exclude<JobOutcome, "done">> {
-    const attempts = wire.attempts + 1;
+    // `deliveryCount` is one on a first delivery, so it counts attempts directly.
+    const attempts = message.info.deliveryCount;
 
     if (attempts >= this.#queue.maxRetries) {
-      await topology.publish(
-        this.#queue.deadSubject,
-        encode({ data: wire.data, attempts }),
-      );
+      await topology.publish(this.#queue.deadSubject, encode({ data: wire.data }));
       message.term();
       return "dead";
     }
 
-    await pushDelayed(
-      this.#queue.name,
-      this.#queue.subject,
-      wire.data,
-      attempts,
-      this.#backoff.delayFor(attempts),
-    );
-    message.term();
+    message.nak(this.#backoff.delayFor(attempts));
     return "retried";
   }
 }

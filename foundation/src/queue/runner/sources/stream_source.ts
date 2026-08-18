@@ -30,7 +30,12 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { DEDICATED_STREAM, SHARED_CONSUMER, SHARED_STREAM, sanitize } from "@scribe/foundation/src/queue/core/naming.ts";
+import {
+  DEDICATED_STREAM,
+  sanitize,
+  SHARED_CONSUMER,
+  SHARED_STREAM,
+} from "@scribe/foundation/src/queue/core/naming.ts";
 import { topology } from "@scribe/foundation/src/queue/core/topology/topology.ts";
 import type { RegisteredQueue } from "@scribe/foundation/src/queue/core/declaration.ts";
 import type { JsMsg } from "@nats-io/jetstream";
@@ -38,6 +43,13 @@ import { graceFor } from "../grace.ts";
 
 const FETCH_EXPIRES_MS = 5_000;
 
+/**
+ * Where one loop reads from: the shared consumer, or a queue's own.
+ *
+ * Only the shared source promotes the delayed set, because promoting is a process-wide job
+ * and every dedicated loop doing it too would multiply the Redis traffic by the number of
+ * isolated queues.
+ */
 export class StreamSource {
   readonly label: string;
   readonly promotesDelayed: boolean;

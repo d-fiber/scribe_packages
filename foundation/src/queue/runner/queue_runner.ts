@@ -41,6 +41,12 @@ import { SupervisedLoop } from "./supervised_loop.ts";
 
 const FETCH_COUNT = 100;
 
+/**
+ * The loops that drain the queues, and the passes an operator can ask for by hand.
+ *
+ * Each loop carries a generation, so a `stop()` followed by a `start()` does not end up with
+ * two of them: an old loop parked in a fetch would otherwise wake up beside the new one.
+ */
 export class QueueRunner {
   readonly #dispatcher = new MessageDispatcher();
   #running = false;
@@ -57,6 +63,13 @@ export class QueueRunner {
     return tally.toResult();
   }
 
+  /**
+   * Runs one pass aimed at a queue, and answers what it did.
+   *
+   * On a shared queue the aim is approximate and the runner says so: the consumer is shared,
+   * there is no filtered fetch, so the pass takes whatever was waiting across every shared
+   * queue. Only a queue that asked for isolation gets a pass that is really its own.
+   */
   async runOne(name: string, count = FETCH_COUNT): Promise<DrainResult | null> {
     const queue = queueRegistry.get(name);
     if (!queue) return null;
@@ -122,4 +135,5 @@ export class QueueRunner {
   }
 }
 
+/** The runner of this process, started once by its bootstrapper. */
 export const queueRunner: QueueRunner = new QueueRunner();

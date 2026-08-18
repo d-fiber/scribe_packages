@@ -34,7 +34,7 @@ import { js, jsm } from "@scribe/foundation/src/queue/nats.ts";
 import type { JsMsg } from "@nats-io/jetstream";
 import { ConsumerCache } from "./consumer_cache.ts";
 import { type GraceResolver, lingerFetch } from "./linger_fetch.ts";
-import { type TopologyPlan, planSignature } from "./plan.ts";
+import { planSignature, type TopologyPlan } from "./plan.ts";
 import { TopologyProvisioner } from "./provisioner.ts";
 
 class Topology {
@@ -42,6 +42,14 @@ class Topology {
   #applied: string | null = null;
   #ready: Promise<void> | null = null;
 
+  /**
+   * Applies a plan, and remembers it so an unchanged one costs nothing.
+   *
+   * Two mistakes are avoided here, and both were paid for. Memoizing without looking at the
+   * plan freezes the first caller's for the life of the process, so a queue declared later
+   * never gets its consumer. And memoizing a failure condemns the process: a NATS outage at
+   * start-up would leave a rejected promise in the slot and every later push would await it.
+   */
   ensure(plan: TopologyPlan): Promise<void> {
     const signature = planSignature(plan);
     if (this.#ready !== null && this.#applied === signature) return this.#ready;
@@ -81,6 +89,12 @@ class Topology {
     return lingerFetch(consumer, count, expiresMs, graceFor);
   }
 
+  /**
+   * How many messages are waiting on a subject, or zero when the server did not answer.
+   *
+   * The failure is logged before the zero is returned. A status screen that reports an empty
+   * queue during a NATS outage is the more misleading of the two possible lies.
+   */
   async countBySubject(stream: string, subject: string): Promise<number> {
     try {
       const manager = await jsm();
@@ -102,4 +116,5 @@ class Topology {
   }
 }
 
+/** The NATS side of the queue: provisioning, publishing, fetching and counting. */
 export const topology: Topology = new Topology();

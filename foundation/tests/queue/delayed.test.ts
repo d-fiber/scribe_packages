@@ -49,7 +49,6 @@ function member(over: Partial<DelayedMember> = {}): string {
     queue: "emails",
     subject: "q.emails",
     data: { to: "a@b.c" },
-    attempts: 0,
     ...over,
   });
 }
@@ -92,22 +91,14 @@ async function promote(scenario: Promotion) {
 
 Deno.test("decodeMember round-trips what encodeMember wrote", () => {
   assertEquals(decodeMember(member())?.queue, "emails");
-  assertEquals(decodeMember(member({ attempts: 3 }))?.attempts, 3);
+  assertEquals(decodeMember(member())?.data, { to: "a@b.c" });
 });
 
 Deno.test("decodeMember rejects a member no promotion could ever use", () => {
   assertEquals(decodeMember("not json at all"), null);
   assertEquals(decodeMember(JSON.stringify({ queue: "emails" })), null);
-  assertEquals(
-    decodeMember(JSON.stringify({ id: "m", queue: "e", subject: "q.e" })),
-    null,
-  );
-  assertEquals(
-    decodeMember(
-      JSON.stringify({ id: "m", queue: "e", subject: "q.e", attempts: "many" }),
-    ),
-    null,
-  );
+  assertEquals(decodeMember(JSON.stringify({ id: "m", queue: "e" })), null);
+  assertEquals(decodeMember(JSON.stringify({ id: "m", subject: "q.e" })), null);
 });
 
 Deno.test("promoteDue publishes a due job then forgets it", async () => {

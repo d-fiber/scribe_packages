@@ -30,23 +30,43 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+/**
+ * The stream every queue that did not ask for isolation is published to.
+ *
+ * Three fixed streams carry any number of queues, which is what keeps the cost of the
+ * infrastructure independent of how many are declared: a stream per queue would mean two
+ * streams, a consumer and a loop each, and thousands of round trips at start-up.
+ */
 export const SHARED_STREAM = "QUEUE";
+/**
+ * The stream a queue that asked for isolation is published to.
+ *
+ * It is a second stream rather than a filtered consumer on the first because JetStream
+ * refuses two consumers whose filters overlap on a work-queue stream, and `q.>` overlaps
+ * every subject under it.
+ */
 export const DEDICATED_STREAM = "QUEUE_DEDICATED";
+/** Where a job that exhausted its retries is kept until somebody looks at it. */
 export const DEAD_STREAM = "QUEUE_DEAD";
+/** The single consumer every shared queue is drained through. */
 export const SHARED_CONSUMER = "workers";
 
+/** Reduces a queue name to what NATS accepts in a subject token. */
 export function sanitize(name: string): string {
   return name.replace(/[^A-Za-z0-9_-]+/g, "_");
 }
 
+/** The subject a queue publishes to. */
 export function subjectOf(name: string, dedicated: boolean): string {
   return `${dedicated ? "qd" : "q"}.${sanitize(name)}`;
 }
 
+/** The subject a queue's dead letters are kept under. */
 export function deadSubjectOf(name: string): string {
   return `dead.${sanitize(name)}`;
 }
 
+/** The stream a queue lives in, which its isolation decides. */
 export function streamOf(dedicated: boolean): string {
   return dedicated ? DEDICATED_STREAM : SHARED_STREAM;
 }
