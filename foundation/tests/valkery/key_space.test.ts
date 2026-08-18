@@ -1,0 +1,84 @@
+// Copyright (C) 2026 Fiber
+//
+// This file is part of scribe and is made available under the PolyForm Shield
+// License 1.0.0. The full terms are in the LICENSE file at the root of this
+// repository, and at https://polyformproject.org/licenses/shield/1.0.0
+//
+// What you may do:
+// - Use this software for any purpose, including commercially, and build and
+//   sell your own products on top of it.
+// - Change it, and create new works based on it.
+// - Distribute copies of it, with or without your changes.
+//
+// The one thing you may not do:
+// - Use it to provide any product that competes with scribe, or with any
+//   product Fiber or its affiliates provide using scribe. Products compete
+//   even when they are offered free of charge, through a different kind of
+//   interface, or for a different technical platform.
+//
+// If you pass this software on:
+// - Anyone who receives any part of it from you must also receive these terms,
+//   or the URL above, together with the "Required Notice" line carried by the
+//   LICENSE file.
+//
+// Disclaimer:
+// AS FAR AS THE LAW ALLOWS, THIS SOFTWARE COMES AS IS, WITHOUT ANY WARRANTY OR
+// CONDITION, AND THE LICENSOR WILL NOT BE LIABLE TO YOU FOR ANY DAMAGES ARISING
+// OUT OF THESE TERMS OR THE USE OR NATURE OF THE SOFTWARE, UNDER ANY KIND OF
+// LEGAL CLAIM.
+//
+// This header is a summary written for convenience. Where it differs from the
+// LICENSE file, the LICENSE file governs.
+
+import { withJitter } from "@scribe/foundation/src/valkery/entry_ttl.ts";
+import { KeySpace } from "@scribe/foundation/src/valkery/key_space.ts";
+import { Time } from "@scribe/core/contracts/common/time.ts";
+import { assert, assertEquals } from "@std/assert";
+
+const keys = new KeySpace("auth:device");
+
+Deno.test("KeySpace namespaces an id under its prefix", () => {
+  assertEquals(keys.keyOf("42"), "auth:device:42");
+});
+
+Deno.test("KeySpace derives a distinct lock key", () => {
+  assertEquals(keys.lockKeyOf("42"), "lock:auth:device:42");
+  assert(keys.lockKeyOf("42") !== keys.keyOf("42"));
+});
+
+Deno.test("KeySpace without a pattern matches the whole namespace", () => {
+  assertEquals(keys.matching(), "auth:device:*");
+});
+
+Deno.test("KeySpace takes a glob, not a prefix", () => {
+  assertEquals(keys.matching("u1:*"), "auth:device:u1:*");
+  assertEquals(keys.matching("u1"), "auth:device:u1");
+});
+
+Deno.test("withJitter never returns less than the ttl", () => {
+  const ttl = Time.seconds(100);
+
+  for (let i = 0; i < 200; i++) {
+    assert(withJitter(ttl) >= ttl.value);
+  }
+});
+
+Deno.test("withJitter stays within a tenth above the ttl", () => {
+  const ttl = Time.seconds(100);
+  const ceiling = ttl.value + Math.ceil(ttl.value * 0.1);
+
+  for (let i = 0; i < 200; i++) {
+    assert(withJitter(ttl) < ceiling);
+  }
+});
+
+Deno.test("withJitter leaves a ttl too small to spread untouched", () => {
+  assertEquals(withJitter(Time.seconds(0)), 0);
+});
+
+Deno.test("withJitter actually spreads across calls", () => {
+  const ttl = Time.seconds(1000);
+  const seen = new Set(Array.from({ length: 100 }, () => withJitter(ttl)));
+
+  assert(seen.size > 1, "jitter produced a single value");
+});

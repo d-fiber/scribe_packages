@@ -1,0 +1,19 @@
+{
+  "name": "@scribe/foundation",
+  "exports": {
+    "./contracts/hook": "./contracts/hook/hook.ts",
+    "./contracts/queue": "./contracts/queue/queue.ts",
+    "./cron": "./src/cron/mod.ts",
+    "./database": "./src/database/database.ts",
+    "./database/rows": "./src/database/gen/rows.ts",
+    "./database/tables": "./src/database/gen/tables.ts",
+    "./hook": "./src/hook/mod.ts",
+    "./queue": "./src/queue/mod.ts",
+    "./valkery": "./src/valkery/mod.ts"
+  },
+  "publish": {
+    "exclude": [
+      "tests"
+    ]
+  }
+}

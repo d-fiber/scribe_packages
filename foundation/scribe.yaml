@@ -5,13 +5,13 @@ optional: false
 requires: []
 
 ops:
-  services: []
+  services: [redis, nats, rest]
   profile: null
   gateway: []
-  env: []
+  env: [REDIS_PASSWORD, NATS_PASSWORD, JWT_SECRET, POSTGRES_PASSWORD]
 
 sql: null
-protocol: null
-export: ./foundation
+protocol: protocol
+export: "@scribe/foundation"
 
 routes: []
