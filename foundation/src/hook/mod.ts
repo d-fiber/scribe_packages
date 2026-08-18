@@ -32,8 +32,5 @@
 
 export { defineHook } from "./core/define.ts";
 export { Hook, type HookDefinition } from "./core/hook.ts";
-export type {
-  BackgroundHookHandler,
-  HookHandler,
-} from "../../contracts/hook/hook.ts";
+export type { BackgroundHookHandler, HookHandler } from "../../contracts/hook/hook.ts";
 export { hookRegistry, type RegisteredHook } from "./core/registry.ts";

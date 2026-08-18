@@ -168,3 +168,45 @@ Deno.test("handlers() counts both inline AND background subscribers", () => {
   hook.background(() => {});
   assertEquals(hook.handlers(), 2);
 });
+
+Deno.test("a hook nobody listens to answers without doing any work", () => {
+  const hook = defineHook<string, string>({
+    name: "test.unhandled",
+    fallback: "no-op",
+  });
+
+  // The same promise instance every time is what says the emission allocated nothing. A
+  // framework declares far more extension points than a project uses, and they are emitted
+  // on the hot paths.
+  assertStrictEquals(hook.run("a"), hook.run("b"));
+});
+
+Deno.test("a hook stops answering from the fast path once someone subscribes", async () => {
+  const hook = defineHook<string, string>({
+    name: "test.becomes-handled",
+    fallback: "no-op",
+  });
+  const before = hook.run("a");
+
+  hook.on(() => "handled");
+
+  assertStrictEquals(before === hook.run("b"), false);
+  assertEquals(await hook.run("c"), "handled");
+});
+
+Deno.test("a synchronous chain is not made to wait on itself", async () => {
+  const hook = defineHook<string, string>({ name: "test.sync", fallback: "none" });
+  const order: string[] = [];
+
+  hook.on((p) => {
+    order.push(`first:${p}`);
+    return "first";
+  });
+  hook.on((p) => {
+    order.push(`second:${p}`);
+    return "second";
+  });
+
+  assertEquals(await hook.run("x"), "second");
+  assertEquals(order, ["first:x", "second:x"]);
+});

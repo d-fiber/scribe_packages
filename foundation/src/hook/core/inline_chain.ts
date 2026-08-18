@@ -33,8 +33,16 @@
 import type { HookHandler } from "../../../contracts/hook/hook.ts";
 import { isRefusal } from "./refusal.ts";
 
+/** Past this, a chain is slow enough that somebody should be told. */
 const SLOW_CHAIN_MS = 1_000;
 
+/**
+ * The subscribers that run inside the request, in the order they subscribed.
+ *
+ * The chain stops at the first refusal, the way an early `return` would, and an exception
+ * propagates to the emitter after being logged — a handler that throws is a bug in the
+ * project, and hiding it behind the fallback would make it invisible.
+ */
 export class InlineChain<T, R> {
   readonly #hookName: string;
   readonly #fallback: R;
@@ -45,16 +53,23 @@ export class InlineChain<T, R> {
     this.#fallback = fallback;
   }
 
+  /** How many handlers are subscribed. */
   get size(): number {
     return this.#handlers.length;
   }
 
+  /** Subscribes a handler, and answers it back so the caller can keep a reference. */
   add(handler: HookHandler<T, R>): HookHandler<T, R> {
     this.#handlers.push(handler);
     return handler;
   }
 
+  /** Runs the chain and answers the last decision, or the fallback if there was none. */
   async run(payload: T): Promise<R> {
+    // Reading the clock is only worth it when there is something to time. A hook with no
+    // handler never reaches here, but one whose only subscriber is a background handler does.
+    if (this.#handlers.length === 0) return this.#fallback;
+
     const startedAt = Date.now();
     const outcome = await this.#chain(payload);
     this.#warnIfSlow(startedAt);
@@ -66,7 +81,11 @@ export class InlineChain<T, R> {
 
     for (const handler of this.#handlers) {
       try {
-        last = await handler(payload);
+        // A handler is allowed to be synchronous, and awaiting a plain value still costs a
+        // turn of the microtask queue. On a chain of synchronous subscribers that is the
+        // whole cost of running it.
+        const answered = handler(payload);
+        last = isThenable(answered) ? await answered : answered;
       } catch (error) {
         console.error(`[hook:${this.#hookName}] handler failed`, error);
         throw error;
@@ -77,6 +96,8 @@ export class InlineChain<T, R> {
     return last;
   }
 
+  // A warning rather than a limit: on a framework whose handlers are written by whoever uses
+  // it, this is the difference between diagnosing in five minutes and in five hours.
   #warnIfSlow(startedAt: number): void {
     const elapsed = Date.now() - startedAt;
     if (elapsed < SLOW_CHAIN_MS) return;
@@ -85,4 +106,8 @@ export class InlineChain<T, R> {
       `[hook:${this.#hookName}] ${this.#handlers.length} inline handler(s) took ${elapsed}ms`,
     );
   }
+}
+
+function isThenable<R>(value: R | Promise<R>): value is Promise<R> {
+  return typeof (value as Promise<R>)?.then === "function";
 }

@@ -32,9 +32,20 @@
 
 import { Hook, type HookDefinition } from "./hook.ts";
 
+/**
+ * Declares an extension point whose subscribers are side effects.
+ *
+ * There is no fallback to write because there is no decision to answer: `R` is `void`.
+ */
 export function defineHook<T>(definition: {
   readonly name: string;
 }): Hook<T, void>;
+/**
+ * Declares an extension point whose subscribers answer a decision.
+ *
+ * The fallback is **required** on this form, so what happens when the project wires nothing
+ * is always written down rather than inferred from the shape of `R`.
+ */
 export function defineHook<T, R>(definition: HookDefinition<T, R>): Hook<T, R>;
 export function defineHook<T, R>(definition: {
   readonly name: string;

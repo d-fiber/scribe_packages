@@ -30,6 +30,17 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+/**
+ * A subscriber that runs inside the request and answers a decision.
+ *
+ * It may be synchronous: the engine only awaits what is actually a promise.
+ */
 export type HookHandler<T, R = void> = (payload: T) => Promise<R> | R;
 
+/**
+ * A subscriber that runs later, out of any request.
+ *
+ * The payload must be JSON-serializable, since it goes through a queue, and it must carry
+ * everything the handler needs — there is no request context on the other side.
+ */
 export type BackgroundHookHandler<T> = (payload: T) => Promise<void> | void;

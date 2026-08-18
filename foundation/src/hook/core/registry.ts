@@ -30,12 +30,24 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+/**
+ * A hook as the registry holds it.
+ *
+ * The interface exists for one caller: a worker emits by **name**, so it needs to reach a
+ * hook it cannot import.
+ */
 export interface RegisteredHook {
   readonly name: string;
   handlers(): number;
   run(payload: never): Promise<unknown>;
 }
 
+/**
+ * Every declared hook of this process, indexed by name.
+ *
+ * Registration is a consequence of the module graph — importing the file that declares a
+ * hook declares it — so there is no initialization to call and nothing that can forget to.
+ */
 export class HookRegistry {
   readonly #hooks = new Map<string, RegisteredHook>();
 
@@ -68,4 +80,5 @@ export class HookRegistry {
   }
 }
 
+/** The registry every declaration writes into. */
 export const hookRegistry: HookRegistry = new HookRegistry();

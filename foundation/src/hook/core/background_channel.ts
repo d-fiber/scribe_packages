@@ -30,12 +30,15 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import {
-  defineQueue,
-  type Queue,
-} from "@scribe/foundation/src/queue/mod.ts";
+import { defineQueue, type Queue } from "@scribe/foundation/src/queue/mod.ts";
 import type { BackgroundHookHandler } from "../../../contracts/hook/hook.ts";
 
+/**
+ * The subscribers that run later, on a queue declared the first time one subscribes.
+ *
+ * A hook nobody subscribed to this way never declares a queue, so the ten extension points
+ * the framework ships cost nothing to a project that ignores them.
+ */
 export class BackgroundChannel<T> {
   readonly #hookName: string;
   readonly #handlers: BackgroundHookHandler<T>[] = [];
@@ -45,14 +48,17 @@ export class BackgroundChannel<T> {
     this.#hookName = hookName;
   }
 
+  /** How many handlers are subscribed. */
   get size(): number {
     return this.#handlers.length;
   }
 
+  /** Whether a queue has been declared for this hook. */
   get armed(): boolean {
     return this.#queue !== null;
   }
 
+  /** Subscribes a handler, declaring the queue on the first one. */
   add(handler: BackgroundHookHandler<T>): BackgroundHookHandler<T> {
     this.#handlers.push(handler);
     this.#queue ??= defineQueue<T>(
@@ -64,6 +70,13 @@ export class BackgroundChannel<T> {
     return handler;
   }
 
+  /**
+   * Hands the payload to the queue, and swallows a failure to do so.
+   *
+   * This is the one place in the engine where work can be lost, hence the log. Failing the
+   * operation because a deferred side effect could not be queued would be worse: the
+   * operation itself succeeded, and the caller has nothing to do with NATS being down.
+   */
   async enqueue(payload: T): Promise<void> {
     if (this.#queue === null) return;
 

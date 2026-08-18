@@ -34,6 +34,12 @@ interface Decision {
   readonly ok: boolean;
 }
 
+/**
+ * Whether a handler's answer is a refusal, which stops the chain.
+ *
+ * The test is `ok === false` and nothing else. The engine has no business knowing what a
+ * decision means, only the shape the repository gives every result.
+ */
 export function isRefusal(value: unknown): boolean {
   return (
     typeof value === "object" &&
