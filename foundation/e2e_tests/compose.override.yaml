@@ -1,0 +1,48 @@
+name: scribe-foundation-e2e
+
+services:
+  db:
+    container_name: "scribe-e2e-db"
+    ports: ["55432:5432"]
+    command:
+      [
+        "postgres",
+        "-c",
+        "config_file=/etc/postgresql/postgresql.conf",
+        "-c",
+        "log_min_messages=fatal",
+        "-c",
+        "max_connections=100",
+        "-c",
+        "shared_buffers=256MB",
+        "-c",
+        "effective_cache_size=1GB",
+      ]
+
+  rest:
+    container_name: "scribe-e2e-rest"
+    ports: ["53000:3000"]
+
+  db-migrate:
+    container_name: "scribe-e2e-db-migrate"
+
+  redis:
+    container_name: "scribe-e2e-redis"
+    ports: ["56379:6379"]
+
+  nats:
+    container_name: "scribe-e2e-nats"
+    ports: ["54222:4222", "58222:8222"]
+    command:
+      [
+        "-js",
+        "-sd",
+        "/data",
+        "-m",
+        "8222",
+        "--auth",
+        "${NATS_PASSWORD}",
+      ]
+
+volumes:
+  db-config: null

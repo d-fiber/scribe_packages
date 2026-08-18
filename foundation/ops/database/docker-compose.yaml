@@ -38,7 +38,7 @@ services:
       - "{{sdk_root}}/host/core/db/provisioning/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:Z"
       - "{{sdk_root}}/host/packages/foundation/db/init:/docker-entrypoint-init-sql/foundation:ro"
       - "{{sdk_root}}/host/core/db/init:/docker-entrypoint-init-sql/framework:ro"
-      - "./lib/db/init:/docker-entrypoint-init-sql/project:ro"
+      - "${PROJECT_DB_INIT:-./lib/db/init}:/docker-entrypoint-init-sql/project:ro"
       - "{{sdk_root}}/host/packages/foundation/ops/database/run-init-scripts.sh:/docker-entrypoint-initdb.d/zz-run-init-scripts.sh:Z"
       - "{{sdk_root}}/postgres:/var/lib/postgresql/data:Z"
       - "db-config:/etc/postgresql-custom"
@@ -108,7 +108,7 @@ services:
       DATABASE_URL: "postgres://postgres:${POSTGRES_PASSWORD}@db:5432/postgres?sslmode=disable"
     volumes:
       - "{{sdk_root}}/host/core/db/migrations:/db/migrations/default:ro"
-      - "./lib/db/migrations:/db/migrations/project:ro"
+      - "${PROJECT_DB_MIGRATIONS:-./lib/db/migrations}:/db/migrations/project:ro"
       - "{{sdk_root}}/host/packages/foundation/ops/database/run-migrations.sh:/run-migrations.sh:ro"
     entrypoint: ["/bin/sh", "/run-migrations.sh"]
     depends_on:

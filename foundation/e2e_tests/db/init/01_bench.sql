@@ -30,12 +30,6 @@
 -- This header is a summary written for convenience. Where it differs from the
 -- LICENSE file, the LICENSE file governs.
 
-create role anon nologin;
-create role service_role nologin bypassrls;
-create role authenticator noinherit login password 'e2epass';
-grant anon to authenticator;
-grant service_role to authenticator;
-
 create table public.e2e_items (
   id          bigint generated always as identity primary key,
   owner_id    uuid        not null default gen_random_uuid(),

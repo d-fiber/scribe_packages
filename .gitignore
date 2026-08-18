@@ -4,3 +4,5 @@
 node_modules/
 
 __pycache__/
+
+/foundation/e2e_tests/.generated/

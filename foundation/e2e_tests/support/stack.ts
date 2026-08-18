@@ -92,6 +92,15 @@ export async function serviceToken(): Promise<string> {
  * It has to run **before** anything imports a module that reads a slot at load time, which is
  * why every end-to-end file awaits it at the top rather than inside a test body.
  */
+/**
+ * Points the process at the local stack, then loads the settings that read those slots.
+ *
+ * @remarks
+ * The order of the two halves is the whole point. Settings fill their slots from the
+ * environment at import, so the import has to come after the writes and not with the others at
+ * the top of the file. Loaded first, every call reaches an unconfigured slot, and the cache
+ * answers a miss instead of failing: the run stays green in shape and wrong in substance.
+ */
 export async function useStack(): Promise<void> {
   const token = await serviceToken();
 
@@ -101,10 +110,6 @@ export async function useStack(): Promise<void> {
   Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", token);
   Deno.env.set("SUPABASE_ANON_KEY", token);
 
-  // The slots are filled from the environment at import, so this import has to come after the
-  // writes above and not with the others at the top of the file. Without it every call reaches
-  // an unconfigured slot, and the cache answers a miss instead of failing: the run stays green
-  // in shape and wrong in substance.
   await import("@scribe/core/testing/settings.ts");
 }
 
