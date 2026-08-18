@@ -30,15 +30,57 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { queueSettings } from "@scribe/core/runtime/support/settings/queue.ts";
+import { queueSettings } from "@scribe/foundation/src/queue/settings.ts";
 import { connect, type NatsConnection } from "@nats-io/transport-deno";
 import { jetstream, type JetStreamClient, type JetStreamManager, jetstreamManager } from "@nats-io/jetstream";
 
 let _connection: Promise<NatsConnection> | null = null;
 
+/** A server to dial, and the credentials that were written into its url. */
+interface Dial {
+  readonly server: string;
+  readonly token?: string;
+  readonly user?: string;
+  readonly pass?: string;
+}
+
+/**
+ * Splits the credentials out of a nats url, because the client will not read them there.
+ *
+ * `connect({ servers: ["nats://secret@host:4222"] })` is refused with `Authorization Violation`:
+ * the JavaScript client takes credentials from the options and ignores the userinfo part of the
+ * url entirely. Every deployment writes them into the url, since `NATS_URL` is the one setting
+ * there is, so the split has to happen here or the queue never connects.
+ *
+ * `new URL` is no help either. It rejects the `nats:` scheme outright, so the userinfo is cut
+ * off by hand.
+ */
+export function dialFrom(url: string): Dial {
+  const scheme = url.indexOf("://");
+  if (scheme === -1) return { server: url };
+
+  const prefix = url.slice(0, scheme + 3);
+  const rest = url.slice(scheme + 3);
+  const at = rest.lastIndexOf("@");
+  if (at === -1) return { server: url };
+
+  const credentials = rest.slice(0, at);
+  const server = `${prefix}${rest.slice(at + 1)}`;
+  const colon = credentials.indexOf(":");
+
+  if (colon === -1) return { server, token: decodeURIComponent(credentials) };
+
+  return {
+    server,
+    user: decodeURIComponent(credentials.slice(0, colon)),
+    pass: decodeURIComponent(credentials.slice(colon + 1)),
+  };
+}
+
 function connection(): Promise<NatsConnection> {
   if (!_connection) {
-    _connection = connect({ servers: [queueSettings.get().natsUrl] });
+    const { server, token, user, pass } = dialFrom(queueSettings.get().natsUrl);
+    _connection = connect({ servers: [server], token, user, pass });
   }
   return _connection;
 }

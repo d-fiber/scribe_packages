@@ -42,7 +42,7 @@ import { assertEquals, assertThrows } from "@std/assert";
 import { FakeTime } from "@std/testing/time";
 import type { Scheduled } from "@scribe/foundation/src/cron/schedule/mod.ts";
 import { CronRunner } from "@scribe/foundation/src/cron/runner/cron_runner.ts";
-import { kv } from "@scribe/core/runtime/redis/mod.ts";
+import { kv } from "@scribe/foundation/src/redis/mod.ts";
 import { Time } from "@scribe/core/contracts/common/time.ts";
 
 // Since the occurrence lock, `#fire()` awaits a Redis `SET NX` before

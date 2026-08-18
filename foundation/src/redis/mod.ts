@@ -30,60 +30,30 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import "@scribe/core/testing/settings.ts";
-import { Tables } from "@scribe/foundation/src/database/gen/tables.ts";
-import type { PostgrestClient } from "@supabase/postgrest-js";
-import {
-  FakePostgrestClient,
-  type FakePostgrestSeed,
-  type Row,
-  type RpcHandler,
-} from "@scribe/foundation/testing/database.ts";
+import { cacheSettings } from "@scribe/foundation/src/valkery/settings.ts";
+import { Redis } from "ioredis";
 
-export class DatabaseMock {
-  readonly db: FakePostgrestClient;
-  readonly service: Tables;
-  #user: Tables | null = null;
-  #admin: Tables | null = null;
+/**
+ * The client every subject of this package talks to Redis through.
+ *
+ * It sits at the root of `src/` rather than inside `valkery/` because three subjects share it:
+ * the cache, the occurrence lock of `cron`, and the delayed set of `queue`. The framework's rate
+ * limiter shares it too, from the other side of the package boundary.
+ */
+export type Kv = Redis;
 
-  constructor(seed: FakePostgrestSeed = {}) {
-    this.db = new FakePostgrestClient(seed);
-    this.service = new Tables(this.db as unknown as PostgrestClient);
-  }
+let _client: Kv | null = null;
 
-  get user(): Tables | null {
-    return this.#user;
-  }
-
-  get admin(): Tables | null {
-    return this.#admin;
-  }
-
-  get tables(): DatabaseMock {
-    return this;
-  }
-
-  asUser(): Tables {
-    return (this.#user ??= new Tables(this.db as unknown as PostgrestClient));
-  }
-
-  asAdmin(): Tables {
-    return (this.#admin ??= new Tables(this.db as unknown as PostgrestClient));
-  }
-
-  rows(table: string): Row[] {
-    return this.db.rows(table);
-  }
-
-  seed(table: string, rows: Row[]): void {
-    this.db.seed(table, rows);
-  }
-
-  onRpc(fn: string, handler: RpcHandler): void {
-    this.db.onRpc(fn, handler);
-  }
-}
-
-export function createDatabaseMock(seed: FakePostgrestSeed = {}): DatabaseMock {
-  return new DatabaseMock(seed);
+/**
+ * The one client this process opens, built on first use.
+ *
+ * Building it at import would make the url mandatory to import anything that merely touches the
+ * cache, tests included.
+ */
+export function kv(): Kv {
+  return (_client ??= new Redis(cacheSettings.get().redisUrl, {
+    maxRetriesPerRequest: 3,
+    enableReadyCheck: true,
+    lazyConnect: true,
+  }));
 }

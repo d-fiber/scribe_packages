@@ -38,7 +38,7 @@ import { Tables } from "@scribe/foundation/src/database/gen/tables.ts";
 import { TablesBase } from "@scribe/foundation/src/database/tables.ts";
 import { database } from "@scribe/foundation/src/database/database.ts";
 import type { InstalledMock } from "@scribe/core/testing/install.ts";
-import type { FakePostgrestSeed } from "@scribe/core/testing/database/fake_postgrest.ts";
+import type { FakePostgrestSeed } from "@scribe/foundation/testing/database.ts";
 import { createDatabaseMock, type DatabaseMock } from "./database.ts";
 
 // `database` is not a getter object but a `Tables` instance: its table methods live

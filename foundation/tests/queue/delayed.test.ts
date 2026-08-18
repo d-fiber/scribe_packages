@@ -31,13 +31,9 @@
 // LICENSE file, the LICENSE file governs.
 
 import "@scribe/core/testing/settings.ts";
-import { kv, type Kv } from "@scribe/core/runtime/redis/mod.ts";
+import { type Kv, kv } from "@scribe/foundation/src/redis/mod.ts";
 import { delayedCounts } from "@scribe/foundation/src/queue/core/delayed/counts.ts";
-import {
-  decodeMember,
-  type DelayedMember,
-  encodeMember,
-} from "@scribe/foundation/src/queue/core/delayed/member.ts";
+import { decodeMember, type DelayedMember, encodeMember } from "@scribe/foundation/src/queue/core/delayed/member.ts";
 import { promoteDue } from "@scribe/foundation/src/queue/core/delayed/promoter.ts";
 import { topology } from "@scribe/foundation/src/queue/core/topology/topology.ts";
 import { installMock } from "@scribe/core/testing/install.ts";

@@ -30,7 +30,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { kv } from "@scribe/core/runtime/redis/mod.ts";
+import { kv } from "@scribe/foundation/src/redis/mod.ts";
 import { runPooled } from "@scribe/core/runtime/support/async/pool.ts";
 import { topology } from "../topology/topology.ts";
 import { encode } from "../wire.ts";

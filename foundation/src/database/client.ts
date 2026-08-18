@@ -33,7 +33,7 @@
 import { currentIdentity } from "@scribe/core/runtime/http/accessors/identity.ts";
 import { request } from "@scribe/core/runtime/http/request.ts";
 import { RequestScope } from "@scribe/core/runtime/scope.ts";
-import { databaseSettings } from "@scribe/core/runtime/support/settings/database.ts";
+import { databaseSettings } from "@scribe/foundation/src/database/settings.ts";
 import { PostgrestClient } from "@supabase/postgrest-js";
 
 export class PostgrestClients {

@@ -30,60 +30,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import "@scribe/core/testing/settings.ts";
-import { Tables } from "@scribe/foundation/src/database/gen/tables.ts";
-import type { PostgrestClient } from "@supabase/postgrest-js";
-import {
-  FakePostgrestClient,
-  type FakePostgrestSeed,
-  type Row,
-  type RpcHandler,
-} from "@scribe/foundation/testing/database.ts";
+import type { CacheSettings } from "@scribe/foundation/contracts/settings.ts";
+import { SettingsSlot } from "@scribe/core/runtime/support/settings/slot.ts";
 
-export class DatabaseMock {
-  readonly db: FakePostgrestClient;
-  readonly service: Tables;
-  #user: Tables | null = null;
-  #admin: Tables | null = null;
-
-  constructor(seed: FakePostgrestSeed = {}) {
-    this.db = new FakePostgrestClient(seed);
-    this.service = new Tables(this.db as unknown as PostgrestClient);
-  }
-
-  get user(): Tables | null {
-    return this.#user;
-  }
-
-  get admin(): Tables | null {
-    return this.#admin;
-  }
-
-  get tables(): DatabaseMock {
-    return this;
-  }
-
-  asUser(): Tables {
-    return (this.#user ??= new Tables(this.db as unknown as PostgrestClient));
-  }
-
-  asAdmin(): Tables {
-    return (this.#admin ??= new Tables(this.db as unknown as PostgrestClient));
-  }
-
-  rows(table: string): Row[] {
-    return this.db.rows(table);
-  }
-
-  seed(table: string, rows: Row[]): void {
-    this.db.seed(table, rows);
-  }
-
-  onRpc(fn: string, handler: RpcHandler): void {
-    this.db.onRpc(fn, handler);
-  }
-}
-
-export function createDatabaseMock(seed: FakePostgrestSeed = {}): DatabaseMock {
-  return new DatabaseMock(seed);
-}
+export const cacheSettings: SettingsSlot<CacheSettings> = new SettingsSlot<CacheSettings>(
+  "cache",
+);
