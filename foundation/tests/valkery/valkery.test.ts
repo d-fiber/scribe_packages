@@ -1,0 +1,256 @@
+// Copyright (C) 2026 Fiber
+//
+// This file is part of scribe and is made available under the PolyForm Shield
+// License 1.0.0. The full terms are in the LICENSE file at the root of this
+// repository, and at https://polyformproject.org/licenses/shield/1.0.0
+//
+// What you may do:
+// - Use this software for any purpose, including commercially, and build and
+//   sell your own products on top of it.
+// - Change it, and create new works based on it.
+// - Distribute copies of it, with or without your changes.
+//
+// The one thing you may not do:
+// - Use it to provide any product that competes with scribe, or with any
+//   product Fiber or its affiliates provide using scribe. Products compete
+//   even when they are offered free of charge, through a different kind of
+//   interface, or for a different technical platform.
+//
+// If you pass this software on:
+// - Anyone who receives any part of it from you must also receive these terms,
+//   or the URL above, together with the "Required Notice" line carried by the
+//   LICENSE file.
+//
+// Disclaimer:
+// AS FAR AS THE LAW ALLOWS, THIS SOFTWARE COMES AS IS, WITHOUT ANY WARRANTY OR
+// CONDITION, AND THE LICENSOR WILL NOT BE LIABLE TO YOU FOR ANY DAMAGES ARISING
+// OUT OF THESE TERMS OR THE USE OR NATURE OF THE SOFTWARE, UNDER ANY KIND OF
+// LEGAL CLAIM.
+//
+// This header is a summary written for convenience. Where it differs from the
+// LICENSE file, the LICENSE file governs.
+
+import "@scribe/core/testing/settings.ts";
+
+import { Time } from "@scribe/core/contracts/common/time.ts";
+import { kv } from "@scribe/core/runtime/redis/mod.ts";
+import { installValkeryMock } from "@scribe/core/testing/runtime/redis.ts";
+import { encodeEntry } from "@scribe/foundation/src/valkery/entry.ts";
+import { Valkery } from "@scribe/foundation/src/valkery/valkery.ts";
+import { assert, assertEquals } from "@std/assert";
+import { spy, stub } from "@std/testing/mock";
+
+class _TestCache extends Valkery {
+  override get key(): string {
+    return "test";
+  }
+  override get ttl(): Time {
+    return Time.minutes(5);
+  }
+}
+
+function deferred<T>(): { promise: Promise<T>; resolve: (v: T) => void } {
+  let resolve!: (v: T) => void;
+  const promise = new Promise<T>((r) => (resolve = r));
+  return { promise, resolve };
+}
+
+// Writes a key straight to the fake store, so a test can put an entry in the exact state
+// it wants to exercise instead of waiting for a real ttl to run down.
+function seed(key: string, value: unknown, expiresInMs: number, computeMs: number) {
+  return kv().setex(
+    key,
+    300,
+    encodeEntry(value, Date.now() + expiresInMs, computeMs),
+  );
+}
+
+Deno.test("upsert computes once and serves the cached value afterwards", async () => {
+  const mock = installValkeryMock();
+  const cache = new _TestCache();
+  let computed = 0;
+
+  try {
+    const compute = () => Promise.resolve(++computed);
+
+    assertEquals(await cache.upsert("k", compute), 1);
+    assertEquals(await cache.upsert("k", compute), 1);
+    assertEquals(computed, 1);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("upsert collapses concurrent callers before it touches Redis", async () => {
+  const mock = installValkeryMock();
+  const cache = new _TestCache();
+  const gate = deferred<string>();
+  const get = spy(kv(), "get");
+  let computed = 0;
+
+  try {
+    const compute = () => {
+      computed++;
+      return gate.promise;
+    };
+
+    const all = Promise.all([
+      cache.upsert("k", compute),
+      cache.upsert("k", compute),
+      cache.upsert("k", compute),
+      cache.upsert("k", compute),
+    ]);
+
+    gate.resolve("value");
+    assertEquals(await all, ["value", "value", "value", "value"]);
+    assertEquals(computed, 1, "four callers of one key must produce one computation");
+    // The distributed lock would also have collapsed these four, but only after four reads
+    // and a poll each. What the in-process tier buys is that the other three never leave
+    // the process at all.
+    assertEquals(get.calls.length, 1, "four callers of one key must cost one read");
+  } finally {
+    get.restore();
+    mock.restore();
+  }
+});
+
+Deno.test("upsert refreshes ahead of the expiry and returns the fresh value", async () => {
+  const mock = installValkeryMock();
+  const cache = new _TestCache();
+
+  try {
+    // Costly to produce and about to expire: every reader volunteers.
+    await seed("test:k", "stale", 1, 1_000_000);
+
+    assertEquals(await cache.upsert("k", () => Promise.resolve("fresh")), "fresh");
+    assertEquals(await cache.get("k"), "fresh");
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("upsert serves the cached value rather than recomputing far from the expiry", async () => {
+  const mock = installValkeryMock();
+  const cache = new _TestCache();
+  let computed = 0;
+
+  try {
+    await seed("test:k", "cached", 1_000_000_000, 1);
+
+    assertEquals(
+      await cache.upsert("k", () => {
+        computed++;
+        return Promise.resolve("recomputed");
+      }),
+      "cached",
+    );
+    assertEquals(computed, 0);
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("a refresh that throws still serves the value the cache already holds", async () => {
+  const mock = installValkeryMock();
+  const cache = new _TestCache();
+
+  try {
+    await seed("test:k", "stale", 1, 1_000_000);
+
+    assertEquals(
+      await cache.upsert("k", () => Promise.reject(new Error("origin down"))),
+      "stale",
+      "a flaky origin must not turn into an error when an answer is in hand",
+    );
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("getMany reads every id in a single round trip", async () => {
+  const mock = installValkeryMock();
+  const cache = new _TestCache();
+  const mget = spy(kv(), "mget");
+
+  try {
+    await cache.add("a", 1);
+    await cache.add("c", 3);
+
+    assertEquals(await cache.getMany<number>(["a", "b", "c"]), [1, null, 3]);
+    assertEquals(mget.calls.length, 1, "three ids must cost one call");
+    assertEquals([...mget.calls[0].args], ["test:a", "test:b", "test:c"]);
+  } finally {
+    mget.restore();
+    mock.restore();
+  }
+});
+
+Deno.test("getMany on an empty list does not touch Redis at all", async () => {
+  const mock = installValkeryMock();
+  const cache = new _TestCache();
+  const mget = spy(kv(), "mget");
+
+  try {
+    assertEquals(await cache.getMany([]), []);
+    assertEquals(mget.calls.length, 0);
+  } finally {
+    mget.restore();
+    mock.restore();
+  }
+});
+
+Deno.test("clear removes a namespace with UNLINK, never DEL", async () => {
+  const mock = installValkeryMock();
+  const cache = new _TestCache();
+  const unlink = spy(kv(), "unlink");
+  const del = spy(kv(), "del");
+
+  try {
+    await cache.add("a", 1);
+    await cache.add("b", 2);
+    await cache.clear();
+
+    assertEquals(await cache.get("a"), null);
+    assertEquals(await cache.get("b"), null);
+    assert(unlink.calls.length > 0, "the sweep must unlink");
+    assertEquals(del.calls.length, 0, "DEL holds the single Redis thread");
+  } finally {
+    del.restore();
+    unlink.restore();
+    mock.restore();
+  }
+});
+
+Deno.test("delete removes a single entry with UNLINK", async () => {
+  const mock = installValkeryMock();
+  const cache = new _TestCache();
+  const unlink = spy(kv(), "unlink");
+
+  try {
+    await cache.add("a", 1);
+    await cache.delete("a");
+
+    assertEquals(await cache.get("a"), null);
+    assertEquals([...unlink.calls[0].args], ["test:a"]);
+  } finally {
+    unlink.restore();
+    mock.restore();
+  }
+});
+
+Deno.test("a cache stays usable when Redis is down", async () => {
+  const cache = new _TestCache();
+  const reported: string[] = [];
+  const broken = stub(kv(), "get", () => Promise.reject(new Error("no redis")));
+  const reporter = stub(console, "error", (...args: unknown[]) => {
+    reported.push(String(args[0]));
+  });
+
+  try {
+    assertEquals(await cache.get("k"), null, "an unreachable cache reads as a miss");
+    assert(reported.some((line) => line.includes("[valkery:test] get failed")));
+  } finally {
+    reporter.restore();
+    broken.restore();
+  }
+});

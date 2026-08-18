@@ -32,10 +32,14 @@
 
 import { kv } from "@scribe/core/runtime/redis/mod.ts";
 
+/** The Redis client, once the release script has been registered on it. */
 export interface LockCommands {
   releaseLock(key: string, token: string): Promise<number>;
 }
 
+// Comparing the token and removing the key have to happen without anything running in
+// between: read-then-delete from the client would let an expired holder delete the lock its
+// successor has just taken. A script is the only way Redis offers to make the pair atomic.
 const RELEASE_LOCK_SCRIPT = `
 if redis.call('GET', KEYS[1]) == ARGV[1] then
   return redis.call('DEL', KEYS[1])
@@ -43,6 +47,13 @@ end
 return 0
 `;
 
+/**
+ * The Redis client with `releaseLock` available on it.
+ *
+ * Registration happens on first use rather than at import, and only when the command is
+ * missing. The guard is not defensive: tests install their fakes before anything calls
+ * this, and registering unconditionally would overwrite the stub they just put in place.
+ */
 export function lockCommands(): LockCommands {
   const client = kv();
   const commands = client as unknown as Partial<LockCommands>;

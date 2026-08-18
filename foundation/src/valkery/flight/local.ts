@@ -31,41 +31,39 @@
 // LICENSE file, the LICENSE file governs.
 
 /**
- * Derives the Redis keys of one cache from its namespace.
+ * Collapses concurrent computations of the same key inside one process.
  *
- * Every key a cache touches is built here, which is what keeps two caches from colliding
- * on the same id and what makes a namespace sweepable in one glob.
+ * This is the first of the two tiers a cache needs. The Redis lock coordinates replicas
+ * with each other and costs two round trips to do it; this one costs a `Map` lookup and
+ * covers the case that dominates in practice — the same client, or the same page, asking
+ * for the same key several times while the first answer is still in flight.
+ *
+ * Nothing here is a cache: an entry lives exactly as long as the computation it stands for,
+ * so a caller never reads a value this class kept.
  */
-export class KeySpace {
-  readonly #prefix: string;
+export class LocalFlight {
+  readonly #inFlight = new Map<string, Promise<unknown>>();
 
-  constructor(prefix: string) {
-    this.#prefix = prefix;
-  }
-
-  /** The key an entry is stored under. */
-  keyOf(id: string): string {
-    return `${this.#prefix}:${id}`;
+  /** How many computations are running right now. Exists for tests and for reporting. */
+  get size(): number {
+    return this.#inFlight.size;
   }
 
   /**
-   * The key the lock for an entry is stored under.
+   * Runs `compute` for `key`, or joins the run already under way for it.
    *
-   * It is deliberately outside the namespace, under its own `lock:` prefix, so that a
-   * {@link matching} sweep never removes a lock a replica is currently holding.
+   * A rejection is shared by every joiner, then forgotten: the next caller retries rather
+   * than inheriting a failure it did not cause.
    */
-  lockKeyOf(id: string): string {
-    return `lock:${this.keyOf(id)}`;
-  }
+  run<T>(key: string, compute: () => Promise<T>): Promise<T> {
+    const running = this.#inFlight.get(key);
+    if (running) return running as Promise<T>;
 
-  /**
-   * The glob that selects this namespace, or a subset of it.
-   *
-   * The argument is a **glob, not a prefix**: `matching("u1")` selects one exact key and
-   * `matching("u1:*")` selects a subtree. Naming it a prefix would make the signature lie
-   * about what callers actually pass.
-   */
-  matching(pattern?: string): string {
-    return pattern ? `${this.#prefix}:${pattern}` : `${this.#prefix}:*`;
+    // The entry has to be removed by whoever settles it, and `finally` runs for both
+    // outcomes. Deleting on the value alone would leak the key on every rejection.
+    const started = compute().finally(() => this.#inFlight.delete(key));
+
+    this.#inFlight.set(key, started);
+    return started;
   }
 }

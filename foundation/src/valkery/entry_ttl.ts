@@ -32,8 +32,19 @@
 
 import type { Time } from "@scribe/core/contracts/common/time.ts";
 
+/** How much of the ttl the spread is drawn from. */
 const JITTER_RATIO = 0.1;
 
+/**
+ * The ttl an entry is actually written with, in seconds, spread out a little.
+ *
+ * Without the spread, everything written in the same second expires in the same second and
+ * the recomputation departs as one wave. A tenth is enough to break the alignment without
+ * making any entry meaningfully staler than it was asked to be.
+ *
+ * The result is never below the ttl asked for, and a ttl too small to spread is returned
+ * untouched rather than rounded to nothing.
+ */
 export function withJitter(ttl: Time): number {
   const spread = Math.ceil(ttl.value * JITTER_RATIO);
   if (spread <= 0) return ttl.value;

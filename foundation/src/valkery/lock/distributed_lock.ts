@@ -33,15 +33,36 @@
 import { kv } from "@scribe/core/runtime/redis/mod.ts";
 import { lockCommands } from "./release_script.ts";
 
+/**
+ * How long a lock survives its holder.
+ *
+ * It bounds the damage a replica that dies mid-computation does: the key expires on its own
+ * and the next reader gets its turn, rather than the entry staying uncomputable forever.
+ */
 export const LOCK_TTL_MS = 5_000;
 
+/**
+ * What came of trying to take a lock.
+ *
+ * `held` and `error` are kept apart because they call for opposite reactions: someone else
+ * is computing, so wait — against Redis is unreachable, so stop coordinating and compute.
+ */
 export type LockOutcome =
   | { readonly state: "acquired"; readonly token: string }
   | { readonly state: "held" }
   | { readonly state: "error" };
 
+/** Reports a lock operation that failed, so the caller can degrade instead of throw. */
 export type LockErrorReporter = (operation: string, error: unknown) => void;
 
+/**
+ * A lock one replica of a fleet holds while it computes an entry.
+ *
+ * The token is what makes releasing safe. A holder that overran {@link LOCK_TTL_MS} no
+ * longer owns the key — another replica may have taken it — so releasing by key alone would
+ * free a lock somebody else is relying on. See {@link lockCommands} for how the comparison
+ * and the removal are made atomic.
+ */
 export class DistributedLock {
   readonly #onError: LockErrorReporter;
 
@@ -49,20 +70,20 @@ export class DistributedLock {
     this.#onError = onError;
   }
 
+  /** Takes the lock if it is free, and says which of the three things happened. */
   async acquire(lockKey: string): Promise<LockOutcome> {
     const token = crypto.randomUUID();
 
     try {
       const claimed = await kv().set(lockKey, token, "PX", LOCK_TTL_MS, "NX");
-      return claimed === "OK"
-        ? { state: "acquired", token }
-        : { state: "held" };
+      return claimed === "OK" ? { state: "acquired", token } : { state: "held" };
     } catch (error) {
       this.#onError("lock", error);
       return { state: "error" };
     }
   }
 
+  /** Releases the lock, and does nothing when this token no longer owns it. */
   async release(lockKey: string, token: string): Promise<void> {
     try {
       await lockCommands().releaseLock(lockKey, token);

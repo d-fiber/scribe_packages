@@ -31,17 +31,25 @@
 // LICENSE file, the LICENSE file governs.
 
 import { sleep } from "@scribe/core/runtime/support/async/sleep.ts";
-import { type DistributedLock, LOCK_TTL_MS } from "./lock/distributed_lock.ts";
+import { type DistributedLock, LOCK_TTL_MS } from "../lock/distributed_lock.ts";
 
 const POLL_MS = 50;
 const MAX_WAIT_MS = LOCK_TTL_MS + 3_000;
 
-export interface ValkerySlot<T> {
-  read(): Promise<T | null>;
-  write(value: T): Promise<void>;
-}
+/** Reads back what the replica that won the lock wrote, or `null` while it has not. */
+export type ReadBack<T> = () => Promise<T | null>;
 
-export class SingleFlight {
+/**
+ * Coordinates the replicas of a fleet so one of them produces a missing value.
+ *
+ * This is the second of the two tiers a cache needs. The local tier — `flight/local.ts` —
+ * has already collapsed everything this process asked for, so what arrives here is one
+ * computation per replica per key, and a Redis lock decides which replica pays for it.
+ *
+ * `compute` is what writes the value. This class only says who runs it and when, which is
+ * what lets the caller decide the shape of what gets stored without telling this class.
+ */
+export class DistributedFlight {
   readonly #lock: DistributedLock;
   readonly #onGaveUp: (id: string) => void;
 
@@ -50,10 +58,18 @@ export class SingleFlight {
     this.#onGaveUp = onGaveUp;
   }
 
+  /**
+   * Runs `compute` if this replica wins the lock, otherwise waits for whoever did.
+   *
+   * A loser polls `readBack` rather than the lock, because what it wants is the value and
+   * not the turn. When nothing shows up before the deadline — a holder that died, or one
+   * slower than the lock's own ttl — it computes without the lock: a duplicated computation
+   * costs less than a request that never returns.
+   */
   async run<T>(
     id: string,
     lockKey: string,
-    slot: ValkerySlot<T>,
+    readBack: ReadBack<T>,
     compute: () => Promise<T>,
   ): Promise<T> {
     const deadline = Date.now() + MAX_WAIT_MS;
@@ -64,20 +80,39 @@ export class SingleFlight {
 
       if (lock.state === "acquired") {
         try {
-          const value = await compute();
-          await slot.write(value);
-          return value;
+          return await compute();
         } finally {
           await this.#lock.release(lockKey, lock.token);
         }
       }
 
       await sleep(POLL_MS);
-      const written = await slot.read();
+      const written = await readBack();
       if (written !== null) return written;
     }
 
     this.#onGaveUp(id);
     return compute();
+  }
+
+  /**
+   * Runs `compute` only if this replica wins the lock right now, and gives up otherwise.
+   *
+   * This is the refresh-ahead path, and it is the opposite trade of {@link run}: the caller
+   * still holds a value that has not expired, so waiting for the winner would add latency to
+   * a request that needed none. A loser is told `null` and serves what it already has.
+   */
+  async attempt<T>(
+    lockKey: string,
+    compute: () => Promise<T>,
+  ): Promise<T | null> {
+    const lock = await this.#lock.acquire(lockKey);
+    if (lock.state !== "acquired") return null;
+
+    try {
+      return await compute();
+    } finally {
+      await this.#lock.release(lockKey, lock.token);
+    }
   }
 }

@@ -1,0 +1,86 @@
+// Copyright (C) 2026 Fiber
+//
+// This file is part of scribe and is made available under the PolyForm Shield
+// License 1.0.0. The full terms are in the LICENSE file at the root of this
+// repository, and at https://polyformproject.org/licenses/shield/1.0.0
+//
+// What you may do:
+// - Use this software for any purpose, including commercially, and build and
+//   sell your own products on top of it.
+// - Change it, and create new works based on it.
+// - Distribute copies of it, with or without your changes.
+//
+// The one thing you may not do:
+// - Use it to provide any product that competes with scribe, or with any
+//   product Fiber or its affiliates provide using scribe. Products compete
+//   even when they are offered free of charge, through a different kind of
+//   interface, or for a different technical platform.
+//
+// If you pass this software on:
+// - Anyone who receives any part of it from you must also receive these terms,
+//   or the URL above, together with the "Required Notice" line carried by the
+//   LICENSE file.
+//
+// Disclaimer:
+// AS FAR AS THE LAW ALLOWS, THIS SOFTWARE COMES AS IS, WITHOUT ANY WARRANTY OR
+// CONDITION, AND THE LICENSOR WILL NOT BE LIABLE TO YOU FOR ANY DAMAGES ARISING
+// OUT OF THESE TERMS OR THE USE OR NATURE OF THE SOFTWARE, UNDER ANY KIND OF
+// LEGAL CLAIM.
+//
+// This header is a summary written for convenience. Where it differs from the
+// LICENSE file, the LICENSE file governs.
+
+import { shouldRefreshEarly } from "@scribe/foundation/src/valkery/early_expiry.ts";
+import type { Entry } from "@scribe/foundation/src/valkery/entry.ts";
+import { assert, assertEquals } from "@std/assert";
+
+function entry(computeMs: number, expiresInMs: number, now: number): Entry<string> {
+  return { value: "v", expiresAt: now + expiresInMs, computeMs };
+}
+
+const NOW = 1_700_000_000_000;
+
+function refreshRate(e: Entry<string>, beta = 1, draws = 4_000): number {
+  let refreshed = 0;
+  for (let i = 0; i < draws; i++) {
+    if (shouldRefreshEarly(e, beta, NOW)) refreshed++;
+  }
+  return refreshed / draws;
+}
+
+Deno.test("an entry whose computation was not measured never refreshes early", () => {
+  // This is what a legacy entry carries, and what a computation too fast to time carries.
+  assertEquals(refreshRate(entry(0, 1_000, NOW)), 0);
+});
+
+Deno.test("beta at zero turns refresh-ahead off", () => {
+  assertEquals(refreshRate(entry(500, 100, NOW), 0), 0);
+});
+
+Deno.test("an entry far from its expiry is almost never refreshed", () => {
+  // A 50ms computation against an hour of remaining ttl.
+  assert(refreshRate(entry(50, 3_600_000, NOW)) < 0.01);
+});
+
+Deno.test("an entry past its expiry is always refreshed", () => {
+  assertEquals(refreshRate(entry(50, -1, NOW)), 1);
+});
+
+Deno.test("the window widens with the cost of the computation", () => {
+  const remaining = 1_000;
+  const cheap = refreshRate(entry(5, remaining, NOW));
+  const costly = refreshRate(entry(500, remaining, NOW));
+
+  assert(
+    costly > cheap,
+    `a costly value should volunteer more often (${costly} vs ${cheap})`,
+  );
+  assert(cheap < 0.05, "a cheap value should behave as if this did not exist");
+});
+
+Deno.test("the closer the expiry, the more readers volunteer", () => {
+  const far = refreshRate(entry(200, 800, NOW));
+  const near = refreshRate(entry(200, 100, NOW));
+
+  assert(near > far, `${near} should exceed ${far}`);
+});

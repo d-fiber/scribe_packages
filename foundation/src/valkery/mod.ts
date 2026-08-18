@@ -33,11 +33,6 @@
 export { Valkery } from "./valkery.ts";
 export { KeySpace } from "./key_space.ts";
 export { withJitter } from "./entry_ttl.ts";
-export { type ValkerySlot, SingleFlight } from "./single_flight.ts";
-export {
-  DistributedLock,
-  type LockErrorReporter,
-  type LockOutcome,
-  LOCK_TTL_MS,
-} from "./lock/distributed_lock.ts";
+export { DEFAULT_BETA } from "./early_expiry.ts";
+export { DistributedLock, LOCK_TTL_MS, type LockErrorReporter, type LockOutcome } from "./lock/distributed_lock.ts";
 export { type LockCommands, lockCommands } from "./lock/release_script.ts";
