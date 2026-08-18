@@ -1,0 +1,101 @@
+services:
+  - name: realtime-v1-ws
+    _comment: "Realtime: /realtime/v1/* -> ws://realtime:4000/socket/* (authenticated clients private channels enforced by Realtime JWT validation)"
+    url: http://realtime-dev.supabase-realtime:4000/socket
+    protocol: ws
+    routes:
+      - name: realtime-v1-ws
+        strip_path: true
+        paths:
+          - /realtime/v1/
+    plugins:
+      - name: cors
+        config:
+          {{realtime_cors_origins}}
+      - name: pre-function
+        _comment: "Two accepted shapes for the connection. (1) Legacy/mobile apikey is one of the static project keys (supabase_flutter), no access_token: unchanged. (2) App clients (desktop admin, and any future client following the same pattern) apikey is an app-key (not the anon key, never handled by the client) and access_token is the caller's real session JWT. access_token's app_metadata.role is decoded (format check only no signature verification, Kong's jwt plugin isn't enabled, see KONG_PLUGINS) to pick which rotation list apikey must belong to: role=admin -> ADMIN_APP_KEYS, anything else -> APP_KEYS. This also rejects a mismatched pairing (e.g. an admin JWT presented alongside an app key). apikey is then substituted for the real SUPABASE_ANON_KEY before the request reaches Realtime, which requires apikey to be a real project JWT. The cryptographic validity of access_token and per-topic authorization are enforced downstream by Realtime + RLS via the access_token already sent in each channel's phx_join payload."
+        config:
+          access:
+            - |
+              local apikey = kong.request.get_query_arg("apikey")
+              local access_token = kong.request.get_query_arg("access_token")
+
+              if not apikey then
+                return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
+              end
+
+              if not access_token then
+                -- Legacy path: static project key only.
+                local is_static_key = apikey == "$SUPABASE_ANON_KEY"
+                  or apikey == "$SUPABASE_PUBLISHABLE_KEY"
+                  or apikey == "$SUPABASE_SERVICE_KEY"
+                  or apikey == "$SUPABASE_SECRET_KEY"
+
+                if not is_static_key then
+                  return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
+                end
+                return
+              end
+
+              local parts = 0
+              for _ in access_token:gmatch("[^.]+") do parts = parts + 1 end
+              if parts ~= 3 then
+                return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
+              end
+
+              local payload_b64 = access_token:match("^[^.]+%.([^.]+)%.")
+              if not payload_b64 then
+                return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
+              end
+
+              local b64 = payload_b64:gsub('%-', '+'):gsub('_', '/')
+              local pad = (4 - #b64 % 4) % 4
+              b64 = b64 .. string.rep('=', pad)
+              local decoded = ngx.decode_base64(b64)
+              if not decoded then
+                return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
+              end
+
+              local app_meta = decoded:match('"app_metadata"%s*:%s*{(.-)}')
+              local role = app_meta and app_meta:match('"role"%s*:%s*"([^"]*)"')
+              local is_admin = role == "admin"
+
+              local key_list = is_admin and "$ADMIN_APP_KEYS" or "$APP_KEYS"
+              local is_valid_app_key = false
+              for key in key_list:gmatch("[^,]+") do
+                if apikey == key then
+                  is_valid_app_key = true
+                  break
+                end
+              end
+
+              if not is_valid_app_key then
+                return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
+              end
+
+              local query = kong.request.get_query()
+              query.apikey = "$SUPABASE_ANON_KEY"
+              kong.service.request.set_query(query)
+      - name: request-transformer
+        config:
+          add:
+            headers:
+              - "x-api-key:$LUA_RT_WS_EXPR"
+          replace:
+            querystring:
+              - "apikey:$LUA_RT_WS_EXPR"
+
+  - name: realtime-v1-rest
+    _comment: "Realtime REST API: /realtime/v1/api/* blocked for all external clients"
+    url: http://realtime-dev.supabase-realtime:4000/api
+    protocol: http
+    routes:
+      - name: realtime-v1-rest
+        strip_path: true
+        paths:
+          - /realtime/v1/api
+    plugins:
+      - name: request-termination
+        config:
+          status_code: 404
+          message: "Not found"

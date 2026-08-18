@@ -1,0 +1,15 @@
+services:
+  realtime:
+    cpu_shares: 1024
+    deploy:
+      resources:
+        limits:
+          memory: "{{realtime_mem_limit}}"
+        reservations:
+          memory: "{{realtime_mem_res}}"
+
+  realtime-init:
+    deploy:
+      resources:
+        limits:
+          memory: "{{realtime_init_mem_limit}}"

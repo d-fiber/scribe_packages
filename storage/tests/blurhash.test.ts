@@ -1,0 +1,162 @@
+// Copyright (C) 2026 Fiber
+//
+// This file is part of scribe and is made available under the PolyForm Shield
+// License 1.0.0. The full terms are in the LICENSE file at the root of this
+// repository, and at https://polyformproject.org/licenses/shield/1.0.0
+//
+// What you may do:
+// - Use this software for any purpose, including commercially, and build and
+//   sell your own products on top of it.
+// - Change it, and create new works based on it.
+// - Distribute copies of it, with or without your changes.
+//
+// The one thing you may not do:
+// - Use it to provide any product that competes with scribe, or with any
+//   product Fiber or its affiliates provide using scribe. Products compete
+//   even when they are offered free of charge, through a different kind of
+//   interface, or for a different technical platform.
+//
+// If you pass this software on:
+// - Anyone who receives any part of it from you must also receive these terms,
+//   or the URL above, together with the "Required Notice" line carried by the
+//   LICENSE file.
+//
+// Disclaimer:
+// AS FAR AS THE LAW ALLOWS, THIS SOFTWARE COMES AS IS, WITHOUT ANY WARRANTY OR
+// CONDITION, AND THE LICENSOR WILL NOT BE LIABLE TO YOU FOR ANY DAMAGES ARISING
+// OUT OF THESE TERMS OR THE USE OR NATURE OF THE SOFTWARE, UNDER ANY KIND OF
+// LEGAL CLAIM.
+//
+// This header is a summary written for convenience. Where it differs from the
+// LICENSE file, the LICENSE file governs.
+
+import "@scribe/core/testing/settings.ts";
+import { assertEquals, assertNotEquals } from "@std/assert";
+import encodeWebp from "@jsquash/webp/encode";
+import { encode as encodePng } from "fast-png";
+import { encode as encodeJpeg } from "jpeg-js";
+import { blurhash } from "@scribe/storage/src/media/blurhash.ts";
+import { decodeImage } from "@scribe/storage/src/media/decode.ts";
+import { downsample } from "@scribe/storage/src/media/rgba.ts";
+
+function gradient(w: number, h: number): Uint8Array {
+  const rgba = new Uint8Array(w * h * 4);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      rgba[i] = (x * 4) & 255;
+      rgba[i + 1] = (y * 4) & 255;
+      rgba[i + 2] = 128;
+      rgba[i + 3] = 255;
+    }
+  }
+  return rgba;
+}
+
+const png = (w = 64, h = 64): Uint8Array<ArrayBuffer> =>
+  new Uint8Array(encodePng({ width: w, height: h, data: gradient(w, h), channels: 4, depth: 8 }));
+const jpeg = (w = 64, h = 64): Uint8Array<ArrayBuffer> =>
+  new Uint8Array(encodeJpeg({ width: w, height: h, data: gradient(w, h) }, 90).data);
+const webp = async (w = 64, h = 64): Promise<Uint8Array<ArrayBuffer>> =>
+  new Uint8Array(
+    await encodeWebp({
+      width: w,
+      height: h,
+      data: new Uint8ClampedArray(gradient(w, h)),
+      colorSpace: "srgb",
+      pixelFormat: "rgba-unorm8",
+    }),
+  );
+
+Deno.test("blurhash: a PNG yields a hash, never null", async () => {
+  const hash = await blurhash.fromImage(new File([png()], "a.png"));
+
+  assertNotEquals(hash, null);
+  assertEquals(typeof hash, "string");
+  assertEquals(hash!.length > 6, true);
+});
+
+Deno.test("blurhash: a JPEG yields a hash too", async () => {
+  const hash = await blurhash.fromImage(new File([jpeg()], "a.jpg"));
+  assertNotEquals(hash, null);
+});
+
+Deno.test("blurhash: a WebP yields a hash, it is no longer dropped as unsupported", async () => {
+  const hash = await blurhash.fromImage(new File([await webp()], "a.webp"));
+
+  assertNotEquals(hash, null);
+  assertEquals(typeof hash, "string");
+});
+
+Deno.test("blurhash: the same picture yields the same hash whatever the container", async () => {
+  const fromPng = await blurhash.fromImage(new File([png()], "a.png"));
+  const fromJpeg = await blurhash.fromImage(new File([jpeg()], "a.jpg"));
+
+  assertEquals(fromPng!.slice(0, 4), fromJpeg!.slice(0, 4));
+});
+
+Deno.test("blurhash: two different pictures never share a hash", async () => {
+  const flat = new Uint8Array(64 * 64 * 4).fill(255);
+  const plain = new Uint8Array(
+    encodePng({ width: 64, height: 64, data: flat, channels: 4, depth: 8 }),
+  );
+
+  assertNotEquals(
+    await blurhash.fromImage(new File([png()], "a.png")),
+    await blurhash.fromImage(new File([plain], "b.png")),
+  );
+});
+
+Deno.test("blurhash: bytes that are not an image yield null, never a throw", async () => {
+  const garbage = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+  assertEquals(await blurhash.fromImage(new File([garbage], "a.png")), null);
+});
+
+Deno.test("blurhash: a truncated PNG yields null, never a throw", async () => {
+  const truncated = png().slice(0, 20);
+  assertEquals(await blurhash.fromImage(new File([truncated], "a.png")), null);
+});
+
+Deno.test("decode: the format is read from the bytes, not the file name", async () => {
+  assertNotEquals(await decodeImage(png()), null);
+  assertNotEquals(await decodeImage(jpeg()), null);
+  assertNotEquals(await decodeImage(await webp()), null);
+  assertEquals(await decodeImage(new Uint8Array([0, 1, 2, 3])), null);
+});
+
+Deno.test("decode: a greyscale PNG is expanded to RGBA", async () => {
+  const grey = new Uint8Array(4 * 4).fill(120);
+  const encoded = new Uint8Array(
+    encodePng({ width: 4, height: 4, data: grey, channels: 1, depth: 8 }),
+  );
+
+  const decoded = (await decodeImage(encoded))!;
+
+  assertEquals(decoded.data.length, 4 * 4 * 4);
+  assertEquals([...decoded.data.slice(0, 4)], [120, 120, 120, 255]);
+});
+
+Deno.test("downsample: a big picture is reduced, a small one is left alone", async () => {
+  const big = (await decodeImage(png(128, 64)))!;
+  const small = downsample(big, 32);
+
+  assertEquals(small.width, 32);
+  assertEquals(small.height, 16);
+  assertEquals(small.data.length, 32 * 16 * 4);
+
+  const tiny = (await decodeImage(png(8, 8)))!;
+  assertEquals(downsample(tiny, 32), tiny);
+});
+
+Deno.test("blurhash: no network is ever needed", async () => {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = () => {
+    throw new Error("blurhash reached for the network");
+  };
+
+  try {
+    assertNotEquals(await blurhash.fromImage(new File([png()], "a.png")), null);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});

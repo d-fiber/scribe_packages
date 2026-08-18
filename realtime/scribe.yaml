@@ -1,0 +1,23 @@
+name: realtime
+title: Postgres subscriptions over WebSocket, channels and broadcast.
+optional: true
+
+requires: []
+
+ops:
+  services:
+    - realtime
+    - realtime-init
+  profile: realtime
+  gateway:
+    - realtime-v1-ws
+    - realtime-v1-rest
+  env:
+    - DB_ENC_KEY
+    - SECRET_KEY_BASE
+
+sql: db/init
+protocol: protocol/realtime.proto
+export: "@scribe/realtime"
+
+routes: []

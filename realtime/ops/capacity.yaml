@@ -1,0 +1,15 @@
+services:
+  - name: realtime
+    weight: 661
+    runtime: erlang
+    profile: realtime
+    min: 192Mi
+    dev: 512Mi
+    cpu_shares: 1024
+
+  - name: realtime-init
+    weight: 19
+    runtime: oneshot
+    profile: realtime
+    min: 32Mi
+    dev: 32Mi

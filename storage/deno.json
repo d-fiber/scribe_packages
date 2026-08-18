@@ -1,0 +1,12 @@
+{
+  "name": "@scribe/storage",
+  "exports": {
+    ".": "./mod.ts",
+    "./contracts/settings": "./contracts/settings.ts"
+  },
+  "publish": {
+    "exclude": [
+      "tests"
+    ]
+  }
+}

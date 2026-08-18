@@ -1,0 +1,83 @@
+services:
+  - name: storage-v1
+    _comment: "Storage: /storage/v1/* -> http://storage:5000/, read only. Public objects under /object/public/* are readable with no condition at all. Everything else lives in the private bucket and demands an admin JWT, with the VPN imposed upstream by Caddy, which only routes the private path on ADMIN_DOMAIN. No upload and no deletion comes through here: they all go to the edge functions, which carry the validation of identity, extension, size and path."
+    url: http://storage:5000/
+    routes:
+      - name: storage-v1-all
+        strip_path: true
+        paths:
+          - /storage/v1/
+    plugins:
+      - name: cors
+        config:
+          {{storage_cors_origins}}
+      - name: pre-function
+        config:
+          access:
+            - |
+              -- Read only, so no write may come through the gateway.
+              -- A 404 rather than a 405, so as not to reveal that the route exists.
+              local method = kong.request.get_method()
+              if method ~= "GET" and method ~= "HEAD" then
+                return kong.response.exit(404, '{"message":"Not found"}', {["Content-Type"] = "application/json"})
+              end
+
+              -- Public objects are readable with no condition at all, token
+              -- included. That is what makes the URL usable from an <img>, an
+              -- email or a CDN. app_bucket is public on the storage side, and
+              -- the RLS does not apply to this path.
+              local path = kong.request.get_path()
+              if path:find("/object/public/", 1, true) then
+                return
+              end
+
+              -- Everything else aims at the private bucket, so a token is required.
+              local auth = kong.request.get_header("authorization")
+              local token = auth and auth:match("^[Bb]earer%s+(.+)$")
+
+              if not token then
+                return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
+              end
+
+              local payload_b64 = token:match("^[^.]+%.([^.]+)%.")
+              if not payload_b64 then
+                return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
+              end
+
+              local b64 = payload_b64:gsub('%-', '+'):gsub('_', '/')
+              local pad = (4 - #b64 % 4) % 4
+              b64 = b64 .. string.rep('=', pad)
+              local decoded = ngx.decode_base64(b64)
+
+              if not decoded then
+                return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
+              end
+
+              -- Extract role and sub via pattern matching (cjson not allowed in sandbox)
+              local role = decoded:match('"role"%s*:%s*"([^"]*)"')
+              local sub  = decoded:match('"sub"%s*:%s*"([^"]*)"')
+
+              -- service_role bypasses all restrictions (Studio / internal calls)
+              if role == "service_role" then
+                return
+              end
+
+              if not sub or sub == '' then
+                return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
+              end
+
+              -- Private means admin only. The RLS checks it again in the
+              -- database, in storage_select_admin_bucket, and Caddy imposes the
+              -- VPN upstream. Three independent barriers, and none of them is
+              -- enough on its own.
+              if role ~= "admin" then
+                return kong.response.exit(404, '{"message":"Not found"}', {["Content-Type"] = "application/json"})
+              end
+      - name: request-transformer
+        config:
+          add:
+            headers:
+              - "Authorization: $LUA_AUTH_EXPR"
+          replace:
+            headers:
+              - "Authorization: $LUA_AUTH_EXPR"

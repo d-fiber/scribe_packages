@@ -1,0 +1,12 @@
+{
+  "name": "@scribe/realtime",
+  "exports": {
+    ".": "./mod.ts",
+    "./testing": "./testing/mock.ts"
+  },
+  "publish": {
+    "exclude": [
+      "tests"
+    ]
+  }
+}

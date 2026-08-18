@@ -1,0 +1,20 @@
+services:
+  - name: imgproxy
+    weight: 280
+    runtime: go
+    min: 64Mi
+    dev: 256Mi
+    cpu_shares: 1024
+
+  - name: storage
+    weight: 188
+    runtime: node
+    min: 128Mi
+    dev: 256Mi
+    cpu_shares_total: 4096
+
+  - name: storage-init
+    weight: 19
+    runtime: oneshot
+    min: 32Mi
+    dev: 32Mi

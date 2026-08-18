@@ -1,0 +1,7 @@
+services:
+  realtime:
+    environment:
+      MAX_CONNECTIONS: "{{realtime_max_connections}}"
+      NUM_ACCEPTORS: "{{realtime_num_acceptors}}"
+      RLIMIT_NOFILE: "{{realtime_rlimit_nofile}}"
+      ERL_AFLAGS: "+S {{realtime_schedulers}}:{{realtime_schedulers}}"
