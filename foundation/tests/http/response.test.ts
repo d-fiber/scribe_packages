@@ -143,13 +143,17 @@ Deno.test("json reads the body a server announced as JSON", () => {
 });
 
 Deno.test("json reads a body the caller is free to have refused first", () => {
-  // A 404 with a JSON error payload is the case the client-level `readJson` could not serve.
   const response = new Response('{"code":"not_found"}', 404, {
     headers: typed("application/json"),
   });
 
   assertEquals(response.statusCode, 404);
-  assertEquals(response.json<{ code: string }>(), { code: "not_found" });
+  assertEquals(
+    response.json<{ code: string }>(),
+    { code: "not_found" },
+    "a refused answer still hands over its JSON error payload, which is what the "
+      + "client-level readJson cannot do",
+  );
 });
 
 Deno.test("a body that is not JSON is an exception, not a value", () => {

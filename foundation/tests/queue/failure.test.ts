@@ -30,11 +30,6 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-// Retry and the dead letter used to need a real NATS and a real Redis to exercise, because
-// a failed message was terminated and rewritten into a sorted set. Now that a retry is a
-// negative acknowledgement, the whole policy is one call on the message, and a fake one is
-// enough to hold it.
-
 import { assertEquals } from "@std/assert";
 import { Queue } from "@scribe/foundation/src/queue/mod.ts";
 import { MessageDispatcher } from "@scribe/foundation/src/queue/runner/dispatcher.ts";
@@ -110,12 +105,19 @@ async function dispatch(messages: readonly FakeMsg[]) {
 
 const failing = () => Promise.reject(new Error("handler blew up"));
 
+const RETRY_QUEUE_MAX_DELIVERIES = 4;
+const BATCH_QUEUE_MAX_DELIVERIES = 3;
+
 new Queue<{ id: string }>(
-  { name: "test:failure:retry", options: { maxRetries: 4 } },
+  { name: "test:failure:retry", options: { maxRetries: RETRY_QUEUE_MAX_DELIVERIES } },
   failing,
 );
 new Queue<{ id: string }>(
-  { name: "test:failure:batch", batch: { lingerMs: 5 }, options: { maxRetries: 3 } },
+  {
+    name: "test:failure:batch",
+    batch: { lingerMs: 5 },
+    options: { maxRetries: BATCH_QUEUE_MAX_DELIVERIES },
+  },
   failing,
 );
 
@@ -143,8 +145,7 @@ Deno.test("the retry delay grows with the number of deliveries", async () => {
 });
 
 Deno.test("the last attempt goes to the dead letter and is terminated", async () => {
-  // maxRetries is 4, so the fourth delivery is the one that gives up.
-  const messages = [message("q.test_failure_retry", { id: "a" }, 4)];
+  const messages = [message("q.test_failure_retry", { id: "a" }, RETRY_QUEUE_MAX_DELIVERIES)];
   const { result, published } = await dispatch(messages);
 
   assertEquals(result.dead, 1);
@@ -168,17 +169,27 @@ Deno.test("a failed batch sends every one of its messages through the policy", a
 });
 
 Deno.test("a batch carries each message's own delivery count", async () => {
-  // One message of the batch is on its last attempt while the other has just arrived.
-  const messages = [
-    message("q.test_failure_batch", { id: "a" }, 1, 1),
-    message("q.test_failure_batch", { id: "b" }, 3, 2),
-  ];
-  const { result } = await dispatch(messages);
+  const justArrived = message("q.test_failure_batch", { id: "a" }, 1, 1);
+  const onItsLastAttempt = message(
+    "q.test_failure_batch",
+    { id: "b" },
+    BATCH_QUEUE_MAX_DELIVERIES,
+    2,
+  );
+  const { result } = await dispatch([justArrived, onItsLastAttempt]);
 
   assertEquals(result.retried, 1);
   assertEquals(result.dead, 1);
-  assertEquals(messages[0].nakedAfter !== null, true);
-  assertEquals(messages[1].termed, true);
+  assertEquals(
+    justArrived.nakedAfter !== null,
+    true,
+    "the message on its first delivery came back for another attempt",
+  );
+  assertEquals(
+    onItsLastAttempt.termed,
+    true,
+    "the message that had used up its deliveries gave up, in the same batch",
+  );
 });
 
 Deno.test("a payload published before the envelope shrank still decodes", async () => {

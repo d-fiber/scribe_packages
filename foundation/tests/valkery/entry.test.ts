@@ -77,12 +77,11 @@ Deno.test("an unreadable payload is a miss, not a throw", () => {
 });
 
 Deno.test("an object that merely looks like an envelope is read as a value", () => {
-  // The marker is what tells the two apart, and a domain object will not carry it.
   const lookalike = JSON.stringify({ v: "x", e: 1, d: 2 });
 
-  assertEquals(decodeEntry<Record<string, unknown>>(lookalike, TTL_MS)?.value, {
-    v: "x",
-    e: 1,
-    d: 2,
-  });
+  assertEquals(
+    decodeEntry<Record<string, unknown>>(lookalike, TTL_MS)?.value,
+    { v: "x", e: 1, d: 2 },
+    "the marker is what tells an envelope from a value, and a domain object does not carry it",
+  );
 });

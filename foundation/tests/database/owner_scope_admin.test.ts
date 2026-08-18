@@ -30,11 +30,6 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-// internal_t__admin_users & friends are owned by `admin_id`, so every query an
-// authenticated admin runs is silently narrowed to their own row. That is what
-// we want for "my account" endpoints, and exactly what breaks team management,
-// where an admin acts on *another* admin. These tests pin both halves.
-
 import { database } from "@scribe/foundation/src/database/database.ts";
 import { installDatabaseMock } from "@scribe/foundation/tests/database/mocks/install_database.ts";
 import { RequestIdentityCache } from "@scribe/core/runtime/http/accessors/identity.ts";
@@ -91,7 +86,11 @@ Deno.test("owner scope: a scoped read of another admin yields nothing", async ()
 Deno.test("owner scope: a scoped read of yourself still works", async () => {
   const mock = seed();
   try {
-    assertNotEquals(await asCaller(() => readRole(CALLER, false)), null);
+    assertNotEquals(
+      await asCaller(() => readRole(CALLER, false)),
+      null,
+      "reading your own row needs no opt-out, since the scope already narrows to it",
+    );
   } finally {
     mock.restore();
   }

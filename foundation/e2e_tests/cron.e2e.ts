@@ -40,13 +40,6 @@ const { Cron, cronExpression, CronTimezone, every } = await import("@scribe/foun
 const { SlotLock } = await import("@scribe/foundation/src/cron/runner/slot_lock.ts");
 const { Time } = await import("@scribe/core/contracts/common/time.ts");
 
-/**
- * A claim outlives the run that made it, so the job names carry {@link RUN_ID}.
- *
- * The lock is held for the job's timeout, ten minutes by default. Two runs inside that window
- * would see the second one refused on a slot the first took, and the failure would read as a
- * lock that never releases.
- */
 function minuteSlot(offsetMinutes = 0): Date {
   return new Date(
     Math.floor(Date.now() / 60_000) * 60_000 + offsetMinutes * 60_000,

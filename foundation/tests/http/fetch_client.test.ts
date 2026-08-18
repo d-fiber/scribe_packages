@@ -42,12 +42,6 @@ interface Call {
   init: RequestInit;
 }
 
-/**
- * Runs `body` with `fetch` answering from `answer`, and hands back every call it received.
- *
- * The platform's `fetch` is the one thing this client is written against, so it is the one
- * thing a test has to stand in for. Nothing here goes on the network.
- */
 async function withFetch(
   answer: (call: Call) => globalThis.Response | Promise<globalThis.Response>,
   body: (calls: Call[]) => Promise<void>,
@@ -123,14 +117,17 @@ Deno.test("GET and HEAD send no body and announce no length", async () => {
   await withFetch(ok, async (calls) => {
     const client = new FetchClient();
 
-    // A body set on a GET is the caller's mistake, and the platform refuses to send one at all.
     const get = new Request("GET", URL_UNDER_TEST);
     get.body = "ignored";
     await client.send(get);
     await client.head(URL_UNDER_TEST);
 
     for (const call of calls) {
-      assertEquals(call.init.body, undefined);
+      assertEquals(
+        call.init.body,
+        undefined,
+        "a body set on a GET is dropped, since the platform refuses to send one at all",
+      );
       assertEquals(new Headers(call.init.headers).get("content-length"), null);
     }
   });
@@ -229,11 +226,14 @@ Deno.test("a server that says nothing about the length leaves it unknown", async
       return answered;
     },
     async () => {
-      // The streamed response is the one that carries the server's claim; the drained one
-      // counts what actually arrived, so this has to be read before `Response.fromStream`.
       const streamed = await new FetchClient().send(new Request("GET", URL_UNDER_TEST));
 
-      assertEquals(streamed.contentLength, null);
+      assertEquals(
+        streamed.contentLength,
+        null,
+        "the streamed response carries the server's claim, and the server made none: the "
+          + "count of what actually arrived only exists once the stream is drained",
+      );
     },
   );
 });

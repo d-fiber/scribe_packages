@@ -30,10 +30,6 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-// `defineQueue` declares the queue, registers it and arms its body with
-// `queueRunner`, all in one call. These tests cover the declaration; the drain
-// itself is covered by runner.test.ts.
-
 import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
 import { Queue, queueRegistry, queueRunner } from "@scribe/foundation/src/queue/mod.ts";
 
@@ -83,13 +79,16 @@ Deno.test("new Queue() refuses two queues with the same name", () => {
 });
 
 Deno.test("the registry returns a compact report, without listing names", () => {
-  // Deliberately not the list of names: at 5,000 queues the line would be
-  // unreadable. Per-queue detail lives in GET /queue/status.
   const report = queueRegistry.report();
 
   assertStringIncludes(report, "[queue]");
   assertStringIncludes(report, "declared");
-  assertEquals(report.includes("test:define:immediate"), false);
+  assertEquals(
+    report.includes("test:define:immediate"),
+    false,
+    "the report counts the queues instead of naming them, which a project with thousands "
+      + "of them could not read",
+  );
 });
 
 Deno.test("a queue's linger delay is indeed carried by the registry", () => {
@@ -98,8 +97,14 @@ Deno.test("a queue's linger delay is indeed carried by the registry", () => {
     () => Promise.resolve(),
   );
 
-  // This is the value `graceFor()` substitutes for the default grace delay in
-  // the fetch: without it, a batch-mode queue would stop grouping anything.
-  assertEquals(queueRegistry.get("test:define:linger")?.lingerMs, 2_500);
-  assertEquals(queueRegistry.get("test:define:immediate")?.lingerMs, undefined);
+  assertEquals(
+    queueRegistry.get("test:define:linger")?.lingerMs,
+    2_500,
+    "the declared linger reached the registry, where graceFor() reads it to widen the fetch",
+  );
+  assertEquals(
+    queueRegistry.get("test:define:immediate")?.lingerMs,
+    undefined,
+    "a queue declared without batch mode carries no linger at all",
+  );
 });

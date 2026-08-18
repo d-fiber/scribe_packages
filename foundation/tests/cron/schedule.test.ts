@@ -66,10 +66,13 @@ Deno.test(
 Deno.test(
   "cronExpression() validates the expression eagerly (fails at declaration, not at the next tick)",
   () => {
-    // 5 space-separated tokens (matches the CronExpression shape at the
-    // type level) but out-of-range field values croner's own parser must
-    // reject this at runtime, the type can't.
-    assertThrows(() => cronExpression("99 99 99 99 99", CronTimezone.Utc));
+    const fiveTokensAllOutOfRange = "99 99 99 99 99";
+
+    assertThrows(
+      () => cronExpression(fiveTokensAllOutOfRange, CronTimezone.Utc),
+      "the CronExpression type only counts the tokens, so croner's parser is what has to "
+        + "refuse the values inside them",
+    );
   },
 );
 

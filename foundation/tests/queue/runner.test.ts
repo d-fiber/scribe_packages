@@ -30,15 +30,6 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-// Since the move to a shared stream (2026-08-09), the runner no longer takes
-// injectable `Drainable`s: it reads the dispatch table (`queueRegistry`) and
-// splits a mixed batch by subject. The core testable without NATS or Redis is
-// therefore `dispatch()`: grouping, batch vs job-by-job mode, the ack, and the
-// fate of an orphan subject.
-//
-// Not covered here, as the previous engine was not either: retry and the dead
-// letter, which require a real NATS + Redis instance (see .claude/testing.md).
-
 import { assertEquals } from "@std/assert";
 import { Queue } from "@scribe/foundation/src/queue/mod.ts";
 import { MessageDispatcher } from "@scribe/foundation/src/queue/runner/dispatcher.ts";
@@ -58,8 +49,6 @@ interface FakeMsg {
   readonly subject: string;
   readonly data: Uint8Array;
   readonly seq: number;
-  // How many times the server says it has handed this message out. It is where the attempt
-  // count comes from now, so a fake that leaves it out no longer stands for a real message.
   readonly info: { deliveryCount: number };
   acked: boolean;
   termed: boolean;

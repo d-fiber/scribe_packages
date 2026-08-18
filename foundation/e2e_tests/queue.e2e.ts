@@ -37,29 +37,10 @@ await useStack();
 
 const { Queue, queueRunner } = await import("@scribe/foundation/src/queue/mod.ts");
 
-/**
- * Every queue here asks for isolation, and it is not decoration.
- *
- * A queue that does not ask shares one consumer with every other shared queue, so a pass aimed
- * at one of them takes whatever was waiting across all of them, and two tests in the same
- * process eat each other's jobs.
- */
 const ISOLATED = { dedicated: true } as const;
 
-/**
- * The process keeps one NATS connection on purpose, so the sanitizers have to be told.
- *
- * Deno reads a socket that outlives a test as a leak. Here it is the design: `nats.ts` opens one
- * connection on first use and every queue shares it, exactly as a running host does.
- */
 const KEEPS_A_CONNECTION = { sanitizeOps: false, sanitizeResources: false } as const;
 
-/**
- * Drains until `expected` jobs have moved, or until a pass comes back empty.
- *
- * A pass that finds nothing costs the full five second pull window, so this stops as soon as
- * the count is reached rather than confirming with one more empty pass.
- */
 async function drain(name: string, expected: number): Promise<number> {
   let moved = 0;
 
@@ -76,15 +57,16 @@ Deno.test({
   name: "queue: the connection is authenticated and JetStream is running",
   ...KEEPS_A_CONNECTION,
   async fn() {
-    // `--auth` in compose.yaml refuses an unauthenticated connection, and without JetStream the
-    // stream this queue needs cannot be created. A push that answers an id proves both, and it
-    // is also what catches credentials the client drops on the floor.
     const queue = new Queue<{ id: string }>({ name: `e2e-auth-${RUN_ID}`, ...ISOLATED }, () => Promise.resolve());
 
     const id = await queue.push({ id: "first" });
 
-    assert(typeof id === "string" && id.length > 0, "a push answers the id JetStream gave it");
-    assertEquals(await drain(`e2e-auth-${RUN_ID}`, 1), 1);
+    assert(
+      typeof id === "string" && id.length > 0,
+      "a push answers the id JetStream gave it, which takes both the credentials compose.yaml "
+        + "requires and a running JetStream to create the stream",
+    );
+    assertEquals(await drain(`e2e-auth-${RUN_ID}`, 1), 1, "and the message comes back out");
   },
 });
 
@@ -131,16 +113,18 @@ Deno.test({
   name: "queue: a pull that finds nothing waits its whole window",
   ...KEEPS_A_CONNECTION,
   async fn() {
-    // This is JetStream's pull contract, not a fault: a fetch holds the request open until a
-    // message lands or the window closes. It is the number that decides how a runner is paced,
-    // because a loop that drains speculatively pays it every turn.
     new Queue<{ id: string }>({ name: `e2e-empty-${RUN_ID}`, ...ISOLATED }, () => Promise.resolve());
 
     const [result, ms] = await timed(() => queueRunner.runOne(`e2e-empty-${RUN_ID}`, 10));
 
     report("a pull against an empty queue", `${(ms / 1000).toFixed(1)} s`);
     assertEquals(result?.done, 0);
-    assert(ms > 4_000, "the window is five seconds, so an empty pull cannot come back sooner");
+    assert(
+      ms > 4_000,
+      "the window is five seconds, so an empty pull cannot come back sooner: a fetch holds "
+        + "the request open until a message lands, and a loop that drains speculatively pays "
+        + "that wait every turn",
+    );
   },
 });
 

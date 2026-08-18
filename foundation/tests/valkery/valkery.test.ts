@@ -46,8 +46,6 @@ function deferred<T>(): { promise: Promise<T>; resolve: (v: T) => void } {
   return { promise, resolve };
 }
 
-// Writes a key straight to the fake store, so a test can put an entry in the exact state
-// it wants to exercise instead of waiting for a real ttl to run down.
 function seed(key: string, value: unknown, expiresInMs: number, computeMs: number) {
   return kv().setex(
     key,
@@ -95,10 +93,12 @@ Deno.test("upsert collapses concurrent callers before it touches Redis", async (
     gate.resolve("value");
     assertEquals(await all, ["value", "value", "value", "value"]);
     assertEquals(computed, 1, "four callers of one key must produce one computation");
-    // The distributed lock would also have collapsed these four, but only after four reads
-    // and a poll each. What the in-process tier buys is that the other three never leave
-    // the process at all.
-    assertEquals(get.calls.length, 1, "four callers of one key must cost one read");
+    assertEquals(
+      get.calls.length,
+      1,
+      "four callers of one key must cost one read: the distributed lock alone would have "
+        + "collapsed them too, but only after a read and a poll each",
+    );
   } finally {
     get.restore();
     mock.restore();
@@ -110,11 +110,16 @@ Deno.test("upsert refreshes ahead of the expiry and returns the fresh value", as
   const cache = new Valkery<string>({ key: "test", ttl: Time.minutes(5) });
 
   try {
-    // Costly to produce and about to expire: every reader volunteers.
-    await seed("test:k", "stale", 1, 1_000_000);
+    const oneMillisecondLeft = 1;
+    const costlyToProduce = 1_000_000;
+    await seed("test:k", "stale", oneMillisecondLeft, costlyToProduce);
 
-    assertEquals(await cache.upsert("k", () => Promise.resolve("fresh")), "fresh");
-    assertEquals(await cache.get("k"), "fresh");
+    assertEquals(
+      await cache.upsert("k", () => Promise.resolve("fresh")),
+      "fresh",
+      "an entry that costs a lot and expires in a millisecond makes every reader volunteer",
+    );
+    assertEquals(await cache.get("k"), "fresh", "and the refreshed value was written back");
   } finally {
     mock.restore();
   }

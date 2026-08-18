@@ -49,8 +49,12 @@ function refreshRate(e: Entry<string>, beta = 1, draws = 4_000): number {
 }
 
 Deno.test("an entry whose computation was not measured never refreshes early", () => {
-  // This is what a legacy entry carries, and what a computation too fast to time carries.
-  assertEquals(refreshRate(entry(0, 1_000, NOW)), 0);
+  const unmeasured = 0;
+  assertEquals(
+    refreshRate(entry(unmeasured, 1_000, NOW)),
+    0,
+    "an entry written before the field existed, or too fast to time, stays out of it",
+  );
 });
 
 Deno.test("beta at zero turns refresh-ahead off", () => {
@@ -58,8 +62,11 @@ Deno.test("beta at zero turns refresh-ahead off", () => {
 });
 
 Deno.test("an entry far from its expiry is almost never refreshed", () => {
-  // A 50ms computation against an hour of remaining ttl.
-  assert(refreshRate(entry(50, 3_600_000, NOW)) < 0.01);
+  const anHourLeft = 3_600_000;
+  assert(
+    refreshRate(entry(50, anHourLeft, NOW)) < 0.01,
+    "a 50ms computation an hour from its expiry pulls fewer than one reader in a hundred",
+  );
 });
 
 Deno.test("an entry past its expiry is always refreshed", () => {

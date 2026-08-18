@@ -30,10 +30,6 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-// `defineCron` registers both in the registry (introspection, startup report)
-// and in `cronRunner` (execution). These tests cover the declaration; the firing
-// itself is covered by runner.test.ts.
-
 import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
 import { Time } from "@scribe/core/contracts/common/time.ts";
 import { Cron, cronRegistry, every } from "@scribe/foundation/src/cron/mod.ts";

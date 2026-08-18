@@ -34,9 +34,6 @@ import { database } from "@scribe/foundation/src/database/database.ts";
 import { assertEquals } from "@std/assert";
 import { installDatabaseMock } from "@scribe/foundation/tests/database/mocks/install_database.ts";
 
-// Since `database` is a `Tables` instance, it is its table methods that get shadowed
-// by own properties, not the binding see
-// `mocks/database/install_rest.ts`.
 Deno.test(
   "installDatabaseMock: shadows database's table methods and restores them",
   async () => {
@@ -48,15 +45,15 @@ Deno.test(
       .internal_t__admin_users_roles()
       .where((f) => f.role.eq("owner"))
       .getOne();
-    assertEquals(found?.role, "owner");
+    assertEquals(found?.role, "owner", "the query read the row the mock was given");
 
-    // After restore(), do not *call* database.x(): the real client would read the
-    // request scope, which is absent outside the server. We check instead that
-    // the own properties installed by the mock are gone.
     mock.restore();
     assertEquals(
       Object.getOwnPropertyNames(database).includes("internal_t__admin_users_roles"),
       false,
+      "restore() took its own properties back off database, which is all this can check: "
+        + "calling a table method again would reach the real client, and that one reads a "
+        + "request scope no test has outside the server",
     );
   },
 );

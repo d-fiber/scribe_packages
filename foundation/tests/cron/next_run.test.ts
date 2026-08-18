@@ -30,10 +30,6 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-// File name doesn't start with `_` (unlike the source _next_run.ts): the
-// private-module-scope lint only cares about the source tree, and test file
-// names under tests/tests/ mirror it for discoverability, not for privacy.
-
 import { nextRun, nextRunAfterSlot } from "@scribe/foundation/src/cron/core/next_run.ts";
 import { at, cronExpression, every } from "@scribe/foundation/src/cron/schedule/mod.ts";
 import { Time } from "@scribe/core/contracts/common/time.ts";
@@ -56,7 +52,7 @@ Deno.test(
   "nextRun() for a daily schedule picks the earliest upcoming time among several",
   () => {
     const schedule = at(CronTimezone.Utc, "00:00", "12:00");
-    const after = new Date("2026-01-01T06:00:00.000Z"); // past 00:00, before 12:00
+    const after = new Date("2026-01-01T06:00:00.000Z");
 
     const next = nextRun(schedule, after);
 
@@ -68,7 +64,7 @@ Deno.test(
   "nextRun() for a daily schedule wraps to tomorrow once today has passed",
   () => {
     const schedule = at(CronTimezone.Utc, "00:00", "12:00");
-    const after = new Date("2026-01-01T18:00:00.000Z"); // past both today
+    const after = new Date("2026-01-01T18:00:00.000Z");
 
     const next = nextRun(schedule, after);
 
@@ -92,7 +88,7 @@ Deno.test(
   "nextRun() for a cron schedule rolls over to the next day once today's occurrence has passed",
   () => {
     const schedule = cronExpression("0 3 * * *", CronTimezone.Utc);
-    const after = new Date("2026-01-01T04:00:00.000Z"); // already past 03:00 today
+    const after = new Date("2026-01-01T04:00:00.000Z");
 
     const next = nextRun(schedule, after);
 
@@ -105,14 +101,12 @@ Deno.test(
   () => {
     const schedule = every(Time.minutes(1));
     const slot = new Date("2026-01-01T00:00:00.000Z");
-    // Fired 15s late relative to its slot.
-    const now = new Date("2026-01-01T00:00:15.000Z");
+    const firedFifteenSecondsLate = new Date("2026-01-01T00:00:15.000Z");
 
-    // Anchored on `now` we would get 00:01:15 and the lag would carry over on
-    // every round; anchored on the grid, we stay on 00:01:00.
     assertEquals(
-      nextRunAfterSlot(schedule, slot, now).toISOString(),
+      nextRunAfterSlot(schedule, slot, firedFifteenSecondsLate).toISOString(),
       "2026-01-01T00:01:00.000Z",
+      "the next run landed on the grid, so the 15s of lag does not carry over to every round",
     );
   },
 );
@@ -122,12 +116,12 @@ Deno.test(
   () => {
     const schedule = every(Time.minutes(1));
     const slot = new Date("2026-01-01T00:00:00.000Z");
-    const now = new Date("2026-01-01T00:09:30.000Z");
+    const nineSlotsLater = new Date("2026-01-01T00:09:30.000Z");
 
-    // No burst catch-up of the 9 missed slots: we resume at the next one.
     assertEquals(
-      nextRunAfterSlot(schedule, slot, now).toISOString(),
+      nextRunAfterSlot(schedule, slot, nineSlotsLater).toISOString(),
       "2026-01-01T00:10:00.000Z",
+      "the nine missed slots were dropped rather than fired back to back",
     );
   },
 );
@@ -139,11 +133,10 @@ Deno.test(
     const slot = new Date("2026-01-01T02:00:00.000Z");
     const now = new Date("2026-01-01T02:05:00.000Z");
 
-    // A wall-clock time accumulates nothing: croner recomputes the next
-    // occurrence from `now`, the original slot plays no part.
     assertEquals(
       nextRunAfterSlot(schedule, slot, now).getTime(),
       nextRun(schedule, now).getTime(),
+      "croner recomputed the occurrence from now, and the slot it drifted from played no part",
     );
   },
 );

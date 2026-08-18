@@ -117,9 +117,12 @@ Deno.test("planFor holds without a single queue declared", () => {
 Deno.test("planFor lets the server deliver for as long as the policy retries", () => {
   const plan = planFor([queue({ maxRetries: 20 }), queue({ maxRetries: 3 })]);
 
-  // The server has to outlast the longest retry policy. Stopping first would drop the
-  // message with nothing but an advisory, and the dead letter would never be written.
-  assertEquals(plan.maxDeliver > 20, true, `${plan.maxDeliver} must exceed 20`);
+  assertEquals(
+    plan.maxDeliver > 20,
+    true,
+    `the server gives up after ${plan.maxDeliver} deliveries, before the longest policy has `
+      + "finished retrying, so that message dies on an advisory and never reaches the dead letter",
+  );
 });
 
 Deno.test("planFor never lets the server stop before the default policy is done", () => {

@@ -30,12 +30,6 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-// The engine no longer has a global flag: a hook runs as soon as a handler is
-// registered, full stop. There is therefore nothing left to initialize before
-// these tests, and no shared state across test files. The only constraint is
-// that a hook name is unique per process (the registry guarantees it), hence the
-// distinct names below.
-
 import { Hook, hookRegistry } from "@scribe/foundation/src/hook/mod.ts";
 import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
 import { assertEquals, assertRejects, assertStrictEquals, assertThrows } from "@std/assert";
@@ -114,7 +108,7 @@ Deno.test("hook.run() propagates a handler's error to the caller", async () => {
   await assertRejects(() => hook.run("x"), Error, "boom");
 });
 
-Deno.test("hook.run() convertit un throw synchrone en rejet", async () => {
+Deno.test("hook.run() turns a synchronous throw into a rejection", async () => {
   const hook = new Hook<string>({ name: "test.throws" });
   hook.on(() => {
     throw new Error("boom");
@@ -150,16 +144,18 @@ Deno.test("background() does not run the handler within the request", async () =
     backgroundRan = true;
   });
 
-  // The push goes to NATS, absent in tests: it fails, is traced, and does not
-  // prevent `run()` from returning. That is precisely what we want to check:
-  // the background handler is never called inline.
   await hook.run({ id: "x" });
 
-  assertEquals(inlineRan, true);
-  assertEquals(backgroundRan, false);
+  assertEquals(inlineRan, true, "the inline handler ran within run()");
+  assertEquals(
+    backgroundRan,
+    false,
+    "the background handler was pushed rather than called, and the push failing on the "
+      + "absent NATS did not hold run() back",
+  );
 });
 
-Deno.test("handlers() counts both inline AND background subscribers", () => {
+Deno.test("handlers() counts inline and background subscribers together", () => {
   const hook = new Hook<string>({ name: "test.background.count" });
 
   assertEquals(hook.handlers(), 0);
@@ -175,10 +171,11 @@ Deno.test("a hook nobody listens to answers without doing any work", () => {
     fallback: "no-op",
   });
 
-  // The same promise instance every time is what says the emission allocated nothing. A
-  // framework declares far more extension points than a project uses, and they are emitted
-  // on the hot paths.
-  assertStrictEquals(hook.run("a"), hook.run("b"));
+  assertStrictEquals(
+    hook.run("a"),
+    hook.run("b"),
+    "two emissions answered the same promise instance, so neither allocated anything",
+  );
 });
 
 Deno.test("a hook stops answering from the fast path once someone subscribes", async () => {

@@ -44,9 +44,6 @@ const ADMIN = {
   rules: { role: "owner", permissions: [] },
 };
 
-// The builder reads `currentIdentity()`, which reads the request scope: we
-// therefore open a scope and install an already-resolved identity in it, exactly
-// like `resolveIdentity` does in production.
 function withIdentity<T>(identity: RequestUser, run: () => Promise<T>): Promise<T> {
   return RequestScope.run(
     new Request("http://test.local/"),
@@ -84,7 +81,7 @@ Deno.test("scope: an admin sees a whole user table", async () => {
   const mock = installDatabaseMock({ internal_t__app_user_settings: [...SETTINGS] });
   try {
     const rows = await withIdentity(ADMIN, () => database.internal_t__app_user_settings().get());
-    assertEquals(rows.length, 2);
+    assertEquals(rows.length, 2, "an admin reading a user table gets every row of it");
   } finally {
     mock.restore();
   }
@@ -96,8 +93,8 @@ Deno.test("scope: an admin is bounded on an admin table", async () => {
   });
   try {
     const rows = await withIdentity(ADMIN, () => database.internal_t__admin_users_settings().get());
-    assertEquals(rows.length, 1);
-    assertEquals((rows[0] as { admin_id: string }).admin_id, "a1");
+    assertEquals(rows.length, 1, "an admin table is owned, so the read narrowed to one row");
+    assertEquals((rows[0] as { admin_id: string }).admin_id, "a1", "and it is the caller's row");
   } finally {
     mock.restore();
   }
@@ -107,14 +104,12 @@ Deno.test("scope: without an identity, service scope (no filter)", async () => {
   const mock = installDatabaseMock({ internal_t__app_user_settings: [...SETTINGS] });
   try {
     const rows = await withIdentity(null, () => database.internal_t__app_user_settings().get());
-    assertEquals(rows.length, 2);
+    assertEquals(rows.length, 2, "with nobody to scope to, the read runs unfiltered");
   } finally {
     mock.restore();
   }
 });
 
-// Both write tests trigger cache invalidation, hence the real
-// Redis client (lazy connection → timer). That is not what this test is about.
 Deno.test({
   name: "scope: a user's update only touches its own row",
   sanitizeOps: false,
