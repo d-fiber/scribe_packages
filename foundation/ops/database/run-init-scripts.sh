@@ -41,6 +41,7 @@ run_dir() {
   done
 }
 
+run_dir /docker-entrypoint-init-sql/foundation
 run_dir /docker-entrypoint-init-sql/framework
 run_dir /docker-entrypoint-init-sql/modules
 run_dir /docker-entrypoint-init-sql/project
