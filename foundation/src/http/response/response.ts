@@ -31,6 +31,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { ByteStream } from "../byte_stream.ts";
+import { ClientException } from "../exception.ts";
 import type { BaseRequest } from "../request/base_request.ts";
 import { BaseResponse } from "./base_response.ts";
 import type { StreamedResponse } from "./streamed_response.ts";
@@ -72,6 +73,28 @@ export class Response extends BaseResponse {
     }
   }
 
+  /**
+   * The body, read as JSON.
+   *
+   * Every caller of this package decodes a JSON body, and half of them also branch on the
+   * status, so this sits on the response rather than on the client: `readJson` would have to
+   * refuse a 404 that most of them want to read.
+   *
+   * @throws {ClientException} When the body is not JSON. A payload that cannot be parsed is
+   * an exchange that did not deliver what it announced, not a value the caller can inspect.
+   */
+  json<T>(): T {
+    try {
+      return JSON.parse(this.body) as T;
+    } catch (cause) {
+      throw new ClientException(
+        `Answer from ${this.request?.url ?? "the server"} is not JSON.`,
+        this.request?.url ?? null,
+        { cause },
+      );
+    }
+  }
+
   /** Drains a {@link StreamedResponse} into a whole one. */
   static async fromStream(response: StreamedResponse): Promise<Response> {
     const bytes = await response.stream.toBytes();
@@ -86,7 +109,9 @@ export class Response extends BaseResponse {
   }
 
   #charset(): string {
-    const found = /charset=([^;\s]+)/i.exec(this.headers.get("content-type") ?? "");
+    const found = /charset=([^;\s]+)/i.exec(
+      this.headers.get("content-type") ?? "",
+    );
     return found?.[1] ?? "utf-8";
   }
 }

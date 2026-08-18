@@ -54,13 +54,19 @@ export abstract class BaseRequest {
   #followRedirects = true;
   #maxRedirects = 5;
   #persistentConnection = true;
+  #timeoutMs: number | null = null;
 
   constructor(method: string, url: URL | string) {
     this.method = method.toUpperCase();
     this.url = typeof url === "string" ? new URL(url) : url;
   }
 
-  /** The headers this request carries. Not writable once the request has been sent. */
+  /**
+   * The headers this request carries.
+   *
+   * Unlike the settable fields, this one stays open after a send: it is the collection itself
+   * that is handed out, and a subclass drawing a boundary at finalize writes into it.
+   */
   get headers(): Headers {
     return this.#headers;
   }
@@ -93,6 +99,21 @@ export abstract class BaseRequest {
   set persistentConnection(value: boolean) {
     this.#checkFinalized();
     this.#persistentConnection = value;
+  }
+
+  /**
+   * How long the client waits for this exchange, in milliseconds, or `null` for no limit.
+   *
+   * It lives on the request rather than on the call so that it survives into {@link send},
+   * which is the only method a client has to implement and the only place a limit can be
+   * applied.
+   */
+  get timeoutMs(): number | null {
+    return this.#timeoutMs;
+  }
+  set timeoutMs(value: number | null) {
+    this.#checkFinalized();
+    this.#timeoutMs = value;
   }
 
   /** Whether this request has already been handed over. */

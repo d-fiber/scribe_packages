@@ -61,11 +61,18 @@ export class FetchClient extends BaseClient {
       request.headers.set("content-length", String(request.contentLength));
     }
 
+    // Draining a body that holds nothing costs a turn of the event loop for an empty buffer, and
+    // that turn is visible: a caller that sends without awaiting has its request issued one tick
+    // later, which is enough to miss a stubbed `fetch` that has already been put back.
+    //
     // A `Uint8Array` is a `BufferSource`, so it is a body the platform accepts. Whether the
     // type system agrees depends on which lib resolves the buffer generic, and the answer
     // differs between a machine's global cache and the lockfile CI pins — the annotation is
     // what makes the two agree.
-    const payload: BodyInit | undefined = hasBody ? (await body.toBytes()) as BodyInit : undefined;
+    const carriesBytes = hasBody && request.contentLength !== 0;
+    const payload: BodyInit | undefined = carriesBytes ? (await body.toBytes()) as BodyInit : undefined;
+
+    const timeoutMs = request.timeoutMs;
 
     let answered: globalThis.Response;
     try {
@@ -74,12 +81,13 @@ export class FetchClient extends BaseClient {
         headers: request.headers,
         body: payload,
         redirect: request.followRedirects ? "follow" : "manual",
+        signal: timeoutMs === null ? undefined : AbortSignal.timeout(timeoutMs),
       });
     } catch (cause) {
       // Every way the exchange can fail before a status — a refused connection, a name that
       // does not resolve, a timeout — arrives here as a different type. One is enough.
       throw new ClientException(
-        `HTTP request failed. ${_describe(cause)}`,
+        `HTTP request failed. ${_describe(cause, timeoutMs)}`,
         request.url,
         { cause },
       );
@@ -113,6 +121,12 @@ export class FetchClient extends BaseClient {
   }
 }
 
-function _describe(cause: unknown): string {
+// A signal that fires arrives as a DOMException whose message says only that a signal timed
+// out, which leaves the reader guessing which limit was reached. The number is the whole
+// point of the report.
+function _describe(cause: unknown, timeoutMs: number | null): string {
+  if (timeoutMs !== null && cause instanceof DOMException && cause.name === "TimeoutError") {
+    return `Timed out after ${timeoutMs} ms.`;
+  }
   return cause instanceof Error ? cause.message : String(cause);
 }

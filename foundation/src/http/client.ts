@@ -35,18 +35,27 @@ import type { Response } from "./response/response.ts";
 import type { StreamedResponse } from "./response/streamed_response.ts";
 
 /** What a body may be given as on a convenience method. */
-export type RequestBody =
-  | string
-  | Uint8Array
-  | Record<string, string>
-  | null;
+export type RequestBody = string | Uint8Array | Record<string, string> | null;
 
 /** The options every convenience method takes. */
 export interface RequestOptions {
   readonly headers?: HeadersInit;
   readonly body?: RequestBody;
-  /** How the body is encoded, and how the answer is decoded. Utf-8 unless said otherwise. */
+  /**
+   * How the body is encoded, and what charset its content-type announces. Utf-8 unless said
+   * otherwise. It says nothing about the answer, which is decoded from the charset the server
+   * announced.
+   */
   readonly encoding?: string;
+
+  /**
+   * How long to wait for the whole exchange, in milliseconds. No limit unless said otherwise.
+   *
+   * A request that runs out of time fails with a {@link ClientException} like any other
+   * exchange that never happened — the caller does not have to tell an abort apart from a
+   * refused connection, because there is nothing different to do about it.
+   */
+  readonly timeout?: number;
 }
 
 /**

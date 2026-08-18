@@ -101,6 +101,7 @@ export abstract class BaseClient implements Client {
       }
     }
     if (options.encoding) request.encoding = options.encoding;
+    if (options.timeout !== undefined) request.timeoutMs = options.timeout;
     _applyBody(request, options.body ?? null);
 
     return await Response.fromStream(await this.send(request));
@@ -109,7 +110,7 @@ export abstract class BaseClient implements Client {
   // `read` and `readBytes` are the two methods that promise a body, so they are the two that
   // cannot hand back the body of an error page as if it were the answer.
   #checkOk(response: Response): void {
-    if (response.statusCode >= 200 && response.statusCode < 300) return;
+    if (response.ok) return;
 
     throw new ClientException(
       `Request to ${response.request?.url} failed with status ${response.statusCode}.`,

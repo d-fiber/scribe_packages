@@ -49,6 +49,16 @@ export abstract class BaseResponse {
   /** The text beside the status, when the server sent one. */
   readonly reasonPhrase: string | null;
 
+  /**
+   * Whether the status is one the server used to say it worked.
+   *
+   * It is the same 2xx window `read` and `readBytes` refuse outside of, named once so that a
+   * caller branching on the status does not re-derive it.
+   */
+  get ok(): boolean {
+    return this.statusCode >= 200 && this.statusCode < 300;
+  }
+
   /** Whether the server answered with a redirect. */
   readonly isRedirect: boolean;
 

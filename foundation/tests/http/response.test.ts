@@ -1,0 +1,181 @@
+// Copyright (C) 2026 Fiber
+//
+// This file is part of scribe and is made available under the PolyForm Shield
+// License 1.0.0. The full terms are in the LICENSE file at the root of this
+// repository, and at https://polyformproject.org/licenses/shield/1.0.0
+//
+// What you may do:
+// - Use this software for any purpose, including commercially, and build and
+//   sell your own products on top of it.
+// - Change it, and create new works based on it.
+// - Distribute copies of it, with or without your changes.
+//
+// The one thing you may not do:
+// - Use it to provide any product that competes with scribe, or with any
+//   product Fiber or its affiliates provide using scribe. Products compete
+//   even when they are offered free of charge, through a different kind of
+//   interface, or for a different technical platform.
+//
+// If you pass this software on:
+// - Anyone who receives any part of it from you must also receive these terms,
+//   or the URL above, together with the "Required Notice" line carried by the
+//   LICENSE file.
+//
+// Disclaimer:
+// AS FAR AS THE LAW ALLOWS, THIS SOFTWARE COMES AS IS, WITHOUT ANY WARRANTY OR
+// CONDITION, AND THE LICENSOR WILL NOT BE LIABLE TO YOU FOR ANY DAMAGES ARISING
+// OUT OF THESE TERMS OR THE USE OR NATURE OF THE SOFTWARE, UNDER ANY KIND OF
+// LEGAL CLAIM.
+//
+// This header is a summary written for convenience. Where it differs from the
+// LICENSE file, the LICENSE file governs.
+
+import { ByteStream } from "@scribe/foundation/src/http/byte_stream.ts";
+import { ClientException } from "@scribe/foundation/src/http/exception.ts";
+import { Request } from "@scribe/foundation/src/http/request/request.ts";
+import { Response } from "@scribe/foundation/src/http/response/response.ts";
+import { StreamedResponse } from "@scribe/foundation/src/http/response/streamed_response.ts";
+import { assertEquals, assertThrows } from "@std/assert";
+
+function typed(value: string): Headers {
+  return new Headers({ "content-type": value });
+}
+
+Deno.test("a response built from text announces its length in bytes", () => {
+  const response = new Response("héllo", 200);
+
+  assertEquals(response.contentLength, 6);
+  assertEquals(response.body, "héllo");
+});
+
+Deno.test("the charset of content-type decides how the body reads", () => {
+  const latin = new Response(new Uint8Array([0xe9]), 200, {
+    headers: typed("text/plain; charset=latin1"),
+  });
+  const utf8 = new Response(new Uint8Array([0xc3, 0xa9]), 200, {
+    headers: typed("text/plain"),
+  });
+
+  assertEquals(latin.body, "é");
+  assertEquals(utf8.body, "é");
+});
+
+Deno.test(
+  "a charset the platform does not know falls back to utf-8 instead of throwing",
+  () => {
+    const response = new Response(new Uint8Array([0xc3, 0xa9]), 200, {
+      headers: typed("text/plain; charset=not-a-charset"),
+    });
+
+    assertEquals(response.body, "é");
+    assertEquals(response.bodyBytes, new Uint8Array([0xc3, 0xa9]));
+  },
+);
+
+Deno.test("ok is the 2xx window, and nothing else", () => {
+  const statuses: Array<[number, boolean]> = [
+    [199, false],
+    [200, true],
+    [204, true],
+    [299, true],
+    [300, false],
+    [404, false],
+    [500, false],
+  ];
+
+  for (const [status, expected] of statuses) {
+    assertEquals(new Response("", status).ok, expected, `status ${status}`);
+  }
+});
+
+Deno.test("a status below 100 is refused", () => {
+  assertThrows(() => new Response("", 99), Error, "Invalid status code 99.");
+  assertEquals(new Response("", 100).statusCode, 100);
+});
+
+Deno.test("a response says nothing it was not told", () => {
+  const response = new Response("", 200);
+
+  assertEquals(response.request, null);
+  assertEquals(response.reasonPhrase, null);
+  assertEquals(response.isRedirect, false);
+  assertEquals(response.persistentConnection, true);
+  assertEquals([...response.headers], []);
+});
+
+Deno.test(
+  "fromStream drains the body and keeps everything the headers said",
+  async () => {
+    const request = new Request("GET", "https://example.test/a");
+    const streamed = new StreamedResponse(
+      ByteStream.fromBytes(new TextEncoder().encode("hello")),
+      301,
+      {
+        request,
+        headers: typed("text/plain"),
+        reasonPhrase: "Moved Permanently",
+        isRedirect: true,
+        persistentConnection: false,
+      },
+    );
+
+    const whole = await Response.fromStream(streamed);
+
+    assertEquals(whole.body, "hello");
+    assertEquals(whole.statusCode, 301);
+    assertEquals(whole.request, request);
+    assertEquals(whole.reasonPhrase, "Moved Permanently");
+    assertEquals(whole.isRedirect, true);
+    assertEquals(whole.persistentConnection, false);
+    assertEquals(whole.headers.get("content-type"), "text/plain");
+  },
+);
+
+Deno.test("json reads the body a server announced as JSON", () => {
+  const response = new Response('{"name":"ada","tags":[1,2]}', 200, {
+    headers: typed("application/json"),
+  });
+
+  assertEquals(response.json<{ name: string; tags: number[] }>(), {
+    name: "ada",
+    tags: [1, 2],
+  });
+});
+
+Deno.test("json reads a body the caller is free to have refused first", () => {
+  // A 404 with a JSON error payload is the case the client-level `readJson` could not serve.
+  const response = new Response('{"code":"not_found"}', 404, {
+    headers: typed("application/json"),
+  });
+
+  assertEquals(response.statusCode, 404);
+  assertEquals(response.json<{ code: string }>(), { code: "not_found" });
+});
+
+Deno.test("a body that is not JSON is an exception, not a value", () => {
+  const request = new Request("GET", "https://example.test/a");
+  const response = new Response("<html>gateway timeout</html>", 504, {
+    request,
+  });
+
+  const raised = assertThrows(
+    () => response.json(),
+    ClientException,
+    "Answer from https://example.test/a is not JSON.",
+  ) as ClientException;
+
+  assertEquals(raised.uri?.href, "https://example.test/a");
+});
+
+Deno.test(
+  "a drained response announces what arrived, not what the server claimed",
+  async () => {
+    const streamed = new StreamedResponse(
+      ByteStream.fromBytes(new TextEncoder().encode("hi")),
+      200,
+      { contentLength: 900 },
+    );
+
+    assertEquals((await Response.fromStream(streamed)).contentLength, 2);
+  },
+);

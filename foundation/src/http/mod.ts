@@ -48,10 +48,13 @@ export { Response } from "./response/response.ts";
 export { StreamedResponse } from "./response/streamed_response.ts";
 export { runWithClient } from "./run_with_client.ts";
 
-// Each of these opens a client, sends one request and closes it. That is the right shape for
-// a call that happens once and the wrong one for a caller making several: a `Client` kept
-// across calls reuses its connections, and these cannot. The doc of `Client` says so, and so
-// does package:http, for the same reason.
+// Each of these opens a client, sends one request and closes it.
+//
+// With `FetchClient` that costs nothing measurable: the platform pools connections for the
+// whole process, so two hundred one-off calls and two hundred on a kept client come out within
+// noise of each other. What the shape decides is not speed but ownership — a client that really
+// holds something, one that retries or logs or pools per instance, is worth keeping across
+// calls, and these functions give it no chance to.
 async function _once(
   call: (client: Client) => Promise<Response>,
 ): Promise<Response> {

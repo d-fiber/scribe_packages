@@ -36,6 +36,7 @@ import type { MultipartFile } from "./multipart_file.ts";
 
 const _BOUNDARY_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'()+_,-./:=?";
 const _BOUNDARY_LENGTH = 32;
+const _ENCODER = new TextEncoder();
 
 /**
  * A `multipart/form-data` request: named fields, and files.
@@ -66,13 +67,13 @@ export class MultipartRequest extends BaseRequest {
 
     for (const [name, value] of this.fields) {
       length += "--".length + boundaryLength + "\r\n".length +
-        this.#fieldHeader(name).length +
-        new TextEncoder().encode(value).length + "\r\n".length;
+        _byteLength(this.#fieldHeader(name)) +
+        _byteLength(value) + "\r\n".length;
     }
 
     for (const file of this.files) {
       length += "--".length + boundaryLength + "\r\n".length +
-        this.#fileHeader(file).length + file.length + "\r\n".length;
+        _byteLength(this.#fileHeader(file)) + file.length + "\r\n".length;
     }
 
     return length + "--".length + boundaryLength + "--\r\n".length;
@@ -83,7 +84,7 @@ export class MultipartRequest extends BaseRequest {
     this.headers.set("content-type", `multipart/form-data; boundary=${boundary}`);
     super.finalize();
 
-    const encoder = new TextEncoder();
+    const encoder = _ENCODER;
     const files = this.files;
     const fields = this.fields;
     const fieldHeader = (name: string) => this.#fieldHeader(name);
@@ -130,6 +131,13 @@ export class MultipartRequest extends BaseRequest {
     }
     return boundary.slice(0, _BOUNDARY_LENGTH + 2);
   }
+}
+
+// A header is measured in bytes and not in characters: an accent in a field name or in a
+// filename takes two of them, and a content-length short by that much describes a body the
+// caller never sent.
+function _byteLength(value: string): number {
+  return _ENCODER.encode(value).length;
 }
 
 // A quote or a newline inside a field name would end the header early and let the rest of the

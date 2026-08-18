@@ -52,8 +52,6 @@ export class ClientException extends Error {
   }
 
   override toString(): string {
-    return this.uri === null
-      ? `ClientException: ${this.message}`
-      : `ClientException: ${this.message}, uri=${this.uri}`;
+    return this.uri === null ? `ClientException: ${this.message}` : `ClientException: ${this.message}, uri=${this.uri}`;
   }
 }
