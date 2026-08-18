@@ -38,9 +38,20 @@ export type CronExpression = `${string} ${string} ${string} ${string} ${string}`
 
 /** A job placed on the calendar by a cron expression. */
 export interface CronExpressionSchedule {
+  /** What tells this schedule from an interval or a daily time. */
   readonly kind: "cron";
+
+  /** The expression as it was declared, kept for the status endpoint and the report. */
   readonly expression: CronExpression;
+
+  /** The zone {@link expression} is read in. */
   readonly timezone: CronTimezone;
+
+  /**
+   * The croner job built from {@link expression}, once.
+   *
+   * Rebuilding it to answer a single question would parse the expression again on every tick.
+   */
   readonly job: Cron;
 }
 

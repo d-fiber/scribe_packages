@@ -65,7 +65,7 @@ export function nextRun(schedule: Schedule, after: Date): Date {
  *
  * Occurrences a stalled process slept through are **skipped, not replayed**: an interval
  * advances by whole intervals until it is in the future, and a calendar schedule is asked
- * from now. It is the policy Quartz calls "do nothing", and it is the only one here — a
+ * from now. It is the policy Quartz calls "do nothing", and it is the only one here, because a
  * process down for three hours must not wake up owing three hours of work.
  */
 export function nextRunAfterSlot(

@@ -35,8 +35,8 @@
  *
  * This is the first of the two tiers a cache needs. The Redis lock coordinates replicas
  * with each other and costs two round trips to do it; this one costs a `Map` lookup and
- * covers the case that dominates in practice — the same client, or the same page, asking
- * for the same key several times while the first answer is still in flight.
+ * covers the case that dominates in practice: the same client, or the same page, asking for
+ * the same key several times while the first answer is still in flight.
  *
  * Nothing here is a cache: an entry lives exactly as long as the computation it stands for,
  * so a caller never reads a value this class kept.
@@ -59,8 +59,6 @@ export class LocalFlight {
     const running = this.#inFlight.get(key);
     if (running) return running as Promise<T>;
 
-    // The entry has to be removed by whoever settles it, and `finally` runs for both
-    // outcomes. Deleting on the value alone would leak the key on every rejection.
     const started = compute().finally(() => this.#inFlight.delete(key));
 
     this.#inFlight.set(key, started);

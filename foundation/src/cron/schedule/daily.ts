@@ -38,9 +38,21 @@ export type TimeOfDay = `${number}:${number}`;
 
 /** A job placed on the calendar at one or more times of day. */
 export interface DailySchedule {
+  /** What tells this schedule from an interval or a cron expression. */
   readonly kind: "daily";
+
+  /** The times of day this job runs at, as they were declared. */
   readonly times: readonly TimeOfDay[];
+
+  /** The zone {@link times} are read in, which is what makes them survive a change of offset. */
   readonly timezone: CronTimezone;
+
+  /**
+   * One croner job per entry of {@link times}, in the same order.
+   *
+   * They are built once and kept, because building one to answer a single question would
+   * parse the expression again on every tick.
+   */
   readonly jobs: readonly Cron[];
 }
 
@@ -50,9 +62,9 @@ const _TIME_OF_DAY = /^([01]\d|2[0-3]):([0-5]\d)$/;
  * Runs the job at each of `times`, in `timezone`.
  *
  * One `Cron` per time rather than one expression listing them: croner answers the next
- * occurrence of each, and the schedule takes the earliest. Both refusals — an empty list, a
- * time that is not a 24-hour `HH:MM` — happen at declaration, because a job that never fires
- * is a job whose absence nobody notices.
+ * occurrence of each, and the schedule takes the earliest. Both refusals, an empty list and a
+ * time that is not a 24-hour `HH:MM`, happen at declaration, because a job that never fires is
+ * a job whose absence nobody notices.
  */
 export function at(
   timezone: CronTimezone,

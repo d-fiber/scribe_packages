@@ -41,7 +41,7 @@ import { BaseProcessor } from "./base_processor.ts";
  * Calls the body once with the whole group, and acknowledges it whole.
  *
  * On failure each message goes through the policy **individually**, so every one keeps its
- * own delivery count — but one poisonous message makes the whole group run again.
+ * own delivery count, but one poisonous message makes the whole group run again.
  */
 export class BatchProcessor extends BaseProcessor {
   override async process(

@@ -34,7 +34,15 @@ import type { Scheduled } from "@scribe/foundation/src/cron/schedule/mod.ts";
 
 /** A declared job, and where its next occurrence falls. */
 export interface RegisteredCron {
+  /** The declaration as it was given, name, schedule and timeout. */
   readonly job: Scheduled;
+
+  /**
+   * When this job is next due.
+   *
+   * Read rather than stored, so the startup report and the status endpoint see the same
+   * answer as the loop that will fire it.
+   */
   nextRun(): Date;
 }
 

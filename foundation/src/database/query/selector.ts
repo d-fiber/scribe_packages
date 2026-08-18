@@ -32,9 +32,15 @@
 
 // deno-lint-ignore-file no-explicit-any
 
+/** One relation a table can embed, and what embedding it yields. */
 export type RelNode = {
+  /** The shape of a row on the far side of this relation. */
   row: object;
+
+  /** Whether embedding this relation yields a list rather than a single row. */
   many?: boolean;
+
+  /** What the far side can embed in turn, so a selection can go deeper than one level. */
   relations?: Record<string, RelNode>;
 };
 

@@ -83,7 +83,7 @@ export class OwnerScopeError extends Error {
 /**
  * A PostgREST client, or a way to get one when it is first needed.
  *
- * A builder is routinely constructed at module load — `const users = new Database("users")` —
+ * A builder is routinely constructed at module load, as in `const users = new Database("users")`,
  * and building the client there would read the database settings before the boot has filled
  * them, which throws. Taking a thunk is what lets the two happen in either order.
  */
@@ -110,8 +110,12 @@ export class TypedQueryBuilder<
     this.#state = state;
   }
 
-  // Resolved once per builder, and only when a query is actually compiled. Chaining passes the
-  // source along rather than the resolved client, so a chain built before the boot still works.
+  /**
+   * The PostgREST client, resolved once per builder and only when a query is compiled.
+   *
+   * Chaining passes the source along rather than the resolved client, so a chain built before
+   * the boot filled the settings still works.
+   */
   get #db(): any {
     return (this.#client ??= typeof this.#source === "function" ? this.#source() : this.#source);
   }

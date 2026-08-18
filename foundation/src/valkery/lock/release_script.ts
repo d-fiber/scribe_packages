@@ -34,12 +34,22 @@ import { kv } from "@scribe/foundation/src/redis/mod.ts";
 
 /** The Redis client, once the release script has been registered on it. */
 export interface LockCommands {
+  /**
+   * Removes the lock at `key`, and answers one when it was removed and zero otherwise.
+   *
+   * Zero means another holder owns the lock now, which is the normal answer for a caller
+   * whose lease expired while it was working.
+   */
   releaseLock(key: string, token: string): Promise<number>;
 }
 
-// Comparing the token and removing the key have to happen without anything running in
-// between: read-then-delete from the client would let an expired holder delete the lock its
-// successor has just taken. A script is the only way Redis offers to make the pair atomic.
+/**
+ * The Lua that compares the token and removes the key in one step.
+ *
+ * The two have to happen without anything running in between: a read then a delete issued
+ * from the client would let a holder whose lease has expired delete the lock its successor
+ * has just taken. A script is the only way Redis offers to make the pair atomic.
+ */
 const RELEASE_LOCK_SCRIPT = `
 if redis.call('GET', KEYS[1]) == ARGV[1] then
   return redis.call('DEL', KEYS[1])

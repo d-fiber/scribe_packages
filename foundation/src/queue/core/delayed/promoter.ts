@@ -57,6 +57,7 @@ export async function promoteDue(): Promise<number> {
   return promoted;
 }
 
+/** The delayed members whose due date has passed, at most {@link PROMOTE_BATCH} of them. */
 async function dueMembers(): Promise<string[]> {
   try {
     return await kv().zrangebyscore(
@@ -73,6 +74,7 @@ async function dueMembers(): Promise<string[]> {
   }
 }
 
+/** Publishes one delayed member and forgets it, answering whether it moved. */
 async function promote(raw: string): Promise<boolean> {
   const member = decodeMember(raw);
   if (member === null) {
@@ -95,8 +97,12 @@ async function promote(raw: string): Promise<boolean> {
   return true;
 }
 
-// The message id lets JetStream drop a duplicate on its own if two replicas promote the
-// same member inside the stream's duplicate window.
+/**
+ * Publishes a due member on its queue's subject.
+ *
+ * The message id lets JetStream drop a duplicate on its own when two replicas promote the same
+ * member inside the stream's duplicate window.
+ */
 function publish(member: DelayedMember): Promise<string> {
   return topology.publish(
     member.subject,

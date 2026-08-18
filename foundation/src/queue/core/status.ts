@@ -38,11 +38,27 @@ import { topology } from "./topology/topology.ts";
 
 /** What a queue is holding right now, across the three places a job can be waiting. */
 export interface QueueStatus {
+  /** The name the declaration gave. */
   readonly name: string;
+
+  /** Whether the handler is called per message or per group. */
   readonly mode: QueueMode;
+
+  /** Whether this queue has a stream of its own rather than sharing the common one. */
   readonly dedicated: boolean;
+
+  /** Messages sitting on the subject, waiting to be handed to the handler. */
   readonly pending: number;
+
+  /** Messages that used up their deliveries and are parked on the dead letter subject. */
   readonly dead: number;
+
+  /**
+   * Explicitly delayed jobs waiting in Redis for their due date.
+   *
+   * A lower bound rather than a count when the scan hits its cap or Redis does not answer,
+   * which the reader warns about on the log.
+   */
   readonly delayed: number;
 }
 

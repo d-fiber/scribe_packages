@@ -36,11 +36,22 @@ import { deadSubjectOf, subjectOf } from "./naming.ts";
 
 /** The options a queue gets when its declaration leaves them out. */
 export interface QueueDefaults {
+  /** Deliveries after which a job goes to the dead letter. */
   readonly maxRetries: number;
+
+  /** How many messages one subject holds before the oldest are dropped. */
   readonly maxLen: number;
+
+  /** How many messages of one queue are handled at once inside a pass. */
   readonly concurrency: number;
+
+  /** The first retry delay; each further attempt doubles it. */
   readonly retryBackoff: Time;
+
+  /** The ceiling the doubling stops at. */
   readonly retryBackoffMax: Time;
+
+  /** How long a handler is given before it is treated as failed. */
   readonly processingTimeout: Time;
 }
 
@@ -64,26 +75,59 @@ export type QueueMode = "immediate" | "batch";
 
 /** The declaration's numbers, resolved and in milliseconds. */
 export interface QueueLimits {
+  /** Deliveries after which a job goes to the dead letter. */
   readonly maxRetries: number;
+
+  /** How many messages one subject holds before the oldest are dropped. */
   readonly maxLen: number;
+
+  /** How many messages of this queue are handled at once inside a pass, never below one. */
   readonly concurrency: number;
+
+  /** Milliseconds before the first retry; each further attempt doubles it. */
   readonly retryBackoffMs: number;
+
+  /** The milliseconds the doubling stops at. */
   readonly retryBackoffMaxMs: number;
+
+  /** Milliseconds a handler is given before it is treated as failed. */
   readonly processingTimeoutMs: number;
 }
 
 /** The two subjects a queue writes to. */
 export interface QueueSubjects {
+  /** Where a push lands, and where the consumer reads from. */
   readonly subject: string;
+
+  /** Where a message goes once it has used up its deliveries. */
   readonly deadSubject: string;
 }
 
 /** Everything the runner needs about a queue, from its name to its body. */
 export interface RegisteredQueue extends QueueLimits, QueueSubjects {
+  /** The name the declaration gave, which both subjects are derived from. */
   readonly name: string;
+
+  /** Whether the handler is called per message or per group. */
   readonly mode: QueueMode;
+
+  /** Whether this queue has a stream of its own rather than sharing the common one. */
   readonly dedicated: boolean;
+
+  /**
+   * How long a batch waits for more messages before it is handed over, in milliseconds.
+   *
+   * Only a queue in batch mode carries one. `graceFor()` reads it to widen the fetch window,
+   * without which a batch queue would never group anything.
+   */
   readonly lingerMs?: number;
+
+  /**
+   * The body the declaration armed, which {@link mode} says how to call.
+   *
+   * The payload type is erased here because the registry holds every queue of the process
+   * side by side. The dispatcher puts it back on the way in.
+   */
   readonly handler: JobHandler<unknown> | BatchHandler<unknown>;
 }
 

@@ -46,6 +46,15 @@ import { StreamedResponse } from "./response/streamed_response.ts";
 export class FetchClient extends BaseClient {
   #closed = false;
 
+  /**
+   * Sends `request` over the platform's `fetch` and hands the answer back as a stream.
+   *
+   * @remarks
+   * A body of zero bytes is left out rather than drained, because draining one costs a turn of
+   * the event loop and that turn is observable by a caller that sends without awaiting.
+   * Everything that can go wrong before a status arrives as a different type, and all of them
+   * leave here as one {@link ClientException}.
+   */
   override async send(request: BaseRequest): Promise<StreamedResponse> {
     if (this.#closed) {
       throw new ClientException(
@@ -61,14 +70,6 @@ export class FetchClient extends BaseClient {
       request.headers.set("content-length", String(request.contentLength));
     }
 
-    // Draining a body that holds nothing costs a turn of the event loop for an empty buffer, and
-    // that turn is visible: a caller that sends without awaiting has its request issued one tick
-    // later, which is enough to miss a stubbed `fetch` that has already been put back.
-    //
-    // A `Uint8Array` is a `BufferSource`, so it is a body the platform accepts. Whether the
-    // type system agrees depends on which lib resolves the buffer generic, and the answer
-    // differs between a machine's global cache and the lockfile CI pins — the annotation is
-    // what makes the two agree.
     const carriesBytes = hasBody && request.contentLength !== 0;
     const payload: BodyInit | undefined = carriesBytes ? (await body.toBytes()) as BodyInit : undefined;
 
@@ -84,8 +85,6 @@ export class FetchClient extends BaseClient {
         signal: timeoutMs === null ? undefined : AbortSignal.timeout(timeoutMs),
       });
     } catch (cause) {
-      // Every way the exchange can fail before a status — a refused connection, a name that
-      // does not resolve, a timeout — arrives here as a different type. One is enough.
       throw new ClientException(
         `HTTP request failed. ${_describe(cause, timeoutMs)}`,
         request.url,
@@ -113,7 +112,7 @@ export class FetchClient extends BaseClient {
    * Marks this client as done.
    *
    * The platform pools connections for the whole process rather than per client, so there is
-   * nothing to hand back — what this does is refuse a later send, which is the part of the
+   * nothing to hand back. What this does is refuse a later send, which is the part of the
    * contract a caller can actually rely on.
    */
   override close(): void {
@@ -121,9 +120,13 @@ export class FetchClient extends BaseClient {
   }
 }
 
-// A signal that fires arrives as a DOMException whose message says only that a signal timed
-// out, which leaves the reader guessing which limit was reached. The number is the whole
-// point of the report.
+/**
+ * Says why an exchange never produced a status, in a sentence a reader can act on.
+ *
+ * A signal that fires arrives as a `DOMException` whose message says only that a signal timed
+ * out, which leaves the reader guessing which limit was reached. The number is the whole point
+ * of the report.
+ */
 function _describe(cause: unknown, timeoutMs: number | null): string {
   if (timeoutMs !== null && cause instanceof DOMException && cause.name === "TimeoutError") {
     return `Timed out after ${timeoutMs} ms.`;

@@ -37,7 +37,10 @@ import type { RelNode } from "./query/selector.ts";
 
 /** What one table of a schema is: the shape of a row, and the relations it can embed. */
 export interface TableShape {
+  /** The shape of one row of this table. */
   readonly row: object;
+
+  /** What this table can embed, keyed by the name a selection uses. None when absent. */
   readonly relations?: Record<string, RelNode>;
 }
 
@@ -73,9 +76,9 @@ type RelationsOf<S extends DatabaseSchema, K extends keyof S> = S[K]["relations"
  * nobody declared, or a name with a typo in it, does not compile. There is nothing to configure
  * and nothing to keep in step by hand.
  *
- * A handle is safe to keep at module scope. It holds no client and no identity — the owner
- * filter is decided when a query is compiled, from whoever is calling then — so one built at
- * import time serves every request without carrying anything from the first.
+ * A handle is safe to keep at module scope. It holds no client and no identity, because the
+ * owner filter is decided when a query is compiled, from whoever is calling then. One built at
+ * import time therefore serves every request without carrying anything from the first.
  */
 export class Table<
   S extends DatabaseSchema,

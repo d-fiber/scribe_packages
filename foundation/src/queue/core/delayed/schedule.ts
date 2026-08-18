@@ -37,7 +37,7 @@ import { DELAYED_KEY, encodeMember } from "./member.ts";
  * Parks a job until its due date, and answers the id it will be published under.
  *
  * The score is the absolute due date, so a single `ZRANGEBYSCORE` reads what is due across
- * every queue at once — one Redis command whatever the number of queues declared.
+ * every queue at once, in one Redis command whatever the number of queues declared.
  */
 export async function pushDelayed(
   queue: string,

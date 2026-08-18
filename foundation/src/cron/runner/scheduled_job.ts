@@ -37,8 +37,8 @@ import type { CronHandler, Scheduled } from "@scribe/foundation/src/cron/schedul
  * One armed job: its body, when it next runs, and whether it is running now.
  *
  * The run marker is a token rather than a boolean, and the difference matters. The `finally`
- * that frees a job can land **after** a newer occurrence has started — a late finish that
- * cleared a boolean would free a slot it no longer owns, and two runs of the same job would
+ * that frees a job can land **after** a newer occurrence has started, and a late finish that
+ * cleared a boolean would free a slot it no longer owns, so two runs of the same job would
  * overlap. A token only frees what is still its own.
  */
 export class ScheduledJob {

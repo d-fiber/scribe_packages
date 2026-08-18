@@ -41,8 +41,17 @@ const _DEFAULT_TIMEOUT = Time.minutes(10);
 
 /** What declaring a periodic job takes. */
 export interface CronDefinition {
+  /**
+   * The name this job is registered under.
+   *
+   * It has to be unique across the process, because it is what identifies an occurrence
+   * from one replica to the next.
+   */
   readonly name: string;
+
+  /** When this job runs, as one of the three schedule shapes. */
   readonly schedule: Schedule;
+
   /**
    * How long the body is given, and how long the occurrence stays claimed.
    *
@@ -59,7 +68,7 @@ export interface CronDefinition {
  * new Cron({ name: "digest", schedule: at(CronTimezone.EuropeParis, "08:00") }, handler);
  * ```
  *
- * The framework declares none of its own — the engine runs, the catalogue is entirely the
+ * The framework declares none of its own: the engine runs, and the catalogue is entirely the
  * project's. Constructing one registers it and arms it on the runner; the object answers when
  * it next runs, which most callers have no use for and may discard.
  */

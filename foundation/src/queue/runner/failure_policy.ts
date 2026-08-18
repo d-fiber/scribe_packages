@@ -64,6 +64,9 @@ export class FailurePolicy {
   /**
    * Sends a failed message back for another attempt, or to the dead letter.
    *
+   * The attempt count is read from the server's `deliveryCount`, which is one on a first
+   * delivery and therefore counts attempts directly.
+   *
    * @param message - The message being given up on for now.
    * @param wire - Its decoded payload, needed only on the dead-letter path.
    */
@@ -71,7 +74,6 @@ export class FailurePolicy {
     message: JsMsg,
     wire: WireMessage<unknown>,
   ): Promise<Exclude<JobOutcome, "done">> {
-    // `deliveryCount` is one on a first delivery, so it counts attempts directly.
     const attempts = message.info.deliveryCount;
 
     if (attempts >= this.#queue.maxRetries) {

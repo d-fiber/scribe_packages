@@ -39,10 +39,16 @@ import { QUEUE_DEFAULTS, type RegisteredQueue } from "../declaration.ts";
  * declaration asked for: a queue that wants less is not entitled to constrain its neighbours.
  */
 export interface TopologyPlan {
+  /** How many messages one subject holds before the oldest are dropped. */
   readonly maxPerSubject: number;
+
+  /** Milliseconds the server waits for an acknowledgement before redelivering. */
   readonly ackWaitMs: number;
+
   /** How many times the server will deliver a message before it stops on its own. */
   readonly maxDeliver: number;
+
+  /** The names of the queues that asked for a stream of their own, sorted. */
   readonly dedicated: readonly string[];
 }
 
@@ -51,7 +57,7 @@ export interface TopologyPlan {
  *
  * `maxDeliver` sits one above the longest retry policy on purpose. The server has to keep
  * delivering for as long as {@link FailurePolicy} intends to retry, or it would stop first
- * and the message would be dropped with nothing but an advisory to show for it — the dead
+ * and the message would be dropped with nothing but an advisory to show for it, so the dead
  * letter would never be written. The extra delivery covers a replica that dies between
  * receiving the last attempt and answering for it.
  */

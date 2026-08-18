@@ -53,7 +53,7 @@ export const DEFAULT_BETA = 1;
  * milliseconds and behaves as if this did not exist; a geocoding call that takes half a
  * second opens a window wide enough that nobody ever waits on an expired key.
  *
- * An entry with `computeMs` at zero never refreshes early — that is what a legacy entry
+ * An entry with `computeMs` at zero never refreshes early. That is what a legacy entry
  * carries, and a computation too fast to measure has nothing to gain here either.
  */
 export function shouldRefreshEarly(
@@ -66,8 +66,13 @@ export function shouldRefreshEarly(
   return now + entry.computeMs * beta * -Math.log(_draw()) >= entry.expiresAt;
 }
 
-// Math.random() can return exactly 0, and ln(0) is -Infinity: that would make every reader
-// refresh, which is the stampede this exists to prevent.
+/**
+ * A draw in `(0, 1]`, never exactly zero.
+ *
+ * `Math.random()` can return exactly zero, and `-ln(0)` is infinite: such a draw would send
+ * every reader refreshing at once, which is the stampede {@link shouldRefreshEarly} exists
+ * to prevent.
+ */
 function _draw(): number {
   const drawn = Math.random();
   return drawn > 0 ? drawn : Number.MIN_VALUE;

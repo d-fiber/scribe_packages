@@ -32,8 +32,12 @@
 
 // deno-lint-ignore-file no-explicit-any
 
+/** One condition of a `where`, kept as the column it names and the call that applies it. */
 export interface FilterSpec {
+  /** The column this condition narrows, which is what the owner scope is checked against. */
   readonly column: string;
+
+  /** Applies this condition to a PostgREST builder and answers it back for chaining. */
   apply(qb: any): any;
 }
 

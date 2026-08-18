@@ -132,9 +132,9 @@ export class ValkeryStore {
   /**
    * Removes every entry a glob matches.
    *
-   * Two details decide what this costs the server. `SCAN` walks the whole keyspace whatever
-   * the pattern — `MATCH` filters what it hands back, not what it visits — so the `COUNT`
-   * is raised to cut the number of round trips that walk takes. And the removal is `UNLINK`
+   * Two details decide what this costs the server. `SCAN` walks the whole keyspace whatever the
+   * pattern, since `MATCH` filters what it hands back and not what it visits, so the `COUNT` is
+   * raised to cut the number of round trips that walk takes. And the removal is `UNLINK`
    * rather than `DEL`: it detaches the keys at once and frees the memory on a background
    * thread, where `DEL` would hold the single Redis thread for the length of the batch.
    */

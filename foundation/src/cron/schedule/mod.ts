@@ -53,8 +53,18 @@ export type Schedule =
 
 /** A declared job: what it is called, when it runs, and how long it is allowed to take. */
 export interface Scheduled {
+  /** The name this job is registered under, unique across the process. */
   readonly name: string;
+
+  /** When this job runs, as one of the three schedule shapes. */
   readonly schedule: Schedule;
+
+  /**
+   * How long the body is given, and how long the occurrence stays claimed.
+   *
+   * Resolved here, unlike on a declaration where it may be left out. Always a whole number
+   * of minutes, for the reason `core/duration.ts` gives.
+   */
   readonly timeout: Time;
 }
 

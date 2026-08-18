@@ -97,6 +97,15 @@ export class TopologyProvisioner {
     });
   }
 
+  /**
+   * Creates the durable consumer `plan` describes, or widens the one already there.
+   *
+   * A consumer an earlier deployment created may be narrower than what the queues have
+   * declared since, and either bound left too low silently breaks a policy that depends on it:
+   * too short an `ack_wait` redelivers work still in progress, and too low a `max_deliver`
+   * stops the server before the dead letter is ever written. Bounds are therefore only ever
+   * raised, never lowered.
+   */
   async #consumer(
     stream: string,
     durable: string,
@@ -119,10 +128,6 @@ export class TopologyProvisioner {
       return;
     }
 
-    // A consumer an earlier deployment created may be narrower than what the queues
-    // declared since. Either bound left too low silently breaks a policy that depends on
-    // it: too short an ack_wait redelivers work still in progress, and too low a
-    // max_deliver stops the server before the dead letter is ever written.
     const widened: Record<string, number> = {};
     if ((existing.config.ack_wait ?? 0) < ackWaitNs) widened.ack_wait = ackWaitNs;
     if ((existing.config.max_deliver ?? 0) < plan.maxDeliver) {

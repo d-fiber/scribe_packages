@@ -41,6 +41,6 @@ export type HookHandler<T, R = void> = (payload: T) => Promise<R> | R;
  * A subscriber that runs later, out of any request.
  *
  * The payload must be JSON-serializable, since it goes through a queue, and it must carry
- * everything the handler needs — there is no request context on the other side.
+ * everything the handler needs, because there is no request context on the other side.
  */
 export type BackgroundHookHandler<T> = (payload: T) => Promise<void> | void;

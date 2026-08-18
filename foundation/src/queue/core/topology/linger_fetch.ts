@@ -39,7 +39,7 @@ export type GraceResolver = (subject: string) => number;
  * Pulls up to `count` messages, and stops early once the grace window has passed.
  *
  * Without the early stop a lone message would wait for the whole window, because the
- * iterator keeps hoping to fill the places it has left — a welcome email would leave five
+ * iterator keeps hoping to fill the places it has left, so a welcome email would leave five
  * seconds after its push. The window used is the smallest of the queues present in the
  * batch: a queue that groups must never hold back one that does not.
  */

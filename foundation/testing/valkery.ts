@@ -37,15 +37,23 @@ import { rateLimiter, type RateLimitResult } from "@scribe/core/runtime/redis/ra
 import { stub } from "@std/testing/mock";
 import { type InstalledMock, installMock } from "@scribe/core/testing/install.ts";
 
-// Stubs the raw Redis transport with an in-memory `Map`, not `Valkery`
-// itself: every `Valkery` subclass keeps running its real get/set/lock/scan
-// logic against this fake store, so tests exercise the real caching
-// behavior (jitter aside) instead of a hand-rolled re-implementation of it.
+/**
+ * Replaces the raw Redis transport with two in-memory maps, and answers the handle that puts
+ * the real client back.
+ *
+ * @remarks
+ * What is stubbed is the transport, never `Valkery` itself: every subclass keeps running its
+ * real get, set, lock and scan logic against the fake store, so a test exercises the caching
+ * behavior rather than a second implementation of it written for the test.
+ *
+ * The store has two shapes because Redis keeps them apart too, strings for the entries the
+ * cache writes and sets for the fingerprints `IdentityRevocation` indexes next to them.
+ * Expiry is not simulated: a test that needs a key gone deletes it. `SET` is only ever
+ * reached by the distributed lock, so the fake implements the `NX` half of it and ignores the
+ * expiry that comes with it.
+ */
 export function installValkeryMock(): InstalledMock {
   const store = new Map<string, string>();
-  // `IdentityRevocation` indexes a user's cached fingerprints in a set, next to
-  // the string entries the cache itself writes. Same fake transport, separate
-  // shape, because Redis keeps them apart too.
   const sets = new Map<string, Set<string>>();
 
   const mocks = [
@@ -83,8 +91,6 @@ export function installValkeryMock(): InstalledMock {
         )) as unknown as Kv["mget"],
     ),
     installMock(
-      // `Valkery` removes with UNLINK rather than DEL, so the fake has to answer it too.
-      // It frees memory on a background thread where DEL holds the single Redis thread.
       kv(),
       "unlink",
       ((...keys: string[]) => {
@@ -121,7 +127,6 @@ export function installValkeryMock(): InstalledMock {
       ((key: string) => Promise.resolve(Array.from(sets.get(key) ?? []))) as unknown as Kv["smembers"],
     ),
     installMock(
-      // Expiry is not simulated: a test that needs a key gone deletes it.
       kv(),
       "expire",
       ((key: string) => Promise.resolve(store.has(key) || sets.has(key) ? 1 : 0)) as unknown as Kv["expire"],
@@ -130,7 +135,6 @@ export function installValkeryMock(): InstalledMock {
       kv(),
       "set",
       ((key: string, value: string) => {
-        // Only used by the distributed lock (`SET key token PX ms NX`).
         if (store.has(key)) return Promise.resolve(null);
         store.set(key, value);
         return Promise.resolve("OK" as const);
@@ -163,6 +167,13 @@ export function installValkeryMock(): InstalledMock {
   };
 }
 
+/**
+ * Makes `rateLimiter.check` answer `result` for every caller, and answers the handle that
+ * puts the real limiter back.
+ *
+ * @param result - What every check answers. The default lets the caller through with a
+ * remaining count high enough that no test has to think about it.
+ */
 export function installRateLimiterMock(
   result: RateLimitResult = { ok: true, remaining: 999 },
 ): InstalledMock {

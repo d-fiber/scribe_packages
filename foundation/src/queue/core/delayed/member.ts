@@ -40,9 +40,21 @@ export const DELAYED_KEY = "queue:delayed";
  * and redelivers it, so nothing about a failing job is written to Redis.
  */
 export interface DelayedMember {
+  /** The identifier the push answered, which follows the job onto the subject. */
   readonly id: string;
+
+  /** The queue this job belongs to, which is what the per-queue counts are grouped by. */
   readonly queue: string;
+
+  /** The subject the promoter publishes to once the due date has passed. */
   readonly subject: string;
+
+  /**
+   * The payload the producer sent.
+   *
+   * Untyped here because one sorted set holds the delayed jobs of every queue. The handler
+   * gets its own type back when the promoted message is dispatched.
+   */
   readonly data: unknown;
 }
 

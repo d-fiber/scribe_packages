@@ -37,16 +37,27 @@
  * hook it cannot import.
  */
 export interface RegisteredHook {
+  /** The name this hook was declared under, and the one a worker emits by. */
   readonly name: string;
+
+  /** How many handlers are subscribed, inline and background counted together. */
   handlers(): number;
+
+  /**
+   * Emits `payload` and answers what the chain decided.
+   *
+   * The payload is `never` and the answer `unknown` because the registry holds every hook of
+   * the process side by side, and their types have nothing in common. A caller reaching a
+   * hook by name is outside what the compiler can check for it.
+   */
   run(payload: never): Promise<unknown>;
 }
 
 /**
  * Every declared hook of this process, indexed by name.
  *
- * Registration is a consequence of the module graph — importing the file that declares a
- * hook declares it — so there is no initialization to call and nothing that can forget to.
+ * Registration is a consequence of the module graph, since importing the file that declares a
+ * hook declares it, so there is no initialization to call and nothing that can forget to.
  */
 export class HookRegistry {
   readonly #hooks = new Map<string, RegisteredHook>();

@@ -39,8 +39,22 @@ export type RequestBody = string | Uint8Array | Record<string, string> | null;
 
 /** The options every convenience method takes. */
 export interface RequestOptions {
+  /**
+   * Headers to send with the request.
+   *
+   * A `content-type` set here is never overwritten by the one {@link body} would have
+   * implied, which is how a caller sends JSON.
+   */
   readonly headers?: HeadersInit;
+
+  /**
+   * What to send as the body, whose shape decides the content-type.
+   *
+   * A record goes out as `application/x-www-form-urlencoded`, a string as `text/plain`, and
+   * bytes as they are with no type announced. A verb that cannot carry a body drops it.
+   */
   readonly body?: RequestBody;
+
   /**
    * How the body is encoded, and what charset its content-type announces. Utf-8 unless said
    * otherwise. It says nothing about the answer, which is decoded from the charset the server
@@ -52,8 +66,8 @@ export interface RequestOptions {
    * How long to wait for the whole exchange, in milliseconds. No limit unless said otherwise.
    *
    * A request that runs out of time fails with a {@link ClientException} like any other
-   * exchange that never happened — the caller does not have to tell an abort apart from a
-   * refused connection, because there is nothing different to do about it.
+   * exchange that never happened. The caller does not have to tell an abort apart from a
+   * refused connection, because there is nothing different to do about either.
    */
   readonly timeout?: number;
 }
@@ -63,7 +77,7 @@ export interface RequestOptions {
  *
  * The interface exists so that a caller can be handed any of them without knowing which: the
  * real one, one that retries, one that logs, one a test wrote. Only {@link send} is primitive
- * — every other method is derivable from it, and {@link BaseClient} derives them once so that
+ * because every other method derives from it, and {@link BaseClient} derives them once so that
  * an implementation never has to.
  *
  * A client holding connections has to be closed when it is done, or the process keeps them.
@@ -72,11 +86,22 @@ export interface Client {
   /** Sends a request and answers as soon as the headers have arrived. */
   send(request: BaseRequest): Promise<StreamedResponse>;
 
+  /** Asks for the headers of `url` alone, sending no body and announcing no length. */
   head(url: URL | string, options?: RequestOptions): Promise<Response>;
+
+  /** Gets `url` and answers once the body has been drained. */
   get(url: URL | string, options?: RequestOptions): Promise<Response>;
+
+  /** Posts to `url` and answers once the body has been drained. */
   post(url: URL | string, options?: RequestOptions): Promise<Response>;
+
+  /** Puts to `url` and answers once the body has been drained. */
   put(url: URL | string, options?: RequestOptions): Promise<Response>;
+
+  /** Patches `url` and answers once the body has been drained. */
   patch(url: URL | string, options?: RequestOptions): Promise<Response>;
+
+  /** Deletes `url` and answers once the body has been drained. */
   delete(url: URL | string, options?: RequestOptions): Promise<Response>;
 
   /** Gets `url` and answers its body as text, throwing on any status but a 2xx. */

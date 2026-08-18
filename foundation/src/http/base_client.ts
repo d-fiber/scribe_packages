@@ -41,8 +41,8 @@ import type { StreamedResponse } from "./response/streamed_response.ts";
  * Everything a {@link Client} does, derived from the one thing it has to implement.
  *
  * A subclass writes {@link send} and inherits the eight convenience methods, so the behaviour
- * every client shares — how a body becomes bytes, when a status is an error, how a stream
- * becomes a whole response — is written once and cannot differ between two clients.
+ * every client shares is written once and cannot differ between two clients: how a body becomes
+ * bytes, when a status is an error, how a stream becomes a whole response.
  */
 export abstract class BaseClient implements Client {
   abstract send(request: BaseRequest): Promise<StreamedResponse>;
@@ -107,8 +107,12 @@ export abstract class BaseClient implements Client {
     return await Response.fromStream(await this.send(request));
   }
 
-  // `read` and `readBytes` are the two methods that promise a body, so they are the two that
-  // cannot hand back the body of an error page as if it were the answer.
+  /**
+   * Throws when `response` carries a status the caller cannot read a body from.
+   *
+   * `read` and `readBytes` are the two methods that promise a body, so they are the two that
+   * cannot hand back the body of an error page as if it were the answer.
+   */
   #checkOk(response: Response): void {
     if (response.ok) return;
 
@@ -119,8 +123,12 @@ export abstract class BaseClient implements Client {
   }
 }
 
-// A record becomes a url-encoded form, text becomes text, bytes go as they are. It is the
-// same rule package:http follows, and it is what makes `body:` mean one thing at every call.
+/**
+ * Puts `body` on `request` under the encoding its own type calls for.
+ *
+ * A record becomes a url-encoded form, text becomes text, bytes go as they are. It is the same
+ * rule package:http follows, and it is what makes `body:` mean one thing at every call.
+ */
 function _applyBody(request: Request, body: RequestBody): void {
   if (body === null) return;
 

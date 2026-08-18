@@ -33,12 +33,14 @@
 /**
  * What a cache entry carries besides the value the caller stored.
  *
- * The two extra numbers are what early refresh needs — see `early_expiry.ts`: when the entry
- * expires, and how long producing it took. Neither can be recovered from Redis after the
+ * The two extra numbers are what early refresh needs, described in `early_expiry.ts`: when the
+ * entry expires, and how long producing it took. Neither can be recovered from Redis after the
  * fact: `PTTL` costs a second round trip and says nothing about the cost of a recompute.
  */
 export interface Entry<T> {
+  /** The value the caller stored, as it was given. */
   readonly value: T;
+
   /** Epoch milliseconds at which this entry stops being served. */
   readonly expiresAt: number;
   /** Milliseconds the computation that produced this value took. */

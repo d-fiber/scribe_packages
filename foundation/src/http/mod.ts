@@ -48,13 +48,14 @@ export { Response } from "./response/response.ts";
 export { StreamedResponse } from "./response/streamed_response.ts";
 export { runWithClient } from "./run_with_client.ts";
 
-// Each of these opens a client, sends one request and closes it.
-//
-// With `FetchClient` that costs nothing measurable: the platform pools connections for the
-// whole process, so two hundred one-off calls and two hundred on a kept client come out within
-// noise of each other. What the shape decides is not speed but ownership — a client that really
-// holds something, one that retries or logs or pools per instance, is worth keeping across
-// calls, and these functions give it no chance to.
+/**
+ * Opens the current client, runs one exchange through it, and closes it.
+ *
+ * With `FetchClient` that costs nothing measurable, because the platform pools connections for
+ * the whole process. What the shape decides is ownership rather than speed: a client that
+ * really holds something, one that retries or logs or pools per instance, is worth keeping
+ * across calls, and a one-off function gives it no chance to.
+ */
 async function _once(
   call: (client: Client) => Promise<Response>,
 ): Promise<Response> {

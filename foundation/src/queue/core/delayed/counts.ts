@@ -43,7 +43,10 @@ const SCAN_MAX = 50_000;
  * Redis that did not answer, reports a lower bound rather than a confident zero.
  */
 export interface DelayedCounts {
+  /** How many delayed jobs each queue holds, keyed by queue name. A queue with none is absent. */
   readonly counts: Record<string, number>;
+
+  /** Whether {@link counts} is a lower bound rather than the whole picture. */
   readonly truncated: boolean;
 }
 

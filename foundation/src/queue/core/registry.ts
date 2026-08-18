@@ -37,7 +37,7 @@ import { DEDICATED_STREAM, SHARED_STREAM } from "./naming.ts";
  * The dispatch table: which declared queue a name, or an arriving subject, belongs to.
  *
  * Indexing by subject as well as by name is what lets the runner take a batch the shared
- * consumer handed it — mixed, from any number of queues — and find each message's body
+ * consumer handed it, mixed and from any number of queues, and find each message's body
  * without asking the server anything.
  */
 export class QueueRegistry {

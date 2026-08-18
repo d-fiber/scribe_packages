@@ -42,9 +42,9 @@ export type ReadBack<T> = () => Promise<T | null>;
 /**
  * Coordinates the replicas of a fleet so one of them produces a missing value.
  *
- * This is the second of the two tiers a cache needs. The local tier — `flight/local.ts` —
- * has already collapsed everything this process asked for, so what arrives here is one
- * computation per replica per key, and a Redis lock decides which replica pays for it.
+ * This is the second of the two tiers a cache needs. The local tier, in `flight/local.ts`, has
+ * already collapsed everything this process asked for, so what arrives here is one computation
+ * per replica per key, and a Redis lock decides which replica pays for it.
  *
  * `compute` is what writes the value. This class only says who runs it and when, which is
  * what lets the caller decide the shape of what gets stored without telling this class.
@@ -62,8 +62,8 @@ export class DistributedFlight {
    * Runs `compute` if this replica wins the lock, otherwise waits for whoever did.
    *
    * A loser polls `readBack` rather than the lock, because what it wants is the value and
-   * not the turn. When nothing shows up before the deadline — a holder that died, or one
-   * slower than the lock's own ttl — it computes without the lock: a duplicated computation
+   * not the turn. When nothing shows up before the deadline, whether from a holder that died or
+   * one slower than the lock's own ttl, it computes without the lock: a duplicated computation
    * costs less than a request that never returns.
    */
   async run<T>(

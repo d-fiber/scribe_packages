@@ -43,7 +43,10 @@ import { encode } from "./wire.ts";
 
 /** What declaring a queue takes. */
 export interface QueueDefinition {
+  /** The name this queue is registered under, and which both its subjects are derived from. */
   readonly name: string;
+
+  /** What this declaration tunes. What it leaves out is filled from the package defaults. */
   readonly options?: QueueOptions;
   /** Gives this queue a stream, a consumer and a loop of its own. */
   readonly dedicated?: boolean;
@@ -55,6 +58,12 @@ export interface QueueDefinition {
  * `lingerMs` is how long a partial group waits for company before it is handed over.
  */
 export interface BatchQueueDefinition extends QueueDefinition {
+  /**
+   * How long a partial group waits for company, in milliseconds.
+   *
+   * Its presence is what puts this queue in batch mode, so the object stays even when the
+   * delay itself is left to the default.
+   */
   readonly batch: { readonly lingerMs?: number };
 }
 
@@ -62,7 +71,7 @@ export interface BatchQueueDefinition extends QueueDefinition {
  * What can be done with a queue that already exists.
  *
  * It is split from {@link Queue} for one caller: the worker bridge pushes to a queue the host
- * declared, so it needs everything below without declaring anything — constructing a `Queue`
+ * declared, so it needs everything below without declaring anything. Constructing a `Queue`
  * there would register a second one under a name already taken, and throw.
  */
 export class QueuePublisher<TJob> {

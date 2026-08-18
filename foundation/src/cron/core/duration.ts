@@ -40,7 +40,7 @@ const _MINUTE_MS = 60_000;
  * The refusal happens where the value is declared rather than where it is used, because what
  * it protects is downstream and invisible: an occurrence is claimed under a key derived from
  * the interval, and a value that does not divide into minutes rounds differently on two
- * machines whose clocks differ — both would claim, and the job would run twice.
+ * machines whose clocks differ, so both would claim and the job would run twice.
  */
 export function wholeMinutes(label: string, value: Time): Time {
   const ms = value.ms;

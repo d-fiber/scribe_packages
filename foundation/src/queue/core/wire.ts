@@ -45,6 +45,7 @@ const decoder = new TextDecoder();
  * decodes both shapes without a guess. A bare payload would have made the two ambiguous.
  */
 export interface WireMessage<T> {
+  /** The payload the producer sent, untouched. */
   readonly data: T;
 }
 

@@ -88,7 +88,7 @@ export const DEFAULT_TTL: Time = Time.days(15);
  *
  * `T` sits on the class rather than on each method on purpose. A cache holds one kind of
  * thing, so the type is a property of the namespace and belongs where the namespace is
- * declared — written once, checked at every call, and impossible for two call sites to
+ * declared: written once, checked at every call, and impossible for two call sites to
  * disagree on. A namespace that genuinely holds several shapes declares `unknown` and says so.
  *
  * A cache is **configured, not extended**: there is nothing to subclass and nothing to
@@ -170,12 +170,13 @@ export class Valkery<T> {
    * - an entry close to expiring is refreshed by whoever draws it **while the old value is
    *   still served**, so nobody waits on an expiry.
    *
+   * The local flight keys on the namespaced key rather than on the id, because two caches hand
+   * out the same ids and must not share a run.
+   *
    * @param id - The key inside this cache's namespace.
    * @param compute - Produces the value on a miss. Called at most once per process per key.
    */
   upsert(id: string, compute: () => Promise<T>): Promise<T> {
-    // The local flight keys on the namespaced key rather than on the id, because two caches
-    // hand out the same ids and must not share a run.
     return this.#local().run(this.#keySpace().keyOf(id), async () => {
       const entry = await this.#store().read<T>(id, this.ttl.ms);
 
@@ -193,8 +194,12 @@ export class Valkery<T> {
     return this.#store().sweep(this.#keySpace().matching(pattern));
   }
 
-  // Every failure of every operation lands here, which is what makes the whole cache
-  // fail-open in one place rather than in a catch per method.
+  /**
+   * Logs a failed operation and lets the caller carry on without the cache.
+   *
+   * Every failure of every operation lands here, which is what makes the whole cache fail-open
+   * in one place rather than in a catch per method.
+   */
   #report(operation: string, error: unknown): void {
     console.error(
       `[valkery:${this.key}] ${operation} failed, bypassing valkery:`,
@@ -228,8 +233,12 @@ export class Valkery<T> {
     ));
   }
 
-  // Nothing is cached and something has to produce the value now, so a loser waits for the
-  // winner: there is no older value to hand it in the meantime.
+  /**
+   * Produces and stores the value of a key nothing holds yet.
+   *
+   * A loser waits for the winner here, because there is no older value to hand it in the
+   * meantime.
+   */
   #fill(id: string, compute: () => Promise<T>): Promise<T> {
     return this.#shared().run(
       id,
@@ -239,9 +248,12 @@ export class Valkery<T> {
     );
   }
 
-  // A value is still being served, so a loser takes it rather than waiting, and a failed
-  // recompute serves it too: a cache that already holds an answer must not turn a flaky
-  // origin into an error.
+  /**
+   * Recomputes an entry that is close to expiring, while the old value keeps being served.
+   *
+   * A loser takes the old value rather than waiting, and a failed recompute serves it too: a
+   * cache that already holds an answer must not turn a flaky origin into an error.
+   */
   async #refreshAhead(
     id: string,
     entry: Entry<T>,
@@ -259,8 +271,12 @@ export class Valkery<T> {
     }
   }
 
-  // The cost of the computation is measured here and stored with the value, because it is
-  // what decides how early the next readers volunteer to refresh it.
+  /**
+   * Runs `compute`, stores what it produced, and answers it.
+   *
+   * The cost of the computation is measured here and stored with the value, because it is what
+   * decides how early the next readers volunteer to refresh it.
+   */
   async #computeAndWrite(id: string, compute: () => Promise<T>): Promise<T> {
     const startedAt = Date.now();
     const value = await compute();

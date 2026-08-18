@@ -32,17 +32,40 @@
 
 /** Where the cache lives. */
 export interface CacheSettings {
+  /** The Redis connection string the shared client dials, credentials included. */
   readonly redisUrl: string;
 }
 
 /** Where the queue lives. */
 export interface QueueSettings {
+  /**
+   * The NATS connection string the shared connection dials.
+   *
+   * Credentials travel in it, as a token or as a user and password pair, and `nats.ts` splits
+   * them out of the address before handing them to the client.
+   */
   readonly natsUrl: string;
 }
 
 /** Where PostgREST lives, and the two keys that reach it. */
 export interface DatabaseSettings {
+  /** The base address of PostgREST, which both clients are built on. */
   readonly restUrl: string;
+
+  /**
+   * The key the user-facing client presents.
+   *
+   * It carries no privilege of its own: what a request may read is decided by the identity
+   * the caller proves, on top of this key.
+   */
   readonly anonKey: string;
+
+  /**
+   * The key the service client presents, which bypasses every row level policy.
+   *
+   * Nothing that answers a request should reach for this one. The owner scope is what keeps
+   * a caller inside their own rows, and it is applied by the query builder rather than by
+   * the database.
+   */
   readonly serviceRoleKey: string;
 }

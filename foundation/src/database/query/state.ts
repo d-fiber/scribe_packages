@@ -34,22 +34,50 @@
 
 import type { FilterSpec } from "./filter.ts";
 
+/** One ordering clause, as PostgREST takes it. */
 export interface QueryOrder {
+  /** The column to order by. */
   readonly col: string;
+
+  /** How to order, left to PostgREST's own defaults when absent. */
   readonly options?: {
+    /** Whether to order upwards. Downwards when false. */
     ascending?: boolean;
+
+    /** Whether nulls come first rather than last. */
     nullsFirst?: boolean;
+
+    /** The embedded table this column belongs to, when ordering by a relation. */
     foreignTable?: string;
   };
 }
 
+/** Everything a builder has been told, held apart from the builder so a chain stays immutable. */
 export interface QueryState {
+  /**
+   * Whether the caller opted out of the owner scope.
+   *
+   * The scope is what narrows a query to the caller's own rows, so opting out means the
+   * authorisation was decided upstream.
+   */
   readonly unscoped: boolean;
+
+  /** Whether the caller declared that touching every row of the table is deliberate. */
   readonly entireTable: boolean;
+
+  /** The columns to select, as PostgREST spells them. Every column when null. */
   readonly selectCols: string | null;
+
+  /** The conditions to apply, in the order they were added. */
   readonly filters: readonly FilterSpec[];
+
+  /** The ordering clauses to apply, in the order they were added. */
   readonly orders: readonly QueryOrder[];
+
+  /** How many rows at most, or null for no limit of the caller's own. */
   readonly limitCount: number | null;
+
+  /** The inclusive row range to ask for, as `[from, to]`, or null when none was asked for. */
   readonly rangeVal: readonly [number, number] | null;
 }
 

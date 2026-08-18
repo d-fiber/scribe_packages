@@ -35,7 +35,10 @@ import { wholeMinutes } from "@scribe/foundation/src/cron/core/duration.ts";
 
 /** A job that runs every so often, with no regard for the calendar. */
 export interface IntervalSchedule {
+  /** What tells this schedule from the two calendar shapes. */
   readonly kind: "interval";
+
+  /** Milliseconds between two occurrences, always a whole number of minutes' worth. */
   readonly ms: number;
 }
 
@@ -45,7 +48,7 @@ export interface IntervalSchedule {
  * The interval has to be a whole number of minutes, and the refusal happens at declaration
  * rather than at the first occurrence. The reason is downstream: an occurrence is claimed
  * across replicas under a key derived from the interval, and a value that does not divide
- * into minutes rounds differently on two machines whose clocks differ slightly — they would
+ * into minutes rounds differently on two machines whose clocks differ slightly, so they would
  * claim two keys and the job would run twice.
  */
 export function every(interval: Time): IntervalSchedule {

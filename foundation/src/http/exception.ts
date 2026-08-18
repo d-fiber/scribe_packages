@@ -33,7 +33,7 @@
 /**
  * Thrown when a request fails to reach the server, or fails while being read.
  *
- * A status the server answered is never an exception — a 404 is a `Response` with a
+ * A status the server answered is never an exception: a 404 is a `Response` with a
  * `statusCode` of 404, and it is the caller who decides whether that is a failure. This is
  * only for what stopped the exchange from happening at all.
  */

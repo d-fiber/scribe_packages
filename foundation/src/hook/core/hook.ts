@@ -38,7 +38,14 @@ import { hookRegistry } from "./registry.ts";
 
 /** What declaring a hook takes: its name, and what it answers when nobody listens. */
 export interface HookDefinition<R> {
+  /**
+   * The name this hook is registered under.
+   *
+   * It has to be unique across the process, because it is what a worker emits by when it
+   * cannot import the hook itself.
+   */
   readonly name: string;
+
   /**
    * What the hook answers when no inline handler has decided.
    *
@@ -70,10 +77,14 @@ export class Hook<T, R = void> {
   readonly #inline: InlineChain<T, R>;
   readonly #background: BackgroundChannel<T>;
 
-  // The answer of a hook nobody listens to, resolved once and handed out for the life of the
-  // process. A framework declares far more extension points than a project uses — most of the
-  // ten shipped have no handler at all — and they are emitted on the authentication paths,
-  // where this is the difference between four allocations per emission and none.
+  /**
+   * The answer of a hook nobody listens to, resolved once and handed out for the life of the
+   * process.
+   *
+   * A framework declares far more extension points than a project uses, and most of the ten
+   * shipped have no handler at all. They are emitted on the authentication paths, where this
+   * is the difference between four allocations per emission and none.
+   */
   readonly #unhandled: Promise<R>;
 
   constructor(definition: HookDefinition<R>) {
@@ -102,7 +113,7 @@ export class Hook<T, R = void> {
   /**
    * Subscribes a handler that runs later and durably, and answers it back unchanged.
    *
-   * There is **no request context** here, so nothing the handler needs may be read from it —
+   * There is **no request context** here, so nothing the handler needs may be read from it and
    * the payload has to carry it. A database write in particular will not have the owner
    * filter applied, which is why an account id is in nearly every payload the framework emits.
    */

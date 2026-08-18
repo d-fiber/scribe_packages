@@ -39,6 +39,12 @@ import { FailurePolicy } from "../failure_policy.ts";
 
 /** Runs a group of messages that all belong to the same queue. */
 export interface MessageProcessor {
+  /**
+   * Hands `messages` to the queue's body and records each outcome on `tally`.
+   *
+   * Every message is answered for, whether by an acknowledgement, a retry or the dead letter.
+   * One left unanswered would sit until the server's own deadline redelivered it.
+   */
   process(messages: readonly JsMsg[], tally: DrainTally): Promise<void>;
 }
 

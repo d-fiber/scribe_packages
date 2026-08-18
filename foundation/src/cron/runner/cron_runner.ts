@@ -83,7 +83,9 @@ export class CronRunner {
    * Starts the loop, which is safe to do before a single job is declared.
    *
    * The loop sleeps until the next known occurrence rather than on a fixed tick, so a
-   * declaration that arrives later is simply seen on the following turn.
+   * declaration that arrives later is simply seen on the following turn. A loop that crashes
+   * says so and restarts after {@link LOOP_RESTART_DELAY_MS}, because a process that quietly
+   * stopped running its schedule is one nobody notices.
    */
   start(
     tickMs = DEFAULT_TICK_MS,
@@ -95,8 +97,6 @@ export class CronRunner {
     this.#gate = new Semaphore(maxConcurrent);
 
     this.#loop(tickMs).catch((error) => {
-      // A crashed loop used to restart with no trace at all, which meant a process could
-      // stop running its schedule and nothing anywhere said so.
       console.error(
         `[cron-runner] loop crashed, restarting in ${LOOP_RESTART_DELAY_MS}ms:`,
         error,
@@ -111,6 +111,12 @@ export class CronRunner {
     this.#running = false;
   }
 
+  /**
+   * Walks the schedule on every tick and fires what is due.
+   *
+   * The occurrence is taken whatever happens next, and that is the point: a job that overruns
+   * its own period skips the occurrences it missed instead of queueing them behind itself.
+   */
   async #loop(tickMs: number): Promise<void> {
     while (this.#running) {
       const now = new Date();
@@ -118,10 +124,6 @@ export class CronRunner {
       for (const scheduled of this.#jobs.values()) {
         if (!scheduled.isDue(now)) continue;
 
-        // The occurrence is taken whatever happens next, and that is the point: a job that
-        // overruns its own period skips the occurrences it missed instead of queueing them
-        // behind itself. Taking the slot inside the call that decides whether to fire hid
-        // that, and read as if a skipped occurrence would come back.
         const slot = scheduled.takeSlot(now);
         if (scheduled.running) continue;
 
@@ -132,6 +134,7 @@ export class CronRunner {
     }
   }
 
+  /** How long to sleep before the next tick, at most `maxMs`. */
   #sleepFor(maxMs: number): number {
     let earliest = Number.POSITIVE_INFINITY;
     for (const scheduled of this.#jobs.values()) {
@@ -142,6 +145,7 @@ export class CronRunner {
     return Math.min(maxMs, Math.max(MIN_SLEEP_MS, earliest - Date.now()));
   }
 
+  /** Marks `scheduled` as running for this occurrence, and starts it. */
   #fire(scheduled: ScheduledJob, slot: Date): void {
     const token = ++this.#runTokenCounter;
     scheduled.beginRun(token);
@@ -149,8 +153,12 @@ export class CronRunner {
     this.#execute(scheduled, slot).finally(() => scheduled.endRun(token));
   }
 
-  // The lock is claimed inside the gate, never before it. A replica that won a lock and then
-  // queued behind the semaphore would hold that occurrence idle for everyone else.
+  /**
+   * Runs one occurrence of `scheduled`, once the gate and the cross-replica lock allow it.
+   *
+   * The lock is claimed inside the gate and never before it. A replica that won a lock and
+   * then queued behind the semaphore would hold that occurrence idle for everyone else.
+   */
   #execute(scheduled: ScheduledJob, slot: Date): Promise<void> {
     return this.#gate.run(async () => {
       try {

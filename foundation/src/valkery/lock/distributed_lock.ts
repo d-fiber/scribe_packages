@@ -44,8 +44,8 @@ export const LOCK_TTL_MS = 5_000;
 /**
  * What came of trying to take a lock.
  *
- * `held` and `error` are kept apart because they call for opposite reactions: someone else
- * is computing, so wait — against Redis is unreachable, so stop coordinating and compute.
+ * `held` and `error` are kept apart because they call for opposite reactions. Someone else is
+ * computing, so wait; Redis is unreachable, so stop coordinating and compute.
  */
 export type LockOutcome =
   | { readonly state: "acquired"; readonly token: string }
@@ -58,9 +58,9 @@ export type LockErrorReporter = (operation: string, error: unknown) => void;
 /**
  * A lock one replica of a fleet holds while it computes an entry.
  *
- * The token is what makes releasing safe. A holder that overran {@link LOCK_TTL_MS} no
- * longer owns the key — another replica may have taken it — so releasing by key alone would
- * free a lock somebody else is relying on. See {@link lockCommands} for how the comparison
+ * The token is what makes releasing safe. A holder that overran {@link LOCK_TTL_MS} no longer
+ * owns the key, since another replica may have taken it, so releasing by key alone would free a
+ * lock somebody else is relying on. See {@link lockCommands} for how the comparison
  * and the removal are made atomic.
  */
 export class DistributedLock {

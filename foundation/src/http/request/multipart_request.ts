@@ -133,15 +133,23 @@ export class MultipartRequest extends BaseRequest {
   }
 }
 
-// A header is measured in bytes and not in characters: an accent in a field name or in a
-// filename takes two of them, and a content-length short by that much describes a body the
-// caller never sent.
+/**
+ * The size `value` takes on the wire, in bytes.
+ *
+ * A header is measured in bytes and not in characters: an accent in a field name or in a
+ * filename takes two of them, and a content-length short by that much describes a body the
+ * caller never sent.
+ */
 function _byteLength(value: string): number {
   return _ENCODER.encode(value).length;
 }
 
-// A quote or a newline inside a field name would end the header early and let the rest of the
-// name be read as one of our own directives.
+/**
+ * Percent-encodes what would otherwise end a header early.
+ *
+ * A quote or a newline inside a field name would close the header there and let the rest of
+ * the name be read as one of our own directives.
+ */
 function _escape(value: string): string {
   return value.replace(/["\r\n]/g, (found) => ({ '"': "%22", "\r": "%0D", "\n": "%0A" })[found] ?? found);
 }

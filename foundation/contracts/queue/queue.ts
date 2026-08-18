@@ -62,8 +62,12 @@ export interface PushOptions {
 
 /** A message as its handler sees it. */
 export interface QueueMessage<T> {
+  /** The identifier the queue assigned when this message was enqueued. */
   readonly id: string;
+
+  /** The payload the producer sent, decoded into the handler's own type. */
   readonly data: T;
+
   /**
    * How many times this message has been delivered, starting at one.
    *
@@ -93,9 +97,15 @@ export type BatchHandler<T> = (items: readonly T[]) => Promise<void>;
 
 /** What one pass over the queues did. */
 export interface DrainResult {
+  /** Messages whose handler returned, and which were acknowledged. */
   readonly done: number;
+
+  /** Messages whose handler refused and which are coming back for another delivery. */
   readonly retried: number;
+
+  /** Messages that used up their deliveries and were written to the dead letter. */
   readonly dead: number;
+
   /** Delayed jobs whose due date had passed and that were published by this pass. */
   readonly promoted: number;
 }
