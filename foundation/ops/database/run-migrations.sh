@@ -33,8 +33,15 @@
 
 set -e
 
-dbmate --migrations-dir /db/migrations/default --migrations-table schema_migrations up
+has_migrations() {
+  [ -d "$1" ] || return 1
+  [ -n "$(find "$1" -name '*.sql' -print -quit 2>/dev/null)" ]
+}
 
-if [ -d /db/migrations/project ] && [ -n "$(ls -A /db/migrations/project 2>/dev/null)" ]; then
+if has_migrations /db/migrations/default; then
+  dbmate --migrations-dir /db/migrations/default --migrations-table schema_migrations up
+fi
+
+if has_migrations /db/migrations/project; then
   dbmate --migrations-dir /db/migrations/project --migrations-table project_schema_migrations up
 fi
