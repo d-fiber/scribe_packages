@@ -1,6 +1,8 @@
 services:
   storage:
-    image: "supabase/storage-api:v1.48.26"
+    build:
+      context: "{{sdk_root}}/host/packages/storage/ops"
+      dockerfile: "Dockerfile.storage"
     restart: "unless-stopped"
     volumes:
       - "{{sdk_root}}/storage:/var/lib/storage:z"
