@@ -1,0 +1,24 @@
+services:
+  rest:
+    image: "postgrest/postgrest:v14.8"
+    restart: "unless-stopped"
+    environment:
+      PGRST_DB_URI: "postgres://authenticator:${POSTGRES_PASSWORD}@db:5432/postgres"
+      PGRST_DB_SCHEMAS: "public"
+      PGRST_DB_MAX_ROWS: "1000"
+      PGRST_DB_EXTRA_SEARCH_PATH: "public"
+      PGRST_DB_ANON_ROLE: "anon"
+      PGRST_DB_USE_LEGACY_GUCS: "false"
+      PGRST_DB_POOL: "40"
+      PGRST_JWT_SECRET: ${JWT_SECRET}
+      PGRST_APP_SETTINGS_JWT_SECRET: ${JWT_SECRET}
+      PGRST_APP_SETTINGS_JWT_EXP: "3600"
+    command: ["postgrest"]
+    depends_on:
+      db:
+        condition: "service_healthy"
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

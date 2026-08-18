@@ -1,0 +1,9 @@
+services:
+  nats:
+    cpu_shares: 1024
+    deploy:
+      resources:
+        limits:
+          memory: "{{nats_mem_limit}}"
+        reservations:
+          memory: "{{nats_mem_res}}"

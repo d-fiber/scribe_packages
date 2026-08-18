@@ -1,0 +1,5 @@
+services:
+  rest:
+    environment:
+      PGRST_DB_POOL: "{{rest_db_pool}}"
+      GHCRTS: "{{rest_ghc_rts}}"

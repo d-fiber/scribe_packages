@@ -1,0 +1,27 @@
+services:
+  nats:
+    container_name: "nats"
+    image: "nats:2-alpine"
+    restart: "unless-stopped"
+    volumes:
+      - "nats-data:/data"
+    command:
+      [
+        "-js",
+        "-sd",
+        "/data",
+        "--auth",
+        "${NATS_PASSWORD}",
+      ]
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8222/healthz"]
+      interval: "5s"
+      timeout: "5s"
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+volumes:
+  nats-data: null
