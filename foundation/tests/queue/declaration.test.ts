@@ -37,7 +37,7 @@ import {
   subjectsOf,
 } from "@scribe/foundation/src/queue/core/declaration.ts";
 import { planFor, planSignature } from "@scribe/foundation/src/queue/core/topology/plan.ts";
-import { defineQueue } from "@scribe/foundation/src/queue/mod.ts";
+import { Queue } from "@scribe/foundation/src/queue/mod.ts";
 import { graceFor, IMMEDIATE_GRACE_MS } from "@scribe/foundation/src/queue/runner/grace.ts";
 import { Time } from "@scribe/core/contracts/common/time.ts";
 import { assertEquals, assertNotEquals } from "@std/assert";
@@ -162,7 +162,7 @@ Deno.test("planSignature separates two plans that provision differently", () => 
 });
 
 Deno.test("graceFor gives a batch queue its own linger window", () => {
-  defineQueue<{ id: string }>(
+  new Queue<{ id: string }>(
     { name: "test:grace:batch", batch: { lingerMs: 1_500 } },
     () => Promise.resolve(),
   );
@@ -171,7 +171,7 @@ Deno.test("graceFor gives a batch queue its own linger window", () => {
 });
 
 Deno.test("graceFor keeps an immediate queue on the short window", () => {
-  defineQueue<{ id: string }>(
+  new Queue<{ id: string }>(
     { name: "test:grace:immediate" },
     () => Promise.resolve(),
   );
@@ -180,7 +180,7 @@ Deno.test("graceFor keeps an immediate queue on the short window", () => {
 });
 
 Deno.test("graceFor falls back to the short window on a batch queue without a linger", () => {
-  defineQueue<{ id: string }>(
+  new Queue<{ id: string }>(
     { name: "test:grace:default", batch: {} },
     () => Promise.resolve(),
   );

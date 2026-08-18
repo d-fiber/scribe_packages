@@ -35,7 +35,7 @@ import type { CronExpressionSchedule } from "./expression.ts";
 import type { DailySchedule } from "./daily.ts";
 import type { IntervalSchedule } from "./interval.ts";
 
-export { cron, type CronExpression, type CronExpressionSchedule } from "./expression.ts";
+export { type CronExpression, cronExpression, type CronExpressionSchedule } from "./expression.ts";
 export { at, type DailySchedule, type TimeOfDay } from "./daily.ts";
 export { every, type IntervalSchedule } from "./interval.ts";
 

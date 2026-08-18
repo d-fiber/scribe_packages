@@ -47,7 +47,7 @@ export class QueueRegistry {
   add(queue: RegisteredQueue): void {
     if (this.#byName.has(queue.name)) {
       throw new Error(
-        `defineQueue("${queue.name}"): this name is already declared. A queue ` +
+        `new Queue("${queue.name}"): this name is already declared. A queue ` +
           `name identifies a NATS subject, it must be unique.`,
       );
     }

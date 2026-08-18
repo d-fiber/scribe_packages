@@ -31,7 +31,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Time } from "@scribe/core/contracts/common/time.ts";
-import { at, cron, every } from "@scribe/foundation/src/cron/schedule/mod.ts";
+import { at, cronExpression, every } from "@scribe/foundation/src/cron/schedule/mod.ts";
 import { CronTimezone } from "@scribe/foundation/src/cron/timezone.ts";
 import { assertEquals, assertThrows } from "@std/assert";
 
@@ -64,19 +64,19 @@ Deno.test(
 );
 
 Deno.test(
-  "cron() validates the expression eagerly (fails at declaration, not at the next tick)",
+  "cronExpression() validates the expression eagerly (fails at declaration, not at the next tick)",
   () => {
     // 5 space-separated tokens (matches the CronExpression shape at the
     // type level) but out-of-range field values croner's own parser must
     // reject this at runtime, the type can't.
-    assertThrows(() => cron("99 99 99 99 99", CronTimezone.Utc));
+    assertThrows(() => cronExpression("99 99 99 99 99", CronTimezone.Utc));
   },
 );
 
 Deno.test(
-  "cron() builds a schedule carrying the expression, timezone and underlying Cron job",
+  "cronExpression() builds a schedule carrying the expression, timezone and underlying Cron job",
   () => {
-    const schedule = cron("0 3 * * *", CronTimezone.EuropeParis);
+    const schedule = cronExpression("0 3 * * *", CronTimezone.EuropeParis);
 
     assertEquals(schedule.kind, "cron");
     assertEquals(schedule.expression, "0 3 * * *");

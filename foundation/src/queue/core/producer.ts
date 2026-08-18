@@ -30,8 +30,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { PushOptions } from "@scribe/foundation/contracts/queue/queue.ts";
-import type { RegisteredQueue } from "./declaration.ts";
+import type { BatchHandler, JobHandler, PushOptions, QueueOptions } from "@scribe/foundation/contracts/queue/queue.ts";
+import { limitsFrom, type RegisteredQueue, subjectsOf } from "./declaration.ts";
+import { queueRegistry } from "./registry.ts";
 import { delayedCounts } from "./delayed/counts.ts";
 import { pushDelayed } from "./delayed/schedule.ts";
 import { DEAD_STREAM, streamOf } from "./naming.ts";
@@ -40,39 +41,46 @@ import { ensureTopology } from "./topology/ready.ts";
 import { topology } from "./topology/topology.ts";
 import { encode } from "./wire.ts";
 
-/**
- * The producer side of a queue: what {@link defineQueue} answers to its declarer.
- *
- * Draining is deliberately absent. A pass over a queue belongs to the runner, and `core/`
- * is not allowed to reach into `runner/`.
- */
-export interface Queue<TJob> {
+/** What declaring a queue takes. */
+export interface QueueDefinition {
   readonly name: string;
-  push(data: TJob, opts?: PushOptions): Promise<string>;
-  pushMany(items: readonly TJob[]): Promise<string[]>;
-  size(): Promise<number>;
-  deadCount(): Promise<number>;
-  delayedCount(): Promise<number>;
-  status(): Promise<QueueStatus>;
+  readonly options?: QueueOptions;
+  /** Gives this queue a stream, a consumer and a loop of its own. */
+  readonly dedicated?: boolean;
 }
 
-/** The only implementation of {@link Queue}. */
-export class QueueProducer<TJob> implements Queue<TJob> {
-  readonly #queue: RegisteredQueue;
+/**
+ * A declaration whose handler is called with a group.
+ *
+ * `lingerMs` is how long a partial group waits for company before it is handed over.
+ */
+export interface BatchQueueDefinition extends QueueDefinition {
+  readonly batch: { readonly lingerMs?: number };
+}
+
+/**
+ * What can be done with a queue that already exists.
+ *
+ * It is split from {@link Queue} for one caller: the worker bridge pushes to a queue the host
+ * declared, so it needs everything below without declaring anything — constructing a `Queue`
+ * there would register a second one under a name already taken, and throw.
+ */
+export class QueuePublisher<TJob> {
+  protected readonly queue: RegisteredQueue;
 
   constructor(queue: RegisteredQueue) {
-    this.#queue = queue;
+    this.queue = queue;
   }
 
   get name(): string {
-    return this.#queue.name;
+    return this.queue.name;
   }
 
   async push(data: TJob, opts: PushOptions = {}): Promise<string> {
     if (opts.delay && opts.delay.ms > 0) {
       return await pushDelayed(
-        this.#queue.name,
-        this.#queue.subject,
+        this.queue.name,
+        this.queue.subject,
         data,
         opts.delay.ms,
       );
@@ -92,27 +100,68 @@ export class QueueProducer<TJob> implements Queue<TJob> {
   async size(): Promise<number> {
     await ensureTopology();
     return await topology.countBySubject(
-      streamOf(this.#queue.dedicated),
-      this.#queue.subject,
+      streamOf(this.queue.dedicated),
+      this.queue.subject,
     );
   }
 
   async deadCount(): Promise<number> {
     await ensureTopology();
-    return await topology.countBySubject(DEAD_STREAM, this.#queue.deadSubject);
+    return await topology.countBySubject(DEAD_STREAM, this.queue.deadSubject);
   }
 
   async delayedCount(): Promise<number> {
     const delayed = await delayedCounts();
-    return delayed.counts[this.#queue.name] ?? 0;
+    return delayed.counts[this.queue.name] ?? 0;
   }
 
   async status(): Promise<QueueStatus> {
     await ensureTopology();
-    return await queueStatus.one(this.#queue);
+    return await queueStatus.one(this.queue);
   }
 
   #publish(data: TJob): Promise<string> {
-    return topology.publish(this.#queue.subject, encode({ data }));
+    return topology.publish(this.queue.subject, encode({ data }));
+  }
+}
+
+/**
+ * A durable queue: declaring it and holding its producer are the same thing.
+ *
+ * ```ts
+ * const emails = new Queue<EmailJob>({ name: "emails" }, async (job) => { … });
+ * await emails.push({ to: "a@b.c" });
+ * ```
+ *
+ * Declaration and body stay in one call on purpose: a queue whose body lives elsewhere is a
+ * queue nobody can read the meaning of from its name. Constructing one registers it, which is
+ * what lets the runner find the body for a subject it is handed.
+ *
+ * Draining is deliberately absent from the surface. A pass over a queue belongs to the runner,
+ * and `core/` is not allowed to reach into `runner/`.
+ */
+export class Queue<TJob> extends QueuePublisher<TJob> {
+  /** Declares a queue whose body is called once with a group of payloads. */
+  constructor(definition: BatchQueueDefinition, handler: BatchHandler<TJob>);
+  /** Declares a queue whose body is called once per message. */
+  constructor(definition: QueueDefinition, handler: JobHandler<TJob>);
+  constructor(
+    definition: QueueDefinition | BatchQueueDefinition,
+    handler: JobHandler<TJob> | BatchHandler<TJob>,
+  ) {
+    const batch = (definition as BatchQueueDefinition).batch;
+    const dedicated = definition.dedicated === true;
+
+    super({
+      name: definition.name,
+      ...subjectsOf(definition.name, dedicated),
+      mode: batch ? "batch" : "immediate",
+      dedicated,
+      lingerMs: batch?.lingerMs,
+      handler: handler as JobHandler<unknown> | BatchHandler<unknown>,
+      ...limitsFrom(definition.options),
+    });
+
+    queueRegistry.add(this.queue);
   }
 }

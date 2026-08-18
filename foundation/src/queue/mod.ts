@@ -30,9 +30,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-export { defineQueue } from "./core/define.ts";
-export type { BatchQueueDefinition, QueueDefinition } from "./core/define.ts";
-export type { Queue } from "./core/producer.ts";
+export { type BatchQueueDefinition, Queue, type QueueDefinition } from "./core/producer.ts";
 export { queueRegistry } from "./core/registry.ts";
 export { QUEUE_DEFAULTS } from "./core/declaration.ts";
 export type { QueueDefaults, QueueLimits, QueueMode, RegisteredQueue } from "./core/declaration.ts";

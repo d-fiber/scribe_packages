@@ -30,11 +30,10 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-export { defineCron } from "./core/define.ts";
-export type { CronDefinition, CronJob } from "./core/define.ts";
+export { Cron, type CronDefinition } from "./core/cron.ts";
 export { cronRegistry } from "./core/registry.ts";
 export type { RegisteredCron } from "./core/registry.ts";
 export { cronRunner } from "./runner/cron_runner.ts";
-export { at, cron, every } from "./schedule/mod.ts";
+export { at, cronExpression, every } from "./schedule/mod.ts";
 export type { CronExpression, CronHandler, Schedule, Scheduled, TimeOfDay } from "./schedule/mod.ts";
 export { CronTimezone } from "./timezone.ts";

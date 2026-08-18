@@ -39,50 +39,48 @@ import type { CronHandler, Schedule, Scheduled } from "@scribe/foundation/src/cr
 
 const _DEFAULT_TIMEOUT = Time.minutes(10);
 
-/** What declaring a job takes. */
+/** What declaring a periodic job takes. */
 export interface CronDefinition {
   readonly name: string;
   readonly schedule: Schedule;
+  /**
+   * How long the body is given, and how long the occurrence stays claimed.
+   *
+   * Left out, ten minutes. It has to be a whole number of minutes, for the reason
+   * `core/duration.ts` gives.
+   */
   readonly timeout?: Time;
 }
 
-/** A declared job, plus the ability to ask when it next runs. */
-export interface CronJob extends Scheduled {
-  nextRun(): Date;
-}
-
 /**
- * Declares a periodic job and its body in one call.
+ * A periodic job: declaring it and arming it are the same thing.
  *
- * The framework declares none of its own: the engine runs, the catalogue is entirely the
- * project's. `defineCron` is the primitive, a given job is not.
+ * ```ts
+ * new Cron({ name: "digest", schedule: at(CronTimezone.EuropeParis, "08:00") }, handler);
+ * ```
  *
- * The timeout serves twice — it is the deadline the body is given, and the lifetime of the
- * Redis key that marks the occurrence as claimed. A replica that dies mid-run therefore
- * releases the occurrence by expiry rather than holding it for good.
+ * The framework declares none of its own — the engine runs, the catalogue is entirely the
+ * project's. Constructing one registers it and arms it on the runner; the object answers when
+ * it next runs, which most callers have no use for and may discard.
  */
-export function defineCron(
-  definition: CronDefinition,
-  handler: CronHandler,
-): CronJob {
-  const job: Scheduled = {
-    name: definition.name,
-    schedule: definition.schedule,
-    timeout: definition.timeout
-      ? wholeMinutes(
-        `defineCron("${definition.name}") timeout`,
-        definition.timeout,
-      )
-      : _DEFAULT_TIMEOUT,
-  };
+export class Cron implements Scheduled {
+  readonly name: string;
+  readonly schedule: Schedule;
+  readonly timeout: Time;
 
-  const entry: CronJob = {
-    ...job,
-    nextRun: () => nextRun(job.schedule, new Date()),
-  };
+  constructor(definition: CronDefinition, handler: CronHandler) {
+    this.name = definition.name;
+    this.schedule = definition.schedule;
+    this.timeout = definition.timeout
+      ? wholeMinutes(`new Cron("${definition.name}") timeout`, definition.timeout)
+      : _DEFAULT_TIMEOUT;
 
-  cronRegistry.add({ job, nextRun: entry.nextRun });
-  cronRunner.register(job, handler);
+    cronRegistry.add({ job: this, nextRun: () => this.nextRun() });
+    cronRunner.register(this, handler);
+  }
 
-  return entry;
+  /** When this job next runs. */
+  nextRun(): Date {
+    return nextRun(this.schedule, new Date());
+  }
 }

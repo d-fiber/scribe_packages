@@ -40,7 +40,7 @@
 // letter, which require a real NATS + Redis instance (see .claude/testing.md).
 
 import { assertEquals } from "@std/assert";
-import { defineQueue } from "@scribe/foundation/src/queue/mod.ts";
+import { Queue } from "@scribe/foundation/src/queue/mod.ts";
 import { MessageDispatcher } from "@scribe/foundation/src/queue/runner/dispatcher.ts";
 import { DrainTally } from "@scribe/foundation/src/queue/runner/drain_tally.ts";
 
@@ -95,7 +95,7 @@ function asJsMsgs(messages: readonly FakeMsg[]): readonly JsMsg[] {
 
 Deno.test("dispatch() calls the body job by job and acks", async () => {
   const seen: string[] = [];
-  defineQueue<{ id: string }>({ name: "test:dispatch:immediate" }, (job) => {
+  new Queue<{ id: string }>({ name: "test:dispatch:immediate" }, (job) => {
     seen.push(job.id);
     return Promise.resolve();
   });
@@ -114,7 +114,7 @@ Deno.test("dispatch() calls the body job by job and acks", async () => {
 Deno.test("dispatch() calls the body once with the whole batch in batch mode", async () => {
   let calls = 0;
   let received: readonly unknown[] = [];
-  defineQueue<{ id: string }>(
+  new Queue<{ id: string }>(
     { name: "test:dispatch:batch", batch: { lingerMs: 10 } },
     (jobs) => {
       calls++;
@@ -138,11 +138,11 @@ Deno.test("dispatch() calls the body once with the whole batch in batch mode", a
 Deno.test("dispatch() splits a mixed batch by queue", async () => {
   const first: string[] = [];
   const second: string[] = [];
-  defineQueue<{ id: string }>({ name: "test:dispatch:mixed-a" }, (job) => {
+  new Queue<{ id: string }>({ name: "test:dispatch:mixed-a" }, (job) => {
     first.push(job.id);
     return Promise.resolve();
   });
-  defineQueue<{ id: string }>({ name: "test:dispatch:mixed-b" }, (job) => {
+  new Queue<{ id: string }>({ name: "test:dispatch:mixed-b" }, (job) => {
     second.push(job.id);
     return Promise.resolve();
   });

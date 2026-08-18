@@ -30,7 +30,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { defineQueue, type Queue } from "@scribe/foundation/src/queue/mod.ts";
+import { Queue } from "@scribe/foundation/src/queue/mod.ts";
 import type { BackgroundHookHandler } from "../../../contracts/hook/hook.ts";
 
 /**
@@ -61,9 +61,9 @@ export class BackgroundChannel<T> {
   /** Subscribes a handler, declaring the queue on the first one. */
   add(handler: BackgroundHookHandler<T>): BackgroundHookHandler<T> {
     this.#handlers.push(handler);
-    this.#queue ??= defineQueue<T>(
+    this.#queue ??= new Queue<T>(
       { name: `hook:${this.#hookName}` },
-      async (payload) => {
+      async (payload: T) => {
         for (const background of this.#handlers) await background(payload);
       },
     );

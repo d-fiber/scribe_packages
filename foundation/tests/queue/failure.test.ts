@@ -36,7 +36,7 @@
 // enough to hold it.
 
 import { assertEquals } from "@std/assert";
-import { defineQueue } from "@scribe/foundation/src/queue/mod.ts";
+import { Queue } from "@scribe/foundation/src/queue/mod.ts";
 import { MessageDispatcher } from "@scribe/foundation/src/queue/runner/dispatcher.ts";
 import { DrainTally } from "@scribe/foundation/src/queue/runner/drain_tally.ts";
 import { topology } from "@scribe/foundation/src/queue/core/topology/topology.ts";
@@ -110,11 +110,11 @@ async function dispatch(messages: readonly FakeMsg[]) {
 
 const failing = () => Promise.reject(new Error("handler blew up"));
 
-defineQueue<{ id: string }>(
+new Queue<{ id: string }>(
   { name: "test:failure:retry", options: { maxRetries: 4 } },
   failing,
 );
-defineQueue<{ id: string }>(
+new Queue<{ id: string }>(
   { name: "test:failure:batch", batch: { lingerMs: 5 }, options: { maxRetries: 3 } },
   failing,
 );

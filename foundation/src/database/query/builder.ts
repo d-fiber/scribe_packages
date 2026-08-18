@@ -80,19 +80,40 @@ export class OwnerScopeError extends Error {
   }
 }
 
+/**
+ * A PostgREST client, or a way to get one when it is first needed.
+ *
+ * A builder is routinely constructed at module load — `const users = new Database("users")` —
+ * and building the client there would read the database settings before the boot has filled
+ * them, which throws. Taking a thunk is what lets the two happen in either order.
+ */
+export type PostgrestClientSource = any | (() => any);
+
 export class TypedQueryBuilder<
   Row extends object,
   Result = Row,
   Rels extends Record<string, RelNode> = Record<string, never>,
 > {
-  readonly #db: any;
+  readonly #source: PostgrestClientSource;
   readonly #table: string;
   readonly #state: QueryState;
 
-  constructor(db: any, table: string, state: QueryState = DEFAULT_STATE) {
-    this.#db = db;
+  #client: any = null;
+
+  constructor(
+    source: PostgrestClientSource,
+    table: string,
+    state: QueryState = DEFAULT_STATE,
+  ) {
+    this.#source = source;
     this.#table = table;
     this.#state = state;
+  }
+
+  // Resolved once per builder, and only when a query is actually compiled. Chaining passes the
+  // source along rather than the resolved client, so a chain built before the boot still works.
+  get #db(): any {
+    return (this.#client ??= typeof this.#source === "function" ? this.#source() : this.#source);
   }
 
   #constrainsOwner(): boolean {
@@ -186,7 +207,7 @@ export class TypedQueryBuilder<
   }
 
   #with(state: Partial<QueryState>): TypedQueryBuilder<Row, Result, Rels> {
-    return new TypedQueryBuilder<Row, Result, Rels>(this.#db, this.#table, {
+    return new TypedQueryBuilder<Row, Result, Rels>(this.#source, this.#table, {
       ...this.#state,
       ...state,
     });
@@ -195,7 +216,7 @@ export class TypedQueryBuilder<
   selectRaw<R extends object = Row>(
     cols: string,
   ): TypedQueryBuilder<Row, R, Rels> {
-    return new TypedQueryBuilder<Row, R, Rels>(this.#db, this.#table, {
+    return new TypedQueryBuilder<Row, R, Rels>(this.#source, this.#table, {
       ...this.#state,
       selectCols: cols,
     });
@@ -205,7 +226,7 @@ export class TypedQueryBuilder<
     builder: (s: Selector<Row, Rels>) => Shape,
   ): TypedQueryBuilder<Row, ExtractShape<Row, Shape>, Rels> {
     const shape = builder(selector<Row, Rels>());
-    return new TypedQueryBuilder(this.#db, this.#table, {
+    return new TypedQueryBuilder(this.#source, this.#table, {
       ...this.#state,
       selectCols: columnsOf(shape),
     }) as any;

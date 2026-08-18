@@ -50,7 +50,7 @@ export interface CronExpressionSchedule {
  * The `Cron` object is built here, once, and kept on the schedule. Rebuilding it to answer
  * every "when is the next one" would parse the expression on each tick of the runner.
  */
-export function cron(
+export function cronExpression(
   expression: CronExpression,
   timezone: CronTimezone,
 ): CronExpressionSchedule {

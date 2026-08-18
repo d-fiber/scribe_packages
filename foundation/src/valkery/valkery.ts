@@ -30,7 +30,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Time } from "@scribe/core/contracts/common/time.ts";
+import { Time } from "@scribe/core/contracts/common/time.ts";
 import { DEFAULT_BETA, shouldRefreshEarly } from "./early_expiry.ts";
 import type { Entry } from "./entry.ts";
 import { withJitter } from "./entry_ttl.ts";
@@ -41,38 +41,85 @@ import { DistributedLock } from "./lock/distributed_lock.ts";
 import { ValkeryStore } from "./store.ts";
 
 /**
- * A namespace of cached entries, with one ttl and one name.
+ * What declaring a cache takes.
  *
- * A subclass declares `key` and `ttl` and inherits everything else. Nothing here throws:
- * an unreachable Redis is reported and read as a miss, so a cache outage degrades into
- * recomputation rather than into an error the caller has to handle.
+ * Only the namespace is required. Everything else has an answer that is right far more often
+ * than it is wrong, and an option nobody passes is an option that goes stale unnoticed.
  */
-export abstract class Valkery {
+export interface ValkeryOptions {
   /** The namespace every key of this cache is written under. */
-  abstract get key(): string;
+  readonly key: string;
 
-  /** How long an entry is served before it is recomputed. */
-  abstract get ttl(): Time;
+  /**
+   * How long an entry is served before it is recomputed.
+   *
+   * Left out, it is {@link DEFAULT_TTL}. That is long, and deliberately so: a cache is
+   * correct at any ttl and only its freshness changes, so the default is the one that costs
+   * the origin least. A namespace whose values go stale says how fast.
+   */
+  readonly ttl?: Time;
 
   /**
    * How eagerly a reader refreshes an entry that is close to expiring.
    *
-   * Raising it refreshes earlier and more often, lowering it lets more readers arrive at
-   * the expiry together. Zero turns refresh-ahead off and brings back a plain miss on
-   * expiry. See {@link shouldRefreshEarly} for what the number does.
+   * Raising it refreshes earlier and more often, lowering it lets more readers arrive at the
+   * expiry together. Zero turns refresh-ahead off and brings back a plain miss on expiry. See
+   * {@link shouldRefreshEarly} for what the number does.
    */
-  protected get beta(): number {
-    return DEFAULT_BETA;
+  readonly beta?: number;
+}
+
+/**
+ * How long an entry lives when its declaration does not say.
+ *
+ * Fifteen days.
+ */
+export const DEFAULT_TTL: Time = Time.days(15);
+
+/**
+ * A namespace of cached entries, with one name, one ttl and one value type.
+ *
+ * ```ts
+ * const sessions = new Valkery<Session>({ key: "session", ttl: Time.minutes(5) });
+ *
+ * await sessions.add("u1", session);   // only a Session goes in
+ * const found = await sessions.get("u1");  // Session | null comes out
+ * ```
+ *
+ * `T` sits on the class rather than on each method on purpose. A cache holds one kind of
+ * thing, so the type is a property of the namespace and belongs where the namespace is
+ * declared — written once, checked at every call, and impossible for two call sites to
+ * disagree on. A namespace that genuinely holds several shapes declares `unknown` and says so.
+ *
+ * A cache is **configured, not extended**: there is nothing to subclass and nothing to
+ * override, which is what keeps every namespace of the fleet behaving the same way.
+ *
+ * Nothing here throws: an unreachable Redis is reported and read as a miss, so a cache outage
+ * degrades into recomputation rather than into an error the caller has to handle.
+ */
+export class Valkery<T> {
+  /** The namespace every key of this cache is written under. */
+  readonly key: string;
+
+  /** How long an entry is served before it is recomputed. */
+  readonly ttl: Time;
+
+  readonly #beta: number;
+
+  constructor(options: ValkeryOptions) {
+    this.key = options.key;
+    this.ttl = options.ttl ?? DEFAULT_TTL;
+    this.#beta = options.beta ?? DEFAULT_BETA;
   }
 
-  #keys: KeySpace | null = null;
-  #store: ValkeryStore | null = null;
-  #local: LocalFlight | null = null;
-  #shared: DistributedFlight | null = null;
+  #keysMemo: KeySpace | null = null;
+  #storeMemo: ValkeryStore | null = null;
+  #localMemo: LocalFlight | null = null;
+  #sharedMemo: DistributedFlight | null = null;
 
   /** The value cached under `id`, or `null` when nothing usable is cached. */
-  async get<T>(id: string): Promise<T | null> {
-    const entry = await this.store().read<T>(id, this.ttl.ms);
+  async get(id: string): Promise<T | null> {
+    const entry = await this.#store().read<T>(id, this.ttl.ms);
     return entry === null ? null : entry.value;
   }
 
@@ -81,34 +128,34 @@ export abstract class Valkery {
    *
    * One round trip whatever the number of ids.
    */
-  async getMany<T>(ids: readonly string[]): Promise<(T | null)[]> {
-    const entries = await this.store().readMany<T>(ids, this.ttl.ms);
+  async getMany(ids: readonly string[]): Promise<(T | null)[]> {
+    const entries = await this.#store().readMany<T>(ids, this.ttl.ms);
     return entries.map((entry) => (entry === null ? null : entry.value));
   }
 
   /** Caches `value` under `id` for this cache's ttl. */
-  async add<T>(id: string, value: T): Promise<void> {
+  async add(id: string, value: T): Promise<void> {
     if (!this.#usableTtl(`for key "${id}"`)) return;
 
-    await this.store().write(id, value, withJitter(this.ttl), 0);
+    await this.#store().write(id, value, withJitter(this.ttl), 0);
   }
 
   /** Caches several values in a single pipeline. */
-  async addMany<T>(entries: [string, T][]): Promise<void> {
+  async addMany(entries: [string, T][]): Promise<void> {
     if (entries.length === 0) return;
     if (!this.#usableTtl("")) return;
 
-    await this.store().writeMany(entries, () => withJitter(this.ttl));
+    await this.#store().writeMany(entries, () => withJitter(this.ttl));
   }
 
   /** Removes what is cached under `id`. */
   delete(id: string): Promise<void> {
-    return this.store().forget([id]);
+    return this.#store().forget([id]);
   }
 
   /** Removes what is cached under each of `ids`. */
   deleteMany(...ids: string[]): Promise<void> {
-    return this.store().forget(ids);
+    return this.#store().forget(ids);
   }
 
   /**
@@ -126,14 +173,14 @@ export abstract class Valkery {
    * @param id - The key inside this cache's namespace.
    * @param compute - Produces the value on a miss. Called at most once per process per key.
    */
-  upsert<T>(id: string, compute: () => Promise<T>): Promise<T> {
+  upsert(id: string, compute: () => Promise<T>): Promise<T> {
     // The local flight keys on the namespaced key rather than on the id, because two caches
     // hand out the same ids and must not share a run.
-    return this.local().run(this.keySpace().keyOf(id), async () => {
-      const entry = await this.store().read<T>(id, this.ttl.ms);
+    return this.#local().run(this.#keySpace().keyOf(id), async () => {
+      const entry = await this.#store().read<T>(id, this.ttl.ms);
 
       if (entry !== null) {
-        if (!shouldRefreshEarly(entry, this.beta)) return entry.value;
+        if (!shouldRefreshEarly(entry, this.#beta)) return entry.value;
         return await this.#refreshAhead(id, entry, compute);
       }
 
@@ -143,41 +190,38 @@ export abstract class Valkery {
 
   /** Removes every entry of this cache, or those a glob matches inside it. */
   clear(pattern?: string): Promise<void> {
-    return this.store().sweep(this.keySpace().matching(pattern));
+    return this.#store().sweep(this.#keySpace().matching(pattern));
   }
 
-  /** Reports a failed cache operation. Overridden by a subclass that logs differently. */
-  protected report(operation: string, error: unknown): void {
+  // Every failure of every operation lands here, which is what makes the whole cache
+  // fail-open in one place rather than in a catch per method.
+  #report(operation: string, error: unknown): void {
     console.error(
       `[valkery:${this.key}] ${operation} failed, bypassing valkery:`,
       error,
     );
   }
 
-  /** The key derivation of this cache. Lazily built, so a subclass can compute its `key`. */
-  protected keySpace(): KeySpace {
-    return (this.#keys ??= new KeySpace(this.key));
+  #keySpace(): KeySpace {
+    return (this.#keysMemo ??= new KeySpace(this.key));
   }
 
-  /** The Redis calls of this cache, guarded. */
-  protected store(): ValkeryStore {
-    return (this.#store ??= new ValkeryStore(
-      this.keySpace(),
-      (operation, error) => this.report(operation, error),
+  #store(): ValkeryStore {
+    return (this.#storeMemo ??= new ValkeryStore(
+      this.#keySpace(),
+      (operation, error) => this.#report(operation, error),
     ));
   }
 
-  /** The in-process flight of this cache. */
-  protected local(): LocalFlight {
-    return (this.#local ??= new LocalFlight());
+  #local(): LocalFlight {
+    return (this.#localMemo ??= new LocalFlight());
   }
 
-  /** The cross-replica flight of this cache. */
-  protected shared(): DistributedFlight {
-    return (this.#shared ??= new DistributedFlight(
-      new DistributedLock((operation, error) => this.report(operation, error)),
+  #shared(): DistributedFlight {
+    return (this.#sharedMemo ??= new DistributedFlight(
+      new DistributedLock((operation, error) => this.#report(operation, error)),
       (id) =>
-        this.report(
+        this.#report(
           "upsert",
           new Error(`gave up coordinating on "${id}", computing without lock`),
         ),
@@ -186,11 +230,11 @@ export abstract class Valkery {
 
   // Nothing is cached and something has to produce the value now, so a loser waits for the
   // winner: there is no older value to hand it in the meantime.
-  #fill<T>(id: string, compute: () => Promise<T>): Promise<T> {
-    return this.shared().run(
+  #fill(id: string, compute: () => Promise<T>): Promise<T> {
+    return this.#shared().run(
       id,
-      this.keySpace().lockKeyOf(id),
-      () => this.get<T>(id),
+      this.#keySpace().lockKeyOf(id),
+      () => this.get(id),
       () => this.#computeAndWrite(id, compute),
     );
   }
@@ -198,32 +242,32 @@ export abstract class Valkery {
   // A value is still being served, so a loser takes it rather than waiting, and a failed
   // recompute serves it too: a cache that already holds an answer must not turn a flaky
   // origin into an error.
-  async #refreshAhead<T>(
+  async #refreshAhead(
     id: string,
     entry: Entry<T>,
     compute: () => Promise<T>,
   ): Promise<T> {
     try {
-      const refreshed = await this.shared().attempt(
-        this.keySpace().lockKeyOf(id),
+      const refreshed = await this.#shared().attempt(
+        this.#keySpace().lockKeyOf(id),
         () => this.#computeAndWrite(id, compute),
       );
       return refreshed ?? entry.value;
     } catch (error) {
-      this.report("refresh", error);
+      this.#report("refresh", error);
       return entry.value;
     }
   }
 
   // The cost of the computation is measured here and stored with the value, because it is
   // what decides how early the next readers volunteer to refresh it.
-  async #computeAndWrite<T>(id: string, compute: () => Promise<T>): Promise<T> {
+  async #computeAndWrite(id: string, compute: () => Promise<T>): Promise<T> {
     const startedAt = Date.now();
     const value = await compute();
     const computeMs = Date.now() - startedAt;
 
     if (this.#usableTtl(`for key "${id}"`)) {
-      await this.store().write(id, value, withJitter(this.ttl), computeMs);
+      await this.#store().write(id, value, withJitter(this.ttl), computeMs);
     }
     return value;
   }
@@ -231,7 +275,7 @@ export abstract class Valkery {
   #usableTtl(context: string): boolean {
     if (this.ttl.value > 0) return true;
 
-    this.report(
+    this.#report(
       "set",
       new Error(`invalid ttl ${this.ttl.value} ${context}`.trimEnd()),
     );

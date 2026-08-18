@@ -37,13 +37,28 @@ import { isRefusal } from "./refusal.ts";
 import { hookRegistry } from "./registry.ts";
 
 /** What declaring a hook takes: its name, and what it answers when nobody listens. */
-export interface HookDefinition<T, R> {
+export interface HookDefinition<R> {
   readonly name: string;
-  readonly fallback: R;
+  /**
+   * What the hook answers when no inline handler has decided.
+   *
+   * Required as soon as the hook carries a decision, so what happens when the project wires
+   * nothing is always written down rather than inferred. A hook whose subscribers are side
+   * effects has nothing to decide and leaves it out.
+   */
+  readonly fallback?: R;
 }
 
 /**
  * An extension point: the framework declares it, the project subscribes to it.
+ *
+ * ```ts
+ * export const signInHook = new Hook<SignInPayload>({ name: "auth.sign-in" });
+ * export const signUpHook = new Hook<SignUpPayload, Result>({
+ *   name: "auth.sign-up",
+ *   fallback: new OK(),
+ * });
+ * ```
  *
  * Two ways to subscribe, chosen per subscriber and not per hook. {@link on} runs inside the
  * request, in order, and may refuse; {@link background} runs later, survives a crash, and
@@ -61,11 +76,11 @@ export class Hook<T, R = void> {
   // where this is the difference between four allocations per emission and none.
   readonly #unhandled: Promise<R>;
 
-  constructor(definition: HookDefinition<T, R>) {
+  constructor(definition: HookDefinition<R>) {
     this.name = definition.name;
-    this.#inline = new InlineChain<T, R>(definition.name, definition.fallback);
+    this.#inline = new InlineChain<T, R>(definition.name, definition.fallback as R);
     this.#background = new BackgroundChannel<T>(definition.name);
-    this.#unhandled = Promise.resolve(definition.fallback);
+    this.#unhandled = Promise.resolve(definition.fallback as R);
     hookRegistry.add(this);
   }
 

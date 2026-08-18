@@ -35,10 +35,10 @@
 // itself is covered by runner.test.ts.
 
 import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
-import { defineQueue, queueRegistry, queueRunner } from "@scribe/foundation/src/queue/mod.ts";
+import { Queue, queueRegistry, queueRunner } from "@scribe/foundation/src/queue/mod.ts";
 
-Deno.test("defineQueue() arms the body with the runner", () => {
-  defineQueue<{ id: string }>(
+Deno.test("new Queue() arms the body with the runner", () => {
+  new Queue<{ id: string }>(
     { name: "test:define:immediate" },
     () => Promise.resolve(),
   );
@@ -46,8 +46,8 @@ Deno.test("defineQueue() arms the body with the runner", () => {
   assertEquals(queueRunner.names().includes("test:define:immediate"), true);
 });
 
-Deno.test("defineQueue() distinguishes batch mode from job-by-job mode", () => {
-  defineQueue<{ id: string }>(
+Deno.test("new Queue() distinguishes batch mode from job-by-job mode", () => {
+  new Queue<{ id: string }>(
     { name: "test:define:batch", batch: { lingerMs: 100 } },
     () => Promise.resolve(),
   );
@@ -57,8 +57,8 @@ Deno.test("defineQueue() distinguishes batch mode from job-by-job mode", () => {
   assertEquals(queueRegistry.get("test:define:immediate")?.mode, "immediate");
 });
 
-Deno.test("defineQueue() returns the producer side", () => {
-  const queue = defineQueue<{ id: string }>(
+Deno.test("new Queue() returns the producer side", () => {
+  const queue = new Queue<{ id: string }>(
     { name: "test:define:producer" },
     () => Promise.resolve(),
   );
@@ -68,14 +68,14 @@ Deno.test("defineQueue() returns the producer side", () => {
   assertEquals(typeof queue.pushMany, "function");
 });
 
-Deno.test("defineQueue() refuses two queues with the same name", () => {
-  defineQueue<{ id: string }>(
+Deno.test("new Queue() refuses two queues with the same name", () => {
+  new Queue<{ id: string }>(
     { name: "test:define:duplicate" },
     () => Promise.resolve(),
   );
 
   assertThrows(() =>
-    defineQueue<{ id: string }>(
+    new Queue<{ id: string }>(
       { name: "test:define:duplicate" },
       () => Promise.resolve(),
     )
@@ -93,7 +93,7 @@ Deno.test("the registry returns a compact report, without listing names", () => 
 });
 
 Deno.test("a queue's linger delay is indeed carried by the registry", () => {
-  defineQueue<{ id: string }>(
+  new Queue<{ id: string }>(
     { name: "test:define:linger", batch: { lingerMs: 2_500 } },
     () => Promise.resolve(),
   );

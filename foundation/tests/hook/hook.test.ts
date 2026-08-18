@@ -36,19 +36,19 @@
 // that a hook name is unique per process (the registry guarantees it), hence the
 // distinct names below.
 
-import { defineHook, hookRegistry } from "@scribe/foundation/src/hook/mod.ts";
+import { Hook, hookRegistry } from "@scribe/foundation/src/hook/mod.ts";
 import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
 import { assertEquals, assertRejects, assertStrictEquals, assertThrows } from "@std/assert";
 
 Deno.test("hook.on() returns the handler unchanged", () => {
-  const hook = defineHook<string>({ name: "test.returns-handler" });
+  const hook = new Hook<string>({ name: "test.returns-handler" });
   const handler = (_payload: string): Promise<void> => Promise.resolve();
 
   assertStrictEquals(hook.on(handler), handler);
 });
 
 Deno.test("hook.run() passes the payload and returns the handler's result", async () => {
-  const hook = defineHook<{ value: string }, string>({
+  const hook = new Hook<{ value: string }, string>({
     name: "test.payload",
     fallback: "none",
   });
@@ -64,7 +64,7 @@ Deno.test("hook.run() passes the payload and returns the handler's result", asyn
 });
 
 Deno.test("hook.run() returns the fallback when no handler is registered", async () => {
-  const hook = defineHook<undefined, string>({
+  const hook = new Hook<undefined, string>({
     name: "test.fallback",
     fallback: "no-op",
   });
@@ -73,7 +73,7 @@ Deno.test("hook.run() returns the fallback when no handler is registered", async
 });
 
 Deno.test("hook.run() chains handlers in registration order", async () => {
-  const hook = defineHook<string>({ name: "test.order" });
+  const hook = new Hook<string>({ name: "test.order" });
   const calls: string[] = [];
 
   hook.on(() => {
@@ -89,7 +89,7 @@ Deno.test("hook.run() chains handlers in registration order", async () => {
 });
 
 Deno.test("hook.run() stops at the first refusal, like an early return", async () => {
-  const hook = defineHook<string, Result<void, string>>({
+  const hook = new Hook<string, Result<void, string>>({
     name: "test.refusal",
     fallback: new OK(),
   });
@@ -108,14 +108,14 @@ Deno.test("hook.run() stops at the first refusal, like an early return", async (
 });
 
 Deno.test("hook.run() propagates a handler's error to the caller", async () => {
-  const hook = defineHook<string>({ name: "test.rejects" });
+  const hook = new Hook<string>({ name: "test.rejects" });
   hook.on(() => Promise.reject(new Error("boom")));
 
   await assertRejects(() => hook.run("x"), Error, "boom");
 });
 
 Deno.test("hook.run() convertit un throw synchrone en rejet", async () => {
-  const hook = defineHook<string>({ name: "test.throws" });
+  const hook = new Hook<string>({ name: "test.throws" });
   hook.on(() => {
     throw new Error("boom");
   });
@@ -123,14 +123,14 @@ Deno.test("hook.run() convertit un throw synchrone en rejet", async () => {
   await assertRejects(() => hook.run("x"), Error, "boom");
 });
 
-Deno.test("defineHook() refuses two hooks with the same name", () => {
-  defineHook<string>({ name: "test.duplicate" });
+Deno.test("new Hook() refuses two hooks with the same name", () => {
+  new Hook<string>({ name: "test.duplicate" });
 
-  assertThrows(() => defineHook<string>({ name: "test.duplicate" }));
+  assertThrows(() => new Hook<string>({ name: "test.duplicate" }));
 });
 
 Deno.test("the registry knows which hooks have no handler", () => {
-  defineHook<string>({ name: "test.idle" });
+  new Hook<string>({ name: "test.idle" });
 
   const report = hookRegistry.report();
 
@@ -139,7 +139,7 @@ Deno.test("the registry knows which hooks have no handler", () => {
 });
 
 Deno.test("background() does not run the handler within the request", async () => {
-  const hook = defineHook<{ id: string }>({ name: "test.background" });
+  const hook = new Hook<{ id: string }>({ name: "test.background" });
   let inlineRan = false;
   let backgroundRan = false;
 
@@ -160,7 +160,7 @@ Deno.test("background() does not run the handler within the request", async () =
 });
 
 Deno.test("handlers() counts both inline AND background subscribers", () => {
-  const hook = defineHook<string>({ name: "test.background.count" });
+  const hook = new Hook<string>({ name: "test.background.count" });
 
   assertEquals(hook.handlers(), 0);
   hook.on(() => {});
@@ -170,7 +170,7 @@ Deno.test("handlers() counts both inline AND background subscribers", () => {
 });
 
 Deno.test("a hook nobody listens to answers without doing any work", () => {
-  const hook = defineHook<string, string>({
+  const hook = new Hook<string, string>({
     name: "test.unhandled",
     fallback: "no-op",
   });
@@ -182,7 +182,7 @@ Deno.test("a hook nobody listens to answers without doing any work", () => {
 });
 
 Deno.test("a hook stops answering from the fast path once someone subscribes", async () => {
-  const hook = defineHook<string, string>({
+  const hook = new Hook<string, string>({
     name: "test.becomes-handled",
     fallback: "no-op",
   });
@@ -195,7 +195,7 @@ Deno.test("a hook stops answering from the fast path once someone subscribes", a
 });
 
 Deno.test("a synchronous chain is not made to wait on itself", async () => {
-  const hook = defineHook<string, string>({ name: "test.sync", fallback: "none" });
+  const hook = new Hook<string, string>({ name: "test.sync", fallback: "none" });
   const order: string[] = [];
 
   hook.on((p) => {

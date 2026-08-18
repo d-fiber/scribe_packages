@@ -52,7 +52,7 @@ export class CronRegistry {
     const name = entry.job.name;
     if (this.#jobs.has(name)) {
       throw new Error(
-        `defineCron("${name}"): this name is already declared. A cron name ` +
+        `new Cron("${name}"): this name is already declared. A cron name ` +
           `identifies a Redis-locked occurrence, it must be unique.`,
       );
     }

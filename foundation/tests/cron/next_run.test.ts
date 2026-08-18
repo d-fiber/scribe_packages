@@ -35,7 +35,7 @@
 // names under tests/tests/ mirror it for discoverability, not for privacy.
 
 import { nextRun, nextRunAfterSlot } from "@scribe/foundation/src/cron/core/next_run.ts";
-import { at, cron, every } from "@scribe/foundation/src/cron/schedule/mod.ts";
+import { at, cronExpression, every } from "@scribe/foundation/src/cron/schedule/mod.ts";
 import { Time } from "@scribe/core/contracts/common/time.ts";
 import { CronTimezone } from "@scribe/foundation/src/cron/timezone.ts";
 import { assertEquals } from "@std/assert";
@@ -79,7 +79,7 @@ Deno.test(
 Deno.test(
   "nextRun() for a cron schedule delegates to croner and respects the given timezone",
   () => {
-    const schedule = cron("0 3 * * *", CronTimezone.Utc);
+    const schedule = cronExpression("0 3 * * *", CronTimezone.Utc);
     const after = new Date("2026-01-01T00:00:00.000Z");
 
     const next = nextRun(schedule, after);
@@ -91,7 +91,7 @@ Deno.test(
 Deno.test(
   "nextRun() for a cron schedule rolls over to the next day once today's occurrence has passed",
   () => {
-    const schedule = cron("0 3 * * *", CronTimezone.Utc);
+    const schedule = cronExpression("0 3 * * *", CronTimezone.Utc);
     const after = new Date("2026-01-01T04:00:00.000Z"); // already past 03:00 today
 
     const next = nextRun(schedule, after);
@@ -135,7 +135,7 @@ Deno.test(
 Deno.test(
   "nextRunAfterSlot() leaves wall-clock schedules to croner",
   () => {
-    const schedule = cron("0 3 * * *", CronTimezone.EuropeParis);
+    const schedule = cronExpression("0 3 * * *", CronTimezone.EuropeParis);
     const slot = new Date("2026-01-01T02:00:00.000Z");
     const now = new Date("2026-01-01T02:05:00.000Z");
 
