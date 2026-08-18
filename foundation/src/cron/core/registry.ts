@@ -30,16 +30,24 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Scheduled } from "@scribe/foundation/src/cron/schedule.ts";
+import type { Scheduled } from "@scribe/foundation/src/cron/schedule/mod.ts";
 
+/** A declared job, and where its next occurrence falls. */
 export interface RegisteredCron {
   readonly job: Scheduled;
   nextRun(): Date;
 }
 
+/**
+ * Every declared job of this process, indexed by name.
+ *
+ * The name has to be unique because it is what identifies an occurrence across replicas: two
+ * jobs sharing one would claim the same lock and only one of them would ever run.
+ */
 export class CronRegistry {
   readonly #jobs = new Map<string, RegisteredCron>();
 
+  /** Arms a job, and refuses a name already taken. */
   add(entry: RegisteredCron): void {
     const name = entry.job.name;
     if (this.#jobs.has(name)) {
@@ -51,14 +59,16 @@ export class CronRegistry {
     this.#jobs.set(name, entry);
   }
 
+  /** The jobs armed so far, in declaration order. */
   list(): readonly RegisteredCron[] {
     return [...this.#jobs.values()];
   }
 
+  /** One line naming what is armed and when each job runs next, printed at start-up. */
   report(): string {
     const jobs = this.list();
     if (jobs.length === 0) {
-      return "[cron] no job declared, lib/extensions/event_driven/cron/ is empty or failed to load";
+      return "[cron] no job declared";
     }
 
     const next = jobs
@@ -71,4 +81,5 @@ export class CronRegistry {
   }
 }
 
+/** The registry every declaration writes into. */
 export const cronRegistry: CronRegistry = new CronRegistry();

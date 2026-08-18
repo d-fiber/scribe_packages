@@ -30,6 +30,12 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+/**
+ * The time zones a calendar schedule may be placed in.
+ *
+ * A closed list rather than a free string: a zone name croner does not know produces a job
+ * that never fires, and nothing would say so at declaration.
+ */
 export enum CronTimezone {
   Utc = "UTC",
   EuropeLondon = "Europe/London",

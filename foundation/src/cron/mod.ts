@@ -35,13 +35,6 @@ export type { CronDefinition, CronJob } from "./core/define.ts";
 export { cronRegistry } from "./core/registry.ts";
 export type { RegisteredCron } from "./core/registry.ts";
 export { cronRunner } from "./runner/cron_runner.ts";
-export { at, cron, every } from "./schedule.ts";
-export type {
-  CronExpression,
-  CronHandler,
-  Schedule,
-  Scheduled,
-  TimeOfDay
-} from "./schedule.ts";
+export { at, cron, every } from "./schedule/mod.ts";
+export type { CronExpression, CronHandler, Schedule, Scheduled, TimeOfDay } from "./schedule/mod.ts";
 export { CronTimezone } from "./timezone.ts";
-

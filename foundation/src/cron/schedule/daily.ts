@@ -30,24 +30,45 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Time } from "@scribe/core/contracts/common/time.ts";
+import type { CronTimezone } from "@scribe/foundation/src/cron/timezone.ts";
+import { Cron } from "croner";
 
-const _MINUTE_MS = 60_000;
+/** A 24-hour time of day, as `HH:MM`. */
+export type TimeOfDay = `${number}:${number}`;
+
+/** A job placed on the calendar at one or more times of day. */
+export interface DailySchedule {
+  readonly kind: "daily";
+  readonly times: readonly TimeOfDay[];
+  readonly timezone: CronTimezone;
+  readonly jobs: readonly Cron[];
+}
+
+const _TIME_OF_DAY = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 /**
- * Answers `value` back, or refuses it if it is not a positive whole number of minutes.
+ * Runs the job at each of `times`, in `timezone`.
  *
- * The refusal happens where the value is declared rather than where it is used, because what
- * it protects is downstream and invisible: an occurrence is claimed under a key derived from
- * the interval, and a value that does not divide into minutes rounds differently on two
- * machines whose clocks differ — both would claim, and the job would run twice.
+ * One `Cron` per time rather than one expression listing them: croner answers the next
+ * occurrence of each, and the schedule takes the earliest. Both refusals — an empty list, a
+ * time that is not a 24-hour `HH:MM` — happen at declaration, because a job that never fires
+ * is a job whose absence nobody notices.
  */
-export function wholeMinutes(label: string, value: Time): Time {
-  const ms = value.ms;
-  if (!Number.isInteger(ms) || ms <= 0 || ms % _MINUTE_MS !== 0) {
-    throw new Error(
-      `${label}: expected a positive whole number of minutes, got ${ms}ms`,
-    );
+export function at(
+  timezone: CronTimezone,
+  ...times: readonly TimeOfDay[]
+): DailySchedule {
+  if (times.length === 0) {
+    throw new Error('at(): expected at least one "HH:MM" time');
   }
-  return value;
+
+  const jobs = times.map((time) => {
+    if (!_TIME_OF_DAY.test(time)) {
+      throw new Error(`at(): "${time}" is not a valid 24h "HH:MM" time`);
+    }
+    const [hours, minutes] = time.split(":");
+    return new Cron(`${Number(minutes)} ${Number(hours)} * * *`, { timezone });
+  });
+
+  return { kind: "daily", times, timezone, jobs };
 }

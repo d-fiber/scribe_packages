@@ -35,24 +35,32 @@ import { wholeMinutes } from "@scribe/foundation/src/cron/core/duration.ts";
 import { nextRun } from "@scribe/foundation/src/cron/core/next_run.ts";
 import { cronRegistry } from "@scribe/foundation/src/cron/core/registry.ts";
 import { cronRunner } from "@scribe/foundation/src/cron/runner/cron_runner.ts";
-import type {
-  CronHandler,
-  Schedule,
-  Scheduled,
-} from "@scribe/foundation/src/cron/schedule.ts";
+import type { CronHandler, Schedule, Scheduled } from "@scribe/foundation/src/cron/schedule/mod.ts";
 
 const _DEFAULT_TIMEOUT = Time.minutes(10);
 
+/** What declaring a job takes. */
 export interface CronDefinition {
   readonly name: string;
   readonly schedule: Schedule;
   readonly timeout?: Time;
 }
 
+/** A declared job, plus the ability to ask when it next runs. */
 export interface CronJob extends Scheduled {
   nextRun(): Date;
 }
 
+/**
+ * Declares a periodic job and its body in one call.
+ *
+ * The framework declares none of its own: the engine runs, the catalogue is entirely the
+ * project's. `defineCron` is the primitive, a given job is not.
+ *
+ * The timeout serves twice — it is the deadline the body is given, and the lifetime of the
+ * Redis key that marks the occurrence as claimed. A replica that dies mid-run therefore
+ * releases the occurrence by expiry rather than holding it for good.
+ */
 export function defineCron(
   definition: CronDefinition,
   handler: CronHandler,
@@ -62,9 +70,9 @@ export function defineCron(
     schedule: definition.schedule,
     timeout: definition.timeout
       ? wholeMinutes(
-          `defineCron("${definition.name}") timeout`,
-          definition.timeout,
-        )
+        `defineCron("${definition.name}") timeout`,
+        definition.timeout,
+      )
       : _DEFAULT_TIMEOUT,
   };
 

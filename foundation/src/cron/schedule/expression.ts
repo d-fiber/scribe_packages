@@ -30,24 +30,34 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Time } from "@scribe/core/contracts/common/time.ts";
+import type { CronTimezone } from "@scribe/foundation/src/cron/timezone.ts";
+import { Cron } from "croner";
 
-const _MINUTE_MS = 60_000;
+/** A five-field cron expression. */
+export type CronExpression = `${string} ${string} ${string} ${string} ${string}`;
+
+/** A job placed on the calendar by a cron expression. */
+export interface CronExpressionSchedule {
+  readonly kind: "cron";
+  readonly expression: CronExpression;
+  readonly timezone: CronTimezone;
+  readonly job: Cron;
+}
 
 /**
- * Answers `value` back, or refuses it if it is not a positive whole number of minutes.
+ * Runs the job on the occurrences a cron expression names, in `timezone`.
  *
- * The refusal happens where the value is declared rather than where it is used, because what
- * it protects is downstream and invisible: an occurrence is claimed under a key derived from
- * the interval, and a value that does not divide into minutes rounds differently on two
- * machines whose clocks differ — both would claim, and the job would run twice.
+ * The `Cron` object is built here, once, and kept on the schedule. Rebuilding it to answer
+ * every "when is the next one" would parse the expression on each tick of the runner.
  */
-export function wholeMinutes(label: string, value: Time): Time {
-  const ms = value.ms;
-  if (!Number.isInteger(ms) || ms <= 0 || ms % _MINUTE_MS !== 0) {
-    throw new Error(
-      `${label}: expected a positive whole number of minutes, got ${ms}ms`,
-    );
-  }
-  return value;
+export function cron(
+  expression: CronExpression,
+  timezone: CronTimezone,
+): CronExpressionSchedule {
+  return {
+    kind: "cron",
+    expression,
+    timezone,
+    job: new Cron(expression, { timezone }),
+  };
 }

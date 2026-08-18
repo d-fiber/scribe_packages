@@ -33,18 +33,29 @@
 import { withDeadline } from "@scribe/core/runtime/support/async/deadline.ts";
 import { Semaphore } from "@scribe/core/runtime/support/async/semaphore.ts";
 import { sleep } from "@scribe/core/runtime/support/async/sleep.ts";
-import type {
-  CronHandler,
-  Scheduled,
-} from "@scribe/foundation/src/cron/schedule.ts";
+import type { CronHandler, Scheduled } from "@scribe/foundation/src/cron/schedule/mod.ts";
 import { ScheduledJob } from "./scheduled_job.ts";
 import { SlotLock } from "./slot_lock.ts";
 
+/** The longest the loop sleeps, however far away the next occurrence is. */
 const DEFAULT_TICK_MS = 30_000;
 const LOOP_RESTART_DELAY_MS = 5_000;
+/** The shortest, so a schedule that is always due cannot spin the loop. */
 const MIN_SLEEP_MS = 50;
 const DEFAULT_MAX_CONCURRENT = 20;
 
+/**
+ * The loop that fires the declared jobs, and the three guards that keep one occurrence to
+ * one execution.
+ *
+ * The guards do not protect against the same thing, which is why there are three:
+ *
+ * | Guard | Scope | Against |
+ * | --- | --- | --- |
+ * | the run token of {@link ScheduledJob} | one replica | an occurrence starting while the previous one of that job still runs |
+ * | {@link SlotLock} | every replica | two replicas reaching the same occurrence together |
+ * | the semaphore | one replica | twenty jobs striking the same minute and swamping the process |
+ */
 export class CronRunner {
   readonly #jobs = new Map<string, ScheduledJob>();
   readonly #lock = new SlotLock();
@@ -53,6 +64,7 @@ export class CronRunner {
   #running = false;
   #runTokenCounter = 0;
 
+  /** Arms a job. Called by `defineCron`, never directly. */
   register(job: Scheduled, handler: CronHandler): void {
     if (this.#jobs.has(job.name)) {
       throw new Error(
@@ -62,10 +74,17 @@ export class CronRunner {
     this.#jobs.set(job.name, new ScheduledJob(job, handler, new Date()));
   }
 
+  /** The jobs armed so far. */
   jobs(): readonly Scheduled[] {
     return [...this.#jobs.values()].map((scheduled) => scheduled.job);
   }
 
+  /**
+   * Starts the loop, which is safe to do before a single job is declared.
+   *
+   * The loop sleeps until the next known occurrence rather than on a fixed tick, so a
+   * declaration that arrives later is simply seen on the following turn.
+   */
   start(
     tickMs = DEFAULT_TICK_MS,
     maxConcurrent = DEFAULT_MAX_CONCURRENT,
@@ -75,12 +94,19 @@ export class CronRunner {
     this.#running = true;
     this.#gate = new Semaphore(maxConcurrent);
 
-    this.#loop(tickMs).catch(() => {
+    this.#loop(tickMs).catch((error) => {
+      // A crashed loop used to restart with no trace at all, which meant a process could
+      // stop running its schedule and nothing anywhere said so.
+      console.error(
+        `[cron-runner] loop crashed, restarting in ${LOOP_RESTART_DELAY_MS}ms:`,
+        error,
+      );
       this.#running = false;
       setTimeout(() => this.start(tickMs, maxConcurrent), LOOP_RESTART_DELAY_MS);
     });
   }
 
+  /** Stops the loop. A run already under way is left to finish. */
   stop(): void {
     this.#running = false;
   }
@@ -90,7 +116,16 @@ export class CronRunner {
       const now = new Date();
 
       for (const scheduled of this.#jobs.values()) {
-        if (scheduled.isDue(now)) this.#fire(scheduled, scheduled.takeSlot(now));
+        if (!scheduled.isDue(now)) continue;
+
+        // The occurrence is taken whatever happens next, and that is the point: a job that
+        // overruns its own period skips the occurrences it missed instead of queueing them
+        // behind itself. Taking the slot inside the call that decides whether to fire hid
+        // that, and read as if a skipped occurrence would come back.
+        const slot = scheduled.takeSlot(now);
+        if (scheduled.running) continue;
+
+        this.#fire(scheduled, slot);
       }
 
       await sleep(this.#sleepFor(tickMs));
@@ -108,14 +143,14 @@ export class CronRunner {
   }
 
   #fire(scheduled: ScheduledJob, slot: Date): void {
-    if (scheduled.running) return;
-
     const token = ++this.#runTokenCounter;
     scheduled.beginRun(token);
 
     this.#execute(scheduled, slot).finally(() => scheduled.endRun(token));
   }
 
+  // The lock is claimed inside the gate, never before it. A replica that won a lock and then
+  // queued behind the semaphore would hold that occurrence idle for everyone else.
   #execute(scheduled: ScheduledJob, slot: Date): Promise<void> {
     return this.#gate.run(async () => {
       try {
@@ -133,4 +168,5 @@ export class CronRunner {
   }
 }
 
+/** The runner of this process, started once by its bootstrapper. */
 export const cronRunner: CronRunner = new CronRunner();

@@ -31,9 +31,23 @@
 // LICENSE file, the LICENSE file governs.
 
 import { kv } from "@scribe/core/runtime/redis/mod.ts";
-import type { Scheduled } from "@scribe/foundation/src/cron/schedule.ts";
+import type { Scheduled } from "@scribe/foundation/src/cron/schedule/mod.ts";
 
+/**
+ * Claims one occurrence of one job, for the whole fleet.
+ *
+ * It is a marker rather than a mutex: it is never released, it expires. Holding it for the
+ * job's timeout is what tells every other replica that this occurrence is spoken for, and
+ * what frees it on its own if the replica that took it dies.
+ */
 export class SlotLock {
+  /**
+   * The key one occurrence is claimed under.
+   *
+   * An interval is floored to a multiple of itself so that two replicas whose clocks differ
+   * by a few hundred milliseconds compute the **same** key; without the flooring each would
+   * claim its own and the job would run twice. A calendar occurrence is already exact.
+   */
   keyFor(job: Scheduled, slot: Date): string {
     const at = job.schedule.kind === "interval"
       ? Math.floor(slot.getTime() / job.schedule.ms) * job.schedule.ms
@@ -42,6 +56,12 @@ export class SlotLock {
     return `cron:lock:${job.name}:${at}`;
   }
 
+  /**
+   * Takes the occurrence if nobody has, and answers whether this replica may run it.
+   *
+   * An unreachable Redis answers no. Losing an occurrence is preferable to running it once
+   * per replica, and preferable to bringing the loop down with it.
+   */
   async claim(job: Scheduled, slot: Date): Promise<boolean> {
     try {
       const claimed = await kv().set(

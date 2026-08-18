@@ -30,8 +30,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Schedule } from "@scribe/foundation/src/cron/schedule.ts";
+import type { Schedule } from "@scribe/foundation/src/cron/schedule/mod.ts";
 
+/** When the schedule next fires after `after`. */
 export function nextRun(schedule: Schedule, after: Date): Date {
   switch (schedule.kind) {
     case "interval":
@@ -59,6 +60,14 @@ export function nextRun(schedule: Schedule, after: Date): Date {
   }
 }
 
+/**
+ * Where the schedule stands once an occurrence has been taken.
+ *
+ * Occurrences a stalled process slept through are **skipped, not replayed**: an interval
+ * advances by whole intervals until it is in the future, and a calendar schedule is asked
+ * from now. It is the policy Quartz calls "do nothing", and it is the only one here — a
+ * process down for three hours must not wake up owing three hours of work.
+ */
 export function nextRunAfterSlot(
   schedule: Schedule,
   slot: Date,

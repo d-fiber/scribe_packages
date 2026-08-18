@@ -31,23 +31,23 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { Time } from "@scribe/core/contracts/common/time.ts";
+import { wholeMinutes } from "@scribe/foundation/src/cron/core/duration.ts";
 
-const _MINUTE_MS = 60_000;
+/** A job that runs every so often, with no regard for the calendar. */
+export interface IntervalSchedule {
+  readonly kind: "interval";
+  readonly ms: number;
+}
 
 /**
- * Answers `value` back, or refuses it if it is not a positive whole number of minutes.
+ * Runs the job once per `interval`.
  *
- * The refusal happens where the value is declared rather than where it is used, because what
- * it protects is downstream and invisible: an occurrence is claimed under a key derived from
- * the interval, and a value that does not divide into minutes rounds differently on two
- * machines whose clocks differ — both would claim, and the job would run twice.
+ * The interval has to be a whole number of minutes, and the refusal happens at declaration
+ * rather than at the first occurrence. The reason is downstream: an occurrence is claimed
+ * across replicas under a key derived from the interval, and a value that does not divide
+ * into minutes rounds differently on two machines whose clocks differ slightly — they would
+ * claim two keys and the job would run twice.
  */
-export function wholeMinutes(label: string, value: Time): Time {
-  const ms = value.ms;
-  if (!Number.isInteger(ms) || ms <= 0 || ms % _MINUTE_MS !== 0) {
-    throw new Error(
-      `${label}: expected a positive whole number of minutes, got ${ms}ms`,
-    );
-  }
-  return value;
+export function every(interval: Time): IntervalSchedule {
+  return { kind: "interval", ms: wholeMinutes("every()", interval).ms };
 }

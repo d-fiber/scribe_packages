@@ -31,7 +31,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { SlotLock } from "@scribe/foundation/src/cron/runner/slot_lock.ts";
-import type { Scheduled } from "@scribe/foundation/src/cron/schedule.ts";
+import type { Scheduled } from "@scribe/foundation/src/cron/schedule/mod.ts";
 import { Time } from "@scribe/core/contracts/common/time.ts";
 import { assertEquals, assertNotEquals } from "@std/assert";
 

@@ -31,78 +31,32 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { Time } from "@scribe/core/contracts/common/time.ts";
-import { wholeMinutes } from "@scribe/foundation/src/cron/core/duration.ts";
-import type { CronTimezone } from "@scribe/foundation/src/cron/timezone.ts";
-import { Cron } from "croner";
+import type { CronExpressionSchedule } from "./expression.ts";
+import type { DailySchedule } from "./daily.ts";
+import type { IntervalSchedule } from "./interval.ts";
 
-export type CronExpression = `${string} ${string} ${string} ${string} ${string}`;
-export type TimeOfDay = `${number}:${number}`;
+export { cron, type CronExpression, type CronExpressionSchedule } from "./expression.ts";
+export { at, type DailySchedule, type TimeOfDay } from "./daily.ts";
+export { every, type IntervalSchedule } from "./interval.ts";
 
-export interface CronExpressionSchedule {
-  readonly kind: "cron";
-  readonly expression: CronExpression;
-  readonly timezone: CronTimezone;
-  readonly job: Cron;
-}
-
-export interface IntervalSchedule {
-  readonly kind: "interval";
-  readonly ms: number;
-}
-
-export interface DailySchedule {
-  readonly kind: "daily";
-  readonly times: readonly TimeOfDay[];
-  readonly timezone: CronTimezone;
-  readonly jobs: readonly Cron[];
-}
-
+/**
+ * When a job runs.
+ *
+ * The three shapes are kept apart by `kind` because they are not interchangeable downstream:
+ * an interval has to be rounded to agree across replicas, a calendar occurrence is already
+ * exact. See `runner/slot_lock.ts`.
+ */
 export type Schedule =
   | CronExpressionSchedule
   | IntervalSchedule
   | DailySchedule;
 
+/** A declared job: what it is called, when it runs, and how long it is allowed to take. */
 export interface Scheduled {
   readonly name: string;
   readonly schedule: Schedule;
   readonly timeout: Time;
 }
 
+/** The body of a job. */
 export type CronHandler = () => Promise<void>;
-
-export function cron(
-  expression: CronExpression,
-  timezone: CronTimezone,
-): CronExpressionSchedule {
-  return {
-    kind: "cron",
-    expression,
-    timezone,
-    job: new Cron(expression, { timezone }),
-  };
-}
-
-export function every(interval: Time): IntervalSchedule {
-  return { kind: "interval", ms: wholeMinutes("every()", interval).ms };
-}
-
-const _TIME_OF_DAY = /^([01]\d|2[0-3]):([0-5]\d)$/;
-
-export function at(
-  timezone: CronTimezone,
-  ...times: readonly TimeOfDay[]
-): DailySchedule {
-  if (times.length === 0) {
-    throw new Error('at(): expected at least one "HH:MM" time');
-  }
-  const jobs = times.map((time) => {
-    if (!_TIME_OF_DAY.test(time)) {
-      throw new Error(`at(): "${time}" is not a valid 24h "HH:MM" time`);
-    }
-    const [hours, minutes] = time.split(":");
-    return new Cron(`${Number(minutes)} ${Number(hours)} * * *`, {
-      timezone,
-    });
-  });
-  return { kind: "daily", times, timezone, jobs };
-}

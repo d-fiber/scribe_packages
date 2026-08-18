@@ -35,7 +35,7 @@
 // names under tests/tests/ mirror it for discoverability, not for privacy.
 
 import { nextRun, nextRunAfterSlot } from "@scribe/foundation/src/cron/core/next_run.ts";
-import { at, cron, every } from "@scribe/foundation/src/cron/schedule.ts";
+import { at, cron, every } from "@scribe/foundation/src/cron/schedule/mod.ts";
 import { Time } from "@scribe/core/contracts/common/time.ts";
 import { CronTimezone } from "@scribe/foundation/src/cron/timezone.ts";
 import { assertEquals } from "@std/assert";
