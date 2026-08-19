@@ -30,9 +30,11 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+
 import { StorageResource } from "../runtime/resource.ts";
 import type { StorageFile } from "../runtime/result.ts";
 
+/** Anything stored as the bytes it was given, with nothing derived from them. */
 export class FileResource<TArgs extends string[] = []> extends StorageResource<StorageFile, TArgs> {
   protected decorate(path: string): StorageFile {
     return { path, url: this.urlOf(path) };

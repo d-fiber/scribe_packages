@@ -30,20 +30,26 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { StorageVisibility } from "../access/visibility.ts";
 
-export interface StorageObjectEntry {
-  readonly path: string;
-  readonly updatedAt: string | null;
-}
+import type { StorageVisibility } from "../core/visibility.ts";
 
+/**
+ * One bucket, as this package needs to reach it.
+ *
+ * It writes and it removes, and it never reads back what it holds: the index this package keeps
+ * answers that, which is what lets a listing carry a size and a media type rather than a bare
+ * list of keys, and what removes the depth and page caps a recursive walk needed.
+ */
 export interface StorageBucket {
+  /** Writes `body` at `path`, replacing whatever was there, and answers whether it landed. */
   upload(path: string, body: ArrayBuffer, contentType: string): Promise<boolean>;
+
+  /** Removes `paths` in one call, and answers whether the bucket took them all. */
   remove(paths: readonly string[]): Promise<boolean>;
-  listTree(prefix: string, limit: number): Promise<StorageObjectEntry[] | null>;
-  removeTree(prefix: string): Promise<boolean>;
 }
 
+/** Where a process gets the bucket that holds the objects of a given visibility. */
 export interface StorageTransport {
+  /** The bucket `visibility` names. */
   of(visibility: StorageVisibility): StorageBucket;
 }

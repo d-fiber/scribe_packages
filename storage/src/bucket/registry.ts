@@ -30,28 +30,47 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { StorageVisibility } from "../access/visibility.ts";
+
+import type { StorageVisibility } from "../core/visibility.ts";
 import type { StorageBucket, StorageTransport } from "./transport.ts";
 
 const UNAVAILABLE: StorageBucket = {
   upload: () => Promise.resolve(false),
   remove: () => Promise.resolve(false),
-  listTree: () => Promise.resolve(null),
-  removeTree: () => Promise.resolve(false),
 };
 
 let transport: StorageTransport | null = null;
 
-export const StorageTransports: { use(next: StorageTransport): void } = {
-  use(next: StorageTransport): void {
+/** Where the process keeps the one transport every upload and every removal goes through. */
+export const StorageTransports: {
+  use(next: StorageTransport | null): StorageTransport | null;
+} = {
+  /**
+   * Makes `next` the destination of every write from here on, and answers the one it replaced.
+   *
+   * The previous transport is answered so that whoever swapped it can put it back, which is
+   * what the test harness does. A process that installs its transport once at boot ignores it.
+   */
+  use(next: StorageTransport | null): StorageTransport | null {
+    const previous = transport;
     transport = next;
+    return previous;
   },
 };
 
+/**
+ * The bucket that holds the objects of `visibility`.
+ *
+ * @remarks
+ * A process with no transport registered reports it and answers a bucket that refuses
+ * everything, rather than throwing. A refusal is what the caller already has to handle, and it
+ * is answered before any byte is read.
+ */
 export function bucketOf(visibility: StorageVisibility): StorageBucket {
   if (!transport) {
     console.error("[storage] no transport registered, refusing the operation.");
     return UNAVAILABLE;
   }
+
   return transport.of(visibility);
 }

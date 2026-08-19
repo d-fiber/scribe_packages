@@ -30,51 +30,23 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+
 export { Size } from "@scribe/core/contracts/common/size.ts";
 
-export {
-  defineStorage,
-  file,
-  folder,
-  image,
-  video
-} from "./src/core/define.ts";
-export type {
-  FileSpec,
-  FolderDefinition,
-  FolderSpec,
-  ImageSpec,
-  StorageDefinition,
-  StorageFolder,
-  StorageMediaSpec,
-  StorageSpec,
-  StorageSpecs,
-  VideoSpec
-} from "./src/core/define.ts";
-
-export type {
-  StorageAccess,
-  StorageOwnershipCheck,
-  StorageReader,
-  StorageWriter,
-  StorageWriteRule
-} from "./src/core/access.ts";
-
-export type { StorageOwner, StorageSession } from "./src/access/identity.ts";
-export type {
-  PathArgNames,
-  PathArgs,
-  PathNamedArgs
-} from "./src/path/template.ts";
-export type { StorageFolderOperations } from "./src/runtime/folder.ts";
+export { Storage } from "./src/core/storage.ts";
+export type { StorageMediaSpec } from "./src/core/storage.ts";
+export { StorageVisibility } from "./src/core/visibility.ts";
+export { declaredStorage } from "./src/core/registry.ts";
 
 export { StoragePathError } from "./src/path/segment.ts";
+export type { PathArgs } from "./src/path/template.ts";
 
-export {
-  StorageListError,
-  StorageRemoveError,
-  StorageUploadError
-} from "./src/runtime/result.ts";
+export { FileResource } from "./src/resources/file.ts";
+export { ImageResource } from "./src/resources/image.ts";
+export { VideoResource } from "./src/resources/video.ts";
+export { StorageResource } from "./src/runtime/resource.ts";
+
+export { StorageListError, StorageRemoveError, StorageUploadError } from "./src/runtime/result.ts";
 export type {
   StorageFile,
   StorageImage,
@@ -82,22 +54,11 @@ export type {
   StorageObject,
   StorageRemoveResult,
   StorageUploadResult,
-  StorageVideo
+  StorageVideo,
 } from "./src/runtime/result.ts";
 
-export type { FileResource } from "./src/resources/file.ts";
-export type { ImageResource } from "./src/resources/image.ts";
-export type { VideoResource } from "./src/resources/video.ts";
+export type { StorageObjectRow } from "./src/db/tables.ts";
 
-export { StorageClient } from "./src/client.ts";
-
-export { AccountRoles } from "@scribe/core/runtime/support/ports/account_roles.ts";
-export { StorageVisibility } from "./src/access/visibility.ts";
 export { StorageTransports } from "./src/bucket/registry.ts";
 export { SupabaseStorageTransport } from "./src/bucket/supabase.ts";
-export type {
-  StorageBucket,
-  StorageObjectEntry,
-  StorageTransport
-} from "./src/bucket/transport.ts";
-
+export type { StorageBucket, StorageTransport } from "./src/bucket/transport.ts";

@@ -30,26 +30,11 @@
 -- This header is a summary written for convenience. Where it differs from the
 -- LICENSE file, the LICENSE file governs.
 
--- Two buckets, differing on one thing only: who is allowed to read.
---
---   app_bucket   public   served on APP_URL under /object/public/..., with no
---                         token on the storage side. For anything meant for the app.
---   admin_bucket private  served on ADMIN_URL under /object/<bucket>/..., so
---                         behind the VPN in Caddy, a JWT in Kong, and the RLS
---                         below, which demands the admin role.
---
--- Neither constrains types or sizes. Those rules live in the TypeScript
--- entities, which declare extensions and a maximum size per resource.
--- Duplicating them here would make two sources of truth, and the refusal a
--- bucket returns says nothing to the client.
---
--- No folder is ever created. storage.objects.name is a flat key and the "/" are
--- only a naming convention, which storage.foldername() parses on read. An
--- upload to "brands/<id>/logo" creates the object directly.
+
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES
-  ('app_bucket',   'app_bucket',   true,  NULL, NULL),
-  ('admin_bucket', 'admin_bucket', false, NULL, NULL)
+  ('public_bucket',  'public_bucket',  true,  NULL, NULL),
+  ('private_bucket', 'private_bucket', false, NULL, NULL)
 ON CONFLICT (id) DO UPDATE
   SET public = EXCLUDED.public,
       file_size_limit = NULL,
@@ -57,42 +42,48 @@ ON CONFLICT (id) DO UPDATE
 
 DO $$
 BEGIN
-  -- The public bucket, readable by any authenticated account. Since the bucket
-  -- is `public = true`, this policy only covers the authenticated path,
-  -- /object/<bucket>/..., and /object/public/... never consults it.
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'storage_select_app_bucket'
+    WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'storage_select_public_bucket'
   ) THEN
-    CREATE POLICY "storage_select_app_bucket" ON storage.objects
+    CREATE POLICY "storage_select_public_bucket" ON storage.objects
       FOR SELECT TO authenticated
-      USING (bucket_id = 'app_bucket');
+      USING (bucket_id = 'public_bucket');
   END IF;
 
-  -- The private bucket, for admins only. This is the one barrier that depends
-  -- neither on the network in the VPN nor on the gateway in Kong, so a URL that
-  -- leaks stays useless without a JWT carrying app_metadata.role = 'admin'.
   IF NOT EXISTS (
     SELECT 1 FROM pg_policies
-    WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'storage_select_admin_bucket'
+    WHERE schemaname = 'storage' AND tablename = 'objects' AND policyname = 'storage_select_private_bucket'
   ) THEN
-    CREATE POLICY "storage_select_admin_bucket" ON storage.objects
+    CREATE POLICY "storage_select_private_bucket" ON storage.objects
       FOR SELECT TO authenticated
       USING (
-        bucket_id = 'admin_bucket'
+        bucket_id = 'private_bucket'
         AND (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
       );
   END IF;
 END;
 $$;
 
--- No write policy for `authenticated`. Uploads and deletions all go through the
--- edge functions, with the service key that bypasses the RLS. The old
--- storage_insert, storage_update and storage_delete policies let an
--- authenticated account write into the bucket, and only the Kong gateway
--- stopped it.
 DROP POLICY IF EXISTS "storage_insert" ON storage.objects;
 DROP POLICY IF EXISTS "storage_update" ON storage.objects;
 DROP POLICY IF EXISTS "storage_delete" ON storage.objects;
 DROP POLICY IF EXISTS "storage_select_users" ON storage.objects;
 DROP POLICY IF EXISTS "storage_select_public" ON storage.objects;
+DROP POLICY IF EXISTS "storage_select_app_bucket" ON storage.objects;
+DROP POLICY IF EXISTS "storage_select_admin_bucket" ON storage.objects;
+
+create table if not exists public.__storage_objects__ (
+  path       text primary key,
+  visibility text not null check (visibility in ('public', 'private')),
+  mime_type  text not null,
+  byte_size  bigint not null check (byte_size >= 0),
+  blur_hash  text,
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists __storage_objects_prefix__
+  on public.__storage_objects__ (path text_pattern_ops);
+
+alter table public.__storage_objects__ enable row level security;
+revoke all on public.__storage_objects__ from authenticated, anon;

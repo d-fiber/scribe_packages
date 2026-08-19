@@ -24,7 +24,7 @@ services:
 
               -- Public objects are readable with no condition at all, token
               -- included. That is what makes the URL usable from an <img>, an
-              -- email or a CDN. app_bucket is public on the storage side, and
+              -- email or a CDN. public_bucket is public on the storage side, and
               -- the RLS does not apply to this path.
               local path = kong.request.get_path()
               if path:find("/object/public/", 1, true) then
@@ -67,7 +67,7 @@ services:
               end
 
               -- Private means admin only. The RLS checks it again in the
-              -- database, in storage_select_admin_bucket, and Caddy imposes the
+              -- database, in storage_select_private_bucket, and Caddy imposes the
               -- VPN upstream. Three independent barriers, and none of them is
               -- enough on its own.
               if role ~= "admin" then

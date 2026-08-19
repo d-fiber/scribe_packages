@@ -1,0 +1,142 @@
+// Copyright (C) 2026 Fiber
+//
+// This file is part of scribe and is made available under the PolyForm Shield
+// License 1.0.0. The full terms are in the LICENSE file at the root of this
+// repository, and at https://polyformproject.org/licenses/shield/1.0.0
+//
+// What you may do:
+// - Use this software for any purpose, including commercially, and build and
+//   sell your own products on top of it.
+// - Change it, and create new works based on it.
+// - Distribute copies of it, with or without your changes.
+//
+// The one thing you may not do:
+// - Use it to provide any product that competes with scribe, or with any
+//   product Fiber or its affiliates provide using scribe. Products compete
+//   even when they are offered free of charge, through a different kind of
+//   interface, or for a different technical platform.
+//
+// If you pass this software on:
+// - Anyone who receives any part of it from you must also receive these terms,
+//   or the URL above, together with the "Required Notice" line carried by the
+//   LICENSE file.
+//
+// Disclaimer:
+// AS FAR AS THE LAW ALLOWS, THIS SOFTWARE COMES AS IS, WITHOUT ANY WARRANTY OR
+// CONDITION, AND THE LICENSOR WILL NOT BE LIABLE TO YOU FOR ANY DAMAGES ARISING
+// OUT OF THESE TERMS OR THE USE OR NATURE OF THE SOFTWARE, UNDER ANY KIND OF
+// LEGAL CLAIM.
+//
+// This header is a summary written for convenience. Where it differs from the
+// LICENSE file, the LICENSE file governs.
+
+
+/**
+ * What the containers of the rendered fragments answer on, and how a test reaches them.
+ *
+ * Every port is shifted into the 5xxxx range on purpose: a developer running the real stack of a
+ * project keeps 5000, 5432 and 3000, and an end-to-end run must not talk to it by accident.
+ */
+export const STACK = {
+  /** The storage service, reached the way the package reaches it, without the gateway prefix. */
+  storageUrl: "http://localhost:55000",
+
+  /** PostgREST, which is where the index is written and read. */
+  restUrl: "http://localhost:53003",
+
+  /** The bucket a declaration named `public` writes to. */
+  publicBucket: "public_bucket",
+
+  /** The bucket a declaration named `private` writes to. */
+  privateBucket: "private_bucket",
+
+  /** The key that bypasses row level security, which is what the package presents. */
+  serviceKey:
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic2NyaWJlIiwiaWF0IjoxNzY3MjI1NjAwLCJleHAiOjQxMDI0NDQ4MDB9.VkEdDfE9pIwi1dbxkqUzR17ngZuNTSvhX0dYLPaWEuE",
+
+  /** A session whose token carries the admin role the private policy demands. */
+  adminKey:
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYXV0aGVudGljYXRlZCIsImlzcyI6InNjcmliZSIsInN1YiI6IjAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDBhMSIsImFwcF9tZXRhZGF0YSI6eyJyb2xlIjoiYWRtaW4ifSwiaWF0IjoxNzY3MjI1NjAwLCJleHAiOjQxMDI0NDQ4MDB9.JOjxsP2RVX9oR9O_khkOPdJw9qefR9JLSqp3lSO8JRI",
+
+  /** A session whose token carries no admin role, which is what the private policy refuses. */
+  userKey:
+    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYXV0aGVudGljYXRlZCIsImlzcyI6InNjcmliZSIsInN1YiI6IjAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDBiMSIsImFwcF9tZXRhZGF0YSI6eyJyb2xlIjoidXNlciJ9LCJpYXQiOjE3NjcyMjU2MDAsImV4cCI6NDEwMjQ0NDgwMH0.16MaVIEt_CI2938ukqBZ5mFiDBUXX_QR-zQ-uDDfj7M",
+
+  /** Where a public object is served from, as the package builds the URL. */
+  appUrl: "http://localhost:55000",
+
+  /** Where a private object is served from, as the package builds the URL. */
+  adminUrl: "http://localhost:55000",
+} as const;
+
+/** Points the settings slots at the containers, then loads the settings that read them. */
+export async function useStack(): Promise<void> {
+  Deno.env.set("SUPABASE_REST_INTERNAL_URL", STACK.restUrl);
+  Deno.env.set("SUPABASE_STORAGE_INTERNAL_URL", STACK.storageUrl);
+  Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", STACK.serviceKey);
+  Deno.env.set("APP_URL", STACK.appUrl);
+  Deno.env.set("ADMIN_URL", STACK.adminUrl);
+
+  await import("@scribe/core/testing/settings.ts");
+
+  const { StorageTransports } = await import("@scribe/storage/src/bucket/registry.ts");
+  const { SupabaseStorageTransport } = await import("@scribe/storage/src/bucket/supabase.ts");
+  StorageTransports.use(new SupabaseStorageTransport());
+}
+
+/** Refuses to run when the stack is not up, with the command that starts it. */
+export async function requireStack(): Promise<void> {
+  for (const url of [`${STACK.storageUrl}/status`, `${STACK.restUrl}/`]) {
+    try {
+      const answered = await fetch(url, { signal: AbortSignal.timeout(2_000) });
+      await answered.body?.cancel();
+    } catch (cause) {
+      throw new Error(
+        `The end-to-end stack is not answering on ${url}.\n` +
+          "Start it with:\n" +
+          "  deno task storage:e2e:up\n" +
+          `Cause: ${cause instanceof Error ? cause.message : String(cause)}`,
+      );
+    }
+  }
+}
+
+/** What one read of an object over HTTP answered. */
+export interface Fetched {
+  /** The status the storage service replied with. */
+  readonly status: number;
+
+  /** What the body held, empty when the service answered without one. */
+  readonly body: string;
+}
+
+/**
+ * Reads `path` out of `bucket` the way a client would, and answers what came back.
+ *
+ * @param options - `token` is the session presented, absent for a caller holding nothing but the
+ * address. `open` reads through the unauthenticated route a public bucket is served on, which is
+ * the one an `<img>` uses.
+ */
+export async function fetchObject(
+  bucket: string,
+  path: string,
+  options: { token?: string; open?: boolean } = {},
+): Promise<Fetched> {
+  const route = options.open ? `object/public/${bucket}/${path}` : `object/${bucket}/${path}`;
+  const answered = await fetch(`${STACK.storageUrl}/${route}`, {
+    headers: options.token
+      ? { apikey: options.token, Authorization: `Bearer ${options.token}` }
+      : {},
+    signal: AbortSignal.timeout(10_000),
+  });
+
+  return { status: answered.status, body: await answered.text() };
+}
+
+/** A suffix that makes a path belong to this run and no other. */
+export const RUN_ID: string = crypto.randomUUID().slice(0, 8);
+
+/** Prints one measurement, so a run reads as a report and not only as a pass. */
+export function report(label: string, detail: string): void {
+  console.log(`    ${label.padEnd(46)} ${detail}`);
+}

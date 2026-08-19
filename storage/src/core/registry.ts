@@ -30,21 +30,31 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { AccountRoles } from "@scribe/core/runtime/support/ports/account_roles.ts";
-import type { StorageAuthorize } from "../runtime/config.ts";
-import type { StorageSession } from "./identity.ts";
 
-export async function authorizeOwnership(
-  session: StorageSession,
-  authorize: StorageAuthorize | undefined,
-  args: readonly string[],
-): Promise<boolean> {
-  if (!authorize) return true;
-  try {
-    const role = await AccountRoles.withId(session.id);
-    if (role === null) return false;
-    return await authorize({ id: session.id, role }, args);
-  } catch {
-    return false;
+import type { StorageVisibility } from "./visibility.ts";
+
+const declarations = new Map<string, StorageVisibility>();
+
+/**
+ * Records that `path` was declared, and which bucket it writes to.
+ *
+ * @remarks
+ * Two declarations of the same path that disagree on the bucket would write the same key to
+ * two different places, and whichever loaded second would decide where the reader of the first
+ * one looks. It throws rather than letting the process start on that.
+ */
+export function declareStorage(path: string, visibility: StorageVisibility): void {
+  const already = declarations.get(path);
+  if (already !== undefined && already !== visibility) {
+    throw new TypeError(
+      `storage path "${path}" is declared twice, once as "${already}" and once as "${visibility}".`,
+    );
   }
+
+  declarations.set(path, visibility);
+}
+
+/** Every path this process declared, with the bucket each one writes to. */
+export function declaredStorage(): ReadonlyMap<string, StorageVisibility> {
+  return declarations;
 }

@@ -1,0 +1,47 @@
+name: scribe-storage-e2e
+
+services:
+  db:
+    container_name: "scribe-storage-e2e-db"
+    ports: ["55435:5432"]
+    volumes:
+      - "./.postgres:/var/lib/postgresql/data:Z"
+    command:
+      [
+        "postgres",
+        "-c",
+        "config_file=/etc/postgresql/postgresql.conf",
+        "-c",
+        "log_min_messages=fatal",
+        "-c",
+        "max_connections=100",
+        "-c",
+        "shared_buffers=256MB",
+        "-c",
+        "effective_cache_size=1GB",
+      ]
+
+  rest:
+    container_name: "scribe-storage-e2e-rest"
+    ports: ["53003:3000"]
+
+  db-migrate:
+    container_name: "scribe-storage-e2e-db-migrate"
+
+  storage:
+    container_name: "scribe-storage-e2e-storage"
+    ports: ["55000:5000"]
+    volumes:
+      - "storage-data:/var/lib/storage"
+
+  storage-init:
+    container_name: "scribe-storage-e2e-storage-init"
+
+  imgproxy:
+    container_name: "scribe-storage-e2e-imgproxy"
+    volumes:
+      - "storage-data:/var/lib/storage"
+
+volumes:
+  db-config: null
+  storage-data: null

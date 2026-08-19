@@ -30,18 +30,30 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+
 import { Failure, OK } from "@scribe/core/contracts/result.ts";
 import { bucketOf } from "../bucket/registry.ts";
+import { objectUrl } from "../core/visibility.ts";
+import { forgetObjects, type RecordedWrite, recordObject } from "../db/objects.ts";
 import { extensionOf } from "../media/extension.ts";
 import { mimeTypeOf } from "../media/mime.ts";
 import { mediaError } from "../media/validation.ts";
-import type { StorageResourceConfig } from "./config.ts";
-import { requireIdentity, type StorageSession } from "../access/identity.ts";
-import { authorizeOwnership } from "../access/ownership.ts";
 import { StoragePathError } from "../path/segment.ts";
-import { StorageRemoveError, type StorageRemoveResult, StorageUploadError, type StorageUploadResult } from "./result.ts";
-import { objectUrl } from "../access/visibility.ts";
+import type { StorageResourceConfig } from "./config.ts";
+import {
+  StorageRemoveError,
+  type StorageRemoveResult,
+  StorageUploadError,
+  type StorageUploadResult,
+} from "./result.ts";
 
+/**
+ * One object of a storage tree: where it goes, what it accepts, and what an upload answers.
+ *
+ * Nothing here asks who is calling. A route settles that before it uploads, and what this class
+ * checks is what the declaration said: the extension, the size, and that every argument renders
+ * into a usable key.
+ */
 export abstract class StorageResource<TData, TArgs extends string[]> {
   readonly #config: StorageResourceConfig<TArgs>;
 
@@ -49,85 +61,127 @@ export abstract class StorageResource<TData, TArgs extends string[]> {
     this.#config = config;
   }
 
+  /** What an upload answers, built from the key it wrote and the bytes it was given. */
   protected abstract decorate(path: string, file: File): TData | Promise<TData>;
 
-  async upload(
-    file: File,
-    ...args: TArgs
-  ): Promise<StorageUploadResult<TData>> {
-    const session = requireIdentity(this.#config.identity);
-    if (!session) return new Failure(StorageUploadError.Unauthorized);
+  /**
+   * The blur hash carried by `data`, which the index keeps next to the object.
+   *
+   * A resource nothing can be drawn from answers null, and that is the default here rather than
+   * an abstract member, because a file is the case where there is nothing to derive.
+   */
+  protected blurHash(_data: TData): string | null {
+    return null;
+  }
 
-    if (!(await this.#authorized(session, args))) {
-      return new Failure(StorageUploadError.Unauthorized);
-    }
-
-    const invalid = mediaError(
-      file,
-      this.#config.extensions,
-      this.#config.maxSize,
-    );
+  /**
+   * Writes `file` at the key `args` render, and answers what the resource makes of it.
+   *
+   * @remarks
+   * The extension and the size are checked first, so a refused upload never reaches a bucket.
+   * The index is written after the bytes, and an object whose row names another bucket has its
+   * old copy removed, since a key designates one object and the stale bytes would otherwise
+   * stay readable at their own URL.
+   */
+  async upload(file: File, ...args: TArgs): Promise<StorageUploadResult<TData>> {
+    const invalid = mediaError(file, this.#config.extensions, this.#config.maxSize);
     if (invalid) return new Failure(invalid);
 
-    const path = this.#pathOf(session, args);
+    const path = this.#pathOf(args);
     if (path === null) return new Failure(StorageUploadError.InvalidPath);
 
-    const contentType = mimeTypeOf(extensionOf(file.name));
+    const mimeType = mimeTypeOf(extensionOf(file.name));
     const bytes = await file.arrayBuffer();
 
     const [stored, data] = await Promise.all([
-      bucketOf(this.#config.visibility).upload(path, bytes, contentType),
+      bucketOf(this.#config.visibility).upload(path, bytes, mimeType),
       this.decorate(path, file),
     ]);
 
     if (!stored) return new Failure(StorageUploadError.UploadFailed);
+
+    const written = await this.#record(path, file, mimeType, data);
+    if (written === null) return new Failure(StorageUploadError.IndexFailed);
+    if (written.displaced !== null) await bucketOf(written.displaced).remove([path]);
+
     return new OK(data);
   }
 
+  /** Removes the object `args` render, and forgets the row that named it. */
   remove(...args: TArgs): Promise<StorageRemoveResult> {
     return this.removeMany([args]);
   }
 
+  /**
+   * Removes every object `argsList` renders, in one call to the bucket.
+   *
+   * A path that cannot be rendered stops the whole batch before anything is removed, so a
+   * caller never has to work out which half of its list went.
+   */
   async removeMany(argsList: readonly TArgs[]): Promise<StorageRemoveResult> {
     if (argsList.length === 0) return new OK();
 
-    const session = requireIdentity(this.#config.identity);
-    if (!session) return new Failure(StorageRemoveError.Unauthorized);
-
     const paths: string[] = [];
     for (const args of argsList) {
-      if (!(await this.#authorized(session, args))) {
-        return new Failure(StorageRemoveError.Unauthorized);
-      }
-      const path = this.#pathOf(session, args);
+      const path = this.#pathOf(args);
       if (path === null) return new Failure(StorageRemoveError.InvalidPath);
       paths.push(path);
     }
 
-    const ok = await bucketOf(this.#config.visibility).remove(paths);
-    return ok ? new OK() : new Failure(StorageRemoveError.RemoveFailed);
+    if (!(await bucketOf(this.#config.visibility).remove(paths))) {
+      return new Failure(StorageRemoveError.RemoveFailed);
+    }
+
+    if (!(await this.#forget(paths))) return new Failure(StorageRemoveError.IndexFailed);
+    return new OK();
   }
 
+  /** Where the object `args` render is served from, or null when they render no usable key. */
   url(...args: TArgs): string | null {
-    const session = requireIdentity(this.#config.identity);
-    if (!session) return null;
-
-    const path = this.#pathOf(session, args);
+    const path = this.#pathOf(args);
     return path === null ? null : this.urlOf(path);
   }
 
+  /** Where `path` is served from, left as it is when it already is an address. */
   urlOf(path: string): string {
     if (/^https?:\/\//i.test(path)) return path;
     return objectUrl(path, this.#config.visibility);
   }
 
-  #authorized(session: StorageSession, args: TArgs): Promise<boolean> {
-    return authorizeOwnership(session, this.#config.authorize, args);
+  async #record(
+    path: string,
+    file: File,
+    mimeType: string,
+    data: TData,
+  ): Promise<RecordedWrite | null> {
+    try {
+      const written = await recordObject({
+        path,
+        visibility: this.#config.visibility,
+        mimeType,
+        byteSize: file.size,
+        blurHash: this.blurHash(data),
+      });
+
+      return written.stored ? written : null;
+    } catch (e) {
+      console.error(`[storage:index] ${path} could not be written:`, e);
+      return null;
+    }
   }
 
-  #pathOf(session: StorageSession, args: TArgs): string | null {
+  async #forget(paths: readonly string[]): Promise<boolean> {
     try {
-      return this.#config.path(session, ...args);
+      return await forgetObjects(paths);
+    } catch (e) {
+      console.error(`[storage:index] ${paths.length} rows could not be dropped:`, e);
+      return false;
+    }
+  }
+
+  #pathOf(args: TArgs): string | null {
+    try {
+      return this.#config.path(...args);
     } catch (e) {
       if (e instanceof StoragePathError) return null;
       throw e;

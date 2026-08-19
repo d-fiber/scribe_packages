@@ -30,25 +30,35 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+
 import { storageSettings } from "@scribe/storage/src/settings.ts";
 
+/**
+ * Which bucket an object lives in, and therefore how its URL is served.
+ *
+ * @remarks
+ * It is not an application check. Nothing in this package asks who is calling: a route decides
+ * whether its caller may reach a resource, and calls the resource once it has. What this enum
+ * decides is where the bytes are written, which settles whether a URL alone is enough to read
+ * them back.
+ */
 export enum StorageVisibility {
+  /** The bytes are readable by anyone holding the URL, since the bucket is served openly. */
   Public = "public",
+
+  /** The bytes are behind the admin gateway, so a URL on its own reads nothing. */
   Private = "private",
 }
 
-export const STORAGE_VISIBILITIES: readonly StorageVisibility[] = [
-  StorageVisibility.Public,
-  StorageVisibility.Private,
-];
+const PUBLIC_BUCKET = "public_bucket";
+const PRIVATE_BUCKET = "private_bucket";
 
-const PUBLIC_BUCKET = "app_bucket";
-const PRIVATE_BUCKET = "admin_bucket";
-
+/** The bucket that holds the objects of `visibility`. */
 export function bucketNameOf(visibility: StorageVisibility): string {
   return visibility === StorageVisibility.Private ? PRIVATE_BUCKET : PUBLIC_BUCKET;
 }
 
+/** The URL `path` is served from, which depends on the bucket it was written to. */
 export function objectUrl(path: string, visibility: StorageVisibility): string {
   const { privateBaseUrl, publicBaseUrl } = storageSettings.get();
 

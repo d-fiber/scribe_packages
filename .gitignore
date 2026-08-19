@@ -6,6 +6,8 @@ node_modules/
 __pycache__/
 
 /foundation/e2e_tests/.generated/
-/foundation/e2e_tests/.postgres/
 /realtime/e2e_tests/.generated/
+/storage/e2e_tests/.generated/
+/foundation/e2e_tests/.postgres/
 /realtime/e2e_tests/.postgres/
+/storage/e2e_tests/.postgres/

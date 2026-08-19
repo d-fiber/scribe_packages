@@ -30,25 +30,24 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+
 import type { Size } from "@scribe/core/contracts/common/size.ts";
-import type { StorageIdentity, StorageOwner, StorageSession } from "../access/identity.ts";
-import type { StorageVisibility } from "../access/visibility.ts";
+import type { StorageVisibility } from "../core/visibility.ts";
 
-export type StoragePath<TArgs extends string[]> = (
-  identity: StorageSession,
-  ...args: TArgs
-) => string;
+/** Renders the key of one object, from the arguments its folder's template asks for. */
+export type StoragePath<TArgs extends string[]> = (...args: TArgs) => string;
 
-export type StorageAuthorize = (
-  account: StorageOwner,
-  args: readonly string[],
-) => boolean | Promise<boolean>;
-
+/** What a declaration hands a resource, once its folder has resolved everything it knew. */
 export interface StorageResourceConfig<TArgs extends string[]> {
-  readonly identity: StorageIdentity;
+  /** The bucket this resource writes to, inherited from the folder that declared it. */
   readonly visibility: StorageVisibility;
+
+  /** The extensions an upload may carry, lowercase and without their dot. */
   readonly extensions: readonly string[];
+
+  /** The largest upload this resource takes. */
   readonly maxSize: Size;
+
+  /** Where the bytes go, which is the folder's rendered prefix plus this resource's name. */
   readonly path: StoragePath<TArgs>;
-  readonly authorize?: StorageAuthorize;
 }

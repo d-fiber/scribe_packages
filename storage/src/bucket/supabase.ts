@@ -31,13 +31,15 @@
 // LICENSE file, the LICENSE file governs.
 
 import { storageSettings } from "@scribe/storage/src/settings.ts";
-import { bucketNameOf, type StorageVisibility } from "../access/visibility.ts";
+import { bucketNameOf, type StorageVisibility } from "../core/visibility.ts";
 import { Bucket } from "./bucket.ts";
 import type { StorageBucket, StorageTransport } from "./transport.ts";
 
+/** The transport that reaches the Supabase storage service, one bucket object per name. */
 export class SupabaseStorageTransport implements StorageTransport {
   readonly #buckets = new Map<string, Bucket>();
 
+  /** The bucket `visibility` names, built once and kept for the life of the process. */
   of(visibility: StorageVisibility): StorageBucket {
     const name = bucketNameOf(visibility);
     const existing = this.#buckets.get(name);

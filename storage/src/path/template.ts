@@ -30,52 +30,59 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { pathSegment, StoragePathError } from "./segment.ts";
-import type { StorageSession } from "../access/identity.ts";
 
-export const ACCOUNT = "account";
+import { pathSegment, StoragePathError } from "./segment.ts";
 
 const PLACEHOLDER_PATTERN = /^\{([A-Za-z][A-Za-z0-9_]*)\}$/;
 
-export type PathPlaceholders<S extends string> = S extends `${string}{${infer P}}${infer R}`
-  ? [P, ...PathPlaceholders<R>]
+/**
+ * The arguments a template takes, one string per placeholder, in the order the template writes
+ * them.
+ *
+ * It is what makes a missing segment a compilation error rather than a key with a hole in it.
+ * The tuple is built by recursion on the template rather than by mapping a tuple of names,
+ * because a mapped type over a template that is still generic is not seen as an array, and a
+ * rest parameter needs one.
+ */
+export type PathArgs<S extends string> = S extends `${string}{${string}}${infer R}` ? [string, ...PathArgs<R>]
   : [];
 
-type NamesWithoutAccount<T extends string[], Acc extends string[] = []> = T extends
-  [infer H extends string, ...infer R extends string[]]
-  ? H extends typeof ACCOUNT ? NamesWithoutAccount<R, Acc> : NamesWithoutAccount<R, [...Acc, H]>
-  : Acc;
-
-type ArgsWithoutAccount<T extends string[], Acc extends string[] = []> = T extends
-  [infer H extends string, ...infer R extends string[]]
-  ? H extends typeof ACCOUNT ? ArgsWithoutAccount<R, Acc> : ArgsWithoutAccount<R, [...Acc, string]>
-  : Acc;
-
-export type PathArgNames<S extends string> = NamesWithoutAccount<PathPlaceholders<S>>;
-
-export type PathArgs<S extends string> = ArgsWithoutAccount<PathPlaceholders<S>>;
-
-export type AsArgs<T> = T extends infer A extends string[] ? A : never;
-
-export type PathNamedArgs<S extends string> = { readonly [K in PathArgNames<S>[number]]: string };
-
+/** One part of a parsed template. */
 export type TemplateSegment =
-  | { readonly kind: "literal"; readonly value: string }
-  | { readonly kind: "account" }
-  | { readonly kind: "arg"; readonly name: string };
+  | {
+    /** A part the template spells out, the same for every object under it. */
+    readonly kind: "literal";
+    /** The name that part carries. */
+    readonly value: string;
+  }
+  | {
+    /** A part the caller fills in, one argument per occurrence. */
+    readonly kind: "arg";
+    /** The name the placeholder was written with, which no other placeholder may reuse. */
+    readonly name: string;
+  };
 
+/** A template taken apart, ready to be rendered against a caller's arguments. */
 export interface ParsedTemplate {
+  /** The parts of the template, in order. */
   readonly segments: readonly TemplateSegment[];
+
+  /** The names of the placeholders, in order, which is also the order of the arguments. */
   readonly argNames: readonly string[];
 }
 
+/**
+ * Takes `template` apart, and refuses anything that would not render into a usable key.
+ *
+ * @throws {StoragePathError} When a part is neither a valid name nor a valid placeholder, or
+ * when the template is empty, or when it writes the same placeholder twice.
+ */
 export function parseTemplate(template: string): ParsedTemplate {
   const parts = template.split("/").filter((part) => part.length > 0);
   if (parts.length === 0) throw new StoragePathError(template);
 
   const segments: TemplateSegment[] = [];
   const argNames: string[] = [];
-  let account = false;
 
   for (const part of parts) {
     if (!part.includes("{") && !part.includes("}")) {
@@ -87,14 +94,8 @@ export function parseTemplate(template: string): ParsedTemplate {
     if (!match) throw new StoragePathError(part);
 
     const name = match[1];
-    if (name === ACCOUNT) {
-      if (account) throw new StoragePathError(`${template} (duplicate {${ACCOUNT}})`);
-      account = true;
-      segments.push({ kind: "account" });
-      continue;
-    }
-
     if (argNames.includes(name)) throw new StoragePathError(`${template} (duplicate {${name}})`);
+
     argNames.push(name);
     segments.push({ kind: "arg", name });
   }
@@ -103,43 +104,26 @@ export function parseTemplate(template: string): ParsedTemplate {
 }
 
 /**
- * Builds the key.
+ * Builds the key `segments` describe, filled in with `args`.
  *
- * Every runtime value goes back through `pathSegment()`, so an id holding
- * `../..` is refused here rather than normalised away by `fetch()` later on.
+ * @remarks
+ * Every value goes back through `pathSegment`, so an argument holding `../..` is refused here
+ * rather than normalised away by the storage service later on.
+ *
+ * @throws {StoragePathError} When an argument is missing, or carries anything a key cannot.
  */
 export function renderTemplate(
   segments: readonly TemplateSegment[],
-  identity: StorageSession,
   args: readonly string[],
 ): string {
   const rendered: string[] = [];
   let index = 0;
 
   for (const segment of segments) {
-    switch (segment.kind) {
-      case "literal":
-        rendered.push(segment.value);
-        break;
-      case "account":
-        rendered.push(pathSegment(identity.id));
-        break;
-      case "arg":
-        rendered.push(pathSegment(args[index++] ?? ""));
-        break;
-    }
+    rendered.push(
+      segment.kind === "literal" ? segment.value : pathSegment(args[index++] ?? ""),
+    );
   }
 
   return rendered.join("/");
-}
-
-export function namedArgs(
-  argNames: readonly string[],
-  args: readonly string[],
-): Record<string, string> {
-  const named: Record<string, string> = {};
-  argNames.forEach((name, index) => {
-    named[name] = args[index];
-  });
-  return named;
 }
