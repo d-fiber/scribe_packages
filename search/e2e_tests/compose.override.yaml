@@ -1,0 +1,45 @@
+name: scribe-search-e2e
+
+services:
+  db:
+    container_name: "scribe-search-e2e-db"
+    ports: ["55436:5432"]
+    volumes:
+      - "./.postgres:/var/lib/postgresql/data:Z"
+    command:
+      [
+        "postgres",
+        "-c",
+        "config_file=/etc/postgresql/postgresql.conf",
+        "-c",
+        "log_min_messages=fatal",
+        "-c",
+        "max_connections=100",
+        "-c",
+        "shared_buffers=256MB",
+        "-c",
+        "effective_cache_size=1GB",
+      ]
+
+  rest:
+    container_name: "scribe-search-e2e-rest"
+    ports: ["53004:3000"]
+
+  db-migrate:
+    container_name: "scribe-search-e2e-db-migrate"
+
+  redis:
+    container_name: "scribe-search-e2e-redis"
+    ports: ["56380:6379"]
+
+  opensearch:
+    container_name: "scribe-search-e2e-opensearch"
+    ports: ["59200:9200"]
+    volumes:
+      - "opensearch-data:/usr/share/opensearch/data"
+    environment:
+      OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+
+volumes:
+  db-config: null
+  opensearch-data: null

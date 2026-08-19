@@ -1,0 +1,5 @@
+services:
+  opensearch:
+    environment:
+      OPENSEARCH_JAVA_OPTS: "-Xms{{opensearch_heap}} -Xmx{{opensearch_heap}}"
+      node.processors: "{{opensearch_node_processors}}"

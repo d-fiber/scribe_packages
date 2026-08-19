@@ -1,0 +1,10 @@
+services:
+  opensearch:
+    cpu_shares: 512
+    deploy:
+      resources:
+        limits:
+          cpus: "{{opensearch_cpu_limit}}"
+          memory: "{{opensearch_mem_limit}}"
+        reservations:
+          memory: "{{opensearch_mem_res}}"
