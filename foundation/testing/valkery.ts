@@ -33,7 +33,7 @@
 import "@scribe/core/testing/settings.ts";
 import type { LockCommands } from "@scribe/foundation/src/valkery/lock/release_script.ts";
 import { type Kv, kv } from "@scribe/foundation/src/redis/mod.ts";
-import { rateLimiter, type RateLimitResult } from "@scribe/core/runtime/redis/rate_limiter/mod.ts";
+import { RateLimit, type RateLimitOutcome } from "@scribe/foundation/src/rate_limit/mod.ts";
 import { stub } from "@std/testing/mock";
 import { type InstalledMock, installMock } from "@scribe/core/testing/install.ts";
 
@@ -168,17 +168,20 @@ export function installValkeryMock(): InstalledMock {
 }
 
 /**
- * Makes `rateLimiter.check` answer `result` for every caller, and answers the handle that
- * puts the real limiter back.
+ * Makes every declared {@link RateLimit} answer `result`, and answers the handle that puts
+ * the real ones back.
+ *
+ * It stubs the prototype rather than one instance because a limit is declared next to the code
+ * it guards, so a test has no handle on the object it needs to neutralise.
  *
  * @param result - What every check answers. The default lets the caller through with a
  * remaining count high enough that no test has to think about it.
  */
 export function installRateLimiterMock(
-  result: RateLimitResult = { ok: true, remaining: 999 },
+  result: RateLimitOutcome = { ok: true, remaining: 999 },
 ): InstalledMock {
   const stubbed = stub(
-    rateLimiter,
+    RateLimit.prototype,
     "check",
     () => Promise.resolve(result),
   );

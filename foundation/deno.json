@@ -11,6 +11,7 @@
     "./http": "./src/http/mod.ts",
     "./isolate": "./src/isolate/mod.ts",
     "./queue": "./src/queue/mod.ts",
+    "./rate_limit": "./src/rate_limit/mod.ts",
     "./valkery": "./src/valkery/mod.ts"
   },
   "publish": {
