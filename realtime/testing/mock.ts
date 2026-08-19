@@ -30,28 +30,56 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-// deno-lint-ignore-file
-
-import { type AutoMock, createAutoMock } from "@scribe/core/testing/auto_mock.ts";
-import {
-  type InstalledMock,
-  installGetterMock,
-} from "@scribe/core/testing/install.ts";
 import "@scribe/core/testing/settings.ts";
-import { realtime } from "@scribe/realtime/mod.ts";
+import type { InstalledMock } from "@scribe/core/testing/install.ts";
+import { RealtimeTransports } from "@scribe/realtime/src/transport/registry.ts";
+import type { RealtimeRow, RealtimeTransport } from "@scribe/realtime/src/transport/transport.ts";
 
-export function createRealtimeMock(): AutoMock<typeof realtime> {
-  return createAutoMock(realtime, {
-    defaultImpl: () => Promise.resolve(true),
-  });
+/** A transport that keeps every row instead of sending it, so a test can read what was emitted. */
+export class RecordingTransport implements RealtimeTransport {
+  /** Every row handed over since this transport was installed, oldest first. */
+  readonly rows: RealtimeRow[] = [];
+
+  readonly #answer: boolean;
+
+  /**
+   * @param answer - What every send answers. False is how a test exercises the path a caller
+   * takes when an emission does not leave.
+   */
+  constructor(answer = true) {
+    this.#answer = answer;
+  }
+
+  /** Keeps `row` and answers what the constructor was given. */
+  send(row: RealtimeRow): Promise<boolean> {
+    this.rows.push(row);
+    return Promise.resolve(this.#answer);
+  }
+
+  /** The rows addressed to `channel`, in the order they were emitted. */
+  on(channel: string): RealtimeRow[] {
+    return this.rows.filter((row) => row.channel === channel);
+  }
 }
 
-export function installRealtimeMock(): AutoMock<typeof realtime> &
-  InstalledMock {
-  const mock = createRealtimeMock();
+/**
+ * Sends every emission of the process into a recording transport, and answers the handle that
+ * puts the previous one back.
+ *
+ * @remarks
+ * What is replaced is the transport, never a declaration: a channel keeps deriving its own
+ * channels, checking its own topics and pulling its own identifiers, so a test exercises the
+ * addressing rather than a second implementation of it written for the test.
+ *
+ * @param answer - What every send answers. Defaults to a send that left.
+ */
+export function installRealtimeMock(answer = true): RecordingTransport & InstalledMock {
+  const recording = new RecordingTransport(answer);
+  const previous = RealtimeTransports.use(recording);
 
-  const topics = mock.target.topics;
-  const installed = installGetterMock(realtime, "topics", () => topics);
-
-  return Object.assign(mock, installed);
+  return Object.assign(recording, {
+    restore(): void {
+      RealtimeTransports.use(previous);
+    },
+  });
 }

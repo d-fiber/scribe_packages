@@ -30,14 +30,31 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { EventScope, RealtimePayload } from "../core/scope.ts";
+/** One emission, addressed and ready to be written wherever the transport writes. */
+export interface RealtimeRow {
+  /** The full channel this emission is addressed to, which decides who hears it. */
+  readonly channel: string;
 
-export interface RealtimeRow extends RealtimePayload {
-  readonly scope: EventScope;
-  readonly topic: string | null;
-  readonly recipientId: string | null;
+  /** What happened, as the declaration named it. */
+  readonly action: string;
+
+  /** The identifier of the row this is about, taken from the payload's declared key. */
+  readonly entityId: string;
+
+  /** What travels, as the declaration's type describes it. */
+  readonly payload: Record<string, unknown>;
 }
 
+/**
+ * Where an emission goes once it has been addressed.
+ *
+ * @remarks
+ * The port exists so that the channel is replaceable. `SyncEventsTransport` writes a row and
+ * lets Postgres broadcast it, which is what a mounted package does by default; a project that
+ * would rather push into a queue or towards a third party swaps the implementation and leaves
+ * every declaration alone.
+ */
 export interface RealtimeTransport {
+  /** Sends `row`, and answers whether it left. */
   send(row: RealtimeRow): Promise<boolean>;
 }

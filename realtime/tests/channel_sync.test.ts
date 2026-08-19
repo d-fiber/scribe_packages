@@ -31,44 +31,54 @@
 // LICENSE file, the LICENSE file governs.
 
 import { assertEquals } from "@std/assert";
-import { Realtime } from "@scribe/realtime/mod.ts";
-import { installRealtimeMock } from "@scribe/realtime/testing/mock.ts";
+import { Listen, Realtime, syncDeclaredChannels } from "@scribe/realtime/mod.ts";
+import { realtimeChannels } from "@scribe/realtime/src/db/tables.ts";
+import { installDatabaseFake } from "./mocks/database.ts";
 
 interface Item {
   id: string;
 }
 
-const item = Realtime.granted<Item>("mock_item");
+Realtime.public<Item>("sync_public");
+Realtime.granted<Item>("sync_granted");
 
-Deno.test("the recording transport keeps every row in the order it was sent", async () => {
-  const sent = installRealtimeMock();
+async function storedListen(channel: string): Promise<string | null> {
+  const row = await realtimeChannels()
+    .selectRaw("listen")
+    .where((f) => f.channel.eq(channel))
+    .getOne();
 
-  await item.all.insert({ id: "a" });
-  await item.all.insert({ id: "b" });
+  return row === null ? null : String(row.listen);
+}
 
-  assertEquals(sent.rows.map((row) => row.entityId), ["a", "b"]);
-  sent.restore();
+Deno.test("a declaration nobody stored yet is written with its openness", async () => {
+  const db = installDatabaseFake();
+
+  await syncDeclaredChannels();
+
+  assertEquals(await storedListen("sync_public"), Listen.Public);
+  assertEquals(await storedListen("sync_granted"), Listen.Granted);
+  db.restore();
 });
 
-Deno.test("the recording transport filters by channel", async () => {
-  const sent = installRealtimeMock();
+Deno.test("an openness that changed in the code is written over the stored one", async () => {
+  const db = installDatabaseFake({
+    __realtime_channels__: [{ channel: "sync_public", listen: Listen.Granted }],
+  });
 
-  await item.all.insert({ id: "a" });
-  await item.topic("seller").insert({ id: "b" });
+  await syncDeclaredChannels();
 
-  assertEquals(sent.on("mock_item:#seller").map((row) => row.entityId), ["b"]);
-  sent.restore();
+  assertEquals(await storedListen("sync_public"), Listen.Public);
+  db.restore();
 });
 
-Deno.test("restoring puts back the transport that was there before", async () => {
-  const first = installRealtimeMock();
-  const second = installRealtimeMock();
+Deno.test("a channel nobody declares any more keeps its row", async () => {
+  const db = installDatabaseFake({
+    __realtime_channels__: [{ channel: "sync_retired", listen: Listen.Public }],
+  });
 
-  await item.all.insert({ id: "a" });
-  second.restore();
-  await item.all.insert({ id: "b" });
+  await syncDeclaredChannels();
 
-  assertEquals(second.rows.map((row) => row.entityId), ["a"]);
-  assertEquals(first.rows.map((row) => row.entityId), ["b"]);
-  first.restore();
+  assertEquals(await storedListen("sync_retired"), Listen.Public);
+  db.restore();
 });

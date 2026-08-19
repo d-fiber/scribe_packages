@@ -30,7 +30,18 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { RealtimeTransports, SyncEventsTransport } from "./mod.ts";
+import { EventLogTransport, RealtimeTransports, syncDeclaredChannels } from "./mod.ts";
 
-/** What this module hands the framework when it is mounted. */
-RealtimeTransports.use(new SyncEventsTransport());
+RealtimeTransports.use(new EventLogTransport());
+
+/**
+ * Writes the openness every declaration asked for, once the process can reach the database.
+ *
+ * @remarks
+ * The transport above is wired at import, because it needs nothing. The openness cannot be:
+ * a declaration lives at module scope and is evaluated before anything is connected, so the
+ * row it needs is written here, where the host calls a mounted module after boot.
+ */
+export function start(): Promise<void> {
+  return syncDeclaredChannels();
+}

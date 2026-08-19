@@ -30,19 +30,30 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-export type RealtimeScope = "to" | "all" | "topic";
+import type { Listen } from "./listen.ts";
 
-export const REALTIME_SCOPES: readonly RealtimeScope[] = ["to", "all", "topic"];
+const declarations = new Map<string, Listen>();
 
-export enum EventScope {
-  Admin = "admin",
-  User = "user",
-  Admins = "admins",
-  Users = "users",
+/**
+ * Records that `name` was declared, and how open its broadcast is.
+ *
+ * @remarks
+ * Two declarations that pick the same name would share their listeners and their grants
+ * without either of them saying so, and the one loaded second would silently decide how open
+ * the first one is. It throws rather than letting the process start on that.
+ */
+export function declareChannel(name: string, listen: Listen): void {
+  const already = declarations.get(name);
+  if (already !== undefined && already !== listen) {
+    throw new TypeError(
+      `realtime channel "${name}" is declared twice, once as "${already}" and once as "${listen}".`,
+    );
+  }
+
+  declarations.set(name, listen);
 }
 
-export interface RealtimePayload {
-  readonly entity: string;
-  readonly action: string;
-  readonly entityId: string;
+/** Every channel this process declared, with the openness each one asked for. */
+export function declaredChannels(): ReadonlyMap<string, Listen> {
+  return declarations;
 }

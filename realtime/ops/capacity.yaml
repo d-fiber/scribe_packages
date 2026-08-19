@@ -3,8 +3,8 @@ services:
     weight: 661
     runtime: erlang
     profile: realtime
-    min: 192Mi
-    dev: 512Mi
+    min: 320Mi
+    dev: 640Mi
     cpu_shares: 1024
 
   - name: realtime-init

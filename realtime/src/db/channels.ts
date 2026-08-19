@@ -30,13 +30,41 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { TopicMembership } from "./topics/membership.ts";
+import { declaredChannels } from "../core/registry.ts";
+import { realtimeChannels } from "./tables.ts";
 
-export class RealtimeClient {
-  #topics?: TopicMembership;
-  get topics(): TopicMembership {
-    return (this.#topics ??= new TopicMembership());
+/**
+ * Makes the stored openness of every declared channel match what the code declares.
+ *
+ * @remarks
+ * It is what turns `Listen.Public` written in TypeScript into a row the broadcast trigger and
+ * the read policies can act on, and `register.ts` runs it once the process is up rather than
+ * at import, since a declaration lives at module scope and the database is not reachable yet
+ * when one is evaluated.
+ *
+ * It writes only what differs, so a process that starts on an already correct database spends
+ * one read per declaration and no write at all.
+ *
+ * It never deletes. A channel that stops being declared keeps its row until someone removes
+ * it, which costs a stale line; deleting instead would let a process that declares half the
+ * channels close the other half every time it starts.
+ */
+export async function syncDeclaredChannels(): Promise<void> {
+  for (const [channel, listen] of declaredChannels()) {
+    const stored = await realtimeChannels()
+      .selectRaw("listen")
+      .where((f) => f.channel.eq(channel))
+      .getOne();
+
+    if (stored === null) {
+      await realtimeChannels().insert({ channel, listen });
+      continue;
+    }
+
+    if (stored.listen === listen) continue;
+
+    await realtimeChannels()
+      .where((f) => f.channel.eq(channel))
+      .update({ listen });
   }
 }
-
-export const realtime: RealtimeClient = new RealtimeClient();

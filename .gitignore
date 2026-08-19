@@ -7,3 +7,5 @@ __pycache__/
 
 /foundation/e2e_tests/.generated/
 /foundation/e2e_tests/.postgres/
+/realtime/e2e_tests/.generated/
+/realtime/e2e_tests/.postgres/

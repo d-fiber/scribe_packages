@@ -30,20 +30,28 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { EventScope } from "../core/scope.ts";
-import { ScopeDispatcher } from "./dispatcher.ts";
+import "@scribe/core/testing/settings.ts";
+import { type InstalledMock, installMock } from "@scribe/core/testing/install.ts";
+import { PostgrestClients } from "@scribe/foundation/src/database/client.ts";
+import { FakePostgrestClient, type FakePostgrestSeed } from "@scribe/foundation/testing/database.ts";
+import type { PostgrestClient } from "@supabase/postgrest-js";
 
-export interface AudienceScope {
-  admins(id: string): Promise<boolean>;
-  users(id: string): Promise<boolean>;
-}
+/**
+ * Answers every query of this package with in-memory rows, and hands back the restore handle.
+ *
+ * The service client is what a channel reaches, since a grant is written with the key that
+ * bypasses row level security. Replacing it leaves the query builder, the table names and the
+ * filters under test rather than replacing them with a second implementation.
+ */
+export function installDatabaseFake(seed: FakePostgrestSeed = {}): InstalledMock {
+  const filled: FakePostgrestSeed = {
+    __realtime_events__: [],
+    __realtime_channels__: [],
+    __realtime_grants__: [],
+    ...seed,
+  };
 
-export class AudienceDispatcher extends ScopeDispatcher implements AudienceScope {
-  admins(id: string): Promise<boolean> {
-    return this.send(id, EventScope.Admins, null, null);
-  }
+  const fake = new FakePostgrestClient(filled) as unknown as PostgrestClient;
 
-  users(id: string): Promise<boolean> {
-    return this.send(id, EventScope.Users, null, null);
-  }
+  return installMock(PostgrestClients, "service", () => fake);
 }

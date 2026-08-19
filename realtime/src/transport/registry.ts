@@ -30,25 +30,37 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { isValidTopic } from "../core/name.ts";
 import type { RealtimeRow, RealtimeTransport } from "./transport.ts";
 
 let transport: RealtimeTransport | null = null;
 
-export const RealtimeTransports: { use(next: RealtimeTransport): void } = {
-  use(next: RealtimeTransport): void {
+/** Where the process keeps the one transport every emission goes through. */
+export const RealtimeTransports: {
+  use(next: RealtimeTransport | null): RealtimeTransport | null;
+} = {
+  /**
+   * Makes `next` the destination of every emission from here on, and answers the one it
+   * replaced.
+   *
+   * The previous transport is answered so that whoever swapped it can put it back, which is
+   * what the test harness does. A process that installs its transport once at boot ignores it.
+   */
+  use(next: RealtimeTransport | null): RealtimeTransport | null {
+    const previous = transport;
     transport = next;
+    return previous;
   },
 };
 
+/**
+ * Sends `row` through the registered transport, and answers whether it left.
+ *
+ * @remarks
+ * A process with no transport registered reports it and answers false rather than throwing.
+ * An emission is a side effect nobody has a recovery for, so failing the request that happened
+ * to trigger it would cost more than the event it lost.
+ */
 export function emit(row: RealtimeRow): Promise<boolean> {
-  if (row.topic !== null && !isValidTopic(row.topic)) {
-    console.error(
-      `[realtime] invalid topic, broadcast dropped: ${JSON.stringify(row.topic)}`,
-    );
-    return Promise.resolve(false);
-  }
-
   if (!transport) {
     console.error("[realtime] no transport registered, broadcast dropped.");
     return Promise.resolve(false);

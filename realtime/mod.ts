@@ -30,34 +30,15 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-export { defineRealtime, event } from "./src/core/define.ts";
-export type {
-  EventSpec,
-  EventSpecs,
-  RealtimeAction,
-  RealtimeDefinition,
-  RealtimeEntity,
-  RealtimeEventOf
-} from "./src/core/define.ts";
-
-export type {
-  AudienceScope,
-  RealtimeEvent,
-  TargetedScope,
-  TopicScope
-} from "./src/core/event.ts";
-export { entityName, isValidTopic } from "./src/core/name.ts";
-export { EventScope } from "./src/core/scope.ts";
-export type { RealtimePayload, RealtimeScope } from "./src/core/scope.ts";
+export { Realtime } from "./src/core/channel.ts";
+export type { BroadcastOf } from "./src/core/channel.ts";
+export { Listen } from "./src/core/listen.ts";
+export { AccountDestination, Destination, GrantedDestination } from "./src/core/destination.ts";
+export { isValidTopic } from "./src/core/name.ts";
 
 export { RealtimeTransports } from "./src/transport/registry.ts";
-export { SyncEventsTransport } from "./src/transport/sync_events.ts";
-export type {
-  RealtimeRow,
-  RealtimeTransport
-} from "./src/transport/transport.ts";
+export { EventLogTransport } from "./src/transport/event_log.ts";
+export type { RealtimeRow, RealtimeTransport } from "./src/transport/transport.ts";
 
-export { TopicMembers, TopicMembership } from "./src/topics/membership.ts";
-export { TopicStore } from "./src/topics/store.ts";
-
-export { realtime, RealtimeClient } from "./src/client.ts";
+export { syncDeclaredChannels } from "./src/db/channels.ts";
+export type { RealtimeChannelRow, RealtimeEventRow, RealtimeGrantRow } from "./src/db/tables.ts";

@@ -30,43 +30,30 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import "@scribe/core/testing/settings.ts";
-import { assertEquals, assertStrictEquals } from "@std/assert";
-import {
-  realtime,
-  RealtimeClient,
-  TopicMembership,
-} from "@scribe/realtime/mod.ts";
+/**
+ * How open a channel's own broadcast is, before any grant is written.
+ *
+ * @remarks
+ * It governs the channel that carries the bare name and nothing else. The two derived shapes
+ * carry their own rule and never consult this: `<name>:<id>` is heard by the account whose
+ * token says that id, and `<name>:#<topic>` is heard by the accounts a grant names.
+ *
+ * The value decides the Realtime mode the trigger sends with. {@link Listen.Public} sends
+ * outside the private mode, so no policy is consulted at all; the other two send inside it and
+ * are answered by the policies of `db/init/realtime.sql`.
+ */
+export enum Listen {
+  /** Nobody hears the broadcast without a grant written for them. */
+  Granted = "granted",
 
-Deno.test("client: topics is built once and stays the same object", () => {
-  const client = new RealtimeClient();
-  assertStrictEquals(client.topics, client.topics);
-});
+  /** Any caller holding a session hears the broadcast. */
+  Authenticated = "authenticated",
 
-Deno.test("client: two clients never share their membership surface", () => {
-  assertEquals(new RealtimeClient().topics === new RealtimeClient().topics, false);
-});
-
-Deno.test("client: topics carries exactly the two roles", () => {
-  assertEquals(Object.keys(new RealtimeClient().topics).sort(), ["admins", "users"]);
-});
-
-Deno.test("client: the exported singleton is a RealtimeClient", () => {
-  assertEquals(realtime instanceof RealtimeClient, true);
-  assertEquals(realtime.topics instanceof TopicMembership, true);
-});
-
-Deno.test("client: a project can extend it without touching the engine", () => {
-  class ProjectClient extends RealtimeClient {
-    readonly extra = "own";
-  }
-  const client = new ProjectClient();
-
-  assertEquals(client.extra, "own");
-  assertEquals(client.topics instanceof TopicMembership, true);
-});
-
-Deno.test("client: the engine carries no business entity", () => {
-  assertEquals(Object.keys(new RealtimeClient()), []);
-  assertEquals("device" in new RealtimeClient(), false);
-});
+  /**
+   * Any caller hears the broadcast, session or not.
+   *
+   * What travels is as readable as what ships inside the application, because the only
+   * credential in the way is the anonymous project key every client carries.
+   */
+  Public = "public",
+}

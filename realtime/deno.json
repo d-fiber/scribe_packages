@@ -2,6 +2,7 @@
   "name": "@scribe/realtime",
   "exports": {
     ".": "./mod.ts",
+    "./register": "./register.ts",
     "./testing": "./testing/mock.ts"
   },
   "publish": {

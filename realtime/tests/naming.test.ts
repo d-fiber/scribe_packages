@@ -30,59 +30,22 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import "@scribe/core/testing/settings.ts";
-import { assertEquals, assertThrows } from "@std/assert";
-import { defineRealtime, event, isValidTopic } from "@scribe/realtime/mod.ts";
+import { assertEquals } from "@std/assert";
+import { isValidTopic } from "@scribe/realtime/mod.ts";
 
-function declaring(entity: string, action = "update"): () => unknown {
-  return () => defineRealtime({ entity, events: { e: event(action) } });
-}
-
-Deno.test("entity: snake_case lowercase only", () => {
-  declaring("brand")();
-  declaring("brand_store")();
-  declaring("b2b_store")();
-
-  for (const bad of ["Brand", "brand-store", "brand store", "2brand", "_brand", "", "brandé", "brand.store"]) {
-    assertThrows(declaring(bad), TypeError);
-  }
+Deno.test("a topic accepts letters, digits, underscore and dash", () => {
+  assertEquals(isValidTopic("seller"), true);
+  assertEquals(isValidTopic("Seller_2-b"), true);
 });
 
-Deno.test("entity: 64 characters is the ceiling", () => {
-  declaring("a".repeat(64))();
-  assertThrows(declaring("a".repeat(65)), TypeError);
+Deno.test("a topic refuses what would split a channel", () => {
+  assertEquals(isValidTopic("a:b"), false);
+  assertEquals(isValidTopic("a b"), false);
+  assertEquals(isValidTopic("#seller"), false);
+  assertEquals(isValidTopic(""), false);
 });
 
-Deno.test("action: same alphabet as the entity", () => {
-  declaring("thing", "sign_out")();
-  for (const bad of ["Sign", "sign-out", "sign out", "1sign", "", "signé"]) {
-    assertThrows(declaring("thing", bad), TypeError);
-  }
-});
-
-Deno.test("action: 32 characters is the ceiling, tighter than the entity", () => {
-  declaring("thing", "a".repeat(32))();
-  assertThrows(declaring("thing", "a".repeat(33)), TypeError);
-});
-
-Deno.test("name errors say what is expected", () => {
-  const thrown = assertThrows(declaring("Brand"), TypeError) as TypeError;
-  assertEquals(thrown.message.includes("lowercase snake_case"), true);
-
-  const tooLong = assertThrows(declaring("a".repeat(65)), TypeError) as TypeError;
-  assertEquals(tooLong.message.includes("exceeds 64 characters"), true);
-});
-
-Deno.test("topic: a wider alphabet than entity names, on purpose", () => {
-  for (const good of ["room", "Room", "room-7", "room_7", "ROOM7", "7room", "a"]) {
-    assertEquals(isValidTopic(good), true, good);
-  }
-  for (const bad of ["room 7", "room/7", "room.7", "", "roomé", "room!"]) {
-    assertEquals(isValidTopic(bad), false, bad);
-  }
-});
-
-Deno.test("topic: 64 characters is the ceiling, matching the SQL check", () => {
-  assertEquals(isValidTopic("a".repeat(64)), true);
-  assertEquals(isValidTopic("a".repeat(65)), false);
+Deno.test("a topic stops at 64 characters, matching the SQL check", () => {
+  assertEquals(isValidTopic("t".repeat(64)), true);
+  assertEquals(isValidTopic("t".repeat(65)), false);
 });

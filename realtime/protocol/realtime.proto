@@ -35,18 +35,11 @@ syntax = "proto3";
 package scribe.clients.realtime.v1;
 
 import "scribe/protocol/common.proto";
-import "scribe/protocol/broadcast.proto";
-
-message Target {
-  scribe.v1.EventScope scope = 1;
-  repeated string ids = 2;
-  string topic = 3;
-}
 
 message BroadcastRequest {
-  string entity = 1;
-  string event = 2;
-  Target target = 3;
+  string channel = 1;
+  string action = 2;
+  string entity_id = 3;
   scribe.v1.Json payload = 4;
 }
 
@@ -55,17 +48,17 @@ message BroadcastResult {
   scribe.v1.Failure error = 2;
 }
 
-message TopicMembershipRequest {
-  string topic = 1;
-  repeated string member_ids = 2;
+message GrantRequest {
+  string channel = 1;
+  repeated string account_ids = 2;
 }
 
-message TopicMembershipResult {
+message GrantResult {
   scribe.v1.Failure error = 1;
 }
 
 service Realtime {
   rpc Broadcast(BroadcastRequest) returns (BroadcastResult);
-  rpc JoinTopic(TopicMembershipRequest) returns (TopicMembershipResult);
-  rpc LeaveTopic(TopicMembershipRequest) returns (TopicMembershipResult);
+  rpc Grant(GrantRequest) returns (GrantResult);
+  rpc Revoke(GrantRequest) returns (GrantResult);
 }

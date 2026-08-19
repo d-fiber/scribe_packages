@@ -30,187 +30,168 @@
 -- This header is a summary written for convenience. Where it differs from the
 -- LICENSE file, the LICENSE file governs.
 
+create table if not exists public.__realtime_channels__ (
+  channel text primary key,
+  listen  text not null default 'granted'
+    check (listen in ('granted', 'authenticated', 'public'))
+);
+
+create table if not exists public.__realtime_grants__ (
+  channel    text not null,
+  account_id uuid not null,
+  granted_at timestamptz not null default now(),
+  primary key (channel, account_id)
+);
+
+create index if not exists __realtime_grants_account__
+  on public.__realtime_grants__ (account_id);
+
+alter table public.__realtime_channels__ enable row level security;
+alter table public.__realtime_grants__ enable row level security;
+
+do $$ begin
+  create policy "anyone_reads_channel_openness"
+  on public.__realtime_channels__
+  for select
+  to authenticated, anon
+  using (true);
+exception when duplicate_object then null;
+end $$;
+
+do $$ begin
+  create policy "an_account_reads_its_own_grants"
+  on public.__realtime_grants__
+  for select
+  to authenticated
+  using (account_id = (auth.jwt()->>'sub')::uuid);
+exception when duplicate_object then null;
+end $$;
+
+grant select on public.__realtime_channels__ to authenticated, anon;
+grant select on public.__realtime_grants__ to authenticated;
+revoke insert, update, delete on public.__realtime_channels__ from authenticated, anon;
+revoke insert, update, delete on public.__realtime_grants__ from authenticated, anon;
+
 alter table realtime.messages enable row level security;
 
 do $$ begin
-  create policy "users_can_read_own_user_channel"
+  create policy "an_account_hears_its_own_channel"
   on realtime.messages
   for select
   to authenticated
   using (
-    realtime.topic() like 'user:%'
-    and split_part(realtime.topic(), ':', 2) = (auth.jwt()->>'sub')
-    and (auth.jwt()->'app_metadata'->>'role') is distinct from 'admin'
-  );
-exception when duplicate_object then null;
-end $$;
-
-do $$ begin
-  create policy "admins_can_read_own_admin_channel"
-  on realtime.messages
-  for select
-  to authenticated
-  using (
-    realtime.topic() like 'admin:%'
-    and split_part(realtime.topic(), ':', 2) = (auth.jwt()->>'sub')
-    and (auth.jwt()->'app_metadata'->>'role') = 'admin'
-  );
-exception when duplicate_object then null;
-end $$;
-
-do $$ begin
-  create policy "users_can_read_users_channel"
-  on realtime.messages
-  for select
-  to authenticated
-  using (
-    realtime.topic() = 'users'
-    and (auth.jwt()->'app_metadata'->>'role') is distinct from 'admin'
-  );
-exception when duplicate_object then null;
-end $$;
-
-do $$ begin
-  create policy "admins_can_read_admins_channel"
-  on realtime.messages
-  for select
-  to authenticated
-  using (
-    realtime.topic() = 'admins'
-    and (auth.jwt()->'app_metadata'->>'role') = 'admin'
-  );
-exception when duplicate_object then null;
-end $$;
-
-create table if not exists public.internal_t__user_topic_members (
-  topic text not null,
-  user_id  uuid not null references public.internal_t__app_users (user_id) on delete cascade,
-  primary key (topic, user_id)
-);
-
-create index if not exists user_topic_members_user_idx on public.internal_t__user_topic_members (user_id);
-
-alter table public.internal_t__user_topic_members enable row level security;
-
-do $$ begin
-  create policy "users_can_read_own_topic_memberships"
-  on public.internal_t__user_topic_members
-  for select
-  to authenticated
-  using (user_id = (auth.jwt()->>'sub')::uuid);
-exception when duplicate_object then null;
-end $$;
-
-grant select on public.internal_t__user_topic_members to authenticated;
-revoke insert, update, delete on public.internal_t__user_topic_members from authenticated, anon;
-
-create table if not exists public.internal_t__admin_topic_members (
-  topic text not null,
-  admin_id uuid not null references public.internal_t__admin_users (admin_id) on delete cascade,
-  primary key (topic, admin_id)
-);
-
-create index if not exists admin_topic_members_admin_idx on public.internal_t__admin_topic_members (admin_id);
-
-alter table public.internal_t__admin_topic_members enable row level security;
-
-do $$ begin
-  create policy "admins_can_read_own_topic_memberships"
-  on public.internal_t__admin_topic_members
-  for select
-  to authenticated
-  using (admin_id = (auth.jwt()->>'sub')::uuid);
-exception when duplicate_object then null;
-end $$;
-
-grant select on public.internal_t__admin_topic_members to authenticated;
-revoke insert, update, delete on public.internal_t__admin_topic_members from authenticated, anon;
-
-do $$ begin
-  create policy "users_can_read_own_user_topic_channels"
-  on realtime.messages
-  for select
-  to authenticated
-  using (
-    realtime.topic() like 'users:%'
-    and (auth.jwt()->'app_metadata'->>'role') is distinct from 'admin'
+    split_part(realtime.topic(), ':', 2) = (auth.jwt()->>'sub')
     and exists (
-      select 1 from public.internal_t__user_topic_members
-      where topic = substring(realtime.topic() from 7)
-        and user_id = (auth.jwt()->>'sub')::uuid
+      select 1 from public.__realtime_channels__
+      where channel = split_part(realtime.topic(), ':', 1)
     )
   );
 exception when duplicate_object then null;
 end $$;
 
 do $$ begin
-  create policy "admins_can_read_own_admin_topic_channels"
+  create policy "an_authenticated_caller_hears_an_open_channel"
   on realtime.messages
   for select
   to authenticated
   using (
-    realtime.topic() like 'admins:%'
-    and (auth.jwt()->'app_metadata'->>'role') = 'admin'
-    and exists (
-      select 1 from public.internal_t__admin_topic_members
-      where topic = substring(realtime.topic() from 8)
-        and admin_id = (auth.jwt()->>'sub')::uuid
+    exists (
+      select 1 from public.__realtime_channels__
+      where channel = realtime.topic() and listen = 'authenticated'
     )
   );
 exception when duplicate_object then null;
 end $$;
 
-create table if not exists public.internal_t__sync_events (
-  id           bigserial    primary key,
-  scope        text         not null check (scope in ('admin', 'user', 'admins', 'users')),
-  topic        text         check (topic is null or (topic ~ '^[a-zA-Z0-9_-]+$' and length(topic) <= 64)),
-  entity       text         not null check (entity ~ '^[a-z][a-z0-9_]*$' and length(entity) <= 64),
-  action       text         not null check (action ~ '^[a-z][a-z0-9_]*$' and length(action) <= 32),
-  entity_id    text         not null,
-  recipient_id text         check (scope in ('admin', 'user') = (recipient_id is not null)),
-  occurred_at  bigint       not null default (extract(epoch from now()) * 1000)::bigint
+do $$ begin
+  create policy "a_granted_account_hears_its_channel"
+  on realtime.messages
+  for select
+  to authenticated
+  using (
+    exists (
+      select 1 from public.__realtime_grants__
+      where channel = realtime.topic()
+        and account_id = (auth.jwt()->>'sub')::uuid
+    )
+  );
+exception when duplicate_object then null;
+end $$;
+
+create table if not exists public.__realtime_events__ (
+  id          bigserial primary key,
+  channel     text   not null check (length(channel) <= 194),
+  action      text   not null check (action ~ '^[a-z][a-z0-9_]*$' and length(action) <= 32),
+  entity_id   text   not null,
+  payload     jsonb  not null default '{}'::jsonb,
+  occurred_at bigint not null default (extract(epoch from now()) * 1000)::bigint
 );
 
-create index if not exists sync_events_lookup_idx
-  on public.internal_t__sync_events (scope, entity, occurred_at);
+create index if not exists __realtime_events_lookup__
+  on public.__realtime_events__ (channel, occurred_at);
 
-create index if not exists sync_events_entity_lookup_idx
-  on public.internal_t__sync_events (scope, entity, entity_id, occurred_at desc);
+create index if not exists __realtime_events_entity__
+  on public.__realtime_events__ (channel, entity_id, occurred_at desc);
 
-create index if not exists sync_events_recipient_lookup_idx
-  on public.internal_t__sync_events (scope, entity, recipient_id, occurred_at)
-  where recipient_id is not null;
+create index if not exists __realtime_events_occurred_at__
+  on public.__realtime_events__ (occurred_at);
 
-create index if not exists sync_events_occurred_at_idx
-  on public.internal_t__sync_events (occurred_at);
+alter table public.__realtime_events__ enable row level security;
+revoke all on public.__realtime_events__ from authenticated, anon;
 
-create or replace function log_sync_event()
+create or replace function public.broadcast_realtime_event()
 returns trigger
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
-  v_entity    text := tg_argv[0];
-  v_scope     text := tg_argv[1];
-  v_pk_col    text := tg_argv[2];
-  v_recip_col text := case when tg_nargs > 3 then tg_argv[3] end;
-  v_topic_col text := case when tg_nargs > 4 then tg_argv[4] end;
-  v_private   boolean := v_scope in ('admin', 'user');
+  v_listen text;
+begin
+  select listen into v_listen
+  from public.__realtime_channels__
+  where channel = split_part(new.channel, ':', 1);
+
+  perform realtime.send(
+    payload := new.payload || jsonb_build_object(
+      'action', new.action,
+      'at', new.occurred_at,
+      'id', new.entity_id
+    ),
+    event   := new.action,
+    topic   := new.channel,
+    private := coalesce(v_listen, 'granted') <> 'public'
+  );
+
+  new.payload := '{}'::jsonb;
+  return new;
+end;
+$$;
+
+drop trigger if exists __realtime_events_broadcast__ on public.__realtime_events__;
+create trigger __realtime_events_broadcast__
+  before insert on public.__realtime_events__
+  for each row
+  execute function public.broadcast_realtime_event();
+
+create or replace function public.log_realtime_event()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_channel   text := tg_argv[0];
+  v_key_col   text := tg_argv[1];
+  v_recip_col text := case when tg_nargs > 2 then tg_argv[2] end;
   v_row       jsonb;
   v_entity_id text;
+  v_recipient text;
 begin
-  if v_entity is null or v_scope is null or v_pk_col is null then
+  if v_channel is null or v_key_col is null then
     raise exception
-      'log_sync_event: missing required arguments on %, expected (entity, scope, pk_column[, recipient_column[, topic_column]])',
+      'log_realtime_event: missing required arguments on %, expected (channel, key_column[, recipient_column])',
       tg_table_name
-      using errcode = 'invalid_parameter_value';
-  end if;
-
-  if v_private and v_recip_col is null then
-    raise exception
-      'log_sync_event: private scope "%" on % requires a recipient_column (4th argument)',
-      v_scope, tg_table_name
       using errcode = 'invalid_parameter_value';
   end if;
 
@@ -219,22 +200,29 @@ begin
   end if;
 
   v_row := to_jsonb(case when tg_op = 'DELETE' then old else new end);
-  v_entity_id := v_row ->> v_pk_col;
+  v_entity_id := v_row ->> v_key_col;
 
   if v_entity_id is null then
     raise exception
-      'log_sync_event: column "%" is missing or null on %', v_pk_col, tg_table_name
+      'log_realtime_event: column "%" is missing or null on %', v_key_col, tg_table_name
       using errcode = 'invalid_parameter_value';
   end if;
 
-  insert into public.internal_t__sync_events (scope, topic, entity, action, entity_id, recipient_id)
+  if v_recip_col is not null then
+    v_recipient := v_row ->> v_recip_col;
+    if v_recipient is null then
+      raise exception
+        'log_realtime_event: recipient column "%" is null on %', v_recip_col, tg_table_name
+        using errcode = 'invalid_parameter_value';
+    end if;
+  end if;
+
+  insert into public.__realtime_events__ (channel, action, entity_id, payload)
   values (
-    v_scope,
-    case when v_topic_col is not null then v_row ->> v_topic_col end,
-    v_entity,
+    case when v_recipient is null then v_channel else v_channel || ':' || v_recipient end,
     lower(tg_op),
     v_entity_id,
-    case when v_private then v_row ->> v_recip_col end
+    v_row
   );
 
   if tg_op = 'DELETE' then return old; end if;
@@ -242,52 +230,10 @@ begin
 end;
 $$;
 
-create or replace function broadcast_sync_event()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-declare
-  v_op   text := new.action;
-  v_base text := case new.scope
-    when 'admin'  then 'admin:' || new.recipient_id
-    when 'user'   then 'user:' || new.recipient_id
-    when 'admins' then 'admins'
-    when 'users'  then 'users'
-  end;
-  v_topic text := case
-    when new.topic is not null then v_base || ':' || new.topic
-    else v_base
-  end;
-begin
-  perform realtime.send(
-    payload := jsonb_build_object('op', v_op, 'at', new.occurred_at, 'entity', new.entity, 'data', new.entity_id),
-    event   := 'change',
-    topic   := v_topic,
-    private := true
-  );
-
-  return new;
-exception
-  when others then
-    raise warning '[broadcast_sync_event] realtime.send failed for topic %: %', v_topic, sqlerrm;
-    return new;
-end;
-$$;
-
-create trigger sync_events_broadcast
-  after insert on public.internal_t__sync_events
-  for each row
-  execute function broadcast_sync_event();
-
-create or replace function public.get_sync_ids(
-  p_scope        text,
-  p_entity       text,
-  p_cursor       bigint,
-  p_known_ids    text[],
-  p_recipient_id text default null,
-  p_topic        text default null,
+create or replace function public.get_realtime_ids(
+  p_channel     text,
+  p_cursor      bigint,
+  p_known_ids   text[],
   out upserted_ids text[],
   out deleted_ids  text[],
   out new_cursor   bigint,
@@ -302,14 +248,7 @@ declare
   v_now_ms           bigint := (extract(epoch from now()) * 1000)::bigint;
   v_retention_cutoff bigint := (extract(epoch from now() - interval '30 days') * 1000)::bigint;
   v_max_occurred     bigint;
-  v_private          boolean := p_scope in ('admin', 'user');
 begin
-  if v_private and coalesce(p_recipient_id, '') = '' then
-    raise exception
-      'get_sync_ids: p_recipient_id is required for private scope %', p_scope
-      using errcode = 'invalid_parameter_value';
-  end if;
-
   if p_cursor != 0 and p_cursor < v_retention_cutoff then
     full_resync  := true;
     upserted_ids := '{}';
@@ -322,12 +261,9 @@ begin
 
   select max(occurred_at)
   into   v_max_occurred
-  from   public.internal_t__sync_events
-  where  scope = p_scope
-    and  entity = p_entity
-    and  occurred_at > p_cursor
-    and  (not v_private or recipient_id = p_recipient_id)
-    and  (p_topic is null or topic = p_topic);
+  from   public.__realtime_events__
+  where  channel = p_channel
+    and  occurred_at > p_cursor;
 
   if v_max_occurred is null then
     upserted_ids := '{}';
@@ -340,12 +276,9 @@ begin
 
   with latest as (
     select distinct on (entity_id) entity_id, action
-    from   public.internal_t__sync_events
-    where  scope = p_scope
-      and  entity = p_entity
+    from   public.__realtime_events__
+    where  channel = p_channel
       and  occurred_at > p_cursor
-      and  (not v_private or recipient_id = p_recipient_id)
-      and  (p_topic is null or topic = p_topic)
     order  by entity_id, occurred_at desc, id desc
   )
   select
@@ -361,12 +294,12 @@ begin
 end;
 $$;
 
-revoke all on function public.get_sync_ids(text, text, bigint, text[], text, text) from public, anon, authenticated;
-grant execute on function public.get_sync_ids(text, text, bigint, text[], text, text) to service_role;
+revoke all on function public.get_realtime_ids(text, bigint, text[]) from public, anon, authenticated;
+grant execute on function public.get_realtime_ids(text, bigint, text[]) to service_role;
 
 select cron.schedule(
-  'cleanup-sync-events',
+  'cleanup-realtime-events',
   '0 0 * * *',
-  $$delete from public.internal_t__sync_events
+  $$delete from public.__realtime_events__
     where occurred_at < (extract(epoch from now() - interval '30 days') * 1000)::bigint$$
 );

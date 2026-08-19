@@ -1,0 +1,173 @@
+// Copyright (C) 2026 Fiber
+//
+// This file is part of scribe and is made available under the PolyForm Shield
+// License 1.0.0. The full terms are in the LICENSE file at the root of this
+// repository, and at https://polyformproject.org/licenses/shield/1.0.0
+//
+// What you may do:
+// - Use this software for any purpose, including commercially, and build and
+//   sell your own products on top of it.
+// - Change it, and create new works based on it.
+// - Distribute copies of it, with or without your changes.
+//
+// The one thing you may not do:
+// - Use it to provide any product that competes with scribe, or with any
+//   product Fiber or its affiliates provide using scribe. Products compete
+//   even when they are offered free of charge, through a different kind of
+//   interface, or for a different technical platform.
+//
+// If you pass this software on:
+// - Anyone who receives any part of it from you must also receive these terms,
+//   or the URL above, together with the "Required Notice" line carried by the
+//   LICENSE file.
+//
+// Disclaimer:
+// AS FAR AS THE LAW ALLOWS, THIS SOFTWARE COMES AS IS, WITHOUT ANY WARRANTY OR
+// CONDITION, AND THE LICENSOR WILL NOT BE LIABLE TO YOU FOR ANY DAMAGES ARISING
+// OUT OF THESE TERMS OR THE USE OR NATURE OF THE SOFTWARE, UNDER ANY KIND OF
+// LEGAL CLAIM.
+//
+// This header is a summary written for convenience. Where it differs from the
+// LICENSE file, the LICENSE file governs.
+
+import { AccountDestination, GrantedDestination } from "./destination.ts";
+import type { Destination } from "./destination.ts";
+import { Listen } from "./listen.ts";
+import { broadcastChannel, channelName, isValidTopic, topicChannel } from "./name.ts";
+import { declareChannel } from "./registry.ts";
+
+/**
+ * What the broadcast of a channel answers with, which depends on how open it was declared.
+ *
+ * A channel nobody may listen to by default hands out the destination that writes grants. The
+ * other two hand out the plain one, because there is nothing left to open.
+ */
+export type BroadcastOf<T extends object, L extends Listen> = L extends Listen.Granted ? GrantedDestination<T>
+  : Destination<T>;
+
+/**
+ * A named channel, the payload it carries, and the three ways to address it.
+ *
+ * ```ts
+ * interface Order { orderId: string; total: number }
+ *
+ * const order = Realtime.granted<Order>("order", { key: "orderId" });
+ *
+ * await order.all.update(row);                 // everyone granted on "order"
+ * await order.to(accountId).update(row);       // that account alone
+ * await order.topic("seller").update(row);     // everyone granted on "order:#seller"
+ * ```
+ *
+ * `T` sits on the channel rather than on each call because a channel carries one kind of
+ * thing: the type is a property of the declaration, checked at every emission, and impossible
+ * for two call sites to disagree on. `key` names the field of `T` that identifies the row,
+ * and it is constrained by `keyof T`, so a typo does not compile.
+ *
+ * A channel is **built, not extended**: there is nothing to subclass and nothing to override,
+ * which is what keeps every channel of the fleet addressed the same way. It is safe to keep at
+ * module scope, since it holds no client and no identity.
+ *
+ * Nothing here reaches the database. Declaring costs nothing until something is emitted, and
+ * the openness a declaration asks for is written by `syncDeclaredChannels` at boot.
+ */
+export class Realtime<T extends object, L extends Listen = Listen.Granted> {
+  /** The name this channel was declared with, and the prefix of every channel it reaches. */
+  readonly name: string;
+
+  /** How open this channel's own broadcast is. */
+  readonly listen: L;
+
+  readonly #key: keyof T & string;
+
+  private constructor(name: string, listen: L, key: keyof T & string) {
+    this.name = channelName(name);
+    this.listen = listen;
+    this.#key = key;
+    declareChannel(this.name, listen);
+  }
+
+  /**
+   * A channel anyone hears, session or not.
+   *
+   * What travels is as readable as what ships inside the application, so a remote
+   * configuration belongs here and anything tied to an account does not.
+   */
+  static public<T extends { id: string }>(name: string): Realtime<T, Listen.Public>;
+  static public<T extends object>(
+    name: string,
+    options: { key: keyof T & string },
+  ): Realtime<T, Listen.Public>;
+  static public<T extends object>(
+    name: string,
+    options?: { key: keyof T & string },
+  ): Realtime<T, Listen.Public> {
+    return new Realtime<T, Listen.Public>(name, Listen.Public, keyOf<T>(options));
+  }
+
+  /** A channel every caller holding a session hears. */
+  static authenticated<T extends { id: string }>(name: string): Realtime<T, Listen.Authenticated>;
+  static authenticated<T extends object>(
+    name: string,
+    options: { key: keyof T & string },
+  ): Realtime<T, Listen.Authenticated>;
+  static authenticated<T extends object>(
+    name: string,
+    options?: { key: keyof T & string },
+  ): Realtime<T, Listen.Authenticated> {
+    return new Realtime<T, Listen.Authenticated>(name, Listen.Authenticated, keyOf<T>(options));
+  }
+
+  /**
+   * A channel nobody hears until a grant is written for them.
+   *
+   * It is the one to reach for when the answer is not obvious, because the two others hand out
+   * what they carry to a population the declaration cannot name.
+   */
+  static granted<T extends { id: string }>(name: string): Realtime<T, Listen.Granted>;
+  static granted<T extends object>(
+    name: string,
+    options: { key: keyof T & string },
+  ): Realtime<T, Listen.Granted>;
+  static granted<T extends object>(
+    name: string,
+    options?: { key: keyof T & string },
+  ): Realtime<T, Listen.Granted> {
+    return new Realtime<T, Listen.Granted>(name, Listen.Granted, keyOf<T>(options));
+  }
+
+  /** Everyone listening to this channel, as far as its declared openness lets them. */
+  get all(): BroadcastOf<T, L> {
+    return new GrantedDestination<T>(
+      broadcastChannel(this.name),
+      this.#key,
+    ) as BroadcastOf<T, L>;
+  }
+
+  /**
+   * The account `accountId`, and nobody else.
+   *
+   * No grant opens it and none can: the channel carries the identifier, and a caller hears it
+   * when their token says they are that account.
+   */
+  to(accountId: string): AccountDestination<T> {
+    return new AccountDestination<T>(this.name, accountId, this.#key);
+  }
+
+  /**
+   * The accounts granted on `topic`.
+   *
+   * @throws {TypeError} When `topic` is not a name a channel can carry. A project that takes
+   * one from a caller checks it with `isValidTopic` first.
+   */
+  topic(topic: string): GrantedDestination<T> {
+    if (!isValidTopic(topic)) {
+      throw new TypeError(`realtime topic: ${JSON.stringify(topic)} is not a usable name.`);
+    }
+
+    return new GrantedDestination<T>(topicChannel(this.name, topic), this.#key);
+  }
+}
+
+function keyOf<T extends object>(options?: { key: keyof T & string }): keyof T & string {
+  return options?.key ?? ("id" as keyof T & string);
+}
