@@ -17,6 +17,7 @@
   },
   "publish": {
     "exclude": [
+      "examples",
       "tests"
     ]
   }

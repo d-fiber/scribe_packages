@@ -10,6 +10,7 @@
   },
   "publish": {
     "exclude": [
+      "examples",
       "tests"
     ]
   }
