@@ -1,0 +1,119 @@
+// Copyright (C) 2026 Fiber
+//
+// This file is part of scribe and is made available under the PolyForm Shield
+// License 1.0.0. The full terms are in the LICENSE file at the root of this
+// repository, and at https://polyformproject.org/licenses/shield/1.0.0
+//
+// What you may do:
+// - Use this software for any purpose, including commercially, and build and
+//   sell your own products on top of it.
+// - Change it, and create new works based on it.
+// - Distribute copies of it, with or without your changes.
+//
+// The one thing you may not do:
+// - Use it to provide any product that competes with scribe, or with any
+//   product Fiber or its affiliates provide using scribe. Products compete
+//   even when they are offered free of charge, through a different kind of
+//   interface, or for a different technical platform.
+//
+// If you pass this software on:
+// - Anyone who receives any part of it from you must also receive these terms,
+//   or the URL above, together with the "Required Notice" line carried by the
+//   LICENSE file.
+//
+// Disclaimer:
+// AS FAR AS THE LAW ALLOWS, THIS SOFTWARE COMES AS IS, WITHOUT ANY WARRANTY OR
+// CONDITION, AND THE LICENSOR WILL NOT BE LIABLE TO YOU FOR ANY DAMAGES ARISING
+// OUT OF THESE TERMS OR THE USE OR NATURE OF THE SOFTWARE, UNDER ANY KIND OF
+// LEGAL CLAIM.
+//
+// This header is a summary written for convenience. Where it differs from the
+// LICENSE file, the LICENSE file governs.
+
+import "@scribe/core/testing/settings.ts";
+
+import { type PendingToken, PendingTokenPurpose } from "@scribe/auth/src/pending_token.ts";
+import { toHex } from "@scribe/core/runtime/support/crypto/hash.ts";
+import type { AccountRole } from "@scribe/auth/contracts/role.ts";
+import { authSettings } from "@scribe/auth/src/settings.ts";
+
+/** What a forged token carries beyond the identifier and the role it is minted for. */
+export interface ForgedTokenOptions {
+  /** What the token is for, which decides how long a real one would live. A sign-in when absent. */
+  readonly purpose?: PendingTokenPurpose;
+
+  /** The device the token is bound to, null for one that is bound to none. */
+  readonly deviceId?: string | null;
+
+  /** When the token stops being worth anything, in milliseconds. Ten minutes out when absent. */
+  readonly expiresAt?: number;
+}
+
+function hmacKey(): Promise<CryptoKey> {
+  return crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(authSettings.get().pendingTokenSecret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+}
+
+/**
+ * Signs a token exactly the way the real one is signed, without writing its digest down.
+ *
+ * A test that needs the raw token before it can seed the row carrying its digest cannot get one
+ * out of `issue`, which writes first and answers second. `pending_token_forge.test.ts` pins this
+ * against the real implementation, so a change to the signing format fails there rather than
+ * quietly making every fixture unverifiable.
+ */
+export async function forgeToken(
+  identifier: string,
+  role: AccountRole,
+  options: ForgedTokenOptions = {},
+): Promise<string> {
+  const utf8Bytes = new TextEncoder().encode(
+    JSON.stringify({
+      identifier,
+      role,
+      deviceId: options.deviceId ?? null,
+      purpose: options.purpose ?? PendingTokenPurpose.SignIn,
+      jti: crypto.randomUUID(),
+      exp: options.expiresAt ?? Date.now() + 10 * 60 * 1000,
+    }),
+  );
+
+  let binary = "";
+  for (const byte of utf8Bytes) binary += String.fromCharCode(byte);
+  const payloadB64 = btoa(binary);
+
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    await hmacKey(),
+    new TextEncoder().encode(payloadB64),
+  );
+
+  return `${payloadB64}.${toHex(signature)}`;
+}
+
+/**
+ * Mints a real token through `issue`, and throws instead of answering null.
+ *
+ * `issue` answers null when the write fails, which in a test almost always means the database
+ * stand-in was not installed. Throwing says that, where a null would surface much later as a
+ * token that opens nothing.
+ */
+export async function issueToken(
+  token: PendingToken,
+  identifier: string,
+  role: AccountRole,
+  deviceId: string | null = null,
+): Promise<string> {
+  const value = await token.issue(identifier, role, deviceId);
+  if (value === null) {
+    throw new Error(
+      "issueToken: PendingToken.issue() returned null, is the rest mock installed?",
+    );
+  }
+  return value;
+}

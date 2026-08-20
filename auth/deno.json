@@ -1,0 +1,19 @@
+{
+  "name": "@scribe/auth",
+  "exports": {
+    ".": "./mod.ts",
+    "./register": "./register.ts",
+    "./testing": "./testing/mock.ts",
+    "./contracts/account": "./contracts/account.ts",
+    "./contracts/channel": "./contracts/channel.ts",
+    "./contracts/device": "./contracts/device.ts",
+    "./contracts/role": "./contracts/role.ts",
+    "./contracts/settings": "./contracts/settings.ts"
+  },
+  "publish": {
+    "exclude": [
+      "examples",
+      "tests"
+    ]
+  }
+}

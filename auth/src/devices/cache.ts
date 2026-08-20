@@ -1,0 +1,104 @@
+// Copyright (C) 2026 Fiber
+//
+// This file is part of scribe and is made available under the PolyForm Shield
+// License 1.0.0. The full terms are in the LICENSE file at the root of this
+// repository, and at https://polyformproject.org/licenses/shield/1.0.0
+//
+// What you may do:
+// - Use this software for any purpose, including commercially, and build and
+//   sell your own products on top of it.
+// - Change it, and create new works based on it.
+// - Distribute copies of it, with or without your changes.
+//
+// The one thing you may not do:
+// - Use it to provide any product that competes with scribe, or with any
+//   product Fiber or its affiliates provide using scribe. Products compete
+//   even when they are offered free of charge, through a different kind of
+//   interface, or for a different technical platform.
+//
+// If you pass this software on:
+// - Anyone who receives any part of it from you must also receive these terms,
+//   or the URL above, together with the "Required Notice" line carried by the
+//   LICENSE file.
+//
+// Disclaimer:
+// AS FAR AS THE LAW ALLOWS, THIS SOFTWARE COMES AS IS, WITHOUT ANY WARRANTY OR
+// CONDITION, AND THE LICENSOR WILL NOT BE LIABLE TO YOU FOR ANY DAMAGES ARISING
+// OUT OF THESE TERMS OR THE USE OR NATURE OF THE SOFTWARE, UNDER ANY KIND OF
+// LEGAL CLAIM.
+//
+// This header is a summary written for convenience. Where it differs from the
+// LICENSE file, the LICENSE file governs.
+
+import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Valkery } from "@scribe/foundation/src/valkery/valkery.ts";
+import type { AccountDevice } from "../../contracts/device.ts";
+
+const DEVICE_TTL = Time.seconds(300);
+
+function entryOf(accountId: string, deviceId: string): string {
+  return `${accountId}:${deviceId}`;
+}
+
+/**
+ * The devices of an account, remembered whole and one by one.
+ *
+ * The two are kept apart because they go stale for different reasons: one device changing makes
+ * its own entry wrong and the list wrong, while a device being added only makes the list wrong.
+ */
+class DeviceCache {
+  readonly #list = new Valkery<AccountDevice[]>({ key: "account:devices", ttl: DEVICE_TTL });
+  readonly #one = new Valkery<AccountDevice>({ key: "account:device", ttl: DEVICE_TTL });
+  readonly #hardware = new Valkery<unknown>({ key: "device:hw", ttl: DEVICE_TTL });
+
+  /** Every device remembered for this account, or null when none were. */
+  list(accountId: string): Promise<AccountDevice[] | null> {
+    return this.#list.get(accountId);
+  }
+
+  /** Remembers the whole list of devices this account signs in from. */
+  rememberList(accountId: string, devices: AccountDevice[]): Promise<void> {
+    return this.#list.add(accountId, devices);
+  }
+
+  /** The device remembered under this account and identifier, or null when none was. */
+  get(accountId: string, deviceId: string): Promise<AccountDevice | null> {
+    return this.#one.get(entryOf(accountId, deviceId));
+  }
+
+  /** Remembers one device of this account. */
+  remember(accountId: string, deviceId: string, device: AccountDevice): Promise<void> {
+    return this.#one.add(entryOf(accountId, deviceId), device);
+  }
+
+  /** What the client last reported about this device's hardware, or null when nothing was kept. */
+  hardware<T>(accountId: string, deviceId: string): Promise<T | null> {
+    return this.#hardware.get(entryOf(accountId, deviceId)) as Promise<T | null>;
+  }
+
+  /** Remembers what the client reported about this device's hardware. */
+  rememberHardware<T>(accountId: string, deviceId: string, hardware: T): Promise<void> {
+    return this.#hardware.add(entryOf(accountId, deviceId), hardware);
+  }
+
+  /** Drops one device and the list it belonged to, since the list now names a device that changed. */
+  async invalidate(accountId: string, deviceId: string): Promise<void> {
+    await Promise.all([
+      this.#one.delete(entryOf(accountId, deviceId)),
+      this.#hardware.delete(entryOf(accountId, deviceId)),
+      this.#list.delete(accountId),
+    ]);
+  }
+
+  /** Drops everything remembered about this account's devices. */
+  async invalidateAll(accountId: string): Promise<void> {
+    await Promise.all([
+      this.#one.clear(`${accountId}:*`),
+      this.#hardware.clear(`${accountId}:*`),
+      this.#list.delete(accountId),
+    ]);
+  }
+}
+
+/** The devices of an account, for the five minutes a session's worth of requests lasts. */
+export const deviceCache: DeviceCache = new DeviceCache();
