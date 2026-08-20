@@ -40,7 +40,7 @@ const { Audience } = await import("@scribe/audience/mod.ts");
 const { forgetMembership } = await import("@scribe/audience/src/runtime/cache.ts");
 const { audiences } = await import("@scribe/audience/src/db/tables.ts");
 
-const editors = Audience.scoped(`e2e-cached-${RUN_ID}`);
+const editors = Audience.keyed(`e2e-cached-${RUN_ID}`);
 
 Deno.test("audience e2e: a membership answered once is answered from Redis, not from the table", async () => {
   await editors.in("p1").add("c1");

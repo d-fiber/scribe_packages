@@ -37,11 +37,11 @@ import { AudienceKeyError } from "@scribe/audience/src/core/key.ts";
 import { installAudienceMock } from "@scribe/audience/testing/mock.ts";
 import { assert, assertEquals, assertFalse, assertThrows } from "@std/assert";
 
-const banned = Audience.global("declaration-banned");
-const editors = Audience.scoped("declaration-editors");
-const invited = Audience.scoped("declaration-invited", { ttl: Time.days(7) });
+const banned = Audience.plain("declaration-banned");
+const editors = Audience.keyed("declaration-editors");
+const invited = Audience.keyed("declaration-invited", { ttl: Time.days(7) });
 
-Deno.test("a global audience holds the members it was given", async () => {
+Deno.test("a plain audience holds the members it was given", async () => {
   const audiences = installAudienceMock();
 
   try {
@@ -169,13 +169,13 @@ Deno.test("emptying an audience leaves the other scopes alone", async () => {
 });
 
 Deno.test("a name taken twice is refused", () => {
-  Audience.global("declaration-twice");
+  Audience.plain("declaration-twice");
 
-  assertThrows(() => Audience.scoped("declaration-twice"), TypeError);
+  assertThrows(() => Audience.keyed("declaration-twice"), TypeError);
 });
 
 Deno.test("a name or a scope a key cannot hold is refused", () => {
-  assertThrows(() => Audience.global("bad name"), AudienceKeyError);
-  assertThrows(() => Audience.global(""), AudienceKeyError);
+  assertThrows(() => Audience.plain("bad name"), AudienceKeyError);
+  assertThrows(() => Audience.plain(""), AudienceKeyError);
   assertThrows(() => editors.in("p1:p2"), AudienceKeyError);
 });

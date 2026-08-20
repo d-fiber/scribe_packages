@@ -39,7 +39,7 @@ import { type InstalledMock, installMock } from "@scribe/core/testing/install.ts
 import type { PostgrestClient } from "@supabase/postgrest-js";
 import { assertEquals, assertFalse } from "@std/assert";
 
-const editors = Audience.scoped("down-editors");
+const editors = Audience.keyed("down-editors");
 
 function installUnreachableDatabase(): InstalledMock {
   const unreachable = {

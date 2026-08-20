@@ -31,7 +31,7 @@
 // LICENSE file, the LICENSE file governs.
 
 export { Audience } from "./src/core/declaration.ts";
-export type { Members, ScopedAudience } from "./src/core/declaration.ts";
+export type { KeyedAudience, Members } from "./src/core/declaration.ts";
 export { audiencesOf, forgetMember } from "./src/core/member.ts";
 export { AudienceKeyError } from "./src/core/key.ts";
 export { MAX_AUDIENCES, MAX_MEMBERS } from "./src/db/members.ts";

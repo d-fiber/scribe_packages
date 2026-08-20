@@ -40,8 +40,8 @@ const { Audience, audiencesOf, forgetMember } = await import("@scribe/audience/m
 const { AudienceError } = await import("@scribe/audience/contracts/audience.ts");
 const { audiences } = await import("@scribe/audience/src/db/tables.ts");
 
-const banned = Audience.global(`e2e-banned-${RUN_ID}`);
-const editors = Audience.scoped(`e2e-editors-${RUN_ID}`);
+const banned = Audience.plain(`e2e-banned-${RUN_ID}`);
+const editors = Audience.keyed(`e2e-editors-${RUN_ID}`);
 
 Deno.test("audience e2e: a member put in is a row the database completed", async () => {
   const [added, took] = await timed(() => banned.add(member("a1")));

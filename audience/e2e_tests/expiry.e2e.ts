@@ -41,7 +41,7 @@ const { Audience } = await import("@scribe/audience/mod.ts");
 const { AudienceError } = await import("@scribe/audience/contracts/audience.ts");
 const { audiences } = await import("@scribe/audience/src/db/tables.ts");
 
-const invited = Audience.scoped(`e2e-invited-${RUN_ID}`, { ttl: Time.days(7) });
+const invited = Audience.keyed(`e2e-invited-${RUN_ID}`, { ttl: Time.days(7) });
 
 async function expiryOf(audience: string, member: string): Promise<number | null> {
   const row = await audiences()

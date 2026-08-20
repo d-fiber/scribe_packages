@@ -35,7 +35,7 @@ import { forgetMembership } from "@scribe/audience/src/runtime/cache.ts";
 import { installAudienceMock } from "@scribe/audience/testing/mock.ts";
 import { assert, assertFalse } from "@std/assert";
 
-const editors = Audience.scoped("cache-editors");
+const editors = Audience.keyed("cache-editors");
 
 Deno.test("a membership asked about once is answered from the cache until something drops it", async () => {
   const audiences = installAudienceMock();

@@ -6,7 +6,7 @@ import { Audience, audiencesOf } from "@scribe/audience/mod.ts";
  *
  * There is no scope to name, so the members are asked for directly.
  */
-export const banned = Audience.global("banned");
+export const banned = Audience.plain("banned");
 
 /**
  * A named set with one membership list per scope.
@@ -14,7 +14,7 @@ export const banned = Audience.global("banned");
  * `in` is what picks the list, and the scope is whatever the project keys the right on: a
  * project, a tenant, a document.
  */
-export const editors = Audience.scoped("project-editors");
+export const editors = Audience.keyed("project-editors");
 
 /**
  * A set whose memberships expire on their own.
@@ -22,9 +22,9 @@ export const editors = Audience.scoped("project-editors");
  * Naming the lifetime on the declaration is what makes a right nobody remembers to take back
  * impossible: every caller inherits it, and a caller that wants otherwise says so per member.
  */
-export const invited = Audience.scoped("project-invited", { ttl: Time.days(7) });
+export const invited = Audience.keyed("project-invited", { ttl: Time.days(7) });
 
-/** Whether an account is in the global set. */
+/** Whether an account is in the plain set. */
 export function isBanned(accountId: string): Promise<boolean> {
   return banned.has(accountId);
 }

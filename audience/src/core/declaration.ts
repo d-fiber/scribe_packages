@@ -101,12 +101,12 @@ export interface Members {
 }
 
 /**
- * A family of audiences, one per thing the project scopes them by.
+ * A family of audiences, one per thing the project keys them on.
  *
  * It carries nothing a caller can ask directly, and that is the whole of what it buys: naming the
  * scope is the only way in, so a check meant for one project cannot read the members of another.
  */
-export interface ScopedAudience {
+export interface KeyedAudience {
   /** The name every audience of this family is keyed under. */
   readonly name: string;
 
@@ -122,19 +122,19 @@ export interface ScopedAudience {
  * One named set a project puts identifiers into, and asks about on the way in.
  *
  * ```ts
- * const banned = Audience.global("banned");
- * const editors = Audience.scoped("project-editors");
+ * const banned = Audience.plain("banned");
+ * const editors = Audience.keyed("project-editors");
  *
  * await banned.has(accountId);
  * await editors.in(projectId).add(accountId, { ttl: Time.days(30) });
  * await editors.in(projectId).has(accountId);
  * ```
  *
- * The two ways of declaring answer two different questions. A global audience is one set, so
- * asking whether somebody is in it is a complete question. A scoped audience is a family, one set
- * per project, per workspace or per whatever the project scopes it by, and the question means
- * nothing until the scope is named. That is why they hand back {@link Members} and
- * {@link ScopedAudience}: the compiler refuses a check that forgot its scope.
+ * The two ways of declaring answer two different questions. A plain audience is one set, so asking
+ * whether somebody is in it is a complete question. A keyed audience is a family, one set per
+ * project, per workspace or per whatever the project keys it on, and the question means nothing
+ * until that key is named. That is why they hand back {@link Members} and {@link KeyedAudience}:
+ * the compiler refuses a check that forgot its scope.
  *
  * A declaration is **built, not extended**: the constructor is private and both factories hand
  * back an interface, so there is one way to make one and it names everything at once. It is safe
@@ -144,7 +144,7 @@ export interface ScopedAudience {
  * is in an audience and settles the rest itself, and a module that needs a right of its own names
  * the audience it reads instead of growing a second table.
  */
-export class Audience implements Members, ScopedAudience {
+export class Audience implements Members, KeyedAudience {
   readonly name: string;
 
   readonly #ttl: Time | null;
@@ -160,17 +160,17 @@ export class Audience implements Members, ScopedAudience {
    * @throws {TypeError} When another declaration already took `name`.
    * @throws {AudienceKeyError} When `name` carries anything a key cannot hold.
    */
-  static global(name: string, options: AudienceOptions = {}): Members {
+  static plain(name: string, options: AudienceOptions = {}): Members {
     return new Audience(Audience.#declared(name), options.ttl ?? null);
   }
 
   /**
-   * Declares a family of audiences named `name`, one per scope a caller names.
+   * Declares a family of audiences named `name`, one per scope a caller keys it on.
    *
    * @throws {TypeError} When another declaration already took `name`.
    * @throws {AudienceKeyError} When `name` carries anything a key cannot hold.
    */
-  static scoped(name: string, options: AudienceOptions = {}): ScopedAudience {
+  static keyed(name: string, options: AudienceOptions = {}): KeyedAudience {
     return new Audience(Audience.#declared(name), options.ttl ?? null);
   }
 

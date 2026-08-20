@@ -62,7 +62,7 @@ export function audienceSegment(value: string): string {
 }
 
 /**
- * The key `name` answers to once narrowed to `scope`, which is empty for a global audience.
+ * The key `name` answers to once narrowed to `scope`, which is empty for a plain audience.
  *
  * @throws {AudienceKeyError} When any segment carries something a key cannot hold.
  */

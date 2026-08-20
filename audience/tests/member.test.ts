@@ -35,8 +35,8 @@ import { audiencesOf, forgetMember } from "@scribe/audience/src/core/member.ts";
 import { installAudienceMock } from "@scribe/audience/testing/mock.ts";
 import { assert, assertEquals, assertFalse } from "@std/assert";
 
-const banned = Audience.global("member-banned");
-const editors = Audience.scoped("member-editors");
+const banned = Audience.plain("member-banned");
+const editors = Audience.keyed("member-editors");
 
 Deno.test("a member is listed under every audience it belongs to", async () => {
   const audiences = installAudienceMock();

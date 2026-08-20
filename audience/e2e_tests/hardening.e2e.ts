@@ -31,20 +31,14 @@
 // LICENSE file, the LICENSE file governs.
 
 import { assert, assertEquals } from "@std/assert";
-import {
-  readAsRole,
-  requireStack,
-  RUN_ID,
-  STACK,
-  useStack,
-} from "./support/stack.ts";
+import { readAsRole, requireStack, RUN_ID, STACK, useStack } from "./support/stack.ts";
 
 await requireStack(`${STACK.restUrl}/`);
 await useStack();
 
 const { Audience } = await import("@scribe/audience/mod.ts");
 
-const banned = Audience.global(`e2e-closed-${RUN_ID}`);
+const banned = Audience.plain(`e2e-closed-${RUN_ID}`);
 
 const PERMISSION_DENIED = "42501";
 
