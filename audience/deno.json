@@ -1,0 +1,13 @@
+{
+  "name": "@scribe/audience",
+  "exports": {
+    ".": "./mod.ts",
+    "./testing": "./testing/mock.ts",
+    "./contracts/audience": "./contracts/audience.ts"
+  },
+  "publish": {
+    "exclude": [
+      "tests"
+    ]
+  }
+}

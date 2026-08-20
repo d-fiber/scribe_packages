@@ -1,0 +1,13 @@
+{
+  "name": "@scribe/dynamic_links",
+  "exports": {
+    ".": "./mod.ts",
+    "./testing": "./testing/mock.ts",
+    "./contracts/link": "./contracts/link.ts"
+  },
+  "publish": {
+    "exclude": [
+      "tests"
+    ]
+  }
+}

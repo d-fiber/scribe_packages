@@ -1,0 +1,37 @@
+name: scribe-remote-configs-e2e
+
+services:
+  db:
+    container_name: "scribe-remote-configs-e2e-db"
+    ports: ["55439:5432"]
+    volumes:
+      - "./.postgres:/var/lib/postgresql/data:Z"
+      - "./db/skipped_features:/docker-entrypoint-init-sql/framework/04_features:ro"
+    command:
+      [
+        "postgres",
+        "-c",
+        "config_file=/etc/postgresql/postgresql.conf",
+        "-c",
+        "log_min_messages=fatal",
+        "-c",
+        "max_connections=100",
+        "-c",
+        "shared_buffers=256MB",
+        "-c",
+        "effective_cache_size=1GB",
+      ]
+
+  rest:
+    container_name: "scribe-remote-configs-e2e-rest"
+    ports: ["53007:3000"]
+
+  db-migrate:
+    container_name: "scribe-remote-configs-e2e-db-migrate"
+
+  redis:
+    container_name: "scribe-remote-configs-e2e-redis"
+    ports: ["56383:6379"]
+
+volumes:
+  db-config: null

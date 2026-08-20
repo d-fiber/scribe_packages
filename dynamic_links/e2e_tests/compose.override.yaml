@@ -1,0 +1,51 @@
+name: scribe-dynamic-links-e2e
+
+services:
+  db:
+    container_name: "scribe-dynamic-links-e2e-db"
+    ports: ["55437:5432"]
+    volumes:
+      - "./.postgres:/var/lib/postgresql/data:Z"
+      - "./db/skipped_features:/docker-entrypoint-init-sql/framework/04_features:ro"
+    command:
+      [
+        "postgres",
+        "-c",
+        "config_file=/etc/postgresql/postgresql.conf",
+        "-c",
+        "log_min_messages=fatal",
+        "-c",
+        "max_connections=100",
+        "-c",
+        "shared_buffers=256MB",
+        "-c",
+        "effective_cache_size=1GB",
+      ]
+
+  rest:
+    container_name: "scribe-dynamic-links-e2e-rest"
+    ports: ["53005:3000"]
+
+  db-migrate:
+    container_name: "scribe-dynamic-links-e2e-db-migrate"
+
+  redis:
+    container_name: "scribe-dynamic-links-e2e-redis"
+    ports: ["56381:6379"]
+
+  nats:
+    container_name: "scribe-dynamic-links-e2e-nats"
+    ports: ["54223:4222", "58223:8222"]
+    command:
+      [
+        "-js",
+        "-sd",
+        "/data",
+        "-m",
+        "8222",
+        "--auth",
+        "${NATS_PASSWORD}",
+      ]
+
+volumes:
+  db-config: null

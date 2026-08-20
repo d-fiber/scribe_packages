@@ -34,7 +34,7 @@
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)
 
 usage() {
-  echo "usage: $(basename "$0") <foundation|realtime|storage|search>" >&2
+  echo "usage: $(basename "$0") <foundation|realtime|storage|search|dynamic_links|audience|remote_configs>" >&2
   exit 64
 }
 
@@ -57,6 +57,18 @@ resolve_package() {
     search)
       FRAGMENTS=(valkery database search search_overlay)
       PROFILE=(--profile search)
+      ;;
+    dynamic_links)
+      FRAGMENTS=(valkery queue database dynamic_links_overlay)
+      PROFILE=()
+      ;;
+    audience)
+      FRAGMENTS=(valkery database audience_overlay)
+      PROFILE=()
+      ;;
+    remote_configs)
+      FRAGMENTS=(valkery database remote_configs_overlay)
+      PROFILE=()
       ;;
     *)
       usage

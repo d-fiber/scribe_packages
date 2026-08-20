@@ -1,0 +1,13 @@
+{
+  "name": "@scribe/remote_configs",
+  "exports": {
+    ".": "./mod.ts",
+    "./testing": "./testing/mock.ts",
+    "./contracts/config": "./contracts/config.ts"
+  },
+  "publish": {
+    "exclude": [
+      "tests"
+    ]
+  }
+}

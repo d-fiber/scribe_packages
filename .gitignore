@@ -9,7 +9,13 @@ __pycache__/
 /realtime/e2e_tests/.generated/
 /storage/e2e_tests/.generated/
 /search/e2e_tests/.generated/
+/dynamic_links/e2e_tests/.generated/
+/audience/e2e_tests/.generated/
+/remote_configs/e2e_tests/.generated/
 /foundation/e2e_tests/.postgres/
 /realtime/e2e_tests/.postgres/
 /storage/e2e_tests/.postgres/
 /search/e2e_tests/.postgres/
+/dynamic_links/e2e_tests/.postgres/
+/audience/e2e_tests/.postgres/
+/remote_configs/e2e_tests/.postgres/

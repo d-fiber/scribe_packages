@@ -1,0 +1,4 @@
+services:
+  db:
+    volumes:
+      - "{{sdk_root}}/host/packages/remote_configs/db/init:/docker-entrypoint-init-sql/modules/remote_configs:ro"
