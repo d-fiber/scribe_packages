@@ -30,17 +30,45 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { LinkError, LinkKind } from "@scribe/dynamic_links/contracts/link.ts";
+import { LinkError, LinkKind, LinkPlatform } from "@scribe/dynamic_links/contracts/link.ts";
 import { DynamicLink } from "@scribe/dynamic_links/src/core/declaration.ts";
+import { DestinationKind, Link, type Visit } from "@scribe/dynamic_links/src/core/destination.ts";
 import { installDynamicLinksMock } from "@scribe/dynamic_links/testing/mock.ts";
 import { assert, assertEquals, assertThrows } from "@std/assert";
 
-const invite = DynamicLink.deeplink("declaration-invite", "/invite/{code}", {
-  web: ({ code }) => `https://example.test/invite/${code}`,
-  preview: ({ code }) => ({ title: `Invitation ${code}` }),
+interface Invite {
+  code: string;
+}
+
+interface Promo {
+  campaign: string;
+}
+
+const invite = DynamicLink.deeplink<Invite>("declaration-invite", { path: "/invite/{code}" });
+
+const promo = DynamicLink.redirect<Promo>("declaration-promo", {
+  url: "https://shop.example.test/{campaign}",
 });
 
-const promo = DynamicLink.redirect("declaration-promo", "https://shop.example.test/{campaign}");
+const bare = DynamicLink.deeplink("declaration-bare");
+
+const smart = DynamicLink.routed<Invite>("declaration-smart", {
+  decide: (visit, data) =>
+    visit.platform === LinkPlatform.Web
+      ? Link.web(`https://example.test/i/${data.code}`)
+      : Link.app(`/invite/${data.code}`),
+});
+
+function visitFrom(platform: LinkPlatform): Visit {
+  return {
+    platform,
+    isCrawler: false,
+    userAgent: "test",
+    ipAddress: "203.0.113.1",
+    country: null,
+    language: null,
+  };
+}
 
 Deno.test("a created link carries the declaration and its parameters, and nothing else", async () => {
   const database = installDynamicLinksMock();
@@ -88,23 +116,52 @@ Deno.test("a parameter the template does not get refuses the creation", async ()
   }
 });
 
-Deno.test("a declaration renders the route and the web address of its parameters", () => {
+Deno.test("a deeplink sends a visitor to the route its data renders", () => {
   assertEquals(invite.kind, LinkKind.Deeplink);
-  assertEquals(invite.routeFor({ code: "A1B2" }), "/invite/A1B2");
-  assertEquals(invite.targetFor({ code: "A1B2" }), "https://example.test/invite/A1B2");
-  assertEquals(invite.previewFor({ code: "A1B2" }), { title: "Invitation A1B2" });
+  assertEquals(invite.destinationFor(visitFrom(LinkPlatform.IOS), { code: "A1B2" }), {
+    kind: DestinationKind.App,
+    path: "/invite/A1B2",
+    fallback: { kind: DestinationKind.Store },
+  });
 });
 
-Deno.test("a redirect names no route, and answers the address its template renders", () => {
+Deno.test("a deeplink naming no path sends a visitor to the root of the application", () => {
+  assertEquals(bare.destinationFor(visitFrom(LinkPlatform.Android), {}), {
+    kind: DestinationKind.App,
+    path: "/",
+    fallback: { kind: DestinationKind.Store },
+  });
+});
+
+Deno.test("a redirect sends a visitor to the address its template renders", () => {
   assertEquals(promo.kind, LinkKind.Redirect);
-  assertEquals(promo.routeFor({ campaign: "summer" }), null);
-  assertEquals(promo.targetFor({ campaign: "summer" }), "https://shop.example.test/summer");
+  assertEquals(promo.destinationFor(visitFrom(LinkPlatform.Web), { campaign: "summer" }), {
+    kind: DestinationKind.Web,
+    url: "https://shop.example.test/summer",
+  });
 });
 
-Deno.test("an address that is not http answers as no address at all", () => {
-  const scheme = DynamicLink.redirect("declaration-scheme", "javascript:{payload}");
+Deno.test("an address that is not http sends a visitor nowhere", () => {
+  const scheme = DynamicLink.redirect<{ payload: string }>("declaration-scheme", {
+    url: "javascript:{payload}",
+  });
 
-  assertEquals(scheme.targetFor({ payload: "alert(1)" }), null);
+  assertEquals(scheme.destinationFor(visitFrom(LinkPlatform.Web), { payload: "alert(1)" }), {
+    kind: DestinationKind.None,
+  });
+});
+
+Deno.test("a routed declaration answers what its own rule decided", () => {
+  assertEquals(smart.kind, LinkKind.Routed);
+  assertEquals(smart.destinationFor(visitFrom(LinkPlatform.Web), { code: "A1B2" }), {
+    kind: DestinationKind.Web,
+    url: "https://example.test/i/A1B2",
+  });
+  assertEquals(smart.destinationFor(visitFrom(LinkPlatform.IOS), { code: "A1B2" }), {
+    kind: DestinationKind.App,
+    path: "/invite/A1B2",
+    fallback: { kind: DestinationKind.Store },
+  });
 });
 
 Deno.test("revoking a slug another declaration wrote answers not found", async () => {
@@ -142,7 +199,7 @@ Deno.test("revoking a slug of this declaration removes it", async () => {
 
 Deno.test("two declarations cannot take the same name", () => {
   assertThrows(
-    () => DynamicLink.deeplink("declaration-invite", "/other/{code}"),
+    () => DynamicLink.deeplink("declaration-invite", { path: "/other/{code}" }),
     TypeError,
     "declared twice",
   );

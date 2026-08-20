@@ -42,8 +42,8 @@ export interface StoredPayload {
   /** The name of the declaration that wrote this link, which is what resolution looks up. */
   readonly k: string;
 
-  /** The parameters that link was created with, one entry per placeholder of the template. */
-  readonly a: Readonly<Record<string, string>>;
+  /** The data that link was created with, as its declaration named it. */
+  readonly a: Readonly<Record<string, string | number | boolean>>;
 }
 
 /** One row of the table this package keeps of the links that were created. */

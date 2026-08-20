@@ -42,7 +42,9 @@ const { queueRunner } = await import("@scribe/foundation/src/queue/mod.ts");
 
 const KEEPS_A_CONNECTION = { sanitizeOps: false, sanitizeResources: false } as const;
 
-const visited = DynamicLink.deeplink(`e2e-visited-${RUN_ID}`, "/party/{partyId}");
+const visited = DynamicLink.deeplink<{ partyId: string }>(`e2e-visited-${RUN_ID}`, {
+  path: "/party/{partyId}",
+});
 
 async function drain(expected: number): Promise<number> {
   let moved = 0;

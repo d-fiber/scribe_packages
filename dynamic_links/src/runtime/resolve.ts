@@ -32,10 +32,11 @@
 
 import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
 import { LinkError, type LinkOutcome, type LinkPreview, type LinkVisitor } from "../../contracts/link.ts";
-import type { DynamicLink } from "../core/declaration.ts";
+import type { AnyLinkData, DynamicLink, LinkData } from "../core/declaration.ts";
+import type { LinkDestination, Visit } from "../core/destination.ts";
 import { guarded } from "../core/guard.ts";
+import { previewOf } from "../core/preview.ts";
 import { type AnyDynamicLink, linkNamed } from "../core/registry.ts";
-import type { LinkParams } from "../core/template.ts";
 import { linkBySlug } from "../db/links.ts";
 import { dynamicLinkStatisticsQueue } from "../db/statistics.ts";
 import type { DynamicLinkRow } from "../db/tables.ts";
@@ -51,8 +52,8 @@ export class ResolvedLink {
   /** The slug that was asked for. */
   readonly slug: string;
 
-  /** The parameters the link was created with, as its row holds them. */
-  readonly args: Readonly<Record<string, string>>;
+  /** The data the link was created with, as its row holds it. */
+  readonly data: AnyLinkData;
 
   /** When this link stops resolving, in milliseconds, null for a link that never expires. */
   readonly expiresAt: number | null;
@@ -66,7 +67,7 @@ export class ResolvedLink {
    */
   constructor(row: DynamicLinkRow, declaration: AnyDynamicLink) {
     this.slug = row.slug;
-    this.args = row.payload.a;
+    this.data = row.payload.a;
     this.expiresAt = row.expires_at;
     this.#id = row.link_id;
     this.#declaration = declaration;
@@ -77,31 +78,36 @@ export class ResolvedLink {
     return this.#declaration.name;
   }
 
-  /** The route the application opens, null for a link that names no route. */
-  get route(): string | null {
-    return this.#declaration.routeFor(this.args);
-  }
-
-  /** The address a browser is sent to, null for a link that names none. */
-  get target(): string | null {
-    return this.#declaration.targetFor(this.args);
-  }
-
-  /** What a card shows for this link, null when its declaration writes no preview. */
-  get preview(): LinkPreview | null {
-    return this.#declaration.previewFor(this.args);
+  /**
+   * Where `visit` is sent, as this link's declaration decides it.
+   *
+   * It reaches nothing and reads no request: the page hands over what it read, and the answer is
+   * a value a test can assert on without serving anything.
+   */
+  destination(visit: Visit): LinkDestination {
+    return this.#declaration.destinationFor(visit, this.data);
   }
 
   /**
-   * Whether this link was created from `declaration`, which also types its parameters.
+   * What a card shows for this link in `locale`, null when no rule was declared.
+   *
+   * The rule is the one `onLinkPreview` holds, so the text is written where a project keeps its
+   * translations rather than on the declaration, which is read long before anybody opens it.
+   */
+  preview(locale: string | null): LinkPreview | null {
+    return previewOf({ name: this.name, data: this.data }, locale);
+  }
+
+  /**
+   * Whether this link was created from `declaration`, which also types its data.
    *
    * ```ts
-   * if (link.declaredBy(invite)) link.args.code;
+   * if (link.declaredBy(invite)) link.data.code;
    * ```
    */
-  declaredBy<P extends string>(
-    declaration: DynamicLink<P>,
-  ): this is ResolvedLink & { readonly args: LinkParams<P> } {
+  declaredBy<T extends LinkData<T>>(
+    declaration: DynamicLink<T>,
+  ): this is ResolvedLink & { readonly data: T } {
     return this.#declaration === (declaration as unknown as AnyDynamicLink);
   }
 

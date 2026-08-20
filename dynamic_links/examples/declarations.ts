@@ -1,17 +1,32 @@
 import { Time } from "@scribe/core/contracts/common/time.ts";
-import { DynamicLink } from "@scribe/dynamic_links/mod.ts";
+import { DynamicLink, Link, LinkPlatform } from "@scribe/dynamic_links/mod.ts";
+
+/** What an invitation link carries to the application that opens it. */
+export interface Invite {
+  /** The code the invited account redeems. */
+  code: string;
+
+  /** The account that sent the invitation. */
+  invitedBy: string;
+}
+
+/** What a share link carries to the page it lands on. */
+export interface Shared {
+  /** The page the share was made from. */
+  from: string;
+
+  /** The account that shared it. */
+  sharedBy: string;
+}
 
 /**
- * A link the native application opens on a route, with an address for a browser beside it.
+ * A link the native application opens on a route.
  *
- * The template carries its parameters in the type, so a call that forgets one does not
- * compile. A row holds the name of the declaration and those parameters, and nothing else:
- * where a link points is decided here, in code, rather than copied into every row when it was
- * created.
+ * A row holds the name of the declaration and the data, and nothing else: where the link points
+ * is decided here, so changing the route changes every link already handed out.
  */
-export const invite = DynamicLink.deeplink("invite", "/invite/{code}", {
-  web: ({ code }) => `https://example.app/invite/${code}`,
-  preview: ({ code }) => ({ title: `Invitation ${code}` }),
+export const invite = DynamicLink.deeplink<Invite>("invite", {
+  path: "/invite/{code}",
   ttl: Time.days(30),
 });
 
@@ -20,23 +35,53 @@ export const invite = DynamicLink.deeplink("invite", "/invite/{code}", {
  *
  * Without a `ttl` it resolves forever, which is what a campaign address wants.
  */
-export const promo = DynamicLink.redirect("promo", "https://shop.example/{campaign}");
+export const partner = DynamicLink.redirect<Shared>("partner", {
+  url: "https://partner.example/from/{from}",
+  ttl: Time.days(10),
+});
 
 /**
- * Creates one link and answers the slug it took.
+ * A link with no route and no data, which sends whoever has no application to its store.
  *
- * Up to five slugs are drawn, because the table refuses one it already holds. Five collisions
- * in a row is not a collision, it is a table that stopped accepting the insert, so the failure
- * names the conflict rather than retrying forever.
+ * The application opens on its own root when it is installed, so nothing has to be named.
  */
-export async function inviteFor(code: string, userId: string): Promise<string | null> {
-  const created = await invite.create({ code }, { userId });
+export const install = DynamicLink.deeplink("install");
+
+/**
+ * A link whose destination is decided per visit rather than declared.
+ *
+ * It is the only declaration that carries code, and it reads what the page knows: the platform,
+ * the country, whether a robot is asking. The server never learns whether the application is
+ * installed, so the application is attempted and the fallback is what most visitors get.
+ */
+export const shared = DynamicLink.routed<Invite>("shared", {
+  ttl: Time.days(30),
+  decide: (visit, data) =>
+    visit.platform === LinkPlatform.Web
+      ? Link.web(`https://example.app/i/${data.code}`)
+      : Link.app(`/invite/${data.code}`, { fallback: Link.store() }),
+});
+
+/** Creates one link and answers the slug it took. */
+export async function inviteFor(
+  code: string,
+  invitedBy: string,
+): Promise<string | null> {
+  const created = await invite.create({ code, invitedBy });
   return created.ok ? created.data.slug : null;
 }
 
 /** A link of its own lifetime, which overrides what the declaration says. */
-export async function shortLivedInvite(code: string): Promise<string | null> {
-  const created = await invite.create({ code }, { expiresAt: Date.now() + Time.hours(1).ms });
+export async function shortLivedInvite(
+  code: string,
+  invitedBy: string,
+): Promise<string | null> {
+  const created = await invite.create(
+    { code, invitedBy },
+    {
+      expiresAt: Date.now() + Time.hours(1).ms,
+    },
+  );
   return created.ok ? created.data.slug : null;
 }
 

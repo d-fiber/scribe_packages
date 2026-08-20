@@ -31,20 +31,33 @@
 // LICENSE file, the LICENSE file governs.
 
 export { DynamicLink } from "./src/core/declaration.ts";
-export type { CreateLinkOptions, DeeplinkOptions, LinkOptions, LinkPage } from "./src/core/declaration.ts";
+export type {
+  AnyLinkData,
+  CreateLinkOptions,
+  DeeplinkOptions,
+  LinkData,
+  LinkOptions,
+  LinkPage,
+  LinkValue,
+  RedirectOptions,
+  RoutedOptions,
+} from "./src/core/declaration.ts";
+export { DestinationKind, Link } from "./src/core/destination.ts";
+export type { AppOptions, LinkDestination, LinkFactory, Visit } from "./src/core/destination.ts";
+export { onLinkPreview } from "./src/core/preview.ts";
+export type { LinkPreviewRule, PreviewedLink } from "./src/core/preview.ts";
 export { declaredLinks, linkNamed } from "./src/core/registry.ts";
 export type { AnyDynamicLink } from "./src/core/registry.ts";
-export { LinkTemplate, LinkTemplateError } from "./src/core/template.ts";
-export type { LinkParams } from "./src/core/template.ts";
-export { isSafeRedirectUrl } from "./src/core/url.ts";
 export { generateSlug } from "./src/core/slug.ts";
+export { LinkTemplate, LinkTemplateError } from "./src/core/template.ts";
+export { isSafeRedirectUrl } from "./src/core/url.ts";
 
-export { ResolvedLink, resolveLink } from "./src/runtime/resolve.ts";
 export { forgetLink } from "./src/runtime/cache.ts";
+export { ResolvedLink, resolveLink } from "./src/runtime/resolve.ts";
 
 export { dynamicLinkStatisticsQueue } from "./src/db/statistics.ts";
 export type { RecordedVisit } from "./src/db/statistics.ts";
 export type { DynamicLinkRow, DynamicLinkStatisticRow, StoredPayload } from "./src/db/tables.ts";
 
-export type { CreatedLink, LinkPreview, LinkStatistic, LinkVisitor } from "./contracts/link.ts";
 export { LinkError, LinkKind, LinkOutcome, LinkPlatform } from "./contracts/link.ts";
+export type { CreatedLink, LinkPreview, LinkStatistic, LinkVisitor } from "./contracts/link.ts";

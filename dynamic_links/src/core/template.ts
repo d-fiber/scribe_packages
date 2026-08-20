@@ -32,17 +32,6 @@
 
 const PLACEHOLDER_PATTERN = /\{([A-Za-z][A-Za-z0-9_]*)\}/g;
 
-/**
- * The parameters a template takes, one string per placeholder it writes.
- *
- * It is what makes a forgotten parameter a compilation error rather than a link whose address
- * still carries a pair of braces. The names are read off the template itself, so a declaration
- * that gains a placeholder breaks every call that has not been given the new value.
- */
-export type LinkParams<S extends string> = S extends `${string}{${infer N}}${infer R}`
-  ? { readonly [K in N]: string } & LinkParams<R>
-  : Record<never, never>;
-
 /** A template that names something no link could render. */
 export class LinkTemplateError extends Error {
   /** The template as it was declared. */

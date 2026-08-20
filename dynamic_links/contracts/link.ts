@@ -37,6 +37,9 @@ export enum LinkKind {
 
   /** A web address, and nothing else. */
   Redirect = "redirect",
+
+  /** A link whose destination one rule decides per visit. */
+  Routed = "routed",
 }
 
 /** What became of one visit, as the node that served the link reports it. */

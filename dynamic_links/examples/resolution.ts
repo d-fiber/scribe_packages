@@ -1,15 +1,19 @@
-import { type LinkError, LinkOutcome, LinkPlatform, resolveLink } from "@scribe/dynamic_links/mod.ts";
+import {
+  type LinkDestination,
+  type LinkError,
+  LinkOutcome,
+  LinkPlatform,
+  resolveLink,
+  type Visit,
+} from "@scribe/dynamic_links/mod.ts";
 import { invite } from "./declarations.ts";
 
-/** Where a visitor holding a slug is sent, and what the card shows on the way. */
+/** What the page serving a slug answers, once it has decided. */
 export interface Landing {
-  /** The application route to open, null for a link that only redirects. */
-  readonly route: string | null;
+  /** Where the visitor is sent, as the declaration decided it. */
+  readonly destination: LinkDestination;
 
-  /** The web address to send a browser to, null when the declaration names none. */
-  readonly target: string | null;
-
-  /** The title a messenger unfurls, null when the declaration computes no preview. */
+  /** The title a messenger unfurls, null when no preview rule was declared. */
   readonly title: string | null;
 }
 
@@ -20,27 +24,30 @@ export interface Landing {
  * created is what an address scanner asks for, and caching only the links that exist would
  * send every one of those queries to Postgres.
  */
-export async function land(slug: string): Promise<Landing | LinkError> {
+export async function land(slug: string, visit: Visit): Promise<Landing | LinkError> {
   const hit = await resolveLink(slug);
   if (!hit.ok) return hit.error;
 
   const link = hit.data;
   await link.record(LinkOutcome.OpenedApp, { platform: LinkPlatform.IOS });
 
-  return { route: link.route, target: link.target, title: link.preview?.title ?? null };
+  return {
+    destination: link.destination(visit),
+    title: link.preview(visit.language)?.title ?? null,
+  };
 }
 
 /**
- * Narrows a resolved link to one declaration, which types its parameters with it.
+ * Narrows a resolved link to one declaration, which types its data with it.
  *
- * Before the test `args` is a bag of strings; inside it, it is what the declaration's template
- * writes, so a typo in a parameter name does not compile.
+ * Before the test `data` is any declaration's data; inside it, it is what the declaration named,
+ * so a typo in a field name does not compile.
  */
 export async function codeOf(slug: string): Promise<string | null> {
   const hit = await resolveLink(slug);
   if (!hit.ok) return null;
 
-  return hit.data.declaredBy(invite) ? hit.data.args.code : null;
+  return hit.data.declaredBy(invite) ? hit.data.data.code : null;
 }
 
 /** The visits one slug collected, a page at a time. */

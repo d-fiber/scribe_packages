@@ -30,10 +30,10 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { DynamicLink } from "./declaration.ts";
+import type { AnyLinkData, DynamicLink } from "./declaration.ts";
 
-/** Any declared link, whatever template it was declared with. */
-export type AnyDynamicLink = DynamicLink<string>;
+/** Any declared link, whatever data it was declared with. */
+export type AnyDynamicLink = DynamicLink<AnyLinkData>;
 
 const declarations = new Map<string, AnyDynamicLink>();
 

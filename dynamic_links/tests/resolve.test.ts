@@ -32,6 +32,8 @@
 
 import { LinkError, LinkOutcome, LinkPlatform } from "@scribe/dynamic_links/contracts/link.ts";
 import { DynamicLink } from "@scribe/dynamic_links/src/core/declaration.ts";
+import { DestinationKind, type Visit } from "@scribe/dynamic_links/src/core/destination.ts";
+import { onLinkPreview } from "@scribe/dynamic_links/src/core/preview.ts";
 import { dynamicLinkStatisticsQueue, type RecordedVisit } from "@scribe/dynamic_links/src/db/statistics.ts";
 import { resolveLink } from "@scribe/dynamic_links/src/runtime/resolve.ts";
 import { installDynamicLinksMock } from "@scribe/dynamic_links/testing/mock.ts";
@@ -39,9 +41,20 @@ import { installMock } from "@scribe/core/testing/install.ts";
 import type { Row } from "@scribe/foundation/testing/database.ts";
 import { assert, assertEquals } from "@std/assert";
 
-const party = DynamicLink.deeplink("resolve-party", "/party/{partyId}", {
-  web: ({ partyId }) => `https://example.test/party/${partyId}`,
-});
+interface Party {
+  partyId: string;
+}
+
+const party = DynamicLink.deeplink<Party>("resolve-party", { path: "/party/{partyId}" });
+
+const VISIT: Visit = {
+  platform: LinkPlatform.IOS,
+  isCrawler: false,
+  userAgent: "test",
+  ipAddress: "203.0.113.1",
+  country: null,
+  language: "fr",
+};
 
 function row(overrides: Row = {}): Row {
   return {
@@ -56,7 +69,7 @@ function row(overrides: Row = {}): Row {
   };
 }
 
-Deno.test("a resolved link answers the route, the address and the preview of its declaration", async () => {
+Deno.test("a resolved link answers the destination and the preview of its declaration", async () => {
   const database = installDynamicLinksMock({ __dynamic_links__: [row()] });
 
   try {
@@ -64,16 +77,19 @@ Deno.test("a resolved link answers the route, the address and the preview of its
 
     assert(resolved.ok, "a seeded slug must resolve");
     assertEquals(resolved.data.name, "resolve-party");
-    assertEquals(resolved.data.route, "/party/42");
-    assertEquals(resolved.data.target, "https://example.test/party/42");
-    assertEquals(resolved.data.preview, null);
+    assertEquals(resolved.data.destination(VISIT), {
+      kind: DestinationKind.App,
+      path: "/party/42",
+      fallback: { kind: DestinationKind.Store },
+    });
+    assertEquals(resolved.data.preview("fr"), null);
   } finally {
     database.restore();
   }
 });
 
 Deno.test("declaredBy answers for the declaration that wrote the link", async () => {
-  const other = DynamicLink.deeplink("resolve-other", "/other/{id}");
+  const other = DynamicLink.deeplink<{ id: string }>("resolve-other", { path: "/other/{id}" });
   const database = installDynamicLinksMock({ __dynamic_links__: [row()] });
 
   try {
@@ -81,7 +97,7 @@ Deno.test("declaredBy answers for the declaration that wrote the link", async ()
 
     assert(resolved.ok);
     assert(resolved.data.declaredBy(party));
-    assertEquals(resolved.data.args.partyId, "42");
+    assertEquals(resolved.data.data.partyId, "42");
     assert(!resolved.data.declaredBy(other));
   } finally {
     database.restore();
@@ -177,5 +193,20 @@ Deno.test("recording a visit enqueues it instead of writing it on the request pa
   } finally {
     database.restore();
     queue.restore();
+  }
+});
+
+Deno.test("a preview rule answers in the language the visitor announced", async () => {
+  const database = installDynamicLinksMock({ __dynamic_links__: [row()] });
+  onLinkPreview((link, locale) => ({ title: `${locale}:${link.name}:${link.data.partyId}` }));
+
+  try {
+    const resolved = await resolveLink("abcdefghij");
+
+    assert(resolved.ok);
+    assertEquals(resolved.data.preview("fr"), { title: "fr:resolve-party:42" });
+  } finally {
+    onLinkPreview(null);
+    database.restore();
   }
 });

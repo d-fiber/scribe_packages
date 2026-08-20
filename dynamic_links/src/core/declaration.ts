@@ -33,46 +33,71 @@
 import type { Time } from "@scribe/core/contracts/common/time.ts";
 import type { Pagination } from "@scribe/core/contracts/pagination.ts";
 import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
-import { type CreatedLink, LinkError, LinkKind, type LinkPreview, type LinkStatistic } from "../../contracts/link.ts";
+import { type CreatedLink, LinkError, LinkKind, type LinkStatistic } from "../../contracts/link.ts";
 import { deleteLink, insertLink, linkBySlug } from "../db/links.ts";
 import { statisticsOf } from "../db/statistics.ts";
 import { forgetLink } from "../runtime/cache.ts";
+import { Link, type LinkDestination, type Visit } from "./destination.ts";
 import { guarded } from "./guard.ts";
 import { declareLink } from "./registry.ts";
 import { generateSlug } from "./slug.ts";
-import { type LinkParams, LinkTemplate } from "./template.ts";
+import { LinkTemplate } from "./template.ts";
 import { isSafeRedirectUrl } from "./url.ts";
 
-/** How many slugs are drawn before creation gives up. */
 const MAX_SLUG_ATTEMPTS = 5;
-
-/** How many visits a page of statistics holds when the caller asks for no size. */
 const DEFAULT_PAGE_SIZE = 30;
+const APP_ROOT = "/";
 
-/** The parameters of a declaration, as everything that did not come from a caller sees them. */
-type RawParams = Readonly<Record<string, string>>;
+/** What one field of a link may hold, which is what a JSON column reads back unchanged. */
+export type LinkValue = string | number | boolean;
 
-/** What declaring a link takes beyond its name and its template. */
-export interface LinkOptions<P extends string> {
-  /** What the card shows when a messenger unfurls the link. Nothing shown when absent. */
-  readonly preview?: (params: LinkParams<P>) => LinkPreview;
+/**
+ * The shape a declaration's data has to have, one scalar per field.
+ *
+ * It is written against `T` itself rather than as an index signature, because an interface has
+ * no index signature and a project names its data with an interface.
+ */
+export type LinkData<T> = { readonly [K in keyof T]: LinkValue };
 
+/** Any declaration's data, as everything that did not come from one declaration sees it. */
+export type AnyLinkData = Readonly<Record<string, LinkValue>>;
+
+/** What every declaration takes, whatever it sends a visitor to. */
+export interface LinkOptions {
   /** How long a link of this declaration resolves. Forever when absent. */
   readonly ttl?: Time;
 }
 
-/** What declaring a deeplink takes beyond what every declaration takes. */
-export interface DeeplinkOptions<P extends string> extends LinkOptions<P> {
+/** What declaring a deeplink takes beyond its name. */
+export interface DeeplinkOptions extends LinkOptions {
   /**
-   * Where a browser goes, since a browser cannot open an application route.
+   * The route the application opens, with one placeholder per field it reads.
    *
-   * A deeplink without it resolves to a route and nothing else, which is what a link only ever
-   * opened from inside the application wants.
+   * The application opens on its own root when absent, which is what a link that only carries
+   * data wants: the declaration's name and that data are enough for the application to route
+   * itself.
    */
-  readonly web?: (params: LinkParams<P>) => string;
+  readonly path?: string;
 }
 
-/** What creating one link takes beyond its parameters. */
+/** What declaring a redirect takes beyond its name. */
+export interface RedirectOptions extends LinkOptions {
+  /** The address a visitor is sent to, with one placeholder per field it reads. */
+  readonly url: string;
+}
+
+/** What declaring a routed link takes beyond its name. */
+export interface RoutedOptions<T extends LinkData<T>> extends LinkOptions {
+  /**
+   * Where one visit is sent, decided from what the page knows about it.
+   *
+   * It is the only code a declaration carries, which is why it is a factory of its own rather
+   * than an option the two others also accept.
+   */
+  readonly decide: (visit: Visit, data: T) => LinkDestination;
+}
+
+/** What creating one link takes beyond its data. */
 export interface CreateLinkOptions {
   /** When this link stops resolving, in milliseconds. The declaration's own when absent. */
   readonly expiresAt?: number | null;
@@ -94,111 +119,142 @@ export interface LinkPage {
  * One kind of link a project creates, and what a visitor holding it is sent to.
  *
  * ```ts
- * export const invite = DynamicLink.deeplink("invite", "/invite/{code}", {
- *   web: ({ code }) => `https://poppin.app/invite/${code}`,
- *   preview: ({ code }) => ({ title: `Invitation ${code}` }),
+ * interface Invite {
+ *   code: string;
+ *   invitedBy: string;
+ * }
+ *
+ * const invite = DynamicLink.deeplink<Invite>("invite", {
+ *   path: "/invite/{code}",
  *   ttl: Time.days(30),
  * });
  *
- * const created = await invite.create({ code: "A1B2" });
+ * await invite.create({ code: "A1B2", invitedBy: accountId });
  * ```
  *
- * The template carries the parameters in the type, so a call that forgets one does not compile.
- * A row holds the name of the declaration and those parameters, and nothing else: what a link
- * points at is decided here, in code, rather than copied into every row when it was created.
+ * The declaration names its data with an interface, and a row holds that data beside the name of
+ * the declaration. Where a link points is decided here, in code, rather than copied into every
+ * row when it was created, so changing a route changes every link already handed out.
  *
- * A declaration is **built, not extended**: the constructor is private, and everything it needs
- * is given at once. Registration happens as it is built, so a form that took the target in a
- * second call would leave a declaration registered under its name while it still points nowhere.
+ * Three factories, and the third is the only one that carries code. `deeplink` and `redirect`
+ * declare a destination and nothing else; `routed` decides one per visit, from the platform, the
+ * country and the data. A card is not declared here at all: it is read in the language of
+ * whoever opens the link, which nobody knows this early, so it lives in `onLinkPreview`.
+ *
+ * A declaration is **built, not extended**: the constructor is private and registration happens
+ * as it is built, so a form that took the destination in a second call would leave a declaration
+ * registered under its name while it still points nowhere.
  */
-export class DynamicLink<P extends string> {
+export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
   /** The name a row carries, which is what resolution looks a declaration up by. */
   readonly name: string;
 
-  /** Which client this declaration sends a visitor to. */
+  /** Which of the three ways this declaration was declared. */
   readonly kind: LinkKind;
 
-  /** The template this declaration renders, placeholders included, as it was declared. */
-  readonly pattern: P;
+  /** The template this declaration renders, empty for a declaration that renders none. */
+  readonly pattern: string;
 
-  readonly #template: LinkTemplate;
-  readonly #web: ((params: RawParams) => string) | null;
-  readonly #preview: ((params: RawParams) => LinkPreview) | null;
+  readonly #template: LinkTemplate | null;
+  readonly #decide: ((visit: Visit, data: T) => LinkDestination) | null;
   readonly #ttl: Time | null;
 
   private constructor(
     name: string,
     kind: LinkKind,
-    pattern: P,
-    web: ((params: RawParams) => string) | null,
-    options: LinkOptions<P>,
+    pattern: string,
+    decide: ((visit: Visit, data: T) => LinkDestination) | null,
+    ttl: Time | null,
   ) {
     this.name = name;
     this.kind = kind;
     this.pattern = pattern;
-    this.#template = new LinkTemplate(pattern);
-    this.#web = web;
-    this.#preview = options.preview as ((params: RawParams) => LinkPreview) | undefined ?? null;
-    this.#ttl = options.ttl ?? null;
-    declareLink(this as unknown as DynamicLink<string>);
+    this.#template = pattern === "" ? null : new LinkTemplate(pattern);
+    this.#decide = decide;
+    this.#ttl = ttl;
+    declareLink(this as unknown as DynamicLink);
   }
 
   /**
-   * A link the native application opens on `route`, with an optional address for a browser.
+   * A link the native application opens, on `options.path` when it names one.
    *
    * @param name - The name rows carry, which no other declaration may take.
-   * @param route - The route the application opens, with one placeholder per parameter.
    *
-   * @throws {LinkTemplateError} When `route` is not a template a link could render.
+   * @throws {LinkTemplateError} When `options.path` is not a template a link could render.
    * @throws {TypeError} When another declaration already took `name`.
    */
-  static deeplink<P extends string>(
+  static deeplink<T extends LinkData<T> = AnyLinkData>(
     name: string,
-    route: P,
-    options: DeeplinkOptions<P> = {},
-  ): DynamicLink<P> {
-    const web = options.web as ((params: RawParams) => string) | undefined ?? null;
-    return new DynamicLink<P>(name, LinkKind.Deeplink, route, web, options);
+    options: DeeplinkOptions = {},
+  ): DynamicLink<T> {
+    return new DynamicLink<T>(
+      name,
+      LinkKind.Deeplink,
+      options.path ?? "",
+      null,
+      options.ttl ?? null,
+    );
   }
 
   /**
-   * A link that sends a visitor to the address `target` renders.
+   * A link that sends a visitor to the address `options.url` renders.
    *
    * @param name - The name rows carry, which no other declaration may take.
-   * @param target - The address to send to, with one placeholder per parameter.
    *
-   * @throws {LinkTemplateError} When `target` is not a template a link could render.
+   * @throws {LinkTemplateError} When `options.url` is not a template a link could render.
    * @throws {TypeError} When another declaration already took `name`.
    */
-  static redirect<P extends string>(
+  static redirect<T extends LinkData<T> = AnyLinkData>(
     name: string,
-    target: P,
-    options: LinkOptions<P> = {},
-  ): DynamicLink<P> {
-    const template = new LinkTemplate(target);
-    return new DynamicLink<P>(
+    options: RedirectOptions,
+  ): DynamicLink<T> {
+    return new DynamicLink<T>(
       name,
       LinkKind.Redirect,
-      target,
-      (params) => template.render(params) ?? "",
-      options,
+      options.url,
+      null,
+      options.ttl ?? null,
+    );
+  }
+
+  /**
+   * A link whose destination is decided per visit by `options.decide`.
+   *
+   * @param name - The name rows carry, which no other declaration may take.
+   *
+   * @throws {TypeError} When another declaration already took `name`.
+   */
+  static routed<T extends LinkData<T> = AnyLinkData>(
+    name: string,
+    options: RoutedOptions<T>,
+  ): DynamicLink<T> {
+    return new DynamicLink<T>(
+      name,
+      LinkKind.Routed,
+      "",
+      options.decide,
+      options.ttl ?? null,
     );
   }
 
   /**
    * Creates one link of this declaration and answers the slug it took.
    *
-   * @param params - One value per placeholder of the template.
+   * @param data - The data this link carries, which the application reads when it opens.
    *
    * @remarks
    * Up to five slugs are drawn, because the table refuses a slug it already holds. Five
    * collisions in a row on 62¹⁰ addresses is not a collision, it is a table that stopped
    * accepting the insert, so the failure names the conflict rather than retrying forever.
    */
-  create(params: LinkParams<P>, options: CreateLinkOptions = {}): Promise<Result<CreatedLink, LinkError>> {
+  create(
+    data: T,
+    options: CreateLinkOptions = {},
+  ): Promise<Result<CreatedLink, LinkError>> {
     return guarded(async () => {
-      const raw = params as RawParams;
-      if (!this.#template.accepts(raw)) return new Failure(LinkError.Params);
+      if (this.#template !== null && !this.#template.accepts(rendered(data as AnyLinkData))) {
+        return new Failure(LinkError.Params);
+      }
 
       const expiresAt = options.expiresAt !== undefined ? options.expiresAt : this.#expiry();
 
@@ -206,14 +262,18 @@ export class DynamicLink<P extends string> {
         const slug = generateSlug();
         const row = await insertLink({
           slug,
-          payload: { k: this.name, a: raw },
+          payload: { k: this.name, a: data },
           expiresAt,
           userId: options.userId ?? null,
         });
         if (!row) continue;
 
         await forgetLink(row.slug);
-        return new OK({ slug: row.slug, expiresAt: row.expires_at, createdAt: row.created_at });
+        return new OK({
+          slug: row.slug,
+          expiresAt: row.expires_at,
+          createdAt: row.created_at,
+        });
       }
 
       return new Failure(LinkError.SlugConflict);
@@ -230,7 +290,9 @@ export class DynamicLink<P extends string> {
   revoke(slug: string): Promise<Result<void, LinkError>> {
     return guarded(async () => {
       const row = await linkBySlug(slug);
-      if (!row || row.payload.k !== this.name) return new Failure(LinkError.NotFound);
+      if (!row || row.payload.k !== this.name) {
+        return new Failure(LinkError.NotFound);
+      }
 
       const removed = await deleteLink(slug);
       if (!removed) return new Failure(LinkError.Backend);
@@ -241,10 +303,15 @@ export class DynamicLink<P extends string> {
   }
 
   /** The page of visits recorded against `slug`, newest first. */
-  statistics(slug: string, page: LinkPage = {}): Promise<Result<Pagination<LinkStatistic>, LinkError>> {
+  statistics(
+    slug: string,
+    page: LinkPage = {},
+  ): Promise<Result<Pagination<LinkStatistic>, LinkError>> {
     return guarded(async () => {
       const row = await linkBySlug(slug);
-      if (!row || row.payload.k !== this.name) return new Failure(LinkError.NotFound);
+      if (!row || row.payload.k !== this.name) {
+        return new Failure(LinkError.NotFound);
+      }
 
       const offset = page.offset ?? 0;
       const size = page.size ?? DEFAULT_PAGE_SIZE;
@@ -253,29 +320,32 @@ export class DynamicLink<P extends string> {
   }
 
   /**
-   * The route the application opens for `params`, null for a declaration that names no route.
+   * Where `visit` is sent for a link carrying `data`.
    *
-   * Also null when `params` does not fill the template, which is what a link written before the
-   * declaration gained a placeholder leaves behind.
+   * It is what the page serving a slug calls, and it reaches nothing: a decision is a value, so
+   * a project asserts on what its rule answered without serving anything. A template that
+   * `data` no longer fills answers nowhere, which is what a link written before the declaration
+   * gained a placeholder leaves behind.
    */
-  routeFor(params: RawParams): string | null {
-    return this.kind === LinkKind.Deeplink ? this.#template.render(params) : null;
-  }
+  destinationFor(visit: Visit, data: T): LinkDestination {
+    if (this.#decide !== null) return this.#decide(visit, data);
 
-  /** The address a browser is sent to for `params`, null when this declaration names none. */
-  targetFor(params: RawParams): string | null {
-    if (this.#web === null) return null;
+    const target = this.#template === null ? null : this.#template.render(rendered(data as AnyLinkData));
+    if (this.kind === LinkKind.Redirect) {
+      return target !== null && isSafeRedirectUrl(target) ? Link.web(target) : Link.notFound();
+    }
 
-    const target = this.#web(params as LinkParams<P>);
-    return isSafeRedirectUrl(target) ? target : null;
-  }
-
-  /** What a card shows for `params`, null when this declaration writes no preview. */
-  previewFor(params: RawParams): LinkPreview | null {
-    return this.#preview === null ? null : this.#preview(params);
+    if (this.#template !== null && target === null) return Link.notFound();
+    return Link.app(target ?? APP_ROOT);
   }
 
   #expiry(): number | null {
     return this.#ttl === null ? null : Date.now() + this.#ttl.ms;
   }
+}
+
+function rendered(data: AnyLinkData): Readonly<Record<string, string>> {
+  return Object.fromEntries(
+    Object.entries(data).map(([key, value]) => [key, String(value)]),
+  );
 }

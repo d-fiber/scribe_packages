@@ -36,16 +36,35 @@ import { report, requireStack, RUN_ID, STACK, timed, useStack } from "./support/
 await requireStack(`${STACK.restUrl}/`);
 await useStack();
 
-const { DynamicLink, LinkError, resolveLink } = await import("@scribe/dynamic_links/mod.ts");
+const { DestinationKind, DynamicLink, LinkError, LinkPlatform, resolveLink } = await import(
+  "@scribe/dynamic_links/mod.ts"
+);
+type Visit = import("@scribe/dynamic_links/mod.ts").Visit;
 const { forgetLink } = await import("@scribe/dynamic_links/src/runtime/cache.ts");
 const { dynamicLinks } = await import("@scribe/dynamic_links/src/db/tables.ts");
 
-const invite = DynamicLink.deeplink(`e2e-invite-${RUN_ID}`, "/invite/{code}", {
-  web: ({ code }) => `https://example.test/invite/${code}`,
-  preview: ({ code }) => ({ title: `Invitation ${code}` }),
+interface Invite {
+  code: string;
+}
+
+interface Promo {
+  campaign: string;
+}
+
+const invite = DynamicLink.deeplink<Invite>(`e2e-invite-${RUN_ID}`, { path: "/invite/{code}" });
+
+const promo = DynamicLink.redirect<Promo>(`e2e-promo-${RUN_ID}`, {
+  url: "https://shop.example.test/{campaign}",
 });
 
-const promo = DynamicLink.redirect(`e2e-promo-${RUN_ID}`, "https://shop.example.test/{campaign}");
+const VISIT: Visit = {
+  platform: LinkPlatform.IOS,
+  isCrawler: false,
+  userAgent: "e2e",
+  ipAddress: "203.0.113.1",
+  country: null,
+  language: null,
+};
 
 Deno.test("dynamic links e2e: a created link is a row the database completed", async () => {
   const [created, took] = await timed(() => invite.create({ code: "A1B2" }));
@@ -79,9 +98,11 @@ Deno.test("dynamic links e2e: a resolved link renders what its declaration decid
 
   assert(resolved.ok, "a slug that was just written did not resolve");
   assertEquals(resolved.data.name, `e2e-invite-${RUN_ID}`);
-  assertEquals(resolved.data.route, "/invite/C3D4");
-  assertEquals(resolved.data.target, "https://example.test/invite/C3D4");
-  assertEquals(resolved.data.preview, { title: "Invitation C3D4" });
+  assertEquals(resolved.data.destination(VISIT), {
+    kind: DestinationKind.App,
+    path: "/invite/C3D4",
+    fallback: { kind: DestinationKind.Store },
+  });
   assert(resolved.data.declaredBy(invite), "the row did not name the declaration that wrote it");
   report("link resolved", `${Math.round(took)} ms`);
 });
@@ -93,8 +114,10 @@ Deno.test("dynamic links e2e: a redirect resolves to its address and to no route
   const resolved = await resolveLink(created.data.slug);
 
   assert(resolved.ok);
-  assertEquals(resolved.data.route, null);
-  assertEquals(resolved.data.target, "https://shop.example.test/summer");
+  assertEquals(resolved.data.destination(VISIT), {
+    kind: DestinationKind.Web,
+    url: "https://shop.example.test/summer",
+  });
 });
 
 Deno.test("dynamic links e2e: a resolved slug is answered from Redis, not from the table", async () => {
