@@ -1,0 +1,50 @@
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: The version this release is, as three numbers.
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0
+
+      - name: Check that this version is free
+        env:
+          ASKED: ${{ inputs.version }}
+        run: bash .github/version/check.sh "$ASKED"
+
+      - name: Write what this version is made of
+        env:
+          ASKED: ${{ inputs.version }}
+        run: |
+          set -eu
+          bash .github/version/changelog.sh "$ASKED"
+
+          git diff --quiet CHANGELOG.md && exit 0
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CHANGELOG.md
+          git commit -m "[DOC]: write what $ASKED is made of"
+          git push origin HEAD:dev
+
+      - name: Name this commit after the version
+        env:
+          ASKED: ${{ inputs.version }}
+        run: bash .github/version/tag.sh "$ASKED"

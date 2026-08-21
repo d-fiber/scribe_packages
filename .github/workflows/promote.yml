@@ -1,0 +1,108 @@
+name: promote
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: The version on dev you are putting on main, as three numbers.
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: promote
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: promotion
+    steps:
+      - name: Check who asked
+        env:
+          ASKED_BY: ${{ github.actor }}
+          OWNER: ${{ vars.PROMOTER || 'daf-ep' }}
+        run: |
+          set -eu
+          if [ "$ASKED_BY" != "$OWNER" ]; then
+            echo "$ASKED_BY asked to promote, and only $OWNER decides that. Nothing was moved." >&2
+            exit 1
+          fi
+          echo "asked by $ASKED_BY"
+
+      - name: Check that the key this needs is here
+        env:
+          KEY: ${{ secrets.PROMOTE_PUSH_KEY }}
+        run: |
+          set -eu
+          [ -n "$KEY" ] && exit 0
+
+          echo "PROMOTE_PUSH_KEY is not set on this repository, and nothing can move without it." >&2
+          echo "" >&2
+          echo "It is the private half of the deploy key named \"packages promote\", which the" >&2
+          echo "ruleset lets through to main. Without it the push is refused like anybody else's." >&2
+          echo "" >&2
+          echo "Nothing was moved." >&2
+          exit 1
+
+      - uses: actions/checkout@v4
+        with:
+          ref: dev
+          fetch-depth: 0
+          ssh-key: ${{ secrets.PROMOTE_PUSH_KEY }}
+
+      - name: Check that the version you named was tagged
+        env:
+          ASKED: ${{ inputs.version }}
+        run: |
+          set -eu
+          if ! git rev-parse "v$ASKED" >/dev/null 2>&1; then
+            echo "v$ASKED does not exist. Run release first, so the version is written and tagged." >&2
+            echo "Nothing was moved." >&2
+            exit 1
+          fi
+
+      - name: Read where main stands
+        id: main
+        run: |
+          set -eu
+          if git rev-parse --verify origin/main >/dev/null 2>&1; then
+            echo "version=$(git describe --tags --abbrev=0 origin/main 2>/dev/null || true)" >> "$GITHUB_OUTPUT"
+          else
+            echo "main does not exist yet, so this promotion is what creates it"
+            echo "version=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Put dev on main
+        env:
+          ASKED: ${{ inputs.version }}
+        run: |
+          set -eu
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+
+          if git rev-parse --verify origin/main >/dev/null 2>&1; then
+            git checkout main
+            git merge --no-ff origin/dev -m "Merge dev into main for $ASKED"
+          else
+            git checkout -b main
+          fi
+
+          git push origin main
+
+      - name: Write the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ASKED: ${{ inputs.version }}
+          FROM: ${{ steps.main.outputs.version }}
+        run: |
+          set -eu
+          bash .github/version/notes.sh "${FROM#v}" > /tmp/notes.md
+
+          if gh release view "v$ASKED" >/dev/null 2>&1; then
+            gh release edit "v$ASKED" --notes-file /tmp/notes.md
+          else
+            gh release create "v$ASKED" --title "$ASKED" --notes-file /tmp/notes.md --verify-tag
+          fi
