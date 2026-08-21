@@ -4,5 +4,6 @@
 node_modules/
 
 .scribe/
+.vscode/
 tests/e2e/.generated/
 tests/e2e/.postgres/
