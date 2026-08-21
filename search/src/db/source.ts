@@ -34,9 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { PostgrestClients } from "@scribe/foundation/src/database/client.ts";
-import { Table } from "@scribe/foundation/src/database/table.ts";
-import { TablesBase } from "@scribe/foundation/src/database/tables.ts";
+import { PostgrestClients } from "@scribe/foundation/lib/src/database/client.ts";
+import { Table } from "@scribe/foundation/lib/src/database/table.ts";
+import { TablesBase } from "@scribe/foundation/lib/src/database/tables.ts";
 
 /** Any table of the project, seen as a bag of columns because this package knows no schema. */
 type ProjectSchema = Record<string, { row: Record<string, unknown> }>;

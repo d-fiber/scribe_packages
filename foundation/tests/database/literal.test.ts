@@ -41,7 +41,7 @@ import {
   quoteFilterList,
   quoteFilterLiteral,
   UnsafeFilterError,
-} from "@scribe/foundation/src/database/query/literal.ts";
+} from "@scribe/foundation/lib/src/database/query/literal.ts";
 import { assert, assertEquals, assertThrows } from "@std/assert";
 
 const RESERVED = [",", ".", ":", "*", "(", ")"];

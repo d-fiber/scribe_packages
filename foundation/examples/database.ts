@@ -1,4 +1,4 @@
-import { Table } from "@scribe/foundation/src/database/table.ts";
+import { Table } from "@scribe/foundation/lib/src/database/table.ts";
 
 /** One row of the orders table. */
 interface OrderRow {

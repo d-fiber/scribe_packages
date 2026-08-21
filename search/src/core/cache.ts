@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Time } from "@scribe/core/contracts/common/time.ts";
-import { Valkery } from "@scribe/foundation/src/valkery/valkery.ts";
+import { Valkery } from "@scribe/foundation/lib/src/valkery/valkery.ts";
 
 /** How long a result set and a preview are kept when a declaration asks for nothing else. */
 export const DEFAULT_TTL: Time = Time.minutes(5);

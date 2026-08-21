@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { InlineChain } from "@scribe/foundation/src/hook/core/inline_chain.ts";
-import { isRefusal } from "@scribe/foundation/src/hook/core/refusal.ts";
+import { InlineChain } from "@scribe/foundation/lib/src/hook/core/inline_chain.ts";
+import { isRefusal } from "@scribe/foundation/lib/src/hook/core/refusal.ts";
 import { assert, assertEquals, assertFalse, assertRejects } from "@std/assert";
 
 Deno.test("isRefusal only recognises an object carrying ok:false", () => {

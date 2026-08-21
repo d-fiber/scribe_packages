@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Time } from "@scribe/core/contracts/common/time.ts";
-import { RateLimit, RateLimitBucket } from "@scribe/foundation/src/rate_limit/mod.ts";
+import { RateLimit, RateLimitBucket } from "@scribe/foundation/lib/src/rate_limit/mod.ts";
 import { assertEquals, assertNotEquals } from "@std/assert";
 
 const POLICY = { limit: 10, window: Time.minutes(1), penalty: Time.minutes(5) };

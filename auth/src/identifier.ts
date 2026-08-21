@@ -40,7 +40,7 @@ import { currentIdentity } from "@scribe/core/runtime/http/accessors/identity.ts
 import { checkCaller } from "@scribe/core/runtime/http/caller.ts";
 import { request } from "@scribe/core/runtime/http/request.ts";
 import { sha256Hex } from "@scribe/core/runtime/support/crypto/hash.ts";
-import { RateLimit } from "@scribe/foundation/src/rate_limit/mod.ts";
+import { RateLimit } from "@scribe/foundation/lib/src/rate_limit/mod.ts";
 import { devices } from "./devices/devices.ts";
 import { goTrue } from "./gotrue/gotrue_client.ts";
 import type { AuthError } from "./gotrue/transport.ts";

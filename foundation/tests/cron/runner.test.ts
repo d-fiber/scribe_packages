@@ -38,9 +38,9 @@ import "@scribe/core/testing/settings.ts";
 
 import { assertEquals, assertThrows } from "@std/assert";
 import { FakeTime } from "@std/testing/time";
-import type { Scheduled } from "@scribe/foundation/src/cron/schedule/mod.ts";
-import { CronRunner } from "@scribe/foundation/src/cron/runner/cron_runner.ts";
-import { kv } from "@scribe/foundation/src/redis/mod.ts";
+import type { Scheduled } from "@scribe/foundation/lib/src/cron/schedule/mod.ts";
+import { CronRunner } from "@scribe/foundation/lib/src/cron/runner/cron_runner.ts";
+import { kv } from "@scribe/foundation/lib/src/redis/mod.ts";
 import { Time } from "@scribe/core/contracts/common/time.ts";
 
 function shadowOccurrenceClaim(): { restore(): void } {

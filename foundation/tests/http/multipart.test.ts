@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { MultipartFile } from "@scribe/foundation/src/http/request/multipart_file.ts";
-import { MultipartRequest } from "@scribe/foundation/src/http/request/multipart_request.ts";
+import { MultipartFile } from "@scribe/foundation/lib/src/http/request/multipart_file.ts";
+import { MultipartRequest } from "@scribe/foundation/lib/src/http/request/multipart_request.ts";
 import { assert, assertEquals, assertNotEquals, assertStringIncludes, assertThrows } from "@std/assert";
 
 function boundaryOf(request: MultipartRequest): string {

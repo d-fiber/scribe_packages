@@ -35,8 +35,8 @@
 // LICENSE file, the LICENSE file governs.
 
 import { PostgrestClient } from "@supabase/postgrest-js";
-import { DatabaseQueryError, TypedQueryBuilder } from "@scribe/foundation/src/database/query/builder.ts";
-import { AMBIGUITY_PROBE, atMostOneRow, DEFAULT_STATE } from "@scribe/foundation/src/database/query/state.ts";
+import { DatabaseQueryError, TypedQueryBuilder } from "@scribe/foundation/lib/src/database/query/builder.ts";
+import { AMBIGUITY_PROBE, atMostOneRow, DEFAULT_STATE } from "@scribe/foundation/lib/src/database/query/state.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
 
 interface Probe {

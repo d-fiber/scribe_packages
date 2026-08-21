@@ -37,10 +37,10 @@
 import "@scribe/core/testing/settings.ts";
 
 import { Time } from "@scribe/core/contracts/common/time.ts";
-import { kv } from "@scribe/foundation/src/redis/mod.ts";
-import { installValkeryMock } from "@scribe/foundation/testing/valkery.ts";
-import { encodeEntry } from "@scribe/foundation/src/valkery/entry.ts";
-import { Valkery } from "@scribe/foundation/src/valkery/valkery.ts";
+import { kv } from "@scribe/foundation/lib/src/redis/mod.ts";
+import { installValkeryMock } from "@scribe/foundation/tests/testing/valkery.ts";
+import { encodeEntry } from "@scribe/foundation/lib/src/valkery/entry.ts";
+import { Valkery } from "@scribe/foundation/lib/src/valkery/valkery.ts";
 import { assert, assertEquals } from "@std/assert";
 import { spy, stub } from "@std/testing/mock";
 

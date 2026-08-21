@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { shouldRefreshEarly } from "@scribe/foundation/src/valkery/early_expiry.ts";
-import type { Entry } from "@scribe/foundation/src/valkery/entry.ts";
+import { shouldRefreshEarly } from "@scribe/foundation/lib/src/valkery/early_expiry.ts";
+import type { Entry } from "@scribe/foundation/lib/src/valkery/entry.ts";
 import { assert, assertEquals } from "@std/assert";
 
 function entry(computeMs: number, expiresInMs: number, now: number): Entry<string> {

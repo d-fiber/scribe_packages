@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Hook, hookRegistry } from "@scribe/foundation/src/hook/mod.ts";
+import { Hook, hookRegistry } from "@scribe/foundation/lib/src/hook/mod.ts";
 import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
 import { assertEquals, assertRejects, assertStrictEquals, assertThrows } from "@std/assert";
 

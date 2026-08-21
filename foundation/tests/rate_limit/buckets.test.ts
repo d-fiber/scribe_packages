@@ -35,8 +35,8 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Time } from "@scribe/core/contracts/common/time.ts";
-import { kv } from "@scribe/foundation/src/redis/mod.ts";
-import { RateLimit, type RateLimitCommands } from "@scribe/foundation/src/rate_limit/mod.ts";
+import { kv } from "@scribe/foundation/lib/src/redis/mod.ts";
+import { RateLimit, type RateLimitCommands } from "@scribe/foundation/lib/src/rate_limit/mod.ts";
 import { installMock } from "@scribe/core/testing/install.ts";
 import { assertEquals } from "@std/assert";
 

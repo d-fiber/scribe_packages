@@ -1,6 +1,6 @@
 import { Time } from "@scribe/core/contracts/common/time.ts";
-import { Queue } from "@scribe/foundation/src/queue/mod.ts";
-import type { QueueMessage } from "@scribe/foundation/contracts/queue/queue.ts";
+import { Queue } from "@scribe/foundation/lib/src/queue/mod.ts";
+import type { QueueMessage } from "@scribe/foundation/lib/contracts/queue/queue.ts";
 
 /** What one welcome mail needs to be sent, carried whole because a handler reads no request. */
 interface EmailJob {

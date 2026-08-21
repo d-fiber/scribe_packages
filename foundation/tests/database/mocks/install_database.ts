@@ -37,11 +37,11 @@
 // deno-lint-ignore-file no-explicit-any
 import "@scribe/core/testing/settings.ts";
 
-import { Tables } from "@scribe/foundation/src/database/gen/tables.ts";
-import { TablesBase } from "@scribe/foundation/src/database/tables.ts";
-import { database } from "@scribe/foundation/src/database/database.ts";
+import { Tables } from "@scribe/foundation/lib/src/database/gen/tables.ts";
+import { TablesBase } from "@scribe/foundation/lib/src/database/tables.ts";
+import { database } from "@scribe/foundation/lib/src/database/database.ts";
 import type { InstalledMock } from "@scribe/core/testing/install.ts";
-import type { FakePostgrestSeed } from "@scribe/foundation/testing/database.ts";
+import type { FakePostgrestSeed } from "@scribe/foundation/tests/testing/database.ts";
 import { createDatabaseMock, type DatabaseMock } from "./database.ts";
 
 /**

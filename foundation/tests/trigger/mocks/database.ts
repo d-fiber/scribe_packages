@@ -36,8 +36,8 @@
 
 import "@scribe/core/testing/settings.ts";
 import { type InstalledMock, installMock } from "@scribe/core/testing/install.ts";
-import { PostgrestClients } from "@scribe/foundation/src/database/client.ts";
-import { FakePostgrestClient, type FakePostgrestSeed } from "@scribe/foundation/testing/database.ts";
+import { PostgrestClients } from "@scribe/foundation/lib/src/database/client.ts";
+import { FakePostgrestClient, type FakePostgrestSeed } from "@scribe/foundation/tests/testing/database.ts";
 import type { PostgrestClient } from "@supabase/postgrest-js";
 
 /**

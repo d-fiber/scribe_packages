@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { decodeEntry, encodeEntry } from "@scribe/foundation/src/valkery/entry.ts";
+import { decodeEntry, encodeEntry } from "@scribe/foundation/lib/src/valkery/entry.ts";
 import { assert, assertEquals } from "@std/assert";
 
 const TTL_MS = 60_000;

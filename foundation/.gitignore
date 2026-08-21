@@ -1,0 +1,8 @@
+.DS_Store
+.env
+
+node_modules/
+
+.scribe/
+tests/e2e/.generated/
+tests/e2e/.postgres/

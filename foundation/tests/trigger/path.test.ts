@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { assertEquals, assertThrows } from "@std/assert";
-import { parsePath } from "@scribe/foundation/src/trigger/core/path.ts";
+import { parsePath } from "@scribe/foundation/lib/src/trigger/core/path.ts";
 
 Deno.test("a path names its table and the parameter its key is handed under", () => {
   assertEquals(parsePath("orders/{orderId}"), {

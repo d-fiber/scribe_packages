@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Request } from "@scribe/foundation/src/http/request/request.ts";
+import { Request } from "@scribe/foundation/lib/src/http/request/request.ts";
 import { assertEquals, assertThrows } from "@std/assert";
 import { RecordingClient } from "./mocks/recording_client.ts";
 

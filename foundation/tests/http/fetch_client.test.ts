@@ -34,9 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { ClientException } from "@scribe/foundation/src/http/exception.ts";
-import { FetchClient } from "@scribe/foundation/src/http/fetch_client.ts";
-import { Request } from "@scribe/foundation/src/http/request/request.ts";
+import { ClientException } from "@scribe/foundation/lib/src/http/exception.ts";
+import { FetchClient } from "@scribe/foundation/lib/src/http/fetch_client.ts";
+import { Request } from "@scribe/foundation/lib/src/http/request/request.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
 
 const URL_UNDER_TEST = "https://example.test/a";

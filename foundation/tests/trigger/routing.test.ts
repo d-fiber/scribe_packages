@@ -35,10 +35,10 @@
 // LICENSE file, the LICENSE file governs.
 
 import { assertEquals } from "@std/assert";
-import { matchesOf } from "@scribe/foundation/src/trigger/core/match.ts";
-import type { RegisteredTrigger } from "@scribe/foundation/src/trigger/core/registry.ts";
-import { eventFrom, type TriggerEvent } from "@scribe/foundation/src/trigger/core/wire.ts";
-import type { TriggerEventRow } from "@scribe/foundation/src/trigger/db/tables.ts";
+import { matchesOf } from "@scribe/foundation/lib/src/trigger/core/match.ts";
+import type { RegisteredTrigger } from "@scribe/foundation/lib/src/trigger/core/registry.ts";
+import { eventFrom, type TriggerEvent } from "@scribe/foundation/lib/src/trigger/core/wire.ts";
+import type { TriggerEventRow } from "@scribe/foundation/lib/src/trigger/db/tables.ts";
 
 const PAID = "2026-08-19T10:00:00Z";
 

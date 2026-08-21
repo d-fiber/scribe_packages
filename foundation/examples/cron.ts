@@ -1,5 +1,5 @@
 import { Time } from "@scribe/core/contracts/common/time.ts";
-import { at, Cron, cronExpression, CronTimezone, every } from "@scribe/foundation/src/cron/mod.ts";
+import { at, Cron, cronExpression, CronTimezone, every } from "@scribe/foundation/lib/src/cron/mod.ts";
 
 /**
  * A job that runs on a wall clock, in the timezone it names.

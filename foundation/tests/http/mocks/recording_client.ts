@@ -34,10 +34,10 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { BaseClient } from "@scribe/foundation/src/http/base_client.ts";
-import { ByteStream } from "@scribe/foundation/src/http/byte_stream.ts";
-import type { BaseRequest } from "@scribe/foundation/src/http/request/base_request.ts";
-import { StreamedResponse } from "@scribe/foundation/src/http/response/streamed_response.ts";
+import { BaseClient } from "@scribe/foundation/lib/src/http/base_client.ts";
+import { ByteStream } from "@scribe/foundation/lib/src/http/byte_stream.ts";
+import type { BaseRequest } from "@scribe/foundation/lib/src/http/request/base_request.ts";
+import { StreamedResponse } from "@scribe/foundation/lib/src/http/response/streamed_response.ts";
 
 /** What a {@link RecordingClient} answers, and how many times it has been closed. */
 export interface RecordedAnswer {

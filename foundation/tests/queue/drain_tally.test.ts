@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { DrainTally } from "@scribe/foundation/src/queue/runner/drain_tally.ts";
+import { DrainTally } from "@scribe/foundation/lib/src/queue/runner/drain_tally.ts";
 import {
   DeadlineExceededError,
   withDeadline,

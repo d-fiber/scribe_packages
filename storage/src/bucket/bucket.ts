@@ -35,9 +35,9 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { StorageBucket } from "./transport.ts";
-import { currentClient } from "@scribe/foundation/src/http/run_with_client.ts";
-import type { RequestBody } from "@scribe/foundation/src/http/client.ts";
-import type { Response as HttpResponse } from "@scribe/foundation/src/http/response/response.ts";
+import { currentClient } from "@scribe/foundation/lib/src/http/run_with_client.ts";
+import type { RequestBody } from "@scribe/foundation/lib/src/http/client.ts";
+import type { Response as HttpResponse } from "@scribe/foundation/lib/src/http/response/response.ts";
 
 const REQUEST_TIMEOUT_MS = 30_000;
 

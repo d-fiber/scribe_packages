@@ -34,10 +34,10 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { del, get, head, patch, post, put, read, readBytes } from "@scribe/foundation/src/http/mod.ts";
-import { ClientException } from "@scribe/foundation/src/http/exception.ts";
-import { FetchClient } from "@scribe/foundation/src/http/fetch_client.ts";
-import { currentClient, runWithClient } from "@scribe/foundation/src/http/run_with_client.ts";
+import { del, get, head, patch, post, put, read, readBytes } from "@scribe/foundation/lib/src/http/mod.ts";
+import { ClientException } from "@scribe/foundation/lib/src/http/exception.ts";
+import { FetchClient } from "@scribe/foundation/lib/src/http/fetch_client.ts";
+import { currentClient, runWithClient } from "@scribe/foundation/lib/src/http/run_with_client.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import { RecordingClient } from "./mocks/recording_client.ts";
 

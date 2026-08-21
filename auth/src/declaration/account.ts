@@ -37,7 +37,7 @@
 import type { RequestIpLocation } from "@scribe/core/contracts/common/location.ts";
 import type { RequestDevice } from "@scribe/core/contracts/device.ts";
 import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
-import { Table } from "@scribe/foundation/src/database/table.ts";
+import { Table } from "@scribe/foundation/lib/src/database/table.ts";
 import type { AccountIdentity, AccountRow, SignInContext } from "../../contracts/account.ts";
 import type { Channel } from "../../contracts/channel.ts";
 import type { AccountDevice } from "../../contracts/device.ts";

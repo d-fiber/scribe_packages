@@ -35,8 +35,8 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
-import { currentClient } from "@scribe/foundation/src/http/run_with_client.ts";
-import type { Response as HttpResponse } from "@scribe/foundation/src/http/response/response.ts";
+import { currentClient } from "@scribe/foundation/lib/src/http/run_with_client.ts";
+import type { Response as HttpResponse } from "@scribe/foundation/lib/src/http/response/response.ts";
 import { identitySettings } from "@scribe/core/runtime/support/settings/identity.ts";
 
 export type AuthError = { code: string; message: string };

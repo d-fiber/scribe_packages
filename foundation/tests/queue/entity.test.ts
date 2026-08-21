@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
-import { Queue, queueRegistry, queueRunner } from "@scribe/foundation/src/queue/mod.ts";
+import { Queue, queueRegistry, queueRunner } from "@scribe/foundation/lib/src/queue/mod.ts";
 
 Deno.test("new Queue() arms the body with the runner", () => {
   new Queue<{ id: string }>(

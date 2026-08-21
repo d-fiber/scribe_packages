@@ -42,7 +42,7 @@ await useStack();
 
 const { DynamicLink, LinkOutcome, LinkPlatform, resolveLink } = await import("@scribe/dynamic_links/mod.ts");
 const { dynamicLinks, dynamicLinkStatistics } = await import("@scribe/dynamic_links/src/db/tables.ts");
-const { queueRunner } = await import("@scribe/foundation/src/queue/mod.ts");
+const { queueRunner } = await import("@scribe/foundation/lib/src/queue/mod.ts");
 
 const KEEPS_A_CONNECTION = { sanitizeOps: false, sanitizeResources: false } as const;
 

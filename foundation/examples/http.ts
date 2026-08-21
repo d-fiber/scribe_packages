@@ -1,5 +1,5 @@
-import { ClientException, FetchClient, get, post, read, runWithClient } from "@scribe/foundation/src/http/mod.ts";
-import type { Response } from "@scribe/foundation/src/http/mod.ts";
+import { ClientException, FetchClient, get, post, read, runWithClient } from "@scribe/foundation/lib/src/http/mod.ts";
+import type { Response } from "@scribe/foundation/lib/src/http/mod.ts";
 
 /** The shape the rates endpoint answers with. */
 interface Rates {

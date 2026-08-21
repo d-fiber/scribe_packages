@@ -1,4 +1,4 @@
-import { Isolate } from "@scribe/foundation/src/isolate/mod.ts";
+import { Isolate } from "@scribe/foundation/lib/src/isolate/mod.ts";
 import { emails } from "./queue.ts";
 
 /**

@@ -38,7 +38,7 @@ import { Time } from "@scribe/core/contracts/common/time.ts";
 import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
 import { requestDevice } from "@scribe/core/runtime/device/device.ts";
 import { checkCaller } from "@scribe/core/runtime/http/caller.ts";
-import { RateLimit } from "@scribe/foundation/src/rate_limit/mod.ts";
+import { RateLimit } from "@scribe/foundation/lib/src/rate_limit/mod.ts";
 import type { Channel } from "../../contracts/channel.ts";
 import type { WriteOf, WriteShape } from "../declaration/columns.ts";
 import { devices } from "../devices/devices.ts";

@@ -1,5 +1,5 @@
 import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
-import { Hook } from "@scribe/foundation/src/hook/mod.ts";
+import { Hook } from "@scribe/foundation/lib/src/hook/mod.ts";
 
 /** What a sign-up carries to whoever listens for it. */
 interface SignUp {

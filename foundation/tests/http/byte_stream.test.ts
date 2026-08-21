@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { ByteStream } from "@scribe/foundation/src/http/byte_stream.ts";
+import { ByteStream } from "@scribe/foundation/lib/src/http/byte_stream.ts";
 import { assert, assertEquals } from "@std/assert";
 
 function streamOf(...chunks: string[]): ByteStream {

@@ -1,0 +1,5 @@
+name: foundation
+description: The engine every other package reaches, from the rows and the cache to the queue, the cron and the quota.
+version: 1.0.0
+
+dependencies:

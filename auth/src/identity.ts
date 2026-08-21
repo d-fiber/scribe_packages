@@ -36,7 +36,7 @@
 
 import { Time } from "@scribe/core/contracts/common/time.ts";
 import { KeyIndex } from "@scribe/core/runtime/redis/key_index.ts";
-import { Valkery } from "@scribe/foundation/src/valkery/valkery.ts";
+import { Valkery } from "@scribe/foundation/lib/src/valkery/valkery.ts";
 import type { AccountRole } from "../contracts/role.ts";
 import { accounts } from "./tables.ts";
 

@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Table } from "@scribe/foundation/src/database/table.ts";
+import { Table } from "@scribe/foundation/lib/src/database/table.ts";
 import type { AccountRow, BanRow } from "../contracts/account.ts";
 import type { AccountDevice } from "../contracts/device.ts";
 

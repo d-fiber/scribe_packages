@@ -36,7 +36,7 @@
 
 import { assertEquals, assertStringIncludes } from "@std/assert";
 import { stub } from "@std/testing/mock";
-import { Isolate } from "@scribe/foundation/src/isolate/mod.ts";
+import { Isolate } from "@scribe/foundation/lib/src/isolate/mod.ts";
 
 interface Gate {
   readonly opened: Promise<void>;

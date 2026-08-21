@@ -34,11 +34,11 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { ByteStream } from "@scribe/foundation/src/http/byte_stream.ts";
-import { ClientException } from "@scribe/foundation/src/http/exception.ts";
-import { Request } from "@scribe/foundation/src/http/request/request.ts";
-import { Response } from "@scribe/foundation/src/http/response/response.ts";
-import { StreamedResponse } from "@scribe/foundation/src/http/response/streamed_response.ts";
+import { ByteStream } from "@scribe/foundation/lib/src/http/byte_stream.ts";
+import { ClientException } from "@scribe/foundation/lib/src/http/exception.ts";
+import { Request } from "@scribe/foundation/lib/src/http/request/request.ts";
+import { Response } from "@scribe/foundation/lib/src/http/response/response.ts";
+import { StreamedResponse } from "@scribe/foundation/lib/src/http/response/streamed_response.ts";
 import { assertEquals, assertThrows } from "@std/assert";
 
 function typed(value: string): Headers {

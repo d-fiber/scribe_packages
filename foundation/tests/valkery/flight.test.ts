@@ -34,9 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { DistributedLock, LockOutcome } from "@scribe/foundation/src/valkery/lock/distributed_lock.ts";
-import { DistributedFlight } from "@scribe/foundation/src/valkery/flight/distributed.ts";
-import { LocalFlight } from "@scribe/foundation/src/valkery/flight/local.ts";
+import type { DistributedLock, LockOutcome } from "@scribe/foundation/lib/src/valkery/lock/distributed_lock.ts";
+import { DistributedFlight } from "@scribe/foundation/lib/src/valkery/flight/distributed.ts";
+import { LocalFlight } from "@scribe/foundation/lib/src/valkery/flight/local.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
 
 class ScriptedLock {

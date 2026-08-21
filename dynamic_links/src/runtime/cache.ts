@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Time } from "@scribe/core/contracts/common/time.ts";
-import { Valkery } from "@scribe/foundation/src/valkery/valkery.ts";
+import { Valkery } from "@scribe/foundation/lib/src/valkery/valkery.ts";
 import type { DynamicLinkRow } from "../db/tables.ts";
 
 /** How long a resolved slug is kept, answered or not. */

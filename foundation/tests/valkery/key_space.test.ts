@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { withJitter } from "@scribe/foundation/src/valkery/entry_ttl.ts";
-import { KeySpace } from "@scribe/foundation/src/valkery/key_space.ts";
+import { withJitter } from "@scribe/foundation/lib/src/valkery/entry_ttl.ts";
+import { KeySpace } from "@scribe/foundation/lib/src/valkery/key_space.ts";
 import { Time } from "@scribe/core/contracts/common/time.ts";
 import { assert, assertEquals } from "@std/assert";
 

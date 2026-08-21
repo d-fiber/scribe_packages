@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { assertEquals } from "@std/assert";
-import { database } from "@scribe/foundation/src/database/database.ts";
+import { database } from "@scribe/foundation/lib/src/database/database.ts";
 import { DeviceThemeMode } from "@scribe/core/contracts/enums.ts";
 import { RequestIdentityCache, type RequestUser } from "@scribe/core/runtime/http/accessors/identity.ts";
 import { RequestScope } from "@scribe/core/runtime/scope.ts";

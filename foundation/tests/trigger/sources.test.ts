@@ -35,8 +35,8 @@
 // LICENSE file, the LICENSE file governs.
 
 import { assertEquals } from "@std/assert";
-import { syncDeclaredSources, Trigger } from "@scribe/foundation/src/trigger/mod.ts";
-import { triggerSources } from "@scribe/foundation/src/trigger/db/tables.ts";
+import { syncDeclaredSources, Trigger } from "@scribe/foundation/lib/src/trigger/mod.ts";
+import { triggerSources } from "@scribe/foundation/lib/src/trigger/db/tables.ts";
 import { installDatabaseFake } from "./mocks/database.ts";
 
 interface OrderRow {

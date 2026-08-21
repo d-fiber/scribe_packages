@@ -1,4 +1,4 @@
-import { Trigger } from "@scribe/foundation/src/trigger/mod.ts";
+import { Trigger } from "@scribe/foundation/lib/src/trigger/mod.ts";
 
 /** One row of the orders table, as the bodies below read it. */
 interface OrderRow {

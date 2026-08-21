@@ -3,7 +3,7 @@ import {
   RateLimit,
   SHARED_ADDRESS_MAX_PENALTY,
   SHARED_ADDRESS_STRIKE_MEMORY,
-} from "@scribe/foundation/src/rate_limit/mod.ts";
+} from "@scribe/foundation/lib/src/rate_limit/mod.ts";
 
 /**
  * A limit that guards a credential, so an unmeasured caller is refused.

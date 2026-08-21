@@ -38,7 +38,7 @@ import { Time } from "@scribe/core/contracts/common/time.ts";
 import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
 import { checkCaller } from "@scribe/core/runtime/http/caller.ts";
 import { sha256Hex } from "@scribe/core/runtime/support/crypto/hash.ts";
-import { RateLimit } from "@scribe/foundation/src/rate_limit/mod.ts";
+import { RateLimit } from "@scribe/foundation/lib/src/rate_limit/mod.ts";
 import { Channel } from "../contracts/channel.ts";
 import type { AccountRole } from "../contracts/role.ts";
 import { accountPassword, PasswordError } from "./password.ts";

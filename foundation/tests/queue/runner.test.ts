@@ -35,9 +35,9 @@
 // LICENSE file, the LICENSE file governs.
 
 import { assertEquals } from "@std/assert";
-import { Queue } from "@scribe/foundation/src/queue/mod.ts";
-import { MessageDispatcher } from "@scribe/foundation/src/queue/runner/dispatcher.ts";
-import { DrainTally } from "@scribe/foundation/src/queue/runner/drain_tally.ts";
+import { Queue } from "@scribe/foundation/lib/src/queue/mod.ts";
+import { MessageDispatcher } from "@scribe/foundation/lib/src/queue/runner/dispatcher.ts";
+import { DrainTally } from "@scribe/foundation/lib/src/queue/runner/drain_tally.ts";
 
 import type { JsMsg } from "@nats-io/jetstream";
 

@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { type Pagination, pagination } from "@scribe/core/contracts/pagination.ts";
-import { Queue } from "@scribe/foundation/src/queue/mod.ts";
+import { Queue } from "@scribe/foundation/lib/src/queue/mod.ts";
 import type { LinkOutcome, LinkPlatform, LinkStatistic, LinkVisitor } from "../../contracts/link.ts";
 import { type DynamicLinkStatisticRow, dynamicLinkStatistics } from "./tables.ts";
 

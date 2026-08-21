@@ -34,10 +34,10 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { nextRun, nextRunAfterSlot } from "@scribe/foundation/src/cron/core/next_run.ts";
-import { at, cronExpression, every } from "@scribe/foundation/src/cron/schedule/mod.ts";
+import { nextRun, nextRunAfterSlot } from "@scribe/foundation/lib/src/cron/core/next_run.ts";
+import { at, cronExpression, every } from "@scribe/foundation/lib/src/cron/schedule/mod.ts";
 import { Time } from "@scribe/core/contracts/common/time.ts";
-import { CronTimezone } from "@scribe/foundation/src/cron/timezone.ts";
+import { CronTimezone } from "@scribe/foundation/lib/src/cron/timezone.ts";
 import { assertEquals } from "@std/assert";
 
 Deno.test(

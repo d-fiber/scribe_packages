@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
-import { Trigger, triggerRegistry } from "@scribe/foundation/src/trigger/mod.ts";
+import { Trigger, triggerRegistry } from "@scribe/foundation/lib/src/trigger/mod.ts";
 
 interface OrderRow {
   id: string;

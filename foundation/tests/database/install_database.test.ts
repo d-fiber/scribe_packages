@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { database } from "@scribe/foundation/src/database/database.ts";
+import { database } from "@scribe/foundation/lib/src/database/database.ts";
 import { assertEquals } from "@std/assert";
 import { installDatabaseMock } from "@scribe/foundation/tests/database/mocks/install_database.ts";
 

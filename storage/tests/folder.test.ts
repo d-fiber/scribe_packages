@@ -38,7 +38,7 @@
 import "@scribe/core/testing/settings.ts";
 import { assertEquals } from "@std/assert";
 import { Size, Storage, StorageVisibility } from "@scribe/storage/mod.ts";
-import type { FakePostgrestSeed } from "@scribe/foundation/testing/database.ts";
+import type { FakePostgrestSeed } from "@scribe/foundation/tests/testing/database.ts";
 import { installStorageMock } from "@scribe/storage/testing/mock.ts";
 import { installDatabaseFake } from "./mocks/database.ts";
 

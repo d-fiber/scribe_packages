@@ -35,8 +35,8 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Time } from "@scribe/core/contracts/common/time.ts";
-import { at, cronExpression, every } from "@scribe/foundation/src/cron/schedule/mod.ts";
-import { CronTimezone } from "@scribe/foundation/src/cron/timezone.ts";
+import { at, cronExpression, every } from "@scribe/foundation/lib/src/cron/schedule/mod.ts";
+import { CronTimezone } from "@scribe/foundation/lib/src/cron/timezone.ts";
 import { assertEquals, assertThrows } from "@std/assert";
 
 Deno.test("Time.minutes/hours/days convert to the right ms", () => {

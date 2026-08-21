@@ -1,5 +1,5 @@
 import { Time } from "@scribe/core/contracts/common/time.ts";
-import { Valkery } from "@scribe/foundation/src/valkery/mod.ts";
+import { Valkery } from "@scribe/foundation/lib/src/valkery/mod.ts";
 
 /** What one entry of the session namespace holds. */
 interface Session {
