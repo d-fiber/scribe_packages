@@ -2,6 +2,7 @@ name: ci
 
 on:
   push:
+    branches: [dev, main]
   pull_request:
 
 permissions:
@@ -11,12 +12,79 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  DENO_VERSION: 2.7.14
+
 jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check that the key this needs is here
+        env:
+          KEY: ${{ secrets.SCRIBE_PUSH_KEY }}
+        run: |
+          set -eu
+          [ -n "$KEY" ] && exit 0
+
+          echo "SCRIBE_PUSH_KEY is not set, and nothing here can be checked without it." >&2
+          echo "" >&2
+          echo "A package resolves only through the framework's import map, so verifying one" >&2
+          echo "means putting it in a scribe checkout and checking that. This job needs read" >&2
+          echo "access on d-fiber/scribe to make that checkout." >&2
+          exit 1
+
+      - uses: actions/checkout@v4
+        with:
+          path: source
+
+      - uses: actions/checkout@v4
+        with:
+          repository: d-fiber/scribe
+          ref: dev
+          path: scribe
+          ssh-key: ${{ secrets.SCRIBE_PUSH_KEY }}
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: ${{ env.DENO_VERSION }}
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/deno
+          key: deno-${{ runner.os }}-${{ hashFiles('scribe/host/deno.lock') }}
+          restore-keys: deno-${{ runner.os }}-
+
+      - name: Put these packages in the framework
+        run: bash source/.github/sync/copy.sh "$GITHUB_WORKSPACE/scribe/host/pkg/packages"
+
+      - name: Type check, lint and run the suite with them
+        working-directory: scribe/host
+        run: |
+          set -eu
+          deno task check
+          deno lint
+          deno task test
+
   headers:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check license headers
+      - name: Check licence headers
         run: bash .github/headers/check.sh
+
+  commits:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check commit messages
+        env:
+          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+        run: bash .github/commits/check.sh "$BASE" "$HEAD"
