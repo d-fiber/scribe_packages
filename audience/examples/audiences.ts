@@ -1,4 +1,4 @@
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { Audience, audiencesOf } from "@scribe/audience/mod.ts";
 
 /**
@@ -22,7 +22,7 @@ export const editors = Audience.keyed("project-editors");
  * Naming the lifetime on the declaration is what makes a right nobody remembers to take back
  * impossible: every caller inherits it, and a caller that wants otherwise says so per member.
  */
-export const invited = Audience.keyed("project-invited", { ttl: Time.days(7) });
+export const invited = Audience.keyed("project-invited", { ttl: Duration.days(7) });
 
 /** Whether an account is in the plain set. */
 export function isBanned(accountId: string): Promise<boolean> {
@@ -58,7 +58,7 @@ export async function inviteForGood(projectId: string, accountId: string): Promi
 
 /** Pushes one membership out without writing it again. */
 export async function renew(projectId: string, accountId: string): Promise<boolean> {
-  const result = await invited.in(projectId).ttl(accountId, Time.days(7));
+  const result = await invited.in(projectId).ttl(accountId, Duration.days(7));
   return result.ok;
 }
 

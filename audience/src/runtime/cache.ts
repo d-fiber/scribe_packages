@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { Valkery } from "@scribe/foundation/lib/src/valkery/valkery.ts";
 import type { AudienceRow } from "../db/tables.ts";
 
@@ -47,7 +47,7 @@ import type { AudienceRow } from "../db/tables.ts";
  * the old way at the same instant. What the ten minutes cover is the row that expires on its own,
  * which no write goes through to announce.
  */
-const CACHE_TTL = Time.minutes(10);
+const CACHE_TTL = Duration.minutes(10);
 
 /**
  * What one cached membership holds.

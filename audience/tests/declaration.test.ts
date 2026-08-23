@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { AudienceError } from "@scribe/audience/contracts/audience.ts";
 import { Audience } from "@scribe/audience/src/core/declaration.ts";
 import { AudienceKeyError } from "@scribe/audience/src/core/key.ts";
@@ -43,7 +43,7 @@ import { assert, assertEquals, assertFalse, assertThrows } from "@std/assert";
 
 const banned = Audience.plain("declaration-banned");
 const editors = Audience.keyed("declaration-editors");
-const invited = Audience.keyed("declaration-invited", { ttl: Time.days(7) });
+const invited = Audience.keyed("declaration-invited", { ttl: Duration.days(7) });
 
 Deno.test("a plain audience holds the members it was given", async () => {
   const audiences = installAudienceMock();
@@ -89,7 +89,7 @@ Deno.test("a member put in twice is held once, with the last expiry", async () =
   const audiences = installAudienceMock();
 
   try {
-    await editors.in("p1").add("a1", { ttl: Time.minutes(5) });
+    await editors.in("p1").add("a1", { ttl: Duration.minutes(5) });
     await editors.in("p1").add("a1", { ttl: null });
 
     assertEquals(audiences.memberships().length, 1);
@@ -125,7 +125,7 @@ Deno.test("the declared delay is what a member inherits when the caller names no
     await invited.in("p1").add("a1");
 
     const expiresAt = audiences.memberships()[0].expires_at as number;
-    assert(expiresAt >= before + Time.days(7).ms, "the declared delay must be applied");
+    assert(expiresAt >= before + Duration.days(7).inMilliseconds, "the declared delay must be applied");
   } finally {
     audiences.restore();
   }

@@ -34,18 +34,10 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Time } from "@scribe/core/contracts/common/time.ts";
-import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
+import type { Duration } from "@scribe/alchemy";
+import { Failure, okay, type Result } from "@scribe/alchemy";
 import { AudienceError, type AudienceOptions, type JoinOptions } from "../../contracts/audience.ts";
-import {
-  dropAudience,
-  dropMembership,
-  hasExpired,
-  membershipOf,
-  membersOf,
-  retimeMembership,
-  writeMembership,
-} from "../db/members.ts";
+import { dropAudience, dropMembership, hasExpired, membersOf, membershipOf, retimeMembership, writeMembership } from "../db/members.ts";
 import type { AudienceRow } from "../db/tables.ts";
 import { cachedMembership, forgetAudience, forgetMembership } from "../runtime/cache.ts";
 import { guarded } from "./guard.ts";
@@ -84,7 +76,7 @@ export interface Members {
    * Null makes the membership never expire. A member this audience does not hold answers
    * `NotFound`, since there is no row to move.
    */
-  ttl(member: string, ttl: Time | null): Promise<Result<void, AudienceError>>;
+  ttl(member: string, ttl: Duration | null): Promise<Result<void, AudienceError>>;
 
   /**
    * The members of this audience, up to the cap the package lists with.
@@ -130,7 +122,7 @@ export interface KeyedAudience {
  * const editors = Audience.keyed("project-editors");
  *
  * await banned.has(accountId);
- * await editors.in(projectId).add(accountId, { ttl: Time.days(30) });
+ * await editors.in(projectId).add(accountId, { ttl: Duration.days(30) });
  * await editors.in(projectId).has(accountId);
  * ```
  *
@@ -151,9 +143,9 @@ export interface KeyedAudience {
 export class Audience implements Members, KeyedAudience {
   readonly name: string;
 
-  readonly #ttl: Time | null;
+  readonly #ttl: Duration | null;
 
-  private constructor(name: string, ttl: Time | null) {
+  private constructor(name: string, ttl: Duration | null) {
     this.name = name;
     this.#ttl = ttl;
   }
@@ -203,11 +195,11 @@ export class Audience implements Members, KeyedAudience {
       const written = await writeMembership(
         this.name,
         member,
-        ttl === null ? null : Date.now() + ttl.ms,
+        ttl === null ? null : Date.now() + ttl.inMilliseconds,
       );
 
       await forgetMembership(this.name, member);
-      return written ? new OK() : new Failure(AudienceError.Backend);
+      return written ? okay : new Failure(AudienceError.Backend);
     });
   }
 
@@ -216,20 +208,20 @@ export class Audience implements Members, KeyedAudience {
       const removed = await dropMembership(this.name, member);
 
       await forgetMembership(this.name, member);
-      return removed ? new OK() : new Failure(AudienceError.NotFound);
+      return removed ? okay : new Failure(AudienceError.NotFound);
     });
   }
 
-  ttl(member: string, ttl: Time | null): Promise<Result<void, AudienceError>> {
+  ttl(member: string, ttl: Duration | null): Promise<Result<void, AudienceError>> {
     return guarded(async () => {
       const retimed = await retimeMembership(
         this.name,
         member,
-        ttl === null ? null : Date.now() + ttl.ms,
+        ttl === null ? null : Date.now() + ttl.inMilliseconds,
       );
 
       await forgetMembership(this.name, member);
-      return retimed ? new OK() : new Failure(AudienceError.NotFound);
+      return retimed ? okay : new Failure(AudienceError.NotFound);
     });
   }
 
@@ -247,7 +239,7 @@ export class Audience implements Members, KeyedAudience {
       const wiped = await dropAudience(this.name);
 
       await forgetAudience(this.name);
-      return wiped ? new OK() : new Failure(AudienceError.Backend);
+      return wiped ? okay : new Failure(AudienceError.Backend);
     });
   }
 

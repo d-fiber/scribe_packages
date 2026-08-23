@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { OK, type Result } from "@scribe/core/contracts/result.ts";
+import { okay, type Result } from "@scribe/alchemy";
 import type { AudienceError } from "../../contracts/audience.ts";
 import { audiencesOfMember, dropMember } from "../db/members.ts";
 import { forgetMemberIn } from "../runtime/cache.ts";
@@ -69,6 +69,6 @@ export function forgetMember(member: string): Promise<Result<void, AudienceError
     await dropMember(member);
 
     await forgetMemberIn(held, member);
-    return new OK();
+    return okay;
   });
 }

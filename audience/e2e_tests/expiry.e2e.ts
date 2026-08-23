@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { assert, assertEquals, assertFalse } from "@std/assert";
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { requireStack, RUN_ID, STACK, useStack } from "./support/stack.ts";
 
 await requireStack(`${STACK.restUrl}/`);
@@ -45,7 +45,7 @@ const { Audience } = await import("@scribe/audience/mod.ts");
 const { AudienceError } = await import("@scribe/audience/contracts/audience.ts");
 const { audiences } = await import("@scribe/audience/src/db/tables.ts");
 
-const invited = Audience.keyed(`e2e-invited-${RUN_ID}`, { ttl: Time.days(7) });
+const invited = Audience.keyed(`e2e-invited-${RUN_ID}`, { ttl: Duration.days(7) });
 
 async function expiryOf(audience: string, member: string): Promise<number | null> {
   const row = await audiences()
@@ -62,7 +62,7 @@ Deno.test("audience e2e: the declared delay is what a member inherits", async ()
   const expiresAt = await expiryOf(`${invited.name}:p1`, "b1");
 
   assert(expiresAt !== null, "the declared delay wrote no expiry");
-  assert(expiresAt >= before + Time.days(7).ms, "the expiry is closer than the declaration says");
+  assert(expiresAt >= before + Duration.days(7).inMilliseconds, "the expiry is closer than the declaration says");
 });
 
 Deno.test("audience e2e: a caller that names null keeps the member past the declaration", async () => {
@@ -73,14 +73,14 @@ Deno.test("audience e2e: a caller that names null keeps the member past the decl
 });
 
 Deno.test("audience e2e: a membership past its expiry stops answering", async () => {
-  await invited.in("p3").add("b3", { ttl: Time.ms(-1_000) });
+  await invited.in("p3").add("b3", { ttl: Duration.milliseconds(-1_000) });
 
   assertFalse(await invited.in("p3").has("b3"), "an expired membership must let nobody through");
   assertEquals(await invited.in("p3").members(), [], "an expired membership must not be listed");
 });
 
 Deno.test("audience e2e: retiming moves the expiry without touching the membership", async () => {
-  await invited.in("p4").add("b4", { ttl: Time.minutes(1) });
+  await invited.in("p4").add("b4", { ttl: Duration.minutes(1) });
   const before = await expiryOf(`${invited.name}:p4`, "b4");
 
   assert((await invited.in("p4").ttl("b4", null)).ok);
@@ -91,9 +91,9 @@ Deno.test("audience e2e: retiming moves the expiry without touching the membersh
 });
 
 Deno.test("audience e2e: retiming a membership that expired answers not found", async () => {
-  await invited.in("p5").add("b5", { ttl: Time.ms(-1_000) });
+  await invited.in("p5").add("b5", { ttl: Duration.milliseconds(-1_000) });
 
-  const retimed = await invited.in("p5").ttl("b5", Time.days(1));
+  const retimed = await invited.in("p5").ttl("b5", Duration.days(1));
 
   assertFalse(retimed.ok);
   assertEquals(retimed.ok ? null : retimed.error, AudienceError.NotFound);

@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Time } from "@scribe/core/contracts/common/time.ts";
+import type { Duration } from "@scribe/alchemy";
 
 /** Why a membership could not be written, retimed or removed. */
 export enum AudienceError {
@@ -53,7 +53,7 @@ export interface AudienceOptions {
    * A member stays forever when absent. Naming it here is what makes a right nobody remembers to
    * take back impossible: the declaration decides, and every caller inherits it.
    */
-  readonly ttl?: Time;
+  readonly ttl?: Duration;
 }
 
 /** What putting one member in takes beyond the member. */
@@ -64,5 +64,5 @@ export interface JoinOptions {
    * Null and absent are two answers on purpose: absent means the declaration decides, and null
    * means this member stays past whatever the declaration says.
    */
-  readonly ttl?: Time | null;
+  readonly ttl?: Duration | null;
 }
