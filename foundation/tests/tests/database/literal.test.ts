@@ -120,3 +120,27 @@ Deno.test("a column name that is not a plain identifier is refused, not escaped"
     );
   }
 });
+
+Deno.test("a keyword the is operator does not accept is refused, not spliced in", () => {
+  for (const hostile of ["null,id.gt.0", "null,or(role.eq.admin)", "anything at all", 42]) {
+    assertThrows(
+      () => keywordLiteral(hostile),
+      UnsafeFilterError,
+      "is not one of null, true, false, unknown",
+    );
+  }
+});
+
+Deno.test("the four keywords the is operator accepts still answer, whatever their case", () => {
+  assertEquals(keywordLiteral(null), "null");
+  assertEquals(keywordLiteral(undefined), "null");
+  assertEquals(keywordLiteral(true), "true");
+  assertEquals(keywordLiteral("TRUE"), "true");
+  assertEquals(keywordLiteral("Unknown"), "unknown");
+});
+
+Deno.test("what keywordLiteral answers can never carry a term separator", () => {
+  for (const accepted of [null, true, false, "null", "TRUE", "unknown"]) {
+    assertEquals(`archived.is.${keywordLiteral(accepted)}`.split(",").length, 1);
+  }
+});

@@ -72,7 +72,25 @@ export function isFilterKeyword(value: unknown): boolean {
     IS_KEYWORDS.includes(value.toLowerCase());
 }
 
+/**
+ * The keyword `value` stands for, as the `is` operator takes it.
+ *
+ * @remarks
+ * The four keywords are the whole of what `is` accepts, so anything else is refused here rather
+ * than passed on. It is not a matter of taste: what this answers is spliced into a filter string
+ * unquoted, and a comma is what separates two terms of an `or` group, so a value carrying one
+ * would add a disjunction the caller never wrote and widen what the query answers.
+ *
+ * {@link quoteFilterLiteral} is what a value that is not a keyword goes through, and it quotes.
+ *
+ * @throws {UnsafeFilterError} When `value` is not one of the four keywords `is` accepts.
+ */
 export function keywordLiteral(value: unknown): string {
+  if (!isFilterKeyword(value)) {
+    throw new UnsafeFilterError(
+      `${JSON.stringify(String(value))} is not one of ${IS_KEYWORDS.join(", ")}`,
+    );
+  }
   if (value === null || value === undefined) return "null";
   return String(value).toLowerCase();
 }
