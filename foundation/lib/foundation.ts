@@ -51,11 +51,18 @@
  * needs to happen at import or after boot.
  */
 
+import { Caches, Crons, Hooks, Queues, RateLimiters, Triggers } from "@scribe/alchemy";
 import { Clients } from "@scribe/alchemy/http";
 import { Loggers } from "@scribe/alchemy/observe";
 import { Now } from "@scribe/alchemy";
 import type { LifecycleSteps } from "@scribe/alchemy";
 import { FetchClients } from "./src/http/fetch_client.ts";
+import { RedisCaches } from "./src/cache/redis_caches.ts";
+import { NatsQueues } from "./src/queue/nats_queues.ts";
+import { InlineHooks } from "./src/hook/inline_hooks.ts";
+import { ScheduledCrons } from "./src/cron/scheduled_crons.ts";
+import { OutboxTriggers } from "./src/trigger/outbox_triggers.ts";
+import { RedisRateLimiters } from "./src/rate_limit/redis_rate_limiter.ts";
 import { ConsoleLogger } from "./src/observe/console_logger.ts";
 import { SystemNow } from "./src/observe/system_now.ts";
 
@@ -63,6 +70,7 @@ export type { CacheSettings, DatabaseSettings, QueueSettings } from "./src/setti
 
 export { Cron, type CronDefinition } from "./src/cron/cron.ts";
 export { cronRegistry, type RegisteredCron } from "./src/cron/cron_registry.ts";
+export { ScheduledCrons } from "./src/cron/scheduled_crons.ts";
 export { cronRunner } from "./src/cron/cron_runner.ts";
 export { type CronExpression, cronExpression } from "./src/cron/cron_expression.ts";
 export { at, type TimeOfDay } from "./src/cron/daily_schedule.ts";
@@ -81,6 +89,7 @@ export { DatabaseQueryError, TypedQueryBuilder } from "./src/database/query/type
 
 export { Hook, type HookDefinition } from "./src/hook/hook.ts";
 export { hookRegistry, type RegisteredHook } from "./src/hook/hook_registry.ts";
+export { InlineHooks } from "./src/hook/inline_hooks.ts";
 export type { BackgroundHookHandler, HookHandler } from "./src/hook/hook_handler.ts";
 
 export { FetchClient, FetchClients } from "./src/http/fetch_client.ts";
@@ -97,6 +106,7 @@ export {
 } from "./src/queue/queue.ts";
 export { queueSettings } from "./src/queue/queue_settings.ts";
 export { queueRegistry } from "./src/queue/queue_registry.ts";
+export { NatsQueues } from "./src/queue/nats_queues.ts";
 export {
   QUEUE_DEFAULTS,
   type QueueDefaults,
@@ -150,6 +160,7 @@ export { syncDeclaredSources } from "./src/trigger/trigger_sources.ts";
 export { type TriggerSourceRow, triggerSources } from "./src/trigger/trigger_tables.ts";
 
 export { DEFAULT_TTL, RedisCache } from "./src/cache/redis_cache.ts";
+export { RedisCaches } from "./src/cache/redis_caches.ts";
 export { cacheSettings } from "./src/cache/cache_settings.ts";
 export { KeySpace } from "./src/cache/key_space.ts";
 export { withJitter } from "./src/cache/ttl_jitter.ts";
@@ -162,11 +173,28 @@ export {
 } from "./src/cache/lock/distributed_lock.ts";
 export { type LockCommands, lockCommands } from "./src/cache/lock/lock_commands.ts";
 
-/** When this package runs, which is once, at import, to fill the slots its drivers answer. */
+/**
+ * When this package runs, which is once, at import, to answer the slots its drivers are for.
+ *
+ * @remarks
+ * Each slot is filled only when nothing has filled it. A step every package runs cannot write
+ * over what a host settled: `Slot.use` does not refuse a second call, so an unconditional write
+ * makes the last package imported win, and a fallback that wins is not a fallback. A test that
+ * put something there keeps it, which is what a test putting something there is for.
+ *
+ * None of these drivers reads a slot or opens a connection while it is being built, which is what
+ * makes import the right moment: the settings they need are read at the first call, not here.
+ */
 export const scribe: LifecycleSteps = {
   wires: () => {
-    Clients.use(new FetchClients());
-    Loggers.use(new ConsoleLogger());
-    Now.use(new SystemNow());
+    if (!Clients.configured) Clients.use(new FetchClients());
+    if (!Loggers.configured) Loggers.use(new ConsoleLogger());
+    if (!Now.configured) Now.use(new SystemNow());
+    if (!Caches.configured) Caches.use(new RedisCaches());
+    if (!RateLimiters.configured) RateLimiters.use(new RedisRateLimiters());
+    if (!Queues.configured) Queues.use(new NatsQueues());
+    if (!Hooks.configured) Hooks.use(new InlineHooks());
+    if (!Crons.configured) Crons.use(new ScheduledCrons());
+    if (!Triggers.configured) Triggers.use(new OutboxTriggers());
   },
 };

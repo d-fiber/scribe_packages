@@ -33,10 +33,12 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
+import { Caches, Now, RateLimiters } from "@scribe/alchemy";
 import { Clients } from "@scribe/alchemy/http";
+import { Loggers } from "@scribe/alchemy/observe";
 import { FetchClient, FetchClients } from "@scribe/foundation/lib/src/http/fetch_client.ts";
 import { scribe } from "@scribe/foundation/lib/foundation.ts";
-import { assert, assertNotStrictEquals } from "@std/assert";
+import { assert, assertEquals, assertNotStrictEquals } from "@std/assert";
 
 Deno.test("the driver opens a client that goes on the network", () => {
   const client = new FetchClients().open();
@@ -63,4 +65,34 @@ Deno.test("wiring the package fills the slot an outbound call goes through", () 
 
   assert(Clients.get().open() instanceof FetchClient, "http.get has nothing to send through until this runs");
   Clients.clear();
+});
+
+Deno.test("wiring the package answers every slot its drivers are for", () => {
+  for (const slot of [Clients, Loggers, Now, Caches, RateLimiters]) slot.clear();
+
+  scribe.wires?.();
+
+  assertEquals(
+    [Clients, Loggers, Now, Caches, RateLimiters].map((slot) => slot.configured),
+    [true, true, true, true, true],
+  );
+  assertEquals(Caches.get().open({ key: "probe" }).constructor.name, "RedisCache");
+});
+
+Deno.test("wiring the package leaves standing whatever the host already put there", () => {
+  class HostClock {
+    millisecondsSinceEpoch(): number {
+      return 42;
+    }
+  }
+  for (const slot of [Clients, Loggers, Now, Caches, RateLimiters]) slot.clear();
+  Now.use(new HostClock());
+
+  scribe.wires?.();
+
+  assertEquals(Now.get().constructor.name, "HostClock");
+  assertEquals(Now.get().millisecondsSinceEpoch(), 42);
+  assertEquals(Caches.configured, true, "a slot nobody filled is still filled");
+
+  for (const slot of [Clients, Loggers, Now, Caches, RateLimiters]) slot.clear();
 });
