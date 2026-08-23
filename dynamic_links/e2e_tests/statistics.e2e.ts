@@ -180,6 +180,6 @@ Deno.test({
 
     assert(page.ok);
     assertEquals(page.data.items.length, 1);
-    assertEquals(page.data.pagination.has_more, true, "a page of one on two visits must say there is more");
+    assertEquals(page.data.hasMore, true, "a page of one on two visits must say there is more");
   },
 });

@@ -1,4 +1,4 @@
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { DynamicLink, Link, LinkPlatform } from "@scribe/dynamic_links/mod.ts";
 
 /** What an invitation link carries to the application that opens it. */
@@ -27,7 +27,7 @@ export interface Shared {
  */
 export const invite = DynamicLink.deeplink<Invite>("invite", {
   path: "/invite/{code}",
-  ttl: Time.days(30),
+  ttl: Duration.days(30),
 });
 
 /**
@@ -37,7 +37,7 @@ export const invite = DynamicLink.deeplink<Invite>("invite", {
  */
 export const partner = DynamicLink.redirect<Shared>("partner", {
   url: "https://partner.example/from/{from}",
-  ttl: Time.days(10),
+  ttl: Duration.days(10),
 });
 
 /**
@@ -55,7 +55,7 @@ export const install = DynamicLink.deeplink("install");
  * installed, so the application is attempted and the fallback is what most visitors get.
  */
 export const shared = DynamicLink.routed<Invite>("shared", {
-  ttl: Time.days(30),
+  ttl: Duration.days(30),
   decide: (visit, data) =>
     visit.platform === LinkPlatform.Web
       ? Link.web(`https://example.app/i/${data.code}`)
@@ -79,7 +79,7 @@ export async function shortLivedInvite(
   const created = await invite.create(
     { code, invitedBy },
     {
-      expiresAt: Date.now() + Time.hours(1).ms,
+      expiresAt: Date.now() + Duration.hours(1).inMilliseconds,
     },
   );
   return created.ok ? created.data.slug : null;

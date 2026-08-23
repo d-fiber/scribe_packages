@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { type Pagination, pagination } from "@scribe/core/contracts/pagination.ts";
+import { Pagination } from "@scribe/alchemy";
 import { Queue } from "@scribe/foundation/lib/src/queue/mod.ts";
 import type { LinkOutcome, LinkPlatform, LinkStatistic, LinkVisitor } from "../../contracts/link.ts";
 import { type DynamicLinkStatisticRow, dynamicLinkStatistics } from "./tables.ts";
@@ -107,7 +107,7 @@ export async function statisticsOf(
     .range(offset, offset + size)
     .get();
 
-  return pagination(rows.map(statisticOf), offset, size);
+  return Pagination.of(rows.map(statisticOf), offset, size);
 }
 
 function statisticOf(row: DynamicLinkStatisticRow): LinkStatistic {

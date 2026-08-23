@@ -34,9 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Time } from "@scribe/core/contracts/common/time.ts";
-import type { Pagination } from "@scribe/core/contracts/pagination.ts";
-import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
+import type { Duration } from "@scribe/alchemy";
+import type { Pagination } from "@scribe/alchemy";
+import { Failure, Ok, okay, type Result } from "@scribe/alchemy";
 import { type CreatedLink, LinkError, LinkKind, type LinkStatistic } from "../../contracts/link.ts";
 import { deleteLink, insertLink, linkBySlug } from "../db/links.ts";
 import { statisticsOf } from "../db/statistics.ts";
@@ -69,7 +69,7 @@ export type AnyLinkData = Readonly<Record<string, LinkValue>>;
 /** What every declaration takes, whatever it sends a visitor to. */
 export interface LinkOptions {
   /** How long a link of this declaration resolves. Forever when absent. */
-  readonly ttl?: Time;
+  readonly ttl?: Duration;
 }
 
 /** What declaring a deeplink takes beyond its name. */
@@ -130,7 +130,7 @@ export interface LinkPage {
  *
  * const invite = DynamicLink.deeplink<Invite>("invite", {
  *   path: "/invite/{code}",
- *   ttl: Time.days(30),
+ *   ttl: Duration.days(30),
  * });
  *
  * await invite.create({ code: "A1B2", invitedBy: accountId });
@@ -161,14 +161,14 @@ export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
 
   readonly #template: LinkTemplate | null;
   readonly #decide: ((visit: Visit, data: T) => LinkDestination) | null;
-  readonly #ttl: Time | null;
+  readonly #ttl: Duration | null;
 
   private constructor(
     name: string,
     kind: LinkKind,
     pattern: string,
     decide: ((visit: Visit, data: T) => LinkDestination) | null,
-    ttl: Time | null,
+    ttl: Duration | null,
   ) {
     this.name = name;
     this.kind = kind;
@@ -273,7 +273,7 @@ export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
         if (!row) continue;
 
         await forgetLink(row.slug);
-        return new OK({
+        return new Ok({
           slug: row.slug,
           expiresAt: row.expires_at,
           createdAt: row.created_at,
@@ -302,7 +302,7 @@ export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
       if (!removed) return new Failure(LinkError.Backend);
 
       await forgetLink(slug);
-      return new OK();
+      return okay;
     });
   }
 
@@ -319,7 +319,7 @@ export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
 
       const offset = page.offset ?? 0;
       const size = page.size ?? DEFAULT_PAGE_SIZE;
-      return new OK(await statisticsOf(row.link_id, offset, size));
+      return new Ok(await statisticsOf(row.link_id, offset, size));
     });
   }
 
@@ -344,7 +344,7 @@ export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
   }
 
   #expiry(): number | null {
-    return this.#ttl === null ? null : Date.now() + this.#ttl.ms;
+    return this.#ttl === null ? null : Date.now() + this.#ttl.inMilliseconds;
   }
 }
 

@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
+import { Failure, Ok, type Result } from "@scribe/alchemy";
 import { LinkError, type LinkOutcome, type LinkPreview, type LinkVisitor } from "../../contracts/link.ts";
 import type { AnyLinkData, DynamicLink, LinkData } from "../core/declaration.ts";
 import type { LinkDestination, Visit } from "../core/destination.ts";
@@ -143,6 +143,6 @@ export function resolveLink(slug: string): Promise<Result<ResolvedLink, LinkErro
     const declaration = linkNamed(row.payload.k);
     if (!declaration) return new Failure(LinkError.Unknown);
 
-    return new OK(new ResolvedLink(row, declaration));
+    return new Ok(new ResolvedLink(row, declaration));
   });
 }
