@@ -35,8 +35,16 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { LatLng } from "@scribe/alchemy";
-import type { Metadata } from "@scribe/core/contracts/common/metadata.ts";
 import type { ClientType, DeviceCategory, DeviceOs } from "@scribe/core/contracts/enums.ts";
+
+/** When a row was written and when it was last touched. */
+export interface Metadata {
+  /** Milliseconds since the epoch, at insert. */
+  created_at: number;
+
+  /** Milliseconds since the epoch, at the last write. */
+  updated_at: number;
+}
 
 /** One device an account has signed in from, as a caller reads it back. */
 export interface AccountDevice {
