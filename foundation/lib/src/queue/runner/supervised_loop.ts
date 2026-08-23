@@ -34,18 +34,22 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { ExponentialBackoff } from "@scribe/alchemy";
-import { sleep } from "@scribe/core/runtime/support/async/sleep.ts";
-import { Duration } from "@scribe/alchemy";
+import { Duration, ExponentialBackoff, Future } from "@scribe/alchemy";
+import { log } from "@scribe/alchemy/observe";
 
-const RESTART_DELAY_MS = 5_000;
-const PASS_BACKOFF_MS = 1_000;
-const PASS_BACKOFF_MAX_MS = 30_000;
+/** How long a crashed loop stays down before it comes back. */
+const RESTART_AFTER: Duration = Duration.seconds(5);
+
+/** How long the first failed pass waits before the next one. */
+const BACKOFF_FROM: Duration = Duration.seconds(1);
+
+/** The ceiling the doubling stops at, so a long outage does not push a retry an hour away. */
+const BACKOFF_UP_TO: Duration = Duration.seconds(30);
 
 /** One turn of a loop. */
-export type Pass = () => Promise<void>;
+export type Pass = () => Future<void>;
 /** What runs once before the first turn. */
-export type Prepare = () => Promise<void>;
+export type Prepare = () => Future<void>;
 
 /**
  * Runs a pass over and over, backs off when it fails, and restarts when it dies.
@@ -57,10 +61,7 @@ export class SupervisedLoop {
   readonly #label: string;
   readonly #pass: Pass;
   readonly #isRunning: () => boolean;
-  readonly #backoff = new ExponentialBackoff(
-    Duration.milliseconds(PASS_BACKOFF_MS),
-    Duration.milliseconds(PASS_BACKOFF_MAX_MS),
-  );
+  readonly #backoff = new ExponentialBackoff(BACKOFF_FROM, BACKOFF_UP_TO);
 
   readonly #prepare: Prepare;
 
@@ -68,7 +69,7 @@ export class SupervisedLoop {
     label: string,
     pass: Pass,
     isRunning: () => boolean,
-    prepare: Prepare = () => Promise.resolve(),
+    prepare: Prepare = () => Future.value(undefined),
   ) {
     this.#label = label;
     this.#pass = pass;
@@ -78,17 +79,16 @@ export class SupervisedLoop {
 
   start(): void {
     this.#drive().catch((error) => {
-      console.error(
-        `[queue-runner] loop "${this.#label}" crashed, restarting in ${RESTART_DELAY_MS}ms:`,
-        error,
-      );
-      setTimeout(() => {
+      log.error("queue-runner.loop_crashed", {
+        metadata: { loop: this.#label, restartingIn: RESTART_AFTER.toString(), error },
+      });
+      Future.delayed(RESTART_AFTER).then(() => {
         if (this.#isRunning()) this.start();
-      }, RESTART_DELAY_MS);
+      });
     });
   }
 
-  async #drive(): Promise<void> {
+  async #drive(): Future<void> {
     await this.#prepare();
     let consecutiveErrors = 0;
 
@@ -98,8 +98,8 @@ export class SupervisedLoop {
         consecutiveErrors = 0;
       } catch (error) {
         consecutiveErrors++;
-        console.error(`[queue-runner] pass failed for "${this.#label}"`, error);
-        await sleep(this.#backoff.delayFor(consecutiveErrors));
+        log.error("queue-runner.pass_failed", { metadata: { loop: this.#label, error } });
+        await Future.delayed(this.#backoff.delayFor(consecutiveErrors));
       }
     }
   }

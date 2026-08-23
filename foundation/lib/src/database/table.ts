@@ -34,9 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { PostgrestClients } from "./client.ts";
-import type { PostgrestClientSource } from "./query/builder.ts";
-import { TypedQueryBuilder } from "./query/builder.ts";
+import { PostgrestClients } from "./postgrest_clients.ts";
+import type { PostgrestClientSource } from "./query/typed_query_builder.ts";
+import { TypedQueryBuilder } from "./query/typed_query_builder.ts";
 import type { RelNode } from "./query/selector.ts";
 
 /** What one table of a schema is: the shape of a row, and the relations it can embed. */

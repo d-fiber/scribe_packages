@@ -1,3 +1,39 @@
+// Copyright (C) 2026 Fiber
+//
+// This Source Code Form is subject to the terms of the Mozilla Public License,
+// v. 2.0. If a copy of the MPL was not distributed with this file, You can
+// obtain one at https://mozilla.org/MPL/2.0/.
+//
+// What you may do:
+// - Use this software for any purpose, including commercially, and build and
+//   sell your own products on top of it.
+// - Change it, and create new works based on it.
+// - Distribute copies of it, with or without your changes.
+// - Combine it with files under any other licence, proprietary ones included,
+//   and licence that larger work on your own terms.
+//
+// What you must do in return:
+// - Keep this notice on every file you received it on.
+// - Publish, under these same terms, the source of every file covered by them
+//   that you distribute, including the ones you changed, so that whoever
+//   receives your version can obtain that source.
+// - Leave Fiber out of it: the name "Fiber", its branding, its logos and its
+//   trademarks may not be used to endorse or promote what you build, and this
+//   licence grants no right to them.
+//
+// Disclaimer:
+// AS FAR AS THE LAW ALLOWS, THIS SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY
+// OR CONDITION OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO
+// WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR
+// NON-INFRINGEMENT. IN NO EVENT SHALL FIBER BE LIABLE FOR ANY DIRECT, INDIRECT,
+// INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING BUT NOT
+// LIMITED TO LOSS OF USE, DATA, PROFITS, OR BUSINESS INTERRUPTION) ARISING OUT
+// OF OR RELATED TO THESE TERMS OR THE USE OR NATURE OF THE SOFTWARE, UNDER ANY
+// KIND OF LEGAL CLAIM.
+//
+// This header is a summary written for convenience. Where it differs from the
+
+import { type Future } from "@scribe/alchemy";
 import { Table } from "@scribe/foundation/lib/src/database/table.ts";
 
 /** One row of the orders table. */
@@ -48,7 +84,7 @@ class ShopTable<K extends keyof ShopSchema & string> extends Table<ShopSchema, K
 export const orders = new ShopTable("orders");
 
 /** Reads a page, naming the columns it wants so the result type is the shape it asked for. */
-export function recentOrders(since: string): Promise<{ id: string; total: number }[]> {
+export function recentOrders(since: string): Future<{ id: string; total: number }[]> {
   return orders
     .select((o) => ({ id: o.id, total: o.total }))
     .where((f) => f.created_at.gte(since))
@@ -58,17 +94,17 @@ export function recentOrders(since: string): Promise<{ id: string; total: number
 }
 
 /** Reads at most one row, answering null when nothing matches. */
-export function orderById(id: string): Promise<OrderRow | null> {
+export function orderById(id: string): Future<OrderRow | null> {
   return orders.where((f) => f.id.eq(id)).getOne();
 }
 
 /** Several filters travel as an array, and they narrow together. */
-export function pendingOver(amount: number): Promise<OrderRow[]> {
+export function pendingOver(amount: number): Future<OrderRow[]> {
   return orders.where((f) => [f.status.eq("pending"), f.total.gt(amount)]).get();
 }
 
 /** Writes a row and answers it back, with the owner column filled in when it was left out. */
-export function place(order: Partial<OrderRow>): Promise<OrderRow | null> {
+export function place(order: Partial<OrderRow>): Future<OrderRow | null> {
   return orders.insertOne(order);
 }
 
@@ -78,7 +114,7 @@ export function place(order: Partial<OrderRow>): Promise<OrderRow | null> {
  * A write with no filter is refused rather than applied to the table: `entireTable()` is how
  * a caller says that is what it meant.
  */
-export function markPaid(id: string): Promise<boolean> {
+export function markPaid(id: string): Future<boolean> {
   return orders.where((f) => f.id.eq(id)).update({ status: "paid" });
 }
 
@@ -87,6 +123,6 @@ export function markPaid(id: string): Promise<boolean> {
  *
  * `unscoped()` belongs to code that has already checked upstream who is allowed to cross.
  */
-export function everyPendingOrder(): Promise<OrderRow[]> {
+export function everyPendingOrder(): Future<OrderRow[]> {
   return orders.unscoped().where((f) => f.status.eq("pending")).get();
 }

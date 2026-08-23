@@ -32,27 +32,157 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-// LICENSE file, the LICENSE file governs.
 
 /**
  * What "foundation" hands whoever mounts it.
  *
  * @remarks
- * Everything it is made of lives in `src/`, and the pieces are reached one by one:
- * `@scribe/foundation/valkery` for the cache, `/queue` for the work, `/database` for the rows, and
- * so on for the six others. This file names them so that a reader has one place to see what the
- * package holds, and so that the layout has the entry it requires.
+ * Everything it is made of lives in `src/`, and this is the one file that publishes it. A package
+ * writes `@scribe/foundation` and nothing else: each name below is reached from the file that
+ * declares it, so there is one list to read and no barrel between it and the code.
  *
- * The package runs at none of the three moments. It poses SQL, starts containers and answers when
- * something asks it to, and nothing of that needs to happen at import or after boot.
+ * One entry rather than nine, and no `mod.ts` under `src/`, because a barrel is a second place a
+ * name can be published from and a second place it can be forgotten. What the package publishes is
+ * this list, and a file that is not named here is not published.
+ *
+ * What it wires at import is the drivers it carries: the vocabulary a package writes lives in
+ * alchemy, and what answers it is filled here. Nothing else of the package runs at a moment of its
+ * own. It poses SQL, starts containers and answers when something asks it to, and none of that
+ * needs to happen at import or after boot.
  */
 
-export * from "./cron.ts";
-export * from "./database.ts";
-export * from "./hook.ts";
-export * from "./http.ts";
-export * from "./isolate.ts";
-export * from "./queue.ts";
-export * from "./rate_limit.ts";
-export * from "./trigger.ts";
-export * from "./valkery.ts";
+import { Clients } from "@scribe/alchemy/http";
+import { Loggers } from "@scribe/alchemy/observe";
+import { Now } from "@scribe/alchemy";
+import type { LifecycleSteps } from "@scribe/alchemy";
+import { FetchClients } from "./src/http/fetch_client.ts";
+import { ConsoleLogger } from "./src/observe/console_logger.ts";
+import { SystemNow } from "./src/observe/system_now.ts";
+
+export type { CacheSettings, DatabaseSettings, QueueSettings } from "./src/settings.ts";
+
+export { Cron, type CronDefinition } from "./src/cron/cron.ts";
+export { cronRegistry, type RegisteredCron } from "./src/cron/cron_registry.ts";
+export { cronRunner } from "./src/cron/cron_runner.ts";
+export { type CronExpression, cronExpression } from "./src/cron/cron_expression.ts";
+export { at, type TimeOfDay } from "./src/cron/daily_schedule.ts";
+export { every } from "./src/cron/interval_schedule.ts";
+export type { CronHandler, Schedule, Scheduled } from "./src/cron/schedule.ts";
+export { CronTimezone } from "./src/cron/cron_timezone.ts";
+
+export { database, DatabaseClient } from "./src/database/database_client.ts";
+export { PostgrestClients } from "./src/database/postgrest_clients.ts";
+export { databaseSettings } from "./src/database/database_settings.ts";
+export { ownerOf, registerTableOwners } from "./src/database/table_owners.ts";
+export { type DatabaseSchema, Table, type TableShape } from "./src/database/table.ts";
+export { from, type RpcBuilder, TablesBase } from "./src/database/tables_base.ts";
+export { ownerScope, READS_EVERY_ROW, type ScopeDecision } from "./src/database/query/owner_scope.ts";
+export {
+  assertPlainColumn,
+  isFilterKeyword,
+  keywordLiteral,
+  quoteFilterList,
+  quoteFilterLiteral,
+  UnsafeFilterError,
+} from "./src/database/query/filter_literal.ts";
+export {
+  AMBIGUITY_PROBE,
+  atMostOneRow,
+  buildRead,
+  buildWrite,
+  type QueryOrder,
+  type QueryState,
+} from "./src/database/query/query_state.ts";
+export { DatabaseQueryError, TypedQueryBuilder } from "./src/database/query/typed_query_builder.ts";
+
+export { Hook, type HookDefinition } from "./src/hook/hook.ts";
+export { hookRegistry, type RegisteredHook } from "./src/hook/hook_registry.ts";
+export type { BackgroundHookHandler, HookHandler } from "./src/hook/hook_handler.ts";
+
+export { FetchClient, FetchClients } from "./src/http/fetch_client.ts";
+
+export { ConsoleLogger } from "./src/observe/console_logger.ts";
+export { type Kv, kv } from "./src/redis/kv.ts";
+export { SystemNow } from "./src/observe/system_now.ts";
+
+export {
+  type BatchQueueDefinition,
+  Queue,
+  type QueueDefinition,
+  type QueuePublisher,
+} from "./src/queue/queue.ts";
+export { queueSettings } from "./src/queue/queue_settings.ts";
+export { queueRegistry } from "./src/queue/queue_registry.ts";
+export {
+  QUEUE_DEFAULTS,
+  type QueueDefaults,
+  type QueueLimits,
+  type QueueMode,
+  type RegisteredQueue,
+} from "./src/queue/queue_declaration.ts";
+export { type QueueStatus, queueStatus } from "./src/queue/queue_status.ts";
+export { queueRunner } from "./src/queue/runner/queue_runner.ts";
+export type {
+  BatchHandler,
+  DrainResult,
+  JobHandler,
+  PushOptions,
+  QueueMessage,
+  QueueOptions,
+} from "./src/queue/queue_options.ts";
+
+export {
+  DEFAULT_MAX_PENALTY,
+  DEFAULT_STRIKE_MEMORY,
+  RedisRateLimiter,
+  RedisRateLimiters,
+  SHARED_ADDRESS_MAX_PENALTY,
+  SHARED_ADDRESS_STRIKE_MEMORY,
+} from "./src/rate_limit/redis_rate_limiter.ts";
+export { RateLimitBucket } from "./src/rate_limit/rate_limit_bucket.ts";
+export { type RateLimitCommands, rateLimitCommands } from "./src/rate_limit/rate_limit_commands.ts";
+
+export { Trigger } from "./src/trigger/trigger.ts";
+export type {
+  FieldsTarget,
+  FieldTarget,
+  Transition,
+  TriggerMethods,
+  TriggerOptions,
+  TriggerTarget,
+} from "./src/trigger/trigger.ts";
+export type {
+  ChangeHandler,
+  DeleteChange,
+  FieldChange,
+  FieldsChange,
+  InsertChange,
+  TriggerOp,
+  UpdateChange,
+} from "./src/trigger/trigger_change.ts";
+export { type RegisteredTrigger, triggerRegistry } from "./src/trigger/trigger_registry.ts";
+export { triggerRunner } from "./src/trigger/trigger_runner.ts";
+export { syncDeclaredSources } from "./src/trigger/trigger_sources.ts";
+export { type TriggerSourceRow, triggerSources } from "./src/trigger/trigger_tables.ts";
+
+export { DEFAULT_TTL, RedisCache, type RedisCacheOptions } from "./src/cache/redis_cache.ts";
+export { cacheSettings } from "./src/cache/cache_settings.ts";
+export { KeySpace } from "./src/cache/key_space.ts";
+export { withJitter } from "./src/cache/ttl_jitter.ts";
+export { DEFAULT_BETA } from "./src/cache/early_expiry.ts";
+export {
+  DistributedLock,
+  LOCK_TTL,
+  type LockErrorReporter,
+  type LockOutcome,
+} from "./src/cache/lock/distributed_lock.ts";
+export { type LockCommands, lockCommands } from "./src/cache/lock/lock_commands.ts";
+
+/** When this package runs, which is once, at import, to fill the slots its drivers answer. */
+export const scribe: LifecycleSteps = {
+  wires: () => {
+    Clients.use(new FetchClients());
+    Loggers.use(new ConsoleLogger());
+    Now.use(new SystemNow());
+  },
+};

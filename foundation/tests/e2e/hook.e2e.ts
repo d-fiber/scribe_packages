@@ -32,11 +32,10 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-// LICENSE file, the LICENSE file governs.
 
-import { Hook } from "@scribe/foundation/lib/src/hook/mod.ts";
+import { Hook } from "@scribe/foundation/lib/src/hook/hook.ts";
 import { assert, assertEquals } from "@std/assert";
-import { report, timed } from "./support/stack.ts";
+import { report, timed } from "@scribe/foundation/tests/e2e/support/stack.ts";
 
 Deno.test("hook: with nobody listening, the fallback comes back", async () => {
   const hook = new Hook<{ v: number }, string>({

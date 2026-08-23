@@ -34,13 +34,15 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { promoteDue } from "@scribe/foundation/lib/src/queue/core/delayed/promoter.ts";
-import { queueRegistry } from "@scribe/foundation/lib/src/queue/core/registry.ts";
-import { ensureTopology } from "@scribe/foundation/lib/src/queue/core/topology/ready.ts";
-import type { DrainResult } from "@scribe/foundation/lib/contracts/queue/queue.ts";
-import { MessageDispatcher } from "./dispatcher.ts";
+import { type Future, type UnmodifiableList } from "@scribe/alchemy";
+import { log } from "@scribe/alchemy/observe";
+import { promoteDue } from "@scribe/foundation/lib/src/queue/delayed/delayed_promoter.ts";
+import { queueRegistry } from "@scribe/foundation/lib/src/queue/queue_registry.ts";
+import { ensureTopology } from "@scribe/foundation/lib/src/queue/topology/ensure_topology.ts";
+import type { DrainResult } from "@scribe/foundation/lib/src/queue/queue_options.ts";
+import { MessageDispatcher } from "./message_dispatcher.ts";
 import { DrainTally } from "./drain_tally.ts";
-import { StreamSource } from "./sources/stream_source.ts";
+import { StreamSource } from "./stream_source.ts";
 import { SupervisedLoop } from "./supervised_loop.ts";
 
 const FETCH_COUNT = 100;
@@ -56,7 +58,7 @@ export class QueueRunner {
   #running = false;
   #generation = 0;
 
-  async run(count = FETCH_COUNT): Promise<DrainResult> {
+  async run(count = FETCH_COUNT): Future<DrainResult> {
     const tally = await this.#prepare();
 
     const batches = await Promise.all(
@@ -74,7 +76,7 @@ export class QueueRunner {
    * there is no filtered fetch, so the pass takes whatever was waiting across every shared
    * queue. Only a queue that asked for isolation gets a pass that is really its own.
    */
-  async runOne(name: string, count = FETCH_COUNT): Promise<DrainResult | null> {
+  async runOne(name: string, count = FETCH_COUNT): Future<DrainResult | null> {
     const queue = queueRegistry.get(name);
     if (!queue) return null;
 
@@ -82,16 +84,16 @@ export class QueueRunner {
     const messages = await StreamSource.forQueue(queue).fetch(count);
 
     if (!queue.dedicated && messages.length > 0) {
-      console.info(
-        `[queue-runner] "${name}" reads the shared consumer, this pass covers ${messages.length} message(s) of every shared queue`,
-      );
+      log.info("queue-runner.shared_pass", {
+        metadata: { queue: name, covered: messages.length, scope: "every shared queue" },
+      });
     }
     await this.#dispatcher.dispatch(messages, tally);
 
     return tally.toResult();
   }
 
-  names(): readonly string[] {
+  names(): UnmodifiableList<string> {
     return queueRegistry.list().map((queue) => queue.name);
   }
 
@@ -116,7 +118,7 @@ export class QueueRunner {
     this.#running = false;
   }
 
-  async #prepare(): Promise<DrainTally> {
+  async #prepare(): Future<DrainTally> {
     await ensureTopology();
 
     const tally = new DrainTally();
@@ -124,14 +126,14 @@ export class QueueRunner {
     return tally;
   }
 
-  #allSources(): readonly StreamSource[] {
+  #allSources(): UnmodifiableList<StreamSource> {
     return [
       StreamSource.shared(),
       ...queueRegistry.dedicated().map((queue) => StreamSource.dedicated(queue)),
     ];
   }
 
-  async #pass(source: StreamSource): Promise<void> {
+  async #pass(source: StreamSource): Future<void> {
     if (source.promotesDelayed) await promoteDue();
 
     const tally = new DrainTally();

@@ -32,10 +32,9 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-// LICENSE file, the LICENSE file governs.
 
 // deno-lint-ignore-file no-explicit-any
-import "@scribe/core/testing/settings.ts";
+import "@scribe/foundation/tests/testing/settings.ts";
 
 export type Row = Record<string, unknown>;
 

@@ -32,29 +32,9 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-// LICENSE file, the LICENSE file governs.
 
-/**
- * Renders the package's real ops fragments so Docker Compose can read them.
- *
- * @remarks
- * The end-to-end stack runs the files a deployment runs, and not a copy: a hand-written compose
- * beside them would drift, and the day it drifts is the day the suite stops proving anything
- * about what ships.
- *
- * Only two things stand between a fragment and Compose, and they are the two the CLI resolves
- * when it renders a project. `{{sdk_root}}` is where the framework sits, and `{{app_name_snake}}`
- * names the backup stanza. Everything else in those files is `${VARIABLE}`, which Compose
- * substitutes itself from the environment file, so it is left untouched.
- *
- * The fragments are merged by Compose rather than here, with one `-f` each and the overlay last.
- * That is the same order of precedence a project gets.
- */
-
-/** The fragments a deployment mounts, in the order Compose reads them. */
 const FRAGMENTS = ["valkery", "queue", "database"] as const;
 
-/** What the CLI would substitute, and what it becomes for a run of the suite. */
 const PLACEHOLDERS: Readonly<Record<string, string>> = {
   app_name_snake: "scribe_e2e",
 };

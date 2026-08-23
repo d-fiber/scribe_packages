@@ -34,10 +34,10 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { ExponentialBackoff } from "@scribe/alchemy";
-import type { RegisteredQueue } from "@scribe/foundation/lib/src/queue/core/declaration.ts";
-import { encode, type WireMessage } from "@scribe/foundation/lib/src/queue/core/wire.ts";
-import { topology } from "@scribe/foundation/lib/src/queue/core/topology/topology.ts";
+import { ExponentialBackoff, type Future } from "@scribe/alchemy";
+import type { RegisteredQueue } from "@scribe/foundation/lib/src/queue/queue_declaration.ts";
+import { encode, type WireMessage } from "@scribe/foundation/lib/src/queue/wire_message.ts";
+import { topology } from "@scribe/foundation/lib/src/queue/topology/topology.ts";
 import type { JsMsg } from "@nats-io/jetstream";
 import type { JobOutcome } from "./drain_tally.ts";
 import { Duration } from "@scribe/alchemy";
@@ -78,7 +78,7 @@ export class FailurePolicy {
   async apply(
     message: JsMsg,
     wire: WireMessage<unknown>,
-  ): Promise<Exclude<JobOutcome, "done">> {
+  ): Future<Exclude<JobOutcome, "done">> {
     const attempts = message.info.deliveryCount;
 
     if (attempts >= this.#queue.maxRetries) {

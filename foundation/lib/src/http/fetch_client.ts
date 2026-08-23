@@ -34,10 +34,13 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import type { Future } from "@scribe/alchemy";
 import {
   BaseClient,
   type BaseRequest,
   ByteStream,
+  type Client,
+  type ClientDriver,
   ClientException,
   StreamedResponse,
 } from "@scribe/alchemy/http";
@@ -61,7 +64,7 @@ export class FetchClient extends BaseClient {
    * Everything that can go wrong before a status arrives as a different type, and all of them
    * leave here as one {@link ClientException}.
    */
-  override async send(request: BaseRequest): Promise<StreamedResponse> {
+  override async send(request: BaseRequest): Future<StreamedResponse> {
     if (this.#closed) {
       throw new ClientException(
         "HTTP request failed. Client is already closed.",
@@ -77,9 +80,7 @@ export class FetchClient extends BaseClient {
     }
 
     const carriesBytes = hasBody && request.contentLength !== 0;
-    const payload: BodyInit | undefined = carriesBytes
-      ? (await body.toBytes()) as BodyInit
-      : undefined;
+    const payload: BodyInit | undefined = carriesBytes ? (await body.toBytes()) as BodyInit : undefined;
 
     const timeoutMs = request.timeoutMs;
 
@@ -145,4 +146,20 @@ function _describe(cause: unknown, timeoutMs: number | null): string {
     return `Timed out after ${timeoutMs} ms.`;
   }
   return cause instanceof Error ? cause.message : String(cause);
+}
+
+/**
+ * What opens a {@link FetchClient}, and what the host fills the `Clients` slot with.
+ *
+ * @remarks
+ * It answers a new client per call rather than one it keeps, because a caller owns what it is
+ * given and closes it, and a shared instance would be closed under everybody else. Nothing is lost
+ * by that: the platform pools connections for the whole process, so what a client holds is the
+ * right to send and not a socket.
+ */
+export class FetchClients implements ClientDriver {
+  /** Opens a client that goes on the network. */
+  open(): Client {
+    return new FetchClient();
+  }
 }
