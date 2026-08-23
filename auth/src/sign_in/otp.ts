@@ -39,7 +39,8 @@ import { Duration } from "@scribe/alchemy";
 import { Failure, Ok, type Result } from "@scribe/alchemy";
 import { requestDevice } from "@scribe/core/runtime/device/device.ts";
 import { sha256Hex } from "@scribe/core/runtime/support/crypto/hash.ts";
-import { RateLimit } from "@scribe/foundation/lib/src/rate_limit/mod.ts";
+import { rateLimit } from "@scribe/alchemy";
+import type { RateLimiter } from "@scribe/alchemy";
 import { kv } from "@scribe/foundation/lib/src/redis/mod.ts";
 import type { Channel } from "../../contracts/channel.ts";
 import type { AccountRole } from "../../contracts/role.ts";
@@ -65,7 +66,10 @@ export interface OtpChannel {
   send(identifier: string, role: AccountRole): Promise<Result<void, AuthError>>;
 
   /** Exchanges a code for a session. */
-  verify(identifier: string, otp: string): Promise<Result<GoTrueSessionResponse, AuthError>>;
+  verify(
+    identifier: string,
+    otp: string,
+  ): Promise<Result<GoTrueSessionResponse, AuthError>>;
 
   /** Which role `identifier` belongs to, or null when it belongs to none. */
   roleOf(identifier: string): Promise<AccountRole | null>;
@@ -116,7 +120,10 @@ type Budget =
     readonly consume: boolean;
   };
 
-async function attemptsOf(prefix: string, fingerprint: string): Promise<number | null> {
+async function attemptsOf(
+  prefix: string,
+  fingerprint: string,
+): Promise<number | null> {
   const key = `rl:${prefix}:global:${fingerprint}`;
 
   try {
@@ -129,7 +136,10 @@ async function attemptsOf(prefix: string, fingerprint: string): Promise<number |
   }
 }
 
-async function withinChallenge(prefix: string, fingerprint: string): Promise<Budget | null> {
+async function withinChallenge(
+  prefix: string,
+  fingerprint: string,
+): Promise<Budget | null> {
   const attempts = await attemptsOf(prefix, fingerprint);
 
   if (attempts === null) return { ok: false, consume: false };
@@ -138,8 +148,8 @@ async function withinChallenge(prefix: string, fingerprint: string): Promise<Bud
   return null;
 }
 
-function recipientLimit(prefix: string, role: AccountRole): RateLimit {
-  return new RateLimit({
+function recipientLimit(prefix: string, role: AccountRole): RateLimiter {
+  return rateLimit({
     key: `sign-in:${role}:${prefix}:to`,
     limit: 10,
     window: Duration.minutes(15),
@@ -149,8 +159,8 @@ function recipientLimit(prefix: string, role: AccountRole): RateLimit {
   });
 }
 
-function resendCadence(role: AccountRole): RateLimit {
-  return new RateLimit({
+function resendCadence(role: AccountRole): RateLimiter {
+  return rateLimit({
     key: `sign-in:${role}:resend-otp:cadence`,
     limit: 1,
     window: Duration.seconds(90),
@@ -179,7 +189,11 @@ export class OtpChallenge {
   readonly #channel: OtpChannel;
   readonly #token: PendingToken;
 
-  constructor(role: AccountRole, channel: OtpChannel, token: PendingToken = new PendingToken()) {
+  constructor(
+    role: AccountRole,
+    channel: OtpChannel,
+    token: PendingToken = new PendingToken(),
+  ) {
     this.#role = role;
     this.#channel = channel;
     this.#token = token;
@@ -189,13 +203,23 @@ export class OtpChallenge {
   async start(identifier: string): Promise<Result<OtpStarted, OtpError>> {
     const sent = await this.#channel.send(identifier, this.#role);
     if (!sent.ok) {
-      return new Failure(isRateLimitCode(sent.error.code) ? OtpError.TooManyRequests : OtpError.Unexpected);
+      return new Failure(
+        isRateLimitCode(sent.error.code)
+          ? OtpError.TooManyRequests
+          : OtpError.Unexpected,
+      );
     }
 
     const device = await requestDevice();
-    const pendingToken = await this.#token.issue(identifier, this.#role, device?.device_id ?? null);
+    const pendingToken = await this.#token.issue(
+      identifier,
+      this.#role,
+      device?.device_id ?? null,
+    );
 
-    return pendingToken ? new Ok({ pendingToken }) : new Failure(OtpError.Unexpected);
+    return pendingToken
+      ? new Ok({ pendingToken })
+      : new Failure(OtpError.Unexpected);
   }
 
   /** Sends another code for a challenge already open, and replaces its token. */
@@ -205,20 +229,35 @@ export class OtpChallenge {
 
     const { identifier, deviceId, fingerprint } = opened.data;
 
-    const budget = await this.#budget("resend-otp", fingerprint, identifier, true);
+    const budget = await this.#budget(
+      "resend-otp",
+      fingerprint,
+      identifier,
+      true,
+    );
     if (!budget.ok) return new Failure(await this.#spend(token, budget));
 
-    if (!(await this.#token.exists(token))) return new Failure(OtpError.InvalidOrExpired);
+    if (!(await this.#token.exists(token))) {
+      return new Failure(OtpError.InvalidOrExpired);
+    }
     if ((await this.#channel.roleOf(identifier)) !== this.#role) {
       return new Failure(OtpError.InvalidOrExpired);
     }
 
     const sent = await this.#channel.send(identifier, this.#role);
     if (!sent.ok) {
-      return new Failure(isRateLimitCode(sent.error.code) ? OtpError.TooManyRequests : OtpError.Unexpected);
+      return new Failure(
+        isRateLimitCode(sent.error.code)
+          ? OtpError.TooManyRequests
+          : OtpError.Unexpected,
+      );
     }
 
-    const pendingToken = await this.#token.issue(identifier, this.#role, deviceId);
+    const pendingToken = await this.#token.issue(
+      identifier,
+      this.#role,
+      deviceId,
+    );
     if (!pendingToken) return new Failure(OtpError.Unexpected);
 
     await this.#token.consume(token);
@@ -226,7 +265,10 @@ export class OtpChallenge {
   }
 
   /** Exchanges a code for a session, and records the device it came from. */
-  async verify(token: string, otp: string): Promise<Result<OtpSession, OtpError>> {
+  async verify(
+    token: string,
+    otp: string,
+  ): Promise<Result<OtpSession, OtpError>> {
     if (!CODE.test(otp)) return new Failure(OtpError.InvalidOrExpired);
 
     const opened = await this.#open(token);
@@ -234,19 +276,34 @@ export class OtpChallenge {
 
     const { identifier, fingerprint } = opened.data;
 
-    const budget = await this.#budget("verify-otp", fingerprint, identifier, false);
+    const budget = await this.#budget(
+      "verify-otp",
+      fingerprint,
+      identifier,
+      false,
+    );
     if (!budget.ok) return new Failure(await this.#spend(token, budget));
 
-    if (!(await this.#token.exists(token))) return new Failure(OtpError.InvalidOrExpired);
+    if (!(await this.#token.exists(token))) {
+      return new Failure(OtpError.InvalidOrExpired);
+    }
 
     const answer = await this.#channel.verify(identifier, otp);
     if (!answer.ok) {
-      if (isRateLimitCode(answer.error.code)) return new Failure(OtpError.TooManyRequests);
-      return new Failure(answer.error.code === "otp_disabled" ? OtpError.Unexpected : OtpError.InvalidOrExpired);
+      if (isRateLimitCode(answer.error.code)) {
+        return new Failure(OtpError.TooManyRequests);
+      }
+      return new Failure(
+        answer.error.code === "otp_disabled"
+          ? OtpError.Unexpected
+          : OtpError.InvalidOrExpired,
+      );
     }
 
     const session = AuthMapper.account.session(answer.data);
-    if (!session.user || !session.access_token) return new Failure(OtpError.Unexpected);
+    if (!session.user || !session.access_token) {
+      return new Failure(OtpError.Unexpected);
+    }
 
     const accessToken = session.access_token;
 
@@ -283,14 +340,21 @@ export class OtpChallenge {
 
   async #open(
     token: string,
-  ): Promise<Result<{ identifier: string; deviceId: string | null; fingerprint: string }, OtpError>> {
+  ): Promise<
+    Result<
+      { identifier: string; deviceId: string | null; fingerprint: string },
+      OtpError
+    >
+  > {
     const trimmed = token.trim();
     if (!trimmed || trimmed.length > MAX_PENDING_TOKEN_CHARS) {
       return new Failure(OtpError.InvalidOrExpired);
     }
 
     const payload = await this.#token.payload(trimmed);
-    if (!payload || payload.role !== this.#role) return new Failure(OtpError.InvalidOrExpired);
+    if (!payload || payload.role !== this.#role) {
+      return new Failure(OtpError.InvalidOrExpired);
+    }
 
     const device = await requestDevice();
     if ((device?.device_id ?? null) !== payload.deviceId) {
@@ -304,13 +368,21 @@ export class OtpChallenge {
     });
   }
 
-  async #budget(prefix: string, fingerprint: string, identifier: string, cadence: boolean): Promise<Budget> {
+  async #budget(
+    prefix: string,
+    fingerprint: string,
+    identifier: string,
+    cadence: boolean,
+  ): Promise<Budget> {
     const challenge = await withinChallenge(prefix, fingerprint);
     if (challenge !== null) return challenge;
 
     const recipient = await sha256Hex(identifier);
 
-    const perRecipient = await recipientLimit(prefix, this.#role).check("", recipient);
+    const perRecipient = await recipientLimit(prefix, this.#role).check(
+      "",
+      recipient,
+    );
     if (!perRecipient.ok) return { ok: false, consume: false };
 
     if (cadence) {
@@ -321,7 +393,10 @@ export class OtpChallenge {
     return { ok: true };
   }
 
-  async #spend(token: string, budget: { ok: false; consume: boolean }): Promise<OtpError> {
+  async #spend(
+    token: string,
+    budget: { ok: false; consume: boolean },
+  ): Promise<OtpError> {
     if (!budget.consume) return OtpError.TooManyRequests;
 
     await this.#token.consume(token.trim());

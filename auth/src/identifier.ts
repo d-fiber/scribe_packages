@@ -40,13 +40,17 @@ import { currentIdentity } from "@scribe/core/runtime/http/accessors/identity.ts
 import { checkCaller } from "@scribe/core/runtime/http/caller.ts";
 import { request } from "@scribe/core/runtime/http/request.ts";
 import { sha256Hex } from "@scribe/core/runtime/support/crypto/hash.ts";
-import { RateLimit } from "@scribe/foundation/lib/src/rate_limit/mod.ts";
+import { rateLimit } from "@scribe/alchemy";
 import { devices } from "./devices/devices.ts";
 import { goTrue } from "./gotrue/gotrue_client.ts";
 import type { AuthError } from "./gotrue/transport.ts";
 import { AccountRevocation } from "./revocation.ts";
 import { SmsIntent, smsIntent } from "./sms_intent.ts";
-import { AuthValidator, EmailCheckStatus, PhoneCheckStatus } from "./validator.ts";
+import {
+  AuthValidator,
+  EmailCheckStatus,
+  PhoneCheckStatus,
+} from "./validator.ts";
 
 /** Why the address or the number an account signs in with could not be changed. */
 export enum IdentifierError {
@@ -72,7 +76,7 @@ export enum IdentifierError {
 /** Whether the identifier changed, and what stopped it when it did not. */
 export type IdentifierResult = Result<void, IdentifierError>;
 
-const CALLER = new RateLimit({
+const CALLER = rateLimit({
   key: "account:identifier",
   limit: 10,
   window: Duration.minutes(1),
@@ -81,7 +85,7 @@ const CALLER = new RateLimit({
   failOpen: false,
 });
 
-const TARGET = new RateLimit({
+const TARGET = rateLimit({
   key: "account:identifier:of",
   limit: 5,
   window: Duration.minutes(15),
@@ -124,7 +128,9 @@ export class AccountIdentifier {
     if (token === null) return new Failure(IdentifierError.Unexpected);
 
     const checked = AuthValidator.email.check(email);
-    if (checked.status !== EmailCheckStatus.Ok) return new Failure(IdentifierError.InvalidEmail);
+    if (checked.status !== EmailCheckStatus.Ok) {
+      return new Failure(IdentifierError.InvalidEmail);
+    }
 
     return await this.#change(
       id,
@@ -141,7 +147,9 @@ export class AccountIdentifier {
    */
   async emailAsOperator(id: string, email: string): Promise<IdentifierResult> {
     const checked = AuthValidator.email.check(email);
-    if (checked.status !== EmailCheckStatus.Ok) return new Failure(IdentifierError.InvalidEmail);
+    if (checked.status !== EmailCheckStatus.Ok) {
+      return new Failure(IdentifierError.InvalidEmail);
+    }
 
     return await this.#change(
       id,
@@ -163,7 +171,9 @@ export class AccountIdentifier {
     if (token === null) return new Failure(IdentifierError.Unexpected);
 
     const checked = AuthValidator.phone.check(phone);
-    if (checked.status !== PhoneCheckStatus.Ok) return new Failure(IdentifierError.InvalidPhone);
+    if (checked.status !== PhoneCheckStatus.Ok) {
+      return new Failure(IdentifierError.InvalidPhone);
+    }
 
     const number = AuthValidator.phone.format(checked.value);
 
@@ -172,7 +182,9 @@ export class AccountIdentifier {
       async () => {
         await smsIntent.mark(number, SmsIntent.ChangePhone);
 
-        const answer = await goTrue.session.updateIdentifier(token, { phone: number });
+        const answer = await goTrue.session.updateIdentifier(token, {
+          phone: number,
+        });
         if (!answer.ok) await smsIntent.consume(number);
 
         return answer;
@@ -182,12 +194,18 @@ export class AccountIdentifier {
   }
 
   /** Puts a new number in force once the code sent to it comes back. */
-  async confirmPhone(id: string, phone: string, code: string): Promise<IdentifierResult> {
+  async confirmPhone(
+    id: string,
+    phone: string,
+    code: string,
+  ): Promise<IdentifierResult> {
     const refusal = await held(id);
     if (refusal !== null) return new Failure(refusal);
 
     const number = AuthValidator.phone.format(phone);
-    if (!AuthValidator.phone.isValid(number)) return new Failure(IdentifierError.InvalidPhone);
+    if (!AuthValidator.phone.isValid(number)) {
+      return new Failure(IdentifierError.InvalidPhone);
+    }
 
     if ((await smsIntent.consume(number)) !== SmsIntent.ChangePhone) {
       return new Failure(IdentifierError.InvalidCode);
@@ -216,7 +234,9 @@ export class AccountIdentifier {
         answer.error.code === "phone_exists" ||
         answer.error.code === "user_already_exists";
 
-      return new Failure(taken ? IdentifierError.Conflict : IdentifierError.Unexpected);
+      return new Failure(
+        taken ? IdentifierError.Conflict : IdentifierError.Unexpected,
+      );
     }
 
     await AccountRevocation.caches(id);

@@ -41,9 +41,13 @@ import type { RequestDevice } from "@scribe/core/contracts/device.ts";
 import { Failure, Ok, type Result } from "@scribe/alchemy";
 import { requestDevice } from "@scribe/core/runtime/device/device.ts";
 import { currentLocation } from "@scribe/core/runtime/http/accessors/location.ts";
-import { callerBlocked, checkCaller } from "@scribe/core/runtime/http/caller.ts";
+import {
+  callerBlocked,
+  checkCaller,
+} from "@scribe/core/runtime/http/caller.ts";
 import { sha256Hex } from "@scribe/core/runtime/support/crypto/hash.ts";
-import { RateLimit } from "@scribe/foundation/lib/src/rate_limit/mod.ts";
+import { rateLimit } from "@scribe/alchemy";
+import type { RateLimiter } from "@scribe/alchemy";
 import type { Channel } from "../../contracts/channel.ts";
 import { devices } from "../devices/devices.ts";
 import { AccountRevocation } from "../revocation.ts";
@@ -77,8 +81,8 @@ export interface SignInTarget<TAccount, TRefusal> {
   ): Promise<Result<void, TRefusal>>;
 }
 
-function callerLimit(role: string, channel: Channel): RateLimit {
-  return new RateLimit({
+function callerLimit(role: string, channel: Channel): RateLimiter {
+  return rateLimit({
     key: `sign-in:${role}:${channel}`,
     limit: 10,
     window: Duration.minutes(1),
@@ -88,8 +92,8 @@ function callerLimit(role: string, channel: Channel): RateLimit {
   });
 }
 
-function recipientLimit(role: string, channel: Channel): RateLimit {
-  return new RateLimit({
+function recipientLimit(role: string, channel: Channel): RateLimiter {
+  return rateLimit({
     key: `sign-in:${role}:${channel}:to`,
     limit: 10,
     window: Duration.minutes(15),
@@ -115,13 +119,18 @@ export class SignInDoor<TInput, TAccount, TRefusal> {
   readonly #target: SignInTarget<TAccount, TRefusal>;
   readonly #credential: SignInCredential<TInput>;
   readonly #challenge: OtpChallenge | null;
-  readonly #caller: RateLimit;
-  readonly #recipient: RateLimit;
+  readonly #caller: RateLimiter;
+  readonly #recipient: RateLimiter;
 
-  constructor(target: SignInTarget<TAccount, TRefusal>, credential: SignInCredential<TInput>) {
+  constructor(
+    target: SignInTarget<TAccount, TRefusal>,
+    credential: SignInCredential<TInput>,
+  ) {
     this.#target = target;
     this.#credential = credential;
-    this.#challenge = credential.otp ? new OtpChallenge(target.name, credential.otp) : null;
+    this.#challenge = credential.otp
+      ? new OtpChallenge(target.name, credential.otp)
+      : null;
     this.#caller = callerLimit(target.name, credential.channel);
     this.#recipient = recipientLimit(target.name, credential.channel);
   }
@@ -139,12 +148,19 @@ export class SignInDoor<TInput, TAccount, TRefusal> {
     const read = await this.#credential.read(input);
     if (!read.ok) return new Failure(read.error);
 
-    const recipient = read.data.identifier === null ? null : await sha256Hex(read.data.identifier);
-    if (recipient !== null && (await callerBlocked(this.#recipient, recipient))) {
+    const recipient = read.data.identifier === null
+      ? null
+      : await sha256Hex(read.data.identifier);
+    if (
+      recipient !== null && (await callerBlocked(this.#recipient, recipient))
+    ) {
       return new Failure(SignInError.TooManyRequests);
     }
 
-    const authenticated = await this.#credential.authenticate(input, this.#target.name);
+    const authenticated = await this.#credential.authenticate(
+      input,
+      this.#target.name,
+    );
     if (!authenticated.ok) {
       if (recipient !== null) await checkCaller(this.#recipient, recipient);
       return new Failure(authenticated.error);
@@ -174,12 +190,17 @@ export class SignInDoor<TInput, TAccount, TRefusal> {
       );
       if (!admitted.ok) return new Failure(admitted.error);
 
-      if (this.#challenge !== null && !(await devices.isTrusted(session.user.id, device.device_id))) {
+      if (
+        this.#challenge !== null &&
+        !(await devices.isTrusted(session.user.id, device.device_id))
+      ) {
         const started = await this.#challenge.start(read.data.identifier ?? "");
         if (started.ok) return new Ok(started.data);
 
         return new Failure(
-          started.error === OtpError.TooManyRequests ? SignInError.TooManyRequests : SignInError.Unexpected,
+          started.error === OtpError.TooManyRequests
+            ? SignInError.TooManyRequests
+            : SignInError.Unexpected,
         );
       }
 

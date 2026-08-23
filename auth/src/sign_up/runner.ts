@@ -38,7 +38,8 @@ import { Duration } from "@scribe/alchemy";
 import { Failure, Ok, type Result } from "@scribe/alchemy";
 import { requestDevice } from "@scribe/core/runtime/device/device.ts";
 import { checkCaller } from "@scribe/core/runtime/http/caller.ts";
-import { RateLimit } from "@scribe/foundation/lib/src/rate_limit/mod.ts";
+import { rateLimit } from "@scribe/alchemy";
+import type { RateLimiter } from "@scribe/alchemy";
 import type { Channel } from "../../contracts/channel.ts";
 import type { WriteOf, WriteShape } from "../declaration/columns.ts";
 import { devices } from "../devices/devices.ts";
@@ -79,8 +80,8 @@ export interface SignUpTarget<TSignUp extends WriteShape> {
   forget(id: string): Promise<void>;
 }
 
-function callerLimit(role: string, channel: Channel): RateLimit {
-  return new RateLimit({
+function callerLimit(role: string, channel: Channel): RateLimiter {
+  return rateLimit({
     key: `sign-up:${role}:${channel}`,
     limit: 5,
     window: Duration.minutes(15),
@@ -90,8 +91,8 @@ function callerLimit(role: string, channel: Channel): RateLimit {
   });
 }
 
-function recipientLimit(role: string, channel: Channel): RateLimit {
-  return new RateLimit({
+function recipientLimit(role: string, channel: Channel): RateLimiter {
+  return rateLimit({
     key: `sign-up:${role}:${channel}:to`,
     limit: 3,
     window: Duration.minutes(15),
@@ -117,10 +118,13 @@ function recipientLimit(role: string, channel: Channel): RateLimit {
 export class SignUpDoor<TInput, TSignUp extends WriteShape> {
   readonly #target: SignUpTarget<TSignUp>;
   readonly #credential: SignUpCredential<TInput>;
-  readonly #caller: RateLimit;
-  readonly #recipient: RateLimit;
+  readonly #caller: RateLimiter;
+  readonly #recipient: RateLimiter;
 
-  constructor(target: SignUpTarget<TSignUp>, credential: SignUpCredential<TInput>) {
+  constructor(
+    target: SignUpTarget<TSignUp>,
+    credential: SignUpCredential<TInput>,
+  ) {
     this.#target = target;
     this.#credential = credential;
     this.#caller = callerLimit(target.name, credential.channel);
@@ -128,7 +132,9 @@ export class SignUpDoor<TInput, TSignUp extends WriteShape> {
   }
 
   /** Creates the account, or answers what stopped it. */
-  async run(input: TInput & WriteOf<TSignUp>): Promise<SignUpResult<SignUpError>> {
+  async run(
+    input: TInput & WriteOf<TSignUp>,
+  ): Promise<SignUpResult<SignUpError>> {
     const caller = await checkCaller(this.#caller);
     if (!caller.ok) return new Failure(SignUpError.TooManyRequests);
 

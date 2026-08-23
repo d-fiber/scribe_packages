@@ -37,9 +37,17 @@
 import "@scribe/core/testing/settings.ts";
 import type { LockCommands } from "@scribe/foundation/lib/src/valkery/lock/release_script.ts";
 import { type Kv, kv } from "@scribe/foundation/lib/src/redis/mod.ts";
-import { RateLimit, type RateLimitOutcome } from "@scribe/foundation/lib/src/rate_limit/mod.ts";
-import { stub } from "@std/testing/mock";
-import { type InstalledMock, installMock } from "@scribe/core/testing/install.ts";
+import { RateLimiters } from "@scribe/alchemy";
+import type {
+  RateLimiter,
+  RateLimiterDriver,
+  RateLimitOptions,
+  RateLimitOutcome,
+} from "@scribe/alchemy";
+import {
+  type InstalledMock,
+  installMock,
+} from "@scribe/core/testing/install.ts";
 
 /**
  * Replaces the raw Redis transport with two in-memory maps, and answers the handle that puts
@@ -64,7 +72,8 @@ export function installValkeryMock(): InstalledMock {
     installMock(
       kv(),
       "get",
-      ((key: string) => Promise.resolve(store.get(key) ?? null)) as unknown as Kv["get"],
+      ((key: string) =>
+        Promise.resolve(store.get(key) ?? null)) as unknown as Kv["get"],
     ),
     installMock(
       kv(),
@@ -128,12 +137,18 @@ export function installValkeryMock(): InstalledMock {
     installMock(
       kv(),
       "smembers",
-      ((key: string) => Promise.resolve(Array.from(sets.get(key) ?? []))) as unknown as Kv["smembers"],
+      ((key: string) =>
+        Promise.resolve(Array.from(sets.get(key) ?? []))) as unknown as Kv[
+          "smembers"
+        ],
     ),
     installMock(
       kv(),
       "expire",
-      ((key: string) => Promise.resolve(store.has(key) || sets.has(key) ? 1 : 0)) as unknown as Kv["expire"],
+      ((key: string) =>
+        Promise.resolve(
+          store.has(key) || sets.has(key) ? 1 : 0,
+        )) as unknown as Kv["expire"],
     ),
     installMock(
       kv(),
@@ -149,7 +164,9 @@ export function installValkeryMock(): InstalledMock {
       "scan",
       ((_cursor: string, _match: string, pattern: string) => {
         const prefix = pattern.replace(/\*$/, "");
-        const keys = Array.from(store.keys()).filter((k) => k.startsWith(prefix));
+        const keys = Array.from(store.keys()).filter((k) =>
+          k.startsWith(prefix)
+        );
         return Promise.resolve(["0", keys] as [string, string[]]);
       }) as unknown as Kv["scan"],
     ),
@@ -171,23 +188,68 @@ export function installValkeryMock(): InstalledMock {
   };
 }
 
+/** A limiter that answers the same thing to everything, whatever it is asked. */
+class FixedRateLimiter implements RateLimiter {
+  /** What every call is answered with. */
+  readonly #result: RateLimitOutcome;
+
+  constructor(key: string, result: RateLimitOutcome) {
+    this.key = key;
+    this.#result = result;
+  }
+
+  /** The prefix the limit this stands in for was declared with. */
+  readonly key: string;
+
+  check(): Promise<RateLimitOutcome> {
+    return Promise.resolve(this.#result);
+  }
+
+  isBlocked(): Promise<boolean> {
+    return Promise.resolve(!this.#result.ok);
+  }
+
+  unmeasured(): RateLimitOutcome {
+    return this.#result;
+  }
+}
+
+/** Opens a {@link FixedRateLimiter} for every limit a package declares. */
+class FixedRateLimiters implements RateLimiterDriver {
+  /** What every limiter this opens answers with. */
+  readonly #result: RateLimitOutcome;
+
+  constructor(result: RateLimitOutcome) {
+    this.#result = result;
+  }
+
+  open(options: RateLimitOptions): RateLimiter {
+    return new FixedRateLimiter(options.key, this.#result);
+  }
+}
+
 /**
- * Makes every declared {@link RateLimit} answer `result`, and answers the handle that puts
- * the real ones back.
+ * Makes every limit a package declared answer `result`, and answers the handle that puts back
+ * whatever the port held before.
  *
- * It stubs the prototype rather than one instance because a limit is declared next to the code
- * it guards, so a test has no handle on the object it needs to neutralise.
+ * @remarks
+ * It fills the port rather than reaching into a declaration, because a limit is declared next to
+ * the code it guards and a test has no handle on it. Filling the port is also what the host does
+ * at boot, so a suite exercises the same path production does.
  *
- * @param result - What every check answers. The default lets the caller through with a
- * remaining count high enough that no test has to think about it.
+ * @param result - What every check answers. The default lets the caller through with a remaining
+ * count high enough that no test has to think about it.
  */
 export function installRateLimiterMock(
   result: RateLimitOutcome = { ok: true, remaining: 999 },
 ): InstalledMock {
-  const stubbed = stub(
-    RateLimit.prototype,
-    "check",
-    () => Promise.resolve(result),
-  );
-  return { restore: () => stubbed.restore() };
+  const previous = RateLimiters.configured ? RateLimiters.get() : null;
+  RateLimiters.use(new FixedRateLimiters(result));
+
+  return {
+    restore(): void {
+      if (previous === null) RateLimiters.clear();
+      else RateLimiters.use(previous);
+    },
+  };
 }

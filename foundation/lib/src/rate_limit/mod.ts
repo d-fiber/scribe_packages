@@ -37,10 +37,10 @@
 export {
   DEFAULT_MAX_PENALTY,
   DEFAULT_STRIKE_MEMORY,
-  RateLimit,
+  RedisRateLimiter,
+  RedisRateLimiters,
   SHARED_ADDRESS_MAX_PENALTY,
   SHARED_ADDRESS_STRIKE_MEMORY,
 } from "./rate_limit.ts";
-export type { RateLimitOptions, RateLimitOutcome } from "./rate_limit.ts";
 export { RateLimitBucket } from "./bucket.ts";
 export { type RateLimitCommands, rateLimitCommands } from "./script.ts";

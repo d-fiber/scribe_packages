@@ -35,10 +35,17 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Duration } from "@scribe/alchemy";
-import { RateLimit, RateLimitBucket } from "@scribe/foundation/lib/src/rate_limit/mod.ts";
+import {
+  RateLimitBucket,
+  RedisRateLimiter,
+} from "@scribe/foundation/lib/src/rate_limit/mod.ts";
 import { assertEquals, assertNotEquals } from "@std/assert";
 
-const POLICY = { limit: 10, window: Duration.minutes(1), penalty: Duration.minutes(5) };
+const POLICY = {
+  limit: 10,
+  window: Duration.minutes(1),
+  penalty: Duration.minutes(5),
+};
 
 Deno.test("a bucket derives its three keys from the segments it was given", () => {
   const bucket = new RateLimitBucket("admin", "sign-in", "1.2.3.4");
@@ -49,9 +56,18 @@ Deno.test("a bucket derives its three keys from the segments it was given", () =
 });
 
 Deno.test("a bucket drops the segments it was not given", () => {
-  assertEquals(new RateLimitBucket("", "sign-in", "").blockedKey, "rl:blocked:sign-in");
-  assertEquals(new RateLimitBucket("", "sign-in", "1.2.3.4").blockedKey, "rl:blocked:sign-in:1.2.3.4");
-  assertEquals(new RateLimitBucket("admin", "sign-in", "").blockedKey, "rl:blocked:admin:sign-in");
+  assertEquals(
+    new RateLimitBucket("", "sign-in", "").blockedKey,
+    "rl:blocked:sign-in",
+  );
+  assertEquals(
+    new RateLimitBucket("", "sign-in", "1.2.3.4").blockedKey,
+    "rl:blocked:sign-in:1.2.3.4",
+  );
+  assertEquals(
+    new RateLimitBucket("admin", "sign-in", "").blockedKey,
+    "rl:blocked:admin:sign-in",
+  );
 });
 
 Deno.test("two suffixes never share a bucket key", () => {
@@ -64,7 +80,11 @@ Deno.test("two suffixes never share a bucket key", () => {
 });
 
 Deno.test("a declaration keeps the policy it was given", () => {
-  const limit = new RateLimit({ key: "sign-in:email", ...POLICY, failOpen: false });
+  const limit = new RedisRateLimiter({
+    key: "sign-in:email",
+    ...POLICY,
+    failOpen: false,
+  });
 
   assertEquals(limit.key, "sign-in:email");
   assertEquals(limit.limit, 10);
@@ -74,12 +94,19 @@ Deno.test("a declaration keeps the policy it was given", () => {
 });
 
 Deno.test("a declaration that says nothing about an outage lets the caller through", () => {
-  assertEquals(new RateLimit({ key: "discover:feed", ...POLICY }).failOpen, true);
+  assertEquals(
+    new RedisRateLimiter({ key: "discover:feed", ...POLICY }).failOpen,
+    true,
+  );
 });
 
 Deno.test("a limit that cannot be measured answers what its declaration decided", () => {
-  const open = new RateLimit({ key: "discover:feed", ...POLICY });
-  const closed = new RateLimit({ key: "sign-in:email", ...POLICY, failOpen: false });
+  const open = new RedisRateLimiter({ key: "discover:feed", ...POLICY });
+  const closed = new RedisRateLimiter({
+    key: "sign-in:email",
+    ...POLICY,
+    failOpen: false,
+  });
 
   assertEquals(open.unmeasured(), { ok: true, remaining: 10 });
   assertEquals(closed.unmeasured(), { ok: false, retryAfter: 60, strikes: 0 });

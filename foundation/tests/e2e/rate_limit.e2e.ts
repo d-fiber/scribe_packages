@@ -34,15 +34,25 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { report, requireStack, STACK, timed, useStack } from "./support/stack.ts";
+import {
+  report,
+  requireStack,
+  STACK,
+  timed,
+  useStack,
+} from "./support/stack.ts";
 import { assert, assertEquals } from "@std/assert";
 
 await requireStack(STACK.natsMonitorUrl, `${STACK.restUrl}/`);
 await useStack();
 
-const { RateLimit } = await import("@scribe/foundation/lib/src/rate_limit/mod.ts");
+const { Duration, rateLimit, RateLimiters } = await import("@scribe/alchemy");
 const { kv } = await import("@scribe/foundation/lib/src/redis/mod.ts");
-const { Duration } = await import("@scribe/core/contracts/common/time.ts");
+const { RedisRateLimiters } = await import(
+  "@scribe/foundation/lib/src/rate_limit/mod.ts"
+);
+
+RateLimiters.use(new RedisRateLimiters());
 
 async function clear(key: string): Promise<void> {
   await kv().del(`rl:blocked:${key}`, `rl:tat:${key}`, `rl:strikes:${key}`);
@@ -52,7 +62,7 @@ Deno.test("rate limit: the allowance runs out on the hit after the limit", async
   const key = "e2e:rate-limit:allowance";
   await clear(key);
 
-  const limit = new RateLimit({
+  const limit = rateLimit({
     key,
     limit: 3,
     window: Duration.seconds(30),
@@ -75,7 +85,7 @@ Deno.test("rate limit: a refused caller stays refused until the penalty expires"
   const key = "e2e:rate-limit:penalty";
   await clear(key);
 
-  const limit = new RateLimit({
+  const limit = rateLimit({
     key,
     limit: 1,
     window: Duration.seconds(30),
@@ -90,7 +100,11 @@ Deno.test("rate limit: a refused caller stays refused until the penalty expires"
 
   await new Promise((resolve) => setTimeout(resolve, 2_500));
 
-  assertEquals(await limit.isBlocked(), false, "the block key carries its own expiry");
+  assertEquals(
+    await limit.isBlocked(),
+    false,
+    "the block key carries its own expiry",
+  );
   assertEquals(await limit.check(), { ok: true, remaining: 0 });
 });
 
@@ -98,7 +112,7 @@ Deno.test("rate limit: a second penalty lasts twice the first", async () => {
   const key = "e2e:rate-limit:escalation";
   await clear(key);
 
-  const limit = new RateLimit({
+  const limit = rateLimit({
     key,
     limit: 1,
     window: Duration.seconds(30),
@@ -116,16 +130,23 @@ Deno.test("rate limit: a second penalty lasts twice the first", async () => {
 
   await limit.check();
   const second = await limit.check();
-  assert(!second.ok, "the window was dropped with the first penalty, so one hit is the allowance");
+  assert(
+    !second.ok,
+    "the window was dropped with the first penalty, so one hit is the allowance",
+  );
   assertEquals(second.strikes, 2);
-  assertEquals(second.retryAfter, 4, "the strike memory outlives the block it caused");
+  assertEquals(
+    second.retryAfter,
+    4,
+    "the strike memory outlives the block it caused",
+  );
 });
 
 Deno.test("rate limit: a penalty never exceeds the ceiling its declaration set", async () => {
   const key = "e2e:rate-limit:ceiling";
   await clear(key);
 
-  const limit = new RateLimit({
+  const limit = rateLimit({
     key,
     limit: 1,
     window: Duration.seconds(30),
@@ -142,7 +163,11 @@ Deno.test("rate limit: a penalty never exceeds the ceiling its declaration set",
   await limit.check();
   const second = await limit.check();
   assert(!second.ok);
-  assertEquals(second.retryAfter, 31, "sixty seconds of doubling is cut to the declared ceiling");
+  assertEquals(
+    second.retryAfter,
+    31,
+    "sixty seconds of doubling is cut to the declared ceiling",
+  );
 });
 
 Deno.test("rate limit: a subject gets its own bucket inside one declaration", async () => {
@@ -150,7 +175,7 @@ Deno.test("rate limit: a subject gets its own bucket inside one declaration", as
   await clear(`${key}:one`);
   await clear(`${key}:two`);
 
-  const limit = new RateLimit({
+  const limit = rateLimit({
     key,
     limit: 1,
     window: Duration.seconds(30),
@@ -170,7 +195,7 @@ Deno.test("rate limit: the allowance comes back one slot at a time", async () =>
   const key = "e2e:rate-limit:refill";
   await clear(key);
 
-  const limit = new RateLimit({
+  const limit = rateLimit({
     key,
     limit: 4,
     window: Duration.seconds(4),
@@ -191,14 +216,17 @@ Deno.test("rate limit: the allowance comes back one slot at a time", async () =>
   );
 
   const refused = await limit.check();
-  assert(!refused.ok, "the second slot is not back yet, so nothing waits for a window to expire");
+  assert(
+    !refused.ok,
+    "the second slot is not back yet, so nothing waits for a window to expire",
+  );
 });
 
 Deno.test("rate limit: a refused caller does not push its own release further away", async () => {
   const key = "e2e:rate-limit:no-self-harm";
   await clear(key);
 
-  const limit = new RateLimit({
+  const limit = rateLimit({
     key,
     limit: 1,
     window: Duration.seconds(30),
@@ -212,6 +240,13 @@ Deno.test("rate limit: a refused caller does not push its own release further aw
 
   const again = await limit.check();
   assert(!again.ok);
-  assertEquals(again.strikes, 1, "hammering a running penalty earns no further strike");
-  assert(again.retryAfter <= first.retryAfter, "and it does not extend the wait");
+  assertEquals(
+    again.strikes,
+    1,
+    "hammering a running penalty earns no further strike",
+  );
+  assert(
+    again.retryAfter <= first.retryAfter,
+    "and it does not extend the wait",
+  );
 });

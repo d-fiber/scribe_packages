@@ -35,89 +35,15 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Duration } from "@scribe/alchemy";
+import type {
+  RateLimiter,
+  RateLimiterDriver,
+  RateLimitOptions,
+  RateLimitOutcome,
+} from "@scribe/alchemy";
 import { kv } from "@scribe/foundation/lib/src/redis/mod.ts";
 import { RateLimitBucket } from "./bucket.ts";
 import { rateLimitCommands } from "./script.ts";
-
-/**
- * What declaring a rate limit takes.
- *
- * The first four are the policy and have no sensible default: how many hits, over how long, and
- * how long a caller waits once it goes over. The rest answer right far more often than they are
- * wrong.
- */
-export interface RateLimitOptions {
-  /** The name every bucket of this limit carries in the middle of its key. */
-  readonly key: string;
-
-  /**
-   * How many hits are allowed at once, and how many come back over one window.
-   *
-   * It is a burst and a rate at the same time: a caller may spend all of it in one go, and from
-   * then on gets one hit back every `window / limit`. Nothing empties on a boundary, so there is
-   * no second worth waiting for.
-   */
-  readonly limit: number;
-
-  /** How long the whole allowance takes to come back. */
-  readonly window: Duration;
-
-  /** How long the first penalty lasts, before any doubling. */
-  readonly penalty: Duration;
-
-  /**
-   * The ceiling the doubling stops at.
-   *
-   * Left out, it is {@link DEFAULT_MAX_PENALTY}. A limit whose suffix is an address rather than an
-   * account wants {@link SHARED_ADDRESS_MAX_PENALTY} instead, and says so.
-   */
-  readonly maxPenalty?: Duration;
-
-  /**
-   * How long a penalty counts against the next one.
-   *
-   * Left out, it is {@link DEFAULT_STRIKE_MEMORY}. Shorten it where a caller is expected to hit
-   * the limit in normal use, so that a bad afternoon does not decide the next morning.
-   */
-  readonly strikeMemory?: Duration;
-
-  /**
-   * Whether a caller is let through when Redis cannot answer.
-   *
-   * Left out, it is true, which is the answer for a limit that protects capacity: an outage of
-   * the limiter should not become an outage of the endpoint. Set it to false on anything that
-   * guards a credential, where letting an unmeasured caller through is the worse of the two
-   * failures.
-   */
-  readonly failOpen?: boolean;
-}
-
-/**
- * What came of one hit.
- *
- * @remarks
- * The two sides carry different numbers on purpose: an allowed caller wants to know how much it
- * has left, and a refused one wants to know when to come back. Nothing carries both, because
- * neither is meaningful on the other side.
- */
-export type RateLimitOutcome =
-  | {
-    /** The hit was recorded and the caller is inside its allowance. */
-    readonly ok: true;
-
-    /** How many hits are left in the burst before the next one is refused. */
-    readonly remaining: number;
-  }
-  | {
-    /** The hit was refused, either now or by a penalty still running. */
-    readonly ok: false;
-
-    /** How many seconds before the penalty is over. */
-    readonly retryAfter: number;
-
-    /** How many penalties this bucket has earned inside its strike memory. */
-    readonly strikes: number;
-  };
 
 /** The ceiling a penalty stops doubling at when a declaration does not say. */
 export const DEFAULT_MAX_PENALTY: Duration = Duration.days(1);
@@ -149,7 +75,7 @@ export const SHARED_ADDRESS_STRIKE_MEMORY: Duration = Duration.hours(1);
  * One rate limit, declared once and asked at every call.
  *
  * ```ts
- * const signIn = new RateLimit({
+ * const signIn = rateLimit({
  *   key: "sign-in:email",
  *   limit: 10,
  *   window: Duration.minutes(1),
@@ -175,7 +101,7 @@ export const SHARED_ADDRESS_STRIKE_MEMORY: Duration = Duration.hours(1);
  * Nothing here throws. An unreachable Redis is reported and answered according to `failOpen`, so
  * a limiter outage degrades into a decision the declaration already made.
  */
-export class RateLimit {
+export class RedisRateLimiter implements RateLimiter {
   /** The name every bucket of this limit carries in the middle of its key. */
   readonly key: string;
 
@@ -222,26 +148,35 @@ export class RateLimit {
    * A refused hit is not counted twice. Once a penalty is running every call is refused by the
    * block itself, so a caller that keeps trying does not push its own release further away.
    */
-  async check(prefix: string = "", suffix: string = ""): Promise<RateLimitOutcome> {
+  async check(
+    prefix: string = "",
+    suffix: string = "",
+  ): Promise<RateLimitOutcome> {
     if (!this.#usable()) return this.#allow();
 
     const bucket = new RateLimitBucket(prefix, this.key, suffix);
 
     try {
-      const [allowed, remaining, retryAfter, strikes] = await rateLimitCommands().rateLimitCheck(
-        bucket.blockedKey,
-        bucket.arrivalKey,
-        bucket.strikesKey,
-        this.limit,
-        this.window.inSeconds,
-        this.penalty.inSeconds,
-        this.#maxPenalty.inSeconds,
-        this.#strikeMemory.inSeconds,
-      );
+      const [allowed, remaining, retryAfter, strikes] =
+        await rateLimitCommands().rateLimitCheck(
+          bucket.blockedKey,
+          bucket.arrivalKey,
+          bucket.strikesKey,
+          this.limit,
+          this.window.inSeconds,
+          this.penalty.inSeconds,
+          this.#maxPenalty.inSeconds,
+          this.#strikeMemory.inSeconds,
+        );
 
-      return allowed === 1 ? { ok: true, remaining } : { ok: false, retryAfter, strikes };
+      return allowed === 1
+        ? { ok: true, remaining }
+        : { ok: false, retryAfter, strikes };
     } catch (error) {
-      console.error(`[rate-limit] check of "${this.key}" failed, ${this.#onOutage()}:`, error);
+      console.error(
+        `[rate-limit] check of "${this.key}" failed, ${this.#onOutage()}:`,
+        error,
+      );
       return this.unmeasured();
     }
   }
@@ -255,10 +190,15 @@ export class RateLimit {
    */
   async isBlocked(prefix: string = "", suffix: string = ""): Promise<boolean> {
     try {
-      const remaining = await kv().pttl(new RateLimitBucket(prefix, this.key, suffix).blockedKey);
+      const remaining = await kv().pttl(
+        new RateLimitBucket(prefix, this.key, suffix).blockedKey,
+      );
       return remaining > 0;
     } catch (error) {
-      console.error(`[rate-limit] read of "${this.key}" failed, ${this.#onOutage()}:`, error);
+      console.error(
+        `[rate-limit] read of "${this.key}" failed, ${this.#onOutage()}:`,
+        error,
+      );
       return !this.failOpen;
     }
   }
@@ -271,11 +211,15 @@ export class RateLimit {
    * suffix rather than by this class.
    */
   unmeasured(): RateLimitOutcome {
-    return this.failOpen ? this.#allow() : { ok: false, retryAfter: Math.ceil(this.window.inSeconds), strikes: 0 };
+    return this.failOpen
+      ? this.#allow()
+      : { ok: false, retryAfter: Math.ceil(this.window.inSeconds), strikes: 0 };
   }
 
   #usable(): boolean {
-    if (this.limit > 0 && this.window.inSeconds > 0 && this.penalty.inSeconds > 0) return true;
+    if (
+      this.limit > 0 && this.window.inSeconds > 0 && this.penalty.inSeconds > 0
+    ) return true;
 
     console.error(
       `[rate-limit] "${this.key}" declares limit=${this.limit} window=${this.window.inSeconds}s ` +
@@ -290,5 +234,18 @@ export class RateLimit {
 
   #onOutage(): string {
     return this.failOpen ? "letting the caller through" : "refusing the caller";
+  }
+}
+
+/**
+ * What opens a {@link RedisRateLimiter} for a package that asked the port for one.
+ *
+ * @remarks
+ * This is the half that reaches Redis. A package never names it: it declares a limit through
+ * `rateLimit` and the host fills {@link RateLimiters} with this at boot.
+ */
+export class RedisRateLimiters implements RateLimiterDriver {
+  open(options: RateLimitOptions): RateLimiter {
+    return new RedisRateLimiter(options);
   }
 }

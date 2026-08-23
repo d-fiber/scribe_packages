@@ -38,7 +38,8 @@ import { Duration } from "@scribe/alchemy";
 import { Failure, Ok, okay, type Result } from "@scribe/alchemy";
 import { checkCaller } from "@scribe/core/runtime/http/caller.ts";
 import { sha256Hex } from "@scribe/core/runtime/support/crypto/hash.ts";
-import { RateLimit } from "@scribe/foundation/lib/src/rate_limit/mod.ts";
+import { rateLimit } from "@scribe/alchemy";
+import type { RateLimiter } from "@scribe/alchemy";
 import { Channel } from "../contracts/channel.ts";
 import type { AccountRole } from "../contracts/role.ts";
 import { accountPassword, PasswordError } from "./password.ts";
@@ -47,8 +48,16 @@ import { isRateLimitCode } from "./gotrue/errors.ts";
 import { goTrue } from "./gotrue/gotrue_client.ts";
 import { AccountRevocation } from "./revocation.ts";
 import { SmsIntent, smsIntent } from "./sms_intent.ts";
-import { MAX_PENDING_TOKEN_CHARS, PendingToken, PendingTokenPurpose } from "./pending_token.ts";
-import { AuthValidator, EmailCheckStatus, PhoneCheckStatus } from "./validator.ts";
+import {
+  MAX_PENDING_TOKEN_CHARS,
+  PendingToken,
+  PendingTokenPurpose,
+} from "./pending_token.ts";
+import {
+  AuthValidator,
+  EmailCheckStatus,
+  PhoneCheckStatus,
+} from "./validator.ts";
 
 /** Why a reset could not be asked for or finished. */
 export enum ResetPasswordError {
@@ -92,8 +101,8 @@ export interface ResetPasswordPending {
   readonly pendingToken: string;
 }
 
-function callerLimit(role: string, channel: Channel): RateLimit {
-  return new RateLimit({
+function callerLimit(role: string, channel: Channel): RateLimiter {
+  return rateLimit({
     key: `reset-password:${channel}:${role}`,
     limit: 10,
     window: Duration.minutes(5),
@@ -103,8 +112,8 @@ function callerLimit(role: string, channel: Channel): RateLimit {
   });
 }
 
-function recipientLimit(role: string, channel: Channel): RateLimit {
-  return new RateLimit({
+function recipientLimit(role: string, channel: Channel): RateLimiter {
+  return rateLimit({
     key: `reset-password:${channel}:${role}:to`,
     limit: 1,
     window: Duration.seconds(90),
@@ -149,14 +158,21 @@ export class ResetPassword {
     if (!caller.ok) return new Failure(ResetPasswordError.TooManyRequests);
 
     const checked = AuthValidator.email.check(email);
-    if (checked.status === EmailCheckStatus.Empty) return new Failure(ResetPasswordError.EmailRequired);
-    if (checked.status === EmailCheckStatus.Invalid) return new Failure(ResetPasswordError.InvalidEmail);
+    if (checked.status === EmailCheckStatus.Empty) {
+      return new Failure(ResetPasswordError.EmailRequired);
+    }
+    if (checked.status === EmailCheckStatus.Invalid) {
+      return new Failure(ResetPasswordError.InvalidEmail);
+    }
 
     const recipient = await recipientLimit(this.#role, Channel.Email)
       .check("", await sha256Hex(AuthValidator.email.inbox(checked.value)));
     if (!recipient.ok) return new Failure(ResetPasswordError.TooManyRequests);
 
-    const sent = await goTrue.resetPassword.recoverPasswordByEmail(checked.value, this.#role);
+    const sent = await goTrue.resetPassword.recoverPasswordByEmail(
+      checked.value,
+      this.#role,
+    );
 
     if (!sent.ok) {
       if (isRateLimitCode(sent.error.code)) return okay;
@@ -180,12 +196,19 @@ export class ResetPassword {
     if (!caller.ok) return new Failure(ResetPasswordError.TooManyRequests);
 
     const checked = AuthValidator.phone.check(phone);
-    if (checked.status === PhoneCheckStatus.Empty) return new Failure(ResetPasswordError.PhoneRequired);
-    if (checked.status === PhoneCheckStatus.Invalid) return new Failure(ResetPasswordError.InvalidPhone);
+    if (checked.status === PhoneCheckStatus.Empty) {
+      return new Failure(ResetPasswordError.PhoneRequired);
+    }
+    if (checked.status === PhoneCheckStatus.Invalid) {
+      return new Failure(ResetPasswordError.InvalidPhone);
+    }
 
     const number = AuthValidator.phone.format(checked.value);
 
-    const recipient = await recipientLimit(this.#role, Channel.Phone).check("", await sha256Hex(number));
+    const recipient = await recipientLimit(this.#role, Channel.Phone).check(
+      "",
+      await sha256Hex(number),
+    );
     if (!recipient.ok) return new Failure(ResetPasswordError.TooManyRequests);
 
     await smsIntent.mark(number, SmsIntent.ResetPassword);
@@ -194,7 +217,9 @@ export class ResetPassword {
     if (!sent.ok) {
       await smsIntent.consume(number);
       return new Failure(
-        isRateLimitCode(sent.error.code) ? ResetPasswordError.TooManyRequests : ResetPasswordError.Unexpected,
+        isRateLimitCode(sent.error.code)
+          ? ResetPasswordError.TooManyRequests
+          : ResetPasswordError.Unexpected,
       );
     }
 
@@ -202,9 +227,14 @@ export class ResetPassword {
   }
 
   /** Exchanges the code sent to a number for the token that buys one password change. */
-  async confirmPhone(phone: string, code: string): Promise<Result<ResetPasswordPending, ResetPasswordError>> {
+  async confirmPhone(
+    phone: string,
+    code: string,
+  ): Promise<Result<ResetPasswordPending, ResetPasswordError>> {
     const number = AuthValidator.phone.format(phone);
-    if (!AuthValidator.phone.isValid(number)) return new Failure(ResetPasswordError.InvalidPhone);
+    if (!AuthValidator.phone.isValid(number)) {
+      return new Failure(ResetPasswordError.InvalidPhone);
+    }
 
     if ((await smsIntent.consume(number)) !== SmsIntent.ResetPassword) {
       return new Failure(ResetPasswordError.InvalidCode);
@@ -213,15 +243,21 @@ export class ResetPassword {
     const answer = await goTrue.signIn.phone.verify(number, code);
     if (!answer.ok) {
       return new Failure(
-        isRateLimitCode(answer.error.code) ? ResetPasswordError.TooManyRequests : ResetPasswordError.InvalidCode,
+        isRateLimitCode(answer.error.code)
+          ? ResetPasswordError.TooManyRequests
+          : ResetPasswordError.InvalidCode,
       );
     }
 
     const accessToken = answer.data.access_token;
-    if (typeof accessToken === "string") await AccountRevocation.session(accessToken);
+    if (typeof accessToken === "string") {
+      await AccountRevocation.session(accessToken);
+    }
 
     const pendingToken = await this.#token.issue(number, this.#role, null);
-    return pendingToken ? new Ok({ pendingToken }) : new Failure(ResetPasswordError.Unexpected);
+    return pendingToken
+      ? new Ok({ pendingToken })
+      : new Failure(ResetPasswordError.Unexpected);
   }
 
   /**
@@ -230,7 +266,10 @@ export class ResetPassword {
    * The recovery session is revoked on the way: it was minted only to prove that the link was
    * followed, and leaving it alive would let it be used as an ordinary session.
    */
-  async fromRecovery(id: string, recoveryToken: string): Promise<Result<ResetPasswordPending, ResetPasswordError>> {
+  async fromRecovery(
+    id: string,
+    recoveryToken: string,
+  ): Promise<Result<ResetPasswordPending, ResetPasswordError>> {
     await AccountRevocation.session(recoveryToken);
 
     const identifiers = await identifiersOf(id);
@@ -238,11 +277,17 @@ export class ResetPassword {
     if (identifier === null) return new Failure(ResetPasswordError.Unexpected);
 
     const pendingToken = await this.#token.issue(identifier, this.#role, null);
-    return pendingToken ? new Ok({ pendingToken }) : new Failure(ResetPasswordError.Unexpected);
+    return pendingToken
+      ? new Ok({ pendingToken })
+      : new Failure(ResetPasswordError.Unexpected);
   }
 
   /** Spends the pending token and writes the new password. */
-  async complete(token: string, next: string, confirmation: string): Promise<ResetPasswordResult> {
+  async complete(
+    token: string,
+    next: string,
+    confirmation: string,
+  ): Promise<ResetPasswordResult> {
     const trimmed = token.trim();
     if (!trimmed || trimmed.length > MAX_PENDING_TOKEN_CHARS) {
       return new Failure(ResetPasswordError.InvalidOrExpiredToken);
@@ -253,13 +298,17 @@ export class ResetPassword {
       return new Failure(ResetPasswordError.InvalidOrExpiredToken);
     }
 
-    if (next !== confirmation) return new Failure(ResetPasswordError.PasswordsDoNotMatch);
+    if (next !== confirmation) {
+      return new Failure(ResetPasswordError.PasswordsDoNotMatch);
+    }
     if (!(await this.#token.exists(trimmed))) {
       return new Failure(ResetPasswordError.InvalidOrExpiredToken);
     }
 
     const id = await accountWith(payload.identifier);
-    if (id === null) return new Failure(ResetPasswordError.InvalidOrExpiredToken);
+    if (id === null) {
+      return new Failure(ResetPasswordError.InvalidOrExpiredToken);
+    }
 
     if (!(await this.#token.consume(trimmed))) {
       return new Failure(ResetPasswordError.InvalidOrExpiredToken);

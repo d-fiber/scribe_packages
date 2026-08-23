@@ -44,7 +44,7 @@ import { checkCaller } from "@scribe/core/runtime/http/caller.ts";
 import { request } from "@scribe/core/runtime/http/request.ts";
 import { sha256Hex } from "@scribe/core/runtime/support/crypto/hash.ts";
 import { KeyIndex } from "@scribe/core/runtime/redis/key_index.ts";
-import { RateLimit } from "@scribe/foundation/lib/src/rate_limit/mod.ts";
+import { rateLimit } from "@scribe/alchemy";
 import { Valkery } from "@scribe/foundation/lib/src/valkery/valkery.ts";
 import type { AccountRole } from "../contracts/role.ts";
 import { standingBanOn } from "./bans.ts";
@@ -66,9 +66,19 @@ const RECOVER_ENTRY = "recover:";
  * under it. Fifteen seconds is the window a retry lands in.
  */
 class SessionIdempotence {
-  readonly #refresh = new Valkery<unknown>({ key: "refresh-idem", ttl: IDEMPOTENCE_TTL });
-  readonly #recover = new Valkery<unknown>({ key: "recover-idem", ttl: IDEMPOTENCE_TTL });
-  readonly #index = new KeyIndex(INDEX_KEY, IDEMPOTENCE_TTL.inSeconds, "auth-cache:session");
+  readonly #refresh = new Valkery<unknown>({
+    key: "refresh-idem",
+    ttl: IDEMPOTENCE_TTL,
+  });
+  readonly #recover = new Valkery<unknown>({
+    key: "recover-idem",
+    ttl: IDEMPOTENCE_TTL,
+  });
+  readonly #index = new KeyIndex(
+    INDEX_KEY,
+    IDEMPOTENCE_TTL.inSeconds,
+    "auth-cache:session",
+  );
 
   /** What the last refresh under `key` answered, or null when none did. */
   refreshed<T>(key: string): Promise<T | null> {
@@ -148,7 +158,7 @@ export interface SessionTokens {
 /** Whether the session answered, and what stopped it when it did not. */
 export type SessionResult<T> = Result<T, SessionError>;
 
-const REFRESH = new RateLimit({
+const REFRESH = rateLimit({
   key: "session:refresh",
   limit: 30,
   window: Duration.minutes(1),
@@ -157,7 +167,7 @@ const REFRESH = new RateLimit({
   failOpen: false,
 });
 
-const RECOVER = new RateLimit({
+const RECOVER = rateLimit({
   key: "session:recover",
   limit: 30,
   window: Duration.minutes(1),
@@ -166,7 +176,7 @@ const RECOVER = new RateLimit({
   failOpen: false,
 });
 
-const DELETE = new RateLimit({
+const DELETE = rateLimit({
   key: "session:delete",
   limit: 3,
   window: Duration.hours(1),
@@ -231,7 +241,9 @@ export class AccountSession {
     if (!answer.ok) return new Failure(SessionError.Unauthorized);
 
     const session = AuthMapper.account.session(answer.data);
-    if (!session.user || !session.access_token) return new Failure(SessionError.Unauthorized);
+    if (!session.user || !session.access_token) {
+      return new Failure(SessionError.Unauthorized);
+    }
 
     if (!(await this.#stillAllowed(session.user.id))) {
       await AccountRevocation.sessions(session.user.id, session.access_token);
@@ -261,8 +273,13 @@ export class AccountSession {
    * is not does the refresh token get spent, which is what keeps a client that opens on a warm
    * token from rotating it for no reason.
    */
-  async recover(accessToken: string, refreshToken: string): Promise<SessionResult<SessionTokens>> {
-    if (!accessToken.trim() || !refreshToken.trim()) return new Failure(SessionError.Unauthorized);
+  async recover(
+    accessToken: string,
+    refreshToken: string,
+  ): Promise<SessionResult<SessionTokens>> {
+    if (!accessToken.trim() || !refreshToken.trim()) {
+      return new Failure(SessionError.Unauthorized);
+    }
 
     const key = await sha256Hex(`${accessToken}.${refreshToken}`);
 

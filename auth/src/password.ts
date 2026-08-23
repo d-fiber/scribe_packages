@@ -38,7 +38,7 @@ import { Duration } from "@scribe/alchemy";
 import { Failure, okay, type Result } from "@scribe/alchemy";
 import { checkCaller } from "@scribe/core/runtime/http/caller.ts";
 import { sha256Hex } from "@scribe/core/runtime/support/crypto/hash.ts";
-import { RateLimit } from "@scribe/foundation/lib/src/rate_limit/mod.ts";
+import { rateLimit } from "@scribe/alchemy";
 import { devices } from "./devices/devices.ts";
 import { goTrue } from "./gotrue/gotrue_client.ts";
 import { AccountRevocation } from "./revocation.ts";
@@ -69,7 +69,7 @@ export enum PasswordError {
 /** Whether the password changed, and what stopped it when it did not. */
 export type PasswordResult = Result<void, PasswordError>;
 
-const CALLER = new RateLimit({
+const CALLER = rateLimit({
   key: "account:password",
   limit: 10,
   window: Duration.minutes(1),
@@ -78,7 +78,7 @@ const CALLER = new RateLimit({
   failOpen: false,
 });
 
-const TARGET = new RateLimit({
+const TARGET = rateLimit({
   key: "account:password:of",
   limit: 5,
   window: Duration.minutes(15),
@@ -95,7 +95,11 @@ async function held(id: string): Promise<PasswordError | null> {
   return target.ok ? null : PasswordError.TooManyRequests;
 }
 
-async function write(id: string, password: string, accessToken: string | null): Promise<PasswordResult> {
+async function write(
+  id: string,
+  password: string,
+  accessToken: string | null,
+): Promise<PasswordResult> {
   const written = await goTrue.user.password.update(id, password);
   if (!written.ok) return new Failure(PasswordError.Unexpected);
 
@@ -120,13 +124,24 @@ export class AccountPassword {
    * identity provider whether it is right. That mints a session, and the session is revoked on
    * every path out, including the one where the change succeeds.
    */
-  async update(id: string, current: string, next: string, confirmation: string): Promise<PasswordResult> {
+  async update(
+    id: string,
+    current: string,
+    next: string,
+    confirmation: string,
+  ): Promise<PasswordResult> {
     const refusal = await held(id);
     if (refusal !== null) return new Failure(refusal);
 
-    if (next !== confirmation) return new Failure(PasswordError.PasswordsDoNotMatch);
-    if (current === next) return new Failure(PasswordError.SameAsCurrentPassword);
-    if (!AuthValidator.password.isValid(next)) return new Failure(PasswordError.InvalidPassword);
+    if (next !== confirmation) {
+      return new Failure(PasswordError.PasswordsDoNotMatch);
+    }
+    if (current === next) {
+      return new Failure(PasswordError.SameAsCurrentPassword);
+    }
+    if (!AuthValidator.password.isValid(next)) {
+      return new Failure(PasswordError.InvalidPassword);
+    }
 
     const identifiers = await identifiersOf(id);
     if (identifiers === null) return new Failure(PasswordError.Unexpected);
@@ -157,12 +172,20 @@ export class AccountPassword {
    * Nothing here checks that the caller earned the right to do it. The pending token is what
    * proves that, and it is spent before this is reached.
    */
-  async reset(id: string, next: string, confirmation: string): Promise<PasswordResult> {
+  async reset(
+    id: string,
+    next: string,
+    confirmation: string,
+  ): Promise<PasswordResult> {
     const refusal = await held(id);
     if (refusal !== null) return new Failure(refusal);
 
-    if (next !== confirmation) return new Failure(PasswordError.PasswordsDoNotMatch);
-    if (!AuthValidator.password.isValid(next)) return new Failure(PasswordError.InvalidPassword);
+    if (next !== confirmation) {
+      return new Failure(PasswordError.PasswordsDoNotMatch);
+    }
+    if (!AuthValidator.password.isValid(next)) {
+      return new Failure(PasswordError.InvalidPassword);
+    }
 
     return await write(id, next, null);
   }
