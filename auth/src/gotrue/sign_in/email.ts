@@ -34,16 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Result } from "@scribe/core/contracts/result.ts";
+import type { Result } from "@scribe/alchemy";
 import type { AccountRole } from "../../../contracts/role.ts";
-import {
-  anonHeaders,
-  type AuthError,
-  authUrl,
-  type GoTrueSessionResponse,
-  requestAuth,
-  requestAuthVoid,
-} from "../transport.ts";
+import { anonHeaders, authUrl, requestAuth, requestAuthVoid, type AuthError, type GoTrueSessionResponse } from "../transport.ts";
 
 class GoTrueSignInEmailOtp {
   send(

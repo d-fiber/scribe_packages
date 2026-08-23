@@ -37,7 +37,7 @@
 import { installTestSettings } from "@scribe/core/testing/settings.ts";
 import { assertEquals, assertNotEquals } from "@std/assert";
 import { FakeTime } from "@std/testing/time";
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { PendingToken } from "@scribe/auth/src/pending_token.ts";
 import { forgeToken } from "@scribe/auth/testing/pending_token.ts";
 
@@ -91,7 +91,7 @@ Deno.test("pending token: a correctly signed but expired token is rejected", asy
     const value = await forgeToken("u1@example.com", "user");
     assertNotEquals(await token.payload(value), null);
 
-    time.tick(Time.minutes(11).value * 1000);
+    time.tick(Duration.minutes(11).inMilliseconds);
     assertEquals(await token.payload(value), null);
   } finally {
     time.restore();

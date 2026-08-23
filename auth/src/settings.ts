@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { SettingsSlot } from "@scribe/core/runtime/support/settings/slot.ts";
+import { Slot } from "@scribe/alchemy";
 import type { AuthSettings } from "../contracts/settings.ts";
 
 /**
@@ -43,4 +43,4 @@ import type { AuthSettings } from "../contracts/settings.ts";
  * They do not come from `@scribe/host/env.ts` because a package cannot read the host's
  * environment: it would tie a package to the one process that declares those names.
  */
-export const authSettings: SettingsSlot<AuthSettings> = new SettingsSlot<AuthSettings>("auth");
+export const authSettings: Slot<AuthSettings> = new Slot<AuthSettings>("auth");

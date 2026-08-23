@@ -34,13 +34,13 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { KeyIndex } from "@scribe/core/runtime/redis/key_index.ts";
 import { Valkery } from "@scribe/foundation/lib/src/valkery/valkery.ts";
 import type { AccountRole } from "../contracts/role.ts";
 import { accounts } from "./tables.ts";
 
-const ROLE_TTL = Time.seconds(300);
+const ROLE_TTL = Duration.seconds(300);
 const INDEX_KEY = "account:role:index";
 const EMAIL_ENTRY = "email:";
 const PHONE_ENTRY = "phone:";
@@ -55,7 +55,7 @@ class RoleCache {
   readonly #email = new Valkery<AccountRole>({ key: "email:role", ttl: ROLE_TTL });
   readonly #phone = new Valkery<AccountRole>({ key: "phone:role", ttl: ROLE_TTL });
   readonly #id = new Valkery<AccountRole>({ key: "account:role", ttl: ROLE_TTL });
-  readonly #index = new KeyIndex(INDEX_KEY, ROLE_TTL.value, "auth-cache:role");
+  readonly #index = new KeyIndex(INDEX_KEY, ROLE_TTL.inSeconds, "auth-cache:role");
 
   /** The role remembered for this address, or null when none was. */
   getByEmail(email: string): Promise<AccountRole | null> {

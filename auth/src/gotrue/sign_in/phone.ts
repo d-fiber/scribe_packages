@@ -35,16 +35,9 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { AccountRole } from "../../../contracts/role.ts";
-import { Failure, type Result } from "@scribe/core/contracts/result.ts";
+import { Failure, type Result } from "@scribe/alchemy";
 import { isPhoneProviderConfigured, phoneNotConfiguredError } from "../primitives.ts";
-import {
-  anonHeaders,
-  type AuthError,
-  authUrl,
-  type GoTrueSessionResponse,
-  requestAuth,
-  requestAuthVoid,
-} from "../transport.ts";
+import { anonHeaders, authUrl, requestAuth, requestAuthVoid, type AuthError, type GoTrueSessionResponse } from "../transport.ts";
 
 export class GoTrueSignInPhone {
   send(

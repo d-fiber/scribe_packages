@@ -35,18 +35,8 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { SignOutScope } from "@scribe/core/contracts/account.ts";
-import type { Result } from "@scribe/core/contracts/result.ts";
-import {
-  adminHeaders,
-  anonHeaders,
-  type AuthError,
-  authUrl,
-  type GoTrueSessionResponse,
-  type GoTrueUser,
-  requestAuth,
-  requestAuthVoid,
-  userHeaders,
-} from "./transport.ts";
+import type { Result } from "@scribe/alchemy";
+import { adminHeaders, anonHeaders, authUrl, requestAuth, requestAuthVoid, type AuthError, type GoTrueSessionResponse, type GoTrueUser, userHeaders } from "./transport.ts";
 
 export class GoTrueSession {
   refreshToken(

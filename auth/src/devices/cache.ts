@@ -34,11 +34,11 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { Valkery } from "@scribe/foundation/lib/src/valkery/valkery.ts";
 import type { AccountDevice } from "../../contracts/device.ts";
 
-const DEVICE_TTL = Time.seconds(300);
+const DEVICE_TTL = Duration.seconds(300);
 
 function entryOf(accountId: string, deviceId: string): string {
   return `${accountId}:${deviceId}`;

@@ -35,8 +35,8 @@
 // LICENSE file, the LICENSE file governs.
 
 import { SignOutScope } from "@scribe/core/contracts/account.ts";
-import { Time } from "@scribe/core/contracts/common/time.ts";
-import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
+import { Duration } from "@scribe/alchemy";
+import { Failure, Ok, type Result } from "@scribe/alchemy";
 import { requestDevice } from "@scribe/core/runtime/device/device.ts";
 import { sha256Hex } from "@scribe/core/runtime/support/crypto/hash.ts";
 import { RateLimit } from "@scribe/foundation/lib/src/rate_limit/mod.ts";
@@ -121,7 +121,7 @@ async function attemptsOf(prefix: string, fingerprint: string): Promise<number |
 
   try {
     const attempts = await kv().incr(key);
-    if (attempts === 1) await kv().expire(key, Time.minutes(10).value);
+    if (attempts === 1) await kv().expire(key, Duration.minutes(10).inSeconds);
     return attempts;
   } catch (e) {
     console.error(`[otp-challenge:${prefix}] attempt counter unavailable:`, e);
@@ -142,9 +142,9 @@ function recipientLimit(prefix: string, role: AccountRole): RateLimit {
   return new RateLimit({
     key: `sign-in:${role}:${prefix}:to`,
     limit: 10,
-    window: Time.minutes(15),
-    penalty: Time.minutes(15),
-    maxPenalty: Time.minutes(15),
+    window: Duration.minutes(15),
+    penalty: Duration.minutes(15),
+    maxPenalty: Duration.minutes(15),
     failOpen: false,
   });
 }
@@ -153,9 +153,9 @@ function resendCadence(role: AccountRole): RateLimit {
   return new RateLimit({
     key: `sign-in:${role}:resend-otp:cadence`,
     limit: 1,
-    window: Time.seconds(90),
-    penalty: Time.seconds(90),
-    maxPenalty: Time.seconds(90),
+    window: Duration.seconds(90),
+    penalty: Duration.seconds(90),
+    maxPenalty: Duration.seconds(90),
     failOpen: false,
   });
 }
@@ -195,7 +195,7 @@ export class OtpChallenge {
     const device = await requestDevice();
     const pendingToken = await this.#token.issue(identifier, this.#role, device?.device_id ?? null);
 
-    return pendingToken ? new OK({ pendingToken }) : new Failure(OtpError.Unexpected);
+    return pendingToken ? new Ok({ pendingToken }) : new Failure(OtpError.Unexpected);
   }
 
   /** Sends another code for a challenge already open, and replaces its token. */
@@ -222,7 +222,7 @@ export class OtpChallenge {
     if (!pendingToken) return new Failure(OtpError.Unexpected);
 
     await this.#token.consume(token);
-    return new OK({ pendingToken });
+    return new Ok({ pendingToken });
   }
 
   /** Exchanges a code for a session, and records the device it came from. */
@@ -270,7 +270,7 @@ export class OtpChallenge {
       return new Failure(OtpError.Unexpected);
     }
 
-    return new OK({
+    return new Ok({
       access_token: accessToken,
       refresh_token: session.refresh_token,
       expires_in: session.expires_in,
@@ -297,7 +297,7 @@ export class OtpChallenge {
       return new Failure(OtpError.InvalidOrExpired);
     }
 
-    return new OK({
+    return new Ok({
       identifier: payload.identifier,
       deviceId: payload.deviceId,
       fingerprint: await sha256Hex(trimmed),

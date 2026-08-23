@@ -34,10 +34,10 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { Valkery } from "@scribe/foundation/lib/src/valkery/valkery.ts";
 
-const INTENT_TTL = Time.seconds(120);
+const INTENT_TTL = Duration.seconds(120);
 
 /** What a code sent by text message was sent for. */
 export enum SmsIntent {

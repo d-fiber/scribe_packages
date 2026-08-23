@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { AccountRole } from "../../contracts/role.ts";
-import type { Result } from "@scribe/core/contracts/result.ts";
+import type { Result } from "@scribe/alchemy";
 import { anonHeaders, type AuthError, authUrl, requestAuthVoid } from "./transport.ts";
 
 export class GoTrueResetPassword {

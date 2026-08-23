@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { RequestIpLocation } from "@scribe/core/contracts/common/location.ts";
+import type { IpLocation } from "@scribe/alchemy/route";
 import type { RequestDevice } from "@scribe/core/contracts/device.ts";
 import type { Channel } from "./channel.ts";
 
@@ -131,7 +131,7 @@ export interface SignInContext<TAccount> {
    * it on every sign-in, and it is already resolved once per request. Both fields are empty
    * strings when the project installed no resolver.
    */
-  readonly location: RequestIpLocation;
+  readonly location: IpLocation;
 
   /** The door being tried, so one channel can be refused without refusing the others. */
   readonly channel: Channel;
@@ -140,7 +140,7 @@ export interface SignInContext<TAccount> {
 /** How long a ban stands, and what it is written down as. */
 export interface BanOptions {
   /** How long the ban stands. It has to be lifted by hand when absent. */
-  readonly for?: import("@scribe/core/contracts/common/time.ts").Time;
+  readonly for?: import("@scribe/alchemy").Duration;
 
   /** Why it was laid, kept for whoever reads it back. */
   readonly reason?: string;

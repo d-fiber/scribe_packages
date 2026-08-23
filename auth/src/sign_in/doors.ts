@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { Session } from "@scribe/core/contracts/account.ts";
-import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
+import { Failure, Ok, type Result } from "@scribe/alchemy";
 import { Channel } from "../../contracts/channel.ts";
 import type { AccountRole } from "../../contracts/role.ts";
 import { isRateLimitCode } from "../gotrue/errors.ts";
@@ -133,7 +133,7 @@ function sessionOf(
     return new Failure(SignInError.Unexpected);
   }
 
-  return new OK({
+  return new Ok({
     session: session as AuthenticatedSession,
     role: AuthMapper.account.role(raw),
     identifier: null,
@@ -201,7 +201,7 @@ export class EmailCredential implements SignInCredential<EmailCredentials> {
         return Promise.resolve(new Failure(SignInError.InvalidCredentials));
     }
 
-    return Promise.resolve(new OK({ identifier: email.value }));
+    return Promise.resolve(new Ok({ identifier: email.value }));
   }
 
   async authenticate(
@@ -234,7 +234,7 @@ export class EmailCredential implements SignInCredential<EmailCredentials> {
     }
 
     const authenticated = sessionOf(answer.data);
-    return authenticated.ok ? new OK({ ...authenticated.data, identifier: email }) : authenticated;
+    return authenticated.ok ? new Ok({ ...authenticated.data, identifier: email }) : authenticated;
   }
 }
 
@@ -262,7 +262,7 @@ export class PhoneCredential implements SignInCredential<PhoneCredentials> {
     }
 
     return Promise.resolve(
-      new OK({ identifier: AuthValidator.phone.format(input.phone) }),
+      new Ok({ identifier: AuthValidator.phone.format(input.phone) }),
     );
   }
 
@@ -289,7 +289,7 @@ export class PhoneCredential implements SignInCredential<PhoneCredentials> {
     }
 
     const authenticated = sessionOf(answer.data);
-    return authenticated.ok ? new OK({ ...authenticated.data, identifier: phone }) : authenticated;
+    return authenticated.ok ? new Ok({ ...authenticated.data, identifier: phone }) : authenticated;
   }
 }
 
@@ -309,7 +309,7 @@ export class SocialCredential implements SignInCredential<SocialCredentials> {
     const malformed = input.idToken.trim().length === 0 || input.nonce.trim().length === 0;
 
     return Promise.resolve(
-      malformed ? new Failure(SignInError.InvalidCredentials) : new OK({ identifier: null }),
+      malformed ? new Failure(SignInError.InvalidCredentials) : new Ok({ identifier: null }),
     );
   }
 

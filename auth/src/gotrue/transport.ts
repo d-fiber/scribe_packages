@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
+import { Failure, Ok, okay, type Result } from "@scribe/alchemy";
 import { currentClient } from "@scribe/foundation/lib/src/http/run_with_client.ts";
 import type { Response as HttpResponse } from "@scribe/foundation/lib/src/http/response/response.ts";
 import { identitySettings } from "@scribe/core/runtime/support/settings/identity.ts";
@@ -158,7 +158,7 @@ export async function requestAuth<T>(
 ): Promise<Result<T, AuthError>> {
   const res = await sendAuth(url, init);
   if (!res.ok) return new Failure(parseError(res));
-  return new OK(res.json<T>());
+  return new Ok(res.json<T>());
 }
 
 export async function requestAuthVoid(
@@ -167,5 +167,5 @@ export async function requestAuthVoid(
 ): Promise<Result<void, AuthError>> {
   const res = await sendAuth(url, init);
   if (!res.ok) return new Failure(parseError(res));
-  return new OK();
+  return okay;
 }

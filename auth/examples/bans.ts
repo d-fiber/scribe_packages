@@ -1,4 +1,4 @@
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { BanError } from "@scribe/auth/mod.ts";
 import { user } from "./declaration.ts";
 
@@ -17,7 +17,7 @@ export async function shutOut(accountId: string, reason: string): Promise<string
 
 /** Shutting one out for a week, after which it lifts on its own. */
 export async function shutOutForAWeek(accountId: string, reason: string): Promise<boolean> {
-  const laid = await user.bans.lay(accountId, { for: Time.days(7), reason });
+  const laid = await user.bans.lay(accountId, { for: Duration.days(7), reason });
   return laid.ok;
 }
 

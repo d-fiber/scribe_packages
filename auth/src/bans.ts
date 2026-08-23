@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
+import { Failure, okay, type Result } from "@scribe/alchemy";
 import type { Ban, BanOptions } from "../contracts/account.ts";
 import { accountBans } from "./tables.ts";
 import { AccountRevocation } from "./revocation.ts";
@@ -121,7 +121,7 @@ export class Bans {
 
     const ban: Ban = {
       since: Date.now(),
-      until: options.for ? Date.now() + options.for.ms : null,
+      until: options.for ? Date.now() + options.for.inMilliseconds : null,
       reason: options.reason ?? null,
     };
 
@@ -130,7 +130,7 @@ export class Bans {
 
     await AccountRevocation.caches(id);
 
-    return new OK();
+    return okay;
   }
 
   /** Lets the account back in, whether its ban had a deadline or not. */
@@ -140,7 +140,7 @@ export class Bans {
       .where((f) => f.account_id.eq(id))
       .deleteOne();
 
-    return lifted === null ? new Failure(BanError.NotFound) : new OK();
+    return lifted === null ? new Failure(BanError.NotFound) : okay;
   }
 
   /** The ban standing over the account, or null when none stands or it holds another role. */

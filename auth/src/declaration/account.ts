@@ -34,9 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { RequestIpLocation } from "@scribe/core/contracts/common/location.ts";
+import type { IpLocation } from "@scribe/alchemy/route";
 import type { RequestDevice } from "@scribe/core/contracts/device.ts";
-import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
+import { Failure, okay, type Result } from "@scribe/alchemy";
 import { Table } from "@scribe/foundation/lib/src/database/table.ts";
 import type { AccountIdentity, AccountRow, SignInContext } from "../../contracts/account.ts";
 import type { Channel } from "../../contracts/channel.ts";
@@ -51,21 +51,7 @@ import { type AccountSession, session } from "../session.ts";
 import { type SignInSurface, signInSurface } from "../sign_in/surface.ts";
 import { type SignUpSurface, signUpSurface } from "../sign_up/surface.ts";
 import { accounts } from "../tables.ts";
-import {
-  compileRead,
-  isFilled,
-  isWritten,
-  type OptionalValue,
-  type ReadOf,
-  type ReadSelector,
-  readSelector,
-  type ReadShape,
-  type RequiredValue,
-  type WriteOf,
-  type WriteSelector,
-  writeSelector,
-  type WriteShape,
-} from "./columns.ts";
+import { compileRead, isFilled, isWritten, readSelector, type OptionalValue, type ReadOf, type ReadSelector, type ReadShape, type RequiredValue, type WriteOf, type WriteSelector, type WriteShape, writeSelector } from "./columns.ts";
 import { declareAccount } from "./registry.ts";
 
 /**
@@ -381,13 +367,13 @@ export class AccountDeclaration<
   async admits(
     account: AccountIdentity & ReadOf<TGet>,
     device: RequestDevice,
-    location: RequestIpLocation,
+    location: IpLocation,
     channel: Channel,
   ): Promise<Result<void, TRefusal | SignInRefusal>> {
     if (account.banned !== null) return new Failure(SignInRefusal.Banned);
 
     const condition = this.#options.signIn;
-    if (condition === undefined) return new OK();
+    if (condition === undefined) return okay;
 
     return await condition({ account, device, location, channel });
   }

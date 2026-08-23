@@ -34,22 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
-import {
-  isPhoneProviderConfigured,
-  phoneNotConfiguredError,
-  requestIdTokenExchange,
-  SocialProvider,
-} from "./primitives.ts";
-import {
-  adminHeaders,
-  anonHeaders,
-  type AuthError,
-  authUrl,
-  type GoTrueSessionResponse,
-  type GoTrueUser,
-  requestAuth,
-} from "./transport.ts";
+import { Failure, Ok, type Result } from "@scribe/alchemy";
+import { SocialProvider, isPhoneProviderConfigured, phoneNotConfiguredError, requestIdTokenExchange } from "./primitives.ts";
+import { adminHeaders, anonHeaders, authUrl, requestAuth, type AuthError, type GoTrueSessionResponse, type GoTrueUser } from "./transport.ts";
 
 export class GoTrueSignUp {
   createUserWithEmail(
@@ -75,7 +62,7 @@ export class GoTrueSignUp {
         body: JSON.stringify({ email, password, email_confirm: true }),
       },
     );
-    return response.ok ? new OK({ user: response.data }) : new Failure(response.error);
+    return response.ok ? new Ok({ user: response.data }) : new Failure(response.error);
   }
 
   createUserWithPhone(

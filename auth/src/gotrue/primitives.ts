@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { authSettings } from "../settings.ts";
-import { Failure, type Result } from "@scribe/core/contracts/result.ts";
+import { Failure, type Result } from "@scribe/alchemy";
 import { anonHeaders, type AuthError, authUrl, type GoTrueSessionResponse, requestAuth } from "./transport.ts";
 
 export enum SocialProvider {

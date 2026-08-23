@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
-import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
+import { Duration } from "@scribe/alchemy";
+import { Failure, okay, type Result } from "@scribe/alchemy";
 import { currentIdentity } from "@scribe/core/runtime/http/accessors/identity.ts";
 import { checkCaller } from "@scribe/core/runtime/http/caller.ts";
 import { request } from "@scribe/core/runtime/http/request.ts";
@@ -75,18 +75,18 @@ export type IdentifierResult = Result<void, IdentifierError>;
 const CALLER = new RateLimit({
   key: "account:identifier",
   limit: 10,
-  window: Time.minutes(1),
-  penalty: Time.minutes(1),
-  maxPenalty: Time.minutes(30),
+  window: Duration.minutes(1),
+  penalty: Duration.minutes(1),
+  maxPenalty: Duration.minutes(30),
   failOpen: false,
 });
 
 const TARGET = new RateLimit({
   key: "account:identifier:of",
   limit: 5,
-  window: Time.minutes(15),
-  penalty: Time.minutes(15),
-  maxPenalty: Time.minutes(15),
+  window: Duration.minutes(15),
+  penalty: Duration.minutes(15),
+  maxPenalty: Duration.minutes(15),
   failOpen: false,
 });
 
@@ -198,7 +198,7 @@ export class AccountIdentifier {
 
     await AccountRevocation.caches(id);
 
-    return new OK();
+    return okay;
   }
 
   async #change(
@@ -222,7 +222,7 @@ export class AccountIdentifier {
     await AccountRevocation.caches(id);
     if (endSessions) await devices.kickAll(id);
 
-    return new OK();
+    return okay;
   }
 }
 

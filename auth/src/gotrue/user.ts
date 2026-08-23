@@ -35,16 +35,8 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { AccountRole } from "../../contracts/role.ts";
-import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
-import {
-  adminHeaders,
-  type AuthError,
-  authUrl,
-  type GoTrueUser as GoTrueUserRecord,
-  parseError,
-  requestAuth,
-  sendAuth,
-} from "./transport.ts";
+import { Failure, okay, type Result } from "@scribe/alchemy";
+import { adminHeaders, authUrl, parseError, requestAuth, sendAuth, type AuthError, type GoTrueUser as GoTrueUserRecord } from "./transport.ts";
 
 function userUrl(userId: string): string {
   return `${authUrl()}/admin/users/${encodeURIComponent(userId)}`;
@@ -113,7 +105,7 @@ export class GoTrueUser {
       method: "DELETE",
       headers: adminHeaders(),
     });
-    if (res.ok || res.statusCode === 404) return new OK();
+    if (res.ok || res.statusCode === 404) return okay;
     return new Failure(parseError(res));
   }
 }

@@ -35,8 +35,8 @@
 // LICENSE file, the LICENSE file governs.
 
 import { SignOutScope } from "@scribe/core/contracts/account.ts";
-import { Time } from "@scribe/core/contracts/common/time.ts";
-import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
+import { Duration } from "@scribe/alchemy";
+import { Failure, Ok, okay, type Result } from "@scribe/alchemy";
 import { requestDevice } from "@scribe/core/runtime/device/device.ts";
 import { currentIdentity } from "@scribe/core/runtime/http/accessors/identity.ts";
 import { currentLocation } from "@scribe/core/runtime/http/accessors/location.ts";
@@ -53,7 +53,7 @@ import { goTrue } from "./gotrue/gotrue_client.ts";
 import { AuthMapper } from "./gotrue/mappers.ts";
 import { AccountRevocation } from "./revocation.ts";
 
-const IDEMPOTENCE_TTL = Time.seconds(15);
+const IDEMPOTENCE_TTL = Duration.seconds(15);
 const INDEX_KEY = "session:idem:index";
 const REFRESH_ENTRY = "refresh:";
 const RECOVER_ENTRY = "recover:";
@@ -68,7 +68,7 @@ const RECOVER_ENTRY = "recover:";
 class SessionIdempotence {
   readonly #refresh = new Valkery<unknown>({ key: "refresh-idem", ttl: IDEMPOTENCE_TTL });
   readonly #recover = new Valkery<unknown>({ key: "recover-idem", ttl: IDEMPOTENCE_TTL });
-  readonly #index = new KeyIndex(INDEX_KEY, IDEMPOTENCE_TTL.value, "auth-cache:session");
+  readonly #index = new KeyIndex(INDEX_KEY, IDEMPOTENCE_TTL.inSeconds, "auth-cache:session");
 
   /** What the last refresh under `key` answered, or null when none did. */
   refreshed<T>(key: string): Promise<T | null> {
@@ -151,27 +151,27 @@ export type SessionResult<T> = Result<T, SessionError>;
 const REFRESH = new RateLimit({
   key: "session:refresh",
   limit: 30,
-  window: Time.minutes(1),
-  penalty: Time.minutes(1),
-  maxPenalty: Time.minutes(10),
+  window: Duration.minutes(1),
+  penalty: Duration.minutes(1),
+  maxPenalty: Duration.minutes(10),
   failOpen: false,
 });
 
 const RECOVER = new RateLimit({
   key: "session:recover",
   limit: 30,
-  window: Time.minutes(1),
-  penalty: Time.minutes(1),
-  maxPenalty: Time.minutes(10),
+  window: Duration.minutes(1),
+  penalty: Duration.minutes(1),
+  maxPenalty: Duration.minutes(10),
   failOpen: false,
 });
 
 const DELETE = new RateLimit({
   key: "session:delete",
   limit: 3,
-  window: Time.hours(1),
-  penalty: Time.hours(1),
-  maxPenalty: Time.hours(24),
+  window: Duration.hours(1),
+  penalty: Duration.hours(1),
+  maxPenalty: Duration.hours(24),
   failOpen: false,
 });
 
@@ -225,7 +225,7 @@ export class AccountSession {
     if (!rate.ok) return new Failure(SessionError.TooManyRequests);
 
     const remembered = await sessionIdempotence.refreshed<SessionTokens>(key);
-    if (remembered) return new OK(remembered);
+    if (remembered) return new Ok(remembered);
 
     const answer = await goTrue.session.refreshToken(refreshToken);
     if (!answer.ok) return new Failure(SessionError.Unauthorized);
@@ -251,7 +251,7 @@ export class AccountSession {
       this.seen(session.user.id),
     ]);
 
-    return new OK(tokens);
+    return new Ok(tokens);
   }
 
   /**
@@ -270,7 +270,7 @@ export class AccountSession {
     if (!rate.ok) return new Failure(SessionError.TooManyRequests);
 
     const remembered = await sessionIdempotence.recovered<SessionTokens>(key);
-    if (remembered) return new OK(remembered);
+    if (remembered) return new Ok(remembered);
 
     const held = await goTrue.session.user(accessToken);
 
@@ -295,7 +295,7 @@ export class AccountSession {
         this.seen(user.id),
       ]);
 
-      return new OK(tokens);
+      return new Ok(tokens);
     }
 
     const renewed = await this.refresh(refreshToken);
@@ -309,7 +309,7 @@ export class AccountSession {
 
     await AccountRevocation.sessions(who.id, who.token);
 
-    return new OK();
+    return okay;
   }
 
   /**
@@ -335,7 +335,7 @@ export class AccountSession {
 
     await AccountRevocation.caches(who.id);
 
-    return new OK();
+    return okay;
   }
 
   /** Writes down where this request came from, so a session list shows where it was last used. */

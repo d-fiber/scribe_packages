@@ -35,10 +35,10 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { Session } from "@scribe/core/contracts/account.ts";
-import { Time } from "@scribe/core/contracts/common/time.ts";
-import type { RequestIpLocation } from "@scribe/core/contracts/common/location.ts";
+import { Duration } from "@scribe/alchemy";
+import type { IpLocation } from "@scribe/alchemy/route";
 import type { RequestDevice } from "@scribe/core/contracts/device.ts";
-import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
+import { Failure, Ok, type Result } from "@scribe/alchemy";
 import { requestDevice } from "@scribe/core/runtime/device/device.ts";
 import { currentLocation } from "@scribe/core/runtime/http/accessors/location.ts";
 import { callerBlocked, checkCaller } from "@scribe/core/runtime/http/caller.ts";
@@ -72,7 +72,7 @@ export interface SignInTarget<TAccount, TRefusal> {
   admits(
     account: TAccount,
     device: RequestDevice,
-    location: RequestIpLocation,
+    location: IpLocation,
     channel: Channel,
   ): Promise<Result<void, TRefusal>>;
 }
@@ -81,9 +81,9 @@ function callerLimit(role: string, channel: Channel): RateLimit {
   return new RateLimit({
     key: `sign-in:${role}:${channel}`,
     limit: 10,
-    window: Time.minutes(1),
-    penalty: Time.minutes(1),
-    maxPenalty: Time.minutes(10),
+    window: Duration.minutes(1),
+    penalty: Duration.minutes(1),
+    maxPenalty: Duration.minutes(10),
     failOpen: false,
   });
 }
@@ -92,9 +92,9 @@ function recipientLimit(role: string, channel: Channel): RateLimit {
   return new RateLimit({
     key: `sign-in:${role}:${channel}:to`,
     limit: 10,
-    window: Time.minutes(15),
-    penalty: Time.minutes(15),
-    maxPenalty: Time.hours(24),
+    window: Duration.minutes(15),
+    penalty: Duration.minutes(15),
+    maxPenalty: Duration.hours(24),
     failOpen: false,
   });
 }
@@ -176,7 +176,7 @@ export class SignInDoor<TInput, TAccount, TRefusal> {
 
       if (this.#challenge !== null && !(await devices.isTrusted(session.user.id, device.device_id))) {
         const started = await this.#challenge.start(read.data.identifier ?? "");
-        if (started.ok) return new OK(started.data);
+        if (started.ok) return new Ok(started.data);
 
         return new Failure(
           started.error === OtpError.TooManyRequests ? SignInError.TooManyRequests : SignInError.Unexpected,
@@ -187,7 +187,7 @@ export class SignInDoor<TInput, TAccount, TRefusal> {
       if (token === null) return new Failure(SignInError.Unexpected);
 
       keep = true;
-      return new OK({ ...session, device_token: token });
+      return new Ok({ ...session, device_token: token });
     } finally {
       if (!keep) await AccountRevocation.session(accessToken);
     }

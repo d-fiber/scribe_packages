@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { requestDevice } from "@scribe/core/runtime/device/device.ts";
 import { request } from "@scribe/core/runtime/http/request.ts";
 import { constantTimeEqual } from "@scribe/core/runtime/support/crypto/constant_time.ts";
@@ -45,7 +45,7 @@ import { deviceCache } from "./cache.ts";
 import { type DeviceHardware, type DeviceOrigin, deviceRepository } from "./repository.ts";
 
 /** How long a device stays trusted without signing in again. */
-const TRUST_WINDOW = Time.days(7);
+const TRUST_WINDOW = Duration.days(7);
 
 /** What checking the device a request came from concluded. */
 export enum DeviceCheck {
@@ -138,7 +138,7 @@ export class Devices {
 
     const trust = await deviceRepository.trust(accountId, deviceId);
     if (!trust?.hash) return false;
-    if (trust.seen_at < Date.now() - TRUST_WINDOW.ms) return false;
+    if (trust.seen_at < Date.now() - TRUST_WINDOW.inMilliseconds) return false;
 
     return constantTimeEqual(await sha256Hex(device.device_token), trust.hash);
   }

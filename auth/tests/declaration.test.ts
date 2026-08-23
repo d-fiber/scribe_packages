@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
-import { Failure, OK } from "@scribe/core/contracts/result.ts";
+import { Duration } from "@scribe/alchemy";
+import { Failure, okay } from "@scribe/alchemy";
 import type { RequestDevice } from "@scribe/core/contracts/device.ts";
 import { BanError } from "@scribe/auth/src/bans.ts";
 import { Account, SignInRefusal } from "@scribe/auth/src/declaration/account.ts";
@@ -83,7 +83,7 @@ const user = Account("declaration-user", {
     })),
   }),
 
-  signIn: ({ account }) => account.profile === null ? new Failure(UserRefusal.Onboarding) : new OK(),
+  signIn: ({ account }) => account.profile === null ? new Failure(UserRefusal.Onboarding) : okay,
 });
 
 const admin = Account("declaration-admin", {
@@ -200,8 +200,8 @@ Deno.test("a ban whose deadline has passed stops answering", async () => {
   const auth = seeded();
   auth.seed("__account_bans__", [{
     account_id: "a1",
-    since: Date.now() - Time.days(2).ms,
-    until: Date.now() - Time.days(1).ms,
+    since: Date.now() - Duration.days(2).inMilliseconds,
+    until: Date.now() - Duration.days(1).inMilliseconds,
     reason: null,
   }]);
 

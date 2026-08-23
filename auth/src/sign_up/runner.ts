@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
-import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
+import { Duration } from "@scribe/alchemy";
+import { Failure, Ok, type Result } from "@scribe/alchemy";
 import { requestDevice } from "@scribe/core/runtime/device/device.ts";
 import { checkCaller } from "@scribe/core/runtime/http/caller.ts";
 import { RateLimit } from "@scribe/foundation/lib/src/rate_limit/mod.ts";
@@ -83,9 +83,9 @@ function callerLimit(role: string, channel: Channel): RateLimit {
   return new RateLimit({
     key: `sign-up:${role}:${channel}`,
     limit: 5,
-    window: Time.minutes(15),
-    penalty: Time.minutes(15),
-    maxPenalty: Time.hours(1),
+    window: Duration.minutes(15),
+    penalty: Duration.minutes(15),
+    maxPenalty: Duration.hours(1),
     failOpen: false,
   });
 }
@@ -94,9 +94,9 @@ function recipientLimit(role: string, channel: Channel): RateLimit {
   return new RateLimit({
     key: `sign-up:${role}:${channel}:to`,
     limit: 3,
-    window: Time.minutes(15),
-    penalty: Time.minutes(15),
-    maxPenalty: Time.minutes(15),
+    window: Duration.minutes(15),
+    penalty: Duration.minutes(15),
+    maxPenalty: Duration.minutes(15),
     failOpen: false,
   });
 }
@@ -173,7 +173,7 @@ export class SignUpDoor<TInput, TSignUp extends WriteShape> {
       return new Failure(SignUpError.Unexpected);
     }
 
-    return new OK({ device_token: token });
+    return new Ok({ device_token: token });
   }
 
   async #undo(id: string): Promise<void> {

@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Location } from "@scribe/core/contracts/common/location.ts";
+import type { LatLng } from "@scribe/alchemy";
 import type { Metadata } from "@scribe/core/contracts/common/metadata.ts";
 import type { ClientType, DeviceCategory, DeviceOs } from "@scribe/core/contracts/enums.ts";
 
@@ -68,7 +68,7 @@ export interface AccountDevice {
   readonly notification_token: string | null;
 
   /** Where the device was when it was last seen, null when the client shared none. */
-  readonly location: Location | null;
+  readonly location: LatLng | null;
 
   /** The address the last request came from. */
   readonly ip: string;

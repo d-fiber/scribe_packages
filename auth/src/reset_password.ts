@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
-import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
+import { Duration } from "@scribe/alchemy";
+import { Failure, Ok, okay, type Result } from "@scribe/alchemy";
 import { checkCaller } from "@scribe/core/runtime/http/caller.ts";
 import { sha256Hex } from "@scribe/core/runtime/support/crypto/hash.ts";
 import { RateLimit } from "@scribe/foundation/lib/src/rate_limit/mod.ts";
@@ -96,9 +96,9 @@ function callerLimit(role: string, channel: Channel): RateLimit {
   return new RateLimit({
     key: `reset-password:${channel}:${role}`,
     limit: 10,
-    window: Time.minutes(5),
-    penalty: Time.minutes(5),
-    maxPenalty: Time.hours(24),
+    window: Duration.minutes(5),
+    penalty: Duration.minutes(5),
+    maxPenalty: Duration.hours(24),
     failOpen: false,
   });
 }
@@ -107,9 +107,9 @@ function recipientLimit(role: string, channel: Channel): RateLimit {
   return new RateLimit({
     key: `reset-password:${channel}:${role}:to`,
     limit: 1,
-    window: Time.seconds(90),
-    penalty: Time.seconds(90),
-    maxPenalty: Time.seconds(90),
+    window: Duration.seconds(90),
+    penalty: Duration.seconds(90),
+    maxPenalty: Duration.seconds(90),
     failOpen: false,
   });
 }
@@ -159,7 +159,7 @@ export class ResetPassword {
     const sent = await goTrue.resetPassword.recoverPasswordByEmail(checked.value, this.#role);
 
     if (!sent.ok) {
-      if (isRateLimitCode(sent.error.code)) return new OK();
+      if (isRateLimitCode(sent.error.code)) return okay;
 
       switch (sent.error.code) {
         case "validation_failed":
@@ -171,7 +171,7 @@ export class ResetPassword {
       }
     }
 
-    return new OK();
+    return okay;
   }
 
   /** Sends a code to `phone`, which `confirmPhone` exchanges for a pending token. */
@@ -198,7 +198,7 @@ export class ResetPassword {
       );
     }
 
-    return new OK();
+    return okay;
   }
 
   /** Exchanges the code sent to a number for the token that buys one password change. */
@@ -221,7 +221,7 @@ export class ResetPassword {
     if (typeof accessToken === "string") await AccountRevocation.session(accessToken);
 
     const pendingToken = await this.#token.issue(number, this.#role, null);
-    return pendingToken ? new OK({ pendingToken }) : new Failure(ResetPasswordError.Unexpected);
+    return pendingToken ? new Ok({ pendingToken }) : new Failure(ResetPasswordError.Unexpected);
   }
 
   /**
@@ -238,7 +238,7 @@ export class ResetPassword {
     if (identifier === null) return new Failure(ResetPasswordError.Unexpected);
 
     const pendingToken = await this.#token.issue(identifier, this.#role, null);
-    return pendingToken ? new OK({ pendingToken }) : new Failure(ResetPasswordError.Unexpected);
+    return pendingToken ? new Ok({ pendingToken }) : new Failure(ResetPasswordError.Unexpected);
   }
 
   /** Spends the pending token and writes the new password. */
@@ -266,6 +266,6 @@ export class ResetPassword {
     }
 
     const written = await accountPassword.reset(id, next, confirmation);
-    return written.ok ? new OK() : new Failure(REFUSALS[written.error]);
+    return written.ok ? okay : new Failure(REFUSALS[written.error]);
   }
 }

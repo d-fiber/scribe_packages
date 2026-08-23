@@ -149,7 +149,7 @@ export class PendingToken {
       const valid = await crypto.subtle.verify(
         "HMAC",
         key,
-        fromHex(sigHex),
+        fromHex(sigHex) as BufferSource,
         new TextEncoder().encode(payloadB64),
       );
       if (!valid) return null;

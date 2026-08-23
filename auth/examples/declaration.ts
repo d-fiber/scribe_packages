@@ -1,4 +1,4 @@
-import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
+import { Failure, okay, type Result } from "@scribe/alchemy";
 import { Channel } from "@scribe/auth/contracts/channel.ts";
 import { Account, Optional, type ReadSelector, Required, type WriteSelector } from "@scribe/auth/mod.ts";
 
@@ -74,7 +74,7 @@ export const user = Account("user", {
   signIn: ({ account, location }): Result<void, UserRefusal> => {
     if (!SERVED.includes(location.country)) return new Failure(UserRefusal.RegionUnavailable);
     if (account.profile === null) return new Failure(UserRefusal.OnboardingRequired);
-    return new OK();
+    return okay;
   },
 });
 

@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
+import { Failure, Ok, type Result } from "@scribe/alchemy";
 import { sha256Hex } from "@scribe/core/runtime/support/crypto/hash.ts";
 import { Channel } from "../../contracts/channel.ts";
 import { isRateLimitCode } from "../gotrue/errors.ts";
@@ -130,7 +130,7 @@ export class EmailCredential<TInput extends EmailCredentials> implements SignUpC
     const refusal = passwordRefusal(input.password);
     if (refusal !== null) return new Failure(refusal);
 
-    return new OK({ recipient: await sha256Hex(AuthValidator.email.inbox(email.value)) });
+    return new Ok({ recipient: await sha256Hex(AuthValidator.email.inbox(email.value)) });
   }
 
   async issue(input: TInput): Promise<Result<IssuedIdentity, SignUpError>> {
@@ -156,7 +156,7 @@ export class EmailCredential<TInput extends EmailCredentials> implements SignUpC
     const id = answer.data.user?.id;
     if (!id) return new Failure(SignUpError.Unexpected);
 
-    return new OK({ id, email, phone: null });
+    return new Ok({ id, email, phone: null });
   }
 }
 
@@ -172,7 +172,7 @@ export class PhoneCredential<TInput extends PhoneCredentials> implements SignUpC
     const refusal = passwordRefusal(input.password);
     if (refusal !== null) return new Failure(refusal);
 
-    return new OK({ recipient: await sha256Hex(AuthValidator.phone.format(input.phone)) });
+    return new Ok({ recipient: await sha256Hex(AuthValidator.phone.format(input.phone)) });
   }
 
   async issue(input: TInput): Promise<Result<IssuedIdentity, SignUpError>> {
@@ -198,7 +198,7 @@ export class PhoneCredential<TInput extends PhoneCredentials> implements SignUpC
     const id = answer.data.user?.id;
     if (!id) return new Failure(SignUpError.Unexpected);
 
-    return new OK({ id, email: null, phone });
+    return new Ok({ id, email: null, phone });
   }
 }
 
@@ -216,7 +216,7 @@ export class SocialCredential<TInput extends SocialCredentials> implements SignU
     const malformed = input.idToken.trim().length === 0 || input.nonce.trim().length === 0;
 
     return Promise.resolve(
-      malformed ? new Failure(SignUpError.InvalidCredentials) : new OK({ recipient: null }),
+      malformed ? new Failure(SignUpError.InvalidCredentials) : new Ok({ recipient: null }),
     );
   }
 
@@ -236,6 +236,6 @@ export class SocialCredential<TInput extends SocialCredentials> implements SignU
     const id = answer.data.user?.id;
     if (!id) return new Failure(SignUpError.Unexpected);
 
-    return new OK({ id, email: answer.data.user?.email || null, phone: null });
+    return new Ok({ id, email: answer.data.user?.email || null, phone: null });
   }
 }

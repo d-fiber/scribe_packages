@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
-import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
+import { Duration } from "@scribe/alchemy";
+import { Failure, okay, type Result } from "@scribe/alchemy";
 import { checkCaller } from "@scribe/core/runtime/http/caller.ts";
 import { sha256Hex } from "@scribe/core/runtime/support/crypto/hash.ts";
 import { RateLimit } from "@scribe/foundation/lib/src/rate_limit/mod.ts";
@@ -72,18 +72,18 @@ export type PasswordResult = Result<void, PasswordError>;
 const CALLER = new RateLimit({
   key: "account:password",
   limit: 10,
-  window: Time.minutes(1),
-  penalty: Time.minutes(1),
-  maxPenalty: Time.minutes(30),
+  window: Duration.minutes(1),
+  penalty: Duration.minutes(1),
+  maxPenalty: Duration.minutes(30),
   failOpen: false,
 });
 
 const TARGET = new RateLimit({
   key: "account:password:of",
   limit: 5,
-  window: Time.minutes(15),
-  penalty: Time.minutes(15),
-  maxPenalty: Time.minutes(15),
+  window: Duration.minutes(15),
+  penalty: Duration.minutes(15),
+  maxPenalty: Duration.minutes(15),
   failOpen: false,
 });
 
@@ -102,7 +102,7 @@ async function write(id: string, password: string, accessToken: string | null): 
   await AccountRevocation.sessions(id, accessToken);
   await devices.kickAll(id);
 
-  return new OK();
+  return okay;
 }
 
 /**

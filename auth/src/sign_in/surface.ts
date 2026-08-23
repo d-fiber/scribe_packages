@@ -34,16 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Result } from "@scribe/core/contracts/result.ts";
+import type { Result } from "@scribe/alchemy";
 import { Channel } from "../../contracts/channel.ts";
-import {
-  EmailCredential,
-  type EmailCredentials,
-  PhoneCredential,
-  type PhoneCredentials,
-  SocialCredential,
-  type SocialCredentials,
-} from "./doors.ts";
+import { EmailCredential, PhoneCredential, SocialCredential, type EmailCredentials, type PhoneCredentials, type SocialCredentials } from "./doors.ts";
 import type { OtpError, SignInError } from "./errors.ts";
 import type { OtpSession, OtpStarted } from "./otp.ts";
 import { type SignedIn, SignInDoor, type SignInTarget } from "./runner.ts";
