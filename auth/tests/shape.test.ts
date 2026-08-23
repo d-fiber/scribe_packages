@@ -61,17 +61,23 @@ const writeShape = writeSelector<AccountRow>();
 
 const read = {
   email: readShape.email,
-  profile: readShape.embed("app_user_profiles", (p: ReadSelector<ProfileRow>) => ({
-    firstname: p.first_name,
-    avatar: p.avatar_url,
-  })),
+  profile: readShape.embed(
+    "app_user_profiles",
+    (p: ReadSelector<ProfileRow>) => ({
+      firstname: p.first_name,
+      avatar: p.avatar_url,
+    }),
+  ),
 };
 
 const write = {
-  profile: writeShape.embed("app_user_profiles", (p: WriteSelector<ProfileRow>) => ({
-    firstname: Required(p.first_name),
-    birthday: Optional(p.birthday),
-  })),
+  profile: writeShape.embed(
+    "app_user_profiles",
+    (p: WriteSelector<ProfileRow>) => ({
+      firstname: Required(p.first_name),
+      birthday: Optional(p.birthday),
+    }),
+  ),
 };
 
 Deno.test("a read compiles into a selection that aliases every entry to the name it was given", () => {
@@ -98,7 +104,9 @@ Deno.test("a folded table that answered nothing reads as null rather than as an 
 });
 
 Deno.test("a sign-up asks for the required columns and lets the optional ones be left out", () => {
-  const full: WriteOf<typeof write> = { profile: { firstname: "Ada", birthday: 1815 } };
+  const full: WriteOf<typeof write> = {
+    profile: { firstname: "Ada", birthday: 1815 },
+  };
   const partial: WriteOf<typeof write> = { profile: { firstname: "Ada" } };
 
   assertEquals(full.profile.birthday, 1815);

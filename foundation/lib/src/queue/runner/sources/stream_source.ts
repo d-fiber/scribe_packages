@@ -87,7 +87,9 @@ export class StreamSource {
   }
 
   static forQueue(queue: RegisteredQueue): StreamSource {
-    return queue.dedicated ? StreamSource.dedicated(queue) : StreamSource.shared();
+    return queue.dedicated
+      ? StreamSource.dedicated(queue)
+      : StreamSource.shared();
   }
 
   fetch(count: number): Promise<JsMsg[]> {

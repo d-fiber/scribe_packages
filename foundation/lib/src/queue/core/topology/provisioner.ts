@@ -42,7 +42,12 @@ import {
   SHARED_STREAM,
   subjectOf,
 } from "@scribe/foundation/lib/src/queue/core/naming.ts";
-import { AckPolicy, type JetStreamManager, RetentionPolicy, StorageType } from "@nats-io/jetstream";
+import {
+  AckPolicy,
+  type JetStreamManager,
+  RetentionPolicy,
+  StorageType,
+} from "@nats-io/jetstream";
 import type { TopologyPlan } from "./plan.ts";
 
 /**
@@ -133,7 +138,9 @@ export class TopologyProvisioner {
     }
 
     const widened: Record<string, number> = {};
-    if ((existing.config.ack_wait ?? 0) < ackWaitNs) widened.ack_wait = ackWaitNs;
+    if ((existing.config.ack_wait ?? 0) < ackWaitNs) {
+      widened.ack_wait = ackWaitNs;
+    }
     if ((existing.config.max_deliver ?? 0) < plan.maxDeliver) {
       widened.max_deliver = plan.maxDeliver;
     }
@@ -143,7 +150,9 @@ export class TopologyProvisioner {
       await this.#manager.consumers.update(stream, durable, widened);
     } catch (error) {
       console.error(
-        `[queue] could not widen "${stream}/${durable}" to ${JSON.stringify(widened)}:`,
+        `[queue] could not widen "${stream}/${durable}" to ${
+          JSON.stringify(widened)
+        }:`,
         error,
       );
     }

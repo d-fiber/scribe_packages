@@ -24,7 +24,10 @@ export interface Landing {
  * created is what an address scanner asks for, and caching only the links that exist would
  * send every one of those queries to Postgres.
  */
-export async function land(slug: string, visit: Visit): Promise<Landing | LinkError> {
+export async function land(
+  slug: string,
+  visit: Visit,
+): Promise<Landing | LinkError> {
   const hit = await resolveLink(slug);
   if (!hit.ok) return hit.error;
 

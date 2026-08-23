@@ -43,10 +43,7 @@ import {
   SHARED_STREAM,
   subjectOf,
 } from "@scribe/foundation/lib/src/queue/core/naming.ts";
-import {
-  decode,
-  encode,
-} from "@scribe/foundation/lib/src/queue/core/wire.ts";
+import { decode, encode } from "@scribe/foundation/lib/src/queue/core/wire.ts";
 import { assertEquals, assertNotEquals } from "@std/assert";
 
 Deno.test("sanitize keeps what NATS accepts and folds the rest", () => {

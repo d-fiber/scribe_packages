@@ -68,7 +68,9 @@ Deno.test("poster frame: a lit opening frame is kept as is", () => {
 });
 
 Deno.test("poster frame: an opening fade to black is skipped", () => {
-  const picked = pickPosterFrame(stream(frame(0), frame(0), frame(180), frame(90)));
+  const picked = pickPosterFrame(
+    stream(frame(0), frame(0), frame(180), frame(90)),
+  );
 
   assertEquals(picked![0], 180);
 });
@@ -88,10 +90,15 @@ Deno.test("poster frame: a truncated frame is not decoded as a whole one", () =>
 });
 
 Deno.test("video frame: a runtime that cannot spawn ffmpeg yields null, never a failed upload", async () => {
-  const runnable = await Deno.permissions.query({ name: "run", command: "ffmpeg" });
+  const runnable = await Deno.permissions.query({
+    name: "run",
+    command: "ffmpeg",
+  });
   if (runnable.state === "granted") return;
 
-  const clip = new File([new Uint8Array(64)], "clip.mp4", { type: "video/mp4" });
+  const clip = new File([new Uint8Array(64)], "clip.mp4", {
+    type: "video/mp4",
+  });
 
   assertEquals(await extractPosterFrame(clip), null);
 });

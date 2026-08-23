@@ -44,26 +44,59 @@ import {
 import { assertEquals } from "@std/assert";
 
 Deno.test("presence() does not apply the policy: a weak password gets through", () => {
-  assertEquals(AuthValidator.password.presence("abc"), PasswordPresenceStatus.Ok);
-  assertEquals(AuthValidator.password.presence("motdepasse"), PasswordPresenceStatus.Ok);
+  assertEquals(
+    AuthValidator.password.presence("abc"),
+    PasswordPresenceStatus.Ok,
+  );
+  assertEquals(
+    AuthValidator.password.presence("motdepasse"),
+    PasswordPresenceStatus.Ok,
+  );
 });
 
 Deno.test("presence() refuses empty input and whitespace only", () => {
-  assertEquals(AuthValidator.password.presence(""), PasswordPresenceStatus.Empty);
-  assertEquals(AuthValidator.password.presence("   "), PasswordPresenceStatus.Empty);
+  assertEquals(
+    AuthValidator.password.presence(""),
+    PasswordPresenceStatus.Empty,
+  );
+  assertEquals(
+    AuthValidator.password.presence("   "),
+    PasswordPresenceStatus.Empty,
+  );
 });
 
 Deno.test("presence() bounds the length so bcrypt never gets a huge input", () => {
-  assertEquals(AuthValidator.password.presence("x".repeat(128)), PasswordPresenceStatus.Ok);
-  assertEquals(AuthValidator.password.presence("x".repeat(129)), PasswordPresenceStatus.TooLong);
+  assertEquals(
+    AuthValidator.password.presence("x".repeat(128)),
+    PasswordPresenceStatus.Ok,
+  );
+  assertEquals(
+    AuthValidator.password.presence("x".repeat(129)),
+    PasswordPresenceStatus.TooLong,
+  );
 });
 
 Deno.test("check() does apply the policy, and stays reserved for sign-up", () => {
-  assertEquals(AuthValidator.password.check("abc").status, PasswordCheckStatus.Invalid);
-  assertEquals(AuthValidator.password.check("password1").status, PasswordCheckStatus.Invalid);
-  assertEquals(AuthValidator.password.check("PASSWORD1").status, PasswordCheckStatus.Invalid);
-  assertEquals(AuthValidator.password.check("Password").status, PasswordCheckStatus.Invalid);
-  assertEquals(AuthValidator.password.check("Poppin2Alpha").status, PasswordCheckStatus.Ok);
+  assertEquals(
+    AuthValidator.password.check("abc").status,
+    PasswordCheckStatus.Invalid,
+  );
+  assertEquals(
+    AuthValidator.password.check("password1").status,
+    PasswordCheckStatus.Invalid,
+  );
+  assertEquals(
+    AuthValidator.password.check("PASSWORD1").status,
+    PasswordCheckStatus.Invalid,
+  );
+  assertEquals(
+    AuthValidator.password.check("Password").status,
+    PasswordCheckStatus.Invalid,
+  );
+  assertEquals(
+    AuthValidator.password.check("Poppin2Alpha").status,
+    PasswordCheckStatus.Ok,
+  );
 });
 
 Deno.test("check() rejects a common word dressed up to pass composition", () => {
@@ -116,7 +149,9 @@ Deno.test("check() enforces the 10 character floor", () => {
 });
 
 Deno.test("check() rejects known-bad passwords even when well formed", () => {
-  for (const banned of ["Password123", "Azerty123", "Welcome123", "Qwerty123"]) {
+  for (
+    const banned of ["Password123", "Azerty123", "Welcome123", "Qwerty123"]
+  ) {
     assertEquals(
       AuthValidator.password.check(banned).status,
       PasswordCheckStatus.Invalid,
@@ -156,7 +191,10 @@ Deno.test("email: lowercased and trimmed", () => {
 
 Deno.test("email: invalid forms refused", () => {
   for (const value of ["", "   "]) {
-    assertEquals(AuthValidator.email.check(value).status, EmailCheckStatus.Empty);
+    assertEquals(
+      AuthValidator.email.check(value).status,
+      EmailCheckStatus.Empty,
+    );
   }
   for (const value of ["u1", "u1@", "@example.com", "u1@example", "a b@c.d"]) {
     assertEquals(
@@ -169,7 +207,10 @@ Deno.test("email: invalid forms refused", () => {
 
 Deno.test("email: length bounded to 254", () => {
   const long = "a".repeat(250) + "@e.fr";
-  assertEquals(AuthValidator.email.check(long).status, EmailCheckStatus.Invalid);
+  assertEquals(
+    AuthValidator.email.check(long).status,
+    EmailCheckStatus.Invalid,
+  );
 });
 
 Deno.test("inbox() does not merge two genuinely distinct mailboxes", () => {
@@ -181,7 +222,9 @@ Deno.test("inbox() does not merge two genuinely distinct mailboxes", () => {
 Deno.test("phone: international format and equivalent variants", () => {
   const expected = AuthValidator.phone.check("+33612345678");
   assertEquals(expected.status, PhoneCheckStatus.Ok);
-  for (const value of ["+33 6 12 34 56 78", "+33-6-12-34-56-78", "0033612345678"]) {
+  for (
+    const value of ["+33 6 12 34 56 78", "+33-6-12-34-56-78", "0033612345678"]
+  ) {
     assertEquals(
       AuthValidator.phone.check(value).value,
       expected.value,
@@ -193,5 +236,8 @@ Deno.test("phone: international format and equivalent variants", () => {
 Deno.test("phone: empty and invalid are distinguished", () => {
   assertEquals(AuthValidator.phone.check("").status, PhoneCheckStatus.Empty);
   assertEquals(AuthValidator.phone.check("   ").status, PhoneCheckStatus.Empty);
-  assertEquals(AuthValidator.phone.check("123").status, PhoneCheckStatus.Invalid);
+  assertEquals(
+    AuthValidator.phone.check("123").status,
+    PhoneCheckStatus.Invalid,
+  );
 });

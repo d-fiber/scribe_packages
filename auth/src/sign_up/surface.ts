@@ -44,15 +44,20 @@ import {
   SocialCredential,
   type SocialCredentials,
 } from "./doors.ts";
-import type { EmailSignUpError, PhoneSignUpError, SocialSignUpError } from "./errors.ts";
+import type {
+  EmailSignUpError,
+  PhoneSignUpError,
+  SocialSignUpError,
+} from "./errors.ts";
 import { SignUpDoor, type SignUpResult, type SignUpTarget } from "./runner.ts";
 
 type Door<TCredentials, TSignUp extends WriteShape, TError> = (
   input: TCredentials & WriteOf<TSignUp>,
 ) => Promise<SignUpResult<TError>>;
 
-type Opens<TChannels extends readonly Channel[], C extends Channel, T> = C extends TChannels[number] ? T
-  : Record<never, never>;
+type Opens<TChannels extends readonly Channel[], C extends Channel, T> =
+  C extends TChannels[number] ? T
+    : Record<never, never>;
 
 /**
  * The doors a sign-up offers, which are exactly the ones the declaration named.
@@ -61,7 +66,10 @@ type Opens<TChannels extends readonly Channel[], C extends Channel, T> = C exten
  * declared an address does not compile. The check used to live in the constructor of each
  * strategy, where it could only refuse at runtime.
  */
-export type SignUpSurface<TChannels extends readonly Channel[], TSignUp extends WriteShape> =
+export type SignUpSurface<
+  TChannels extends readonly Channel[],
+  TSignUp extends WriteShape,
+> =
   & Opens<TChannels, Channel.Email, {
     /** Creates the account from an address and a password. */
     email: Door<EmailCredentials, TSignUp, EmailSignUpError>;
@@ -83,7 +91,10 @@ export type SignUpSurface<TChannels extends readonly Channel[], TSignUp extends 
 type AnyDoor = SignUpDoor<any, any>;
 
 /** Builds the doors a declaration named, and nothing else. */
-export function signUpSurface<TChannels extends readonly Channel[], TSignUp extends WriteShape>(
+export function signUpSurface<
+  TChannels extends readonly Channel[],
+  TSignUp extends WriteShape,
+>(
   target: SignUpTarget<TSignUp>,
   channels: TChannels,
 ): SignUpSurface<TChannels, TSignUp> {
@@ -102,10 +113,16 @@ export function signUpSurface<TChannels extends readonly Channel[], TSignUp exte
         open("phone", new SignUpDoor(target, new PhoneCredential()));
         break;
       case Channel.Google:
-        open("google", new SignUpDoor(target, new SocialCredential(Channel.Google)));
+        open(
+          "google",
+          new SignUpDoor(target, new SocialCredential(Channel.Google)),
+        );
         break;
       case Channel.Apple:
-        open("apple", new SignUpDoor(target, new SocialCredential(Channel.Apple)));
+        open(
+          "apple",
+          new SignUpDoor(target, new SocialCredential(Channel.Apple)),
+        );
         break;
     }
   }

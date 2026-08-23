@@ -43,7 +43,7 @@ export class LinkTemplateError extends Error {
 
   /**
    * @param template - The template that was refused.
-   * @param reason - What is wrong with it, in a sentence that finishes "template … reason".
+   * @param reason - What is wrong with it, in a sentence that finishes "template ... reason".
    */
   constructor(template: string, reason: string) {
     super(`dynamic link template "${template}" ${reason}.`);
@@ -102,11 +102,16 @@ export class LinkTemplate {
     for (const match of pattern.matchAll(PLACEHOLDER_PATTERN)) {
       const name = match[1];
       if (names.includes(name)) {
-        throw new LinkTemplateError(pattern, `writes the placeholder "${name}" twice`);
+        throw new LinkTemplateError(
+          pattern,
+          `writes the placeholder "${name}" twice`,
+        );
       }
 
       const literal = pattern.slice(cursor, match.index);
-      if (literal.length > 0) segments.push({ kind: "literal", value: literal });
+      if (literal.length > 0) {
+        segments.push({ kind: "literal", value: literal });
+      }
 
       segments.push({ kind: "param", name });
       names.push(name);
@@ -147,6 +152,8 @@ export class LinkTemplate {
 
   /** Whether `params` holds a usable value for every placeholder this template writes. */
   accepts(params: Readonly<Record<string, string>>): boolean {
-    return this.names.every((name) => typeof params[name] === "string" && params[name].length > 0);
+    return this.names.every(
+      (name) => typeof params[name] === "string" && params[name].length > 0,
+    );
   }
 }
