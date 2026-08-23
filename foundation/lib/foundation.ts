@@ -71,28 +71,12 @@ export type { CronHandler, Schedule, Scheduled } from "./src/cron/schedule.ts";
 export { CronTimezone } from "./src/cron/cron_timezone.ts";
 
 export { database, DatabaseClient } from "./src/database/database_client.ts";
-export { PostgrestClients } from "./src/database/postgrest_clients.ts";
 export { databaseSettings } from "./src/database/database_settings.ts";
 export { ownerOf, registerTableOwners } from "./src/database/table_owners.ts";
 export { type DatabaseSchema, Table, type TableShape } from "./src/database/table.ts";
 export { from, type RpcBuilder, TablesBase } from "./src/database/tables_base.ts";
 export { ownerScope, READS_EVERY_ROW, type ScopeDecision } from "./src/database/query/owner_scope.ts";
-export {
-  assertPlainColumn,
-  isFilterKeyword,
-  keywordLiteral,
-  quoteFilterList,
-  quoteFilterLiteral,
-  UnsafeFilterError,
-} from "./src/database/query/filter_literal.ts";
-export {
-  AMBIGUITY_PROBE,
-  atMostOneRow,
-  buildRead,
-  buildWrite,
-  type QueryOrder,
-  type QueryState,
-} from "./src/database/query/query_state.ts";
+export { UnsafeFilterError } from "./src/database/query/filter_literal.ts";
 export { DatabaseQueryError, TypedQueryBuilder } from "./src/database/query/typed_query_builder.ts";
 
 export { Hook, type HookDefinition } from "./src/hook/hook.ts";
