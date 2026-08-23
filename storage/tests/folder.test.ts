@@ -37,13 +37,13 @@
 
 import "@scribe/core/testing/settings.ts";
 import { assertEquals } from "@std/assert";
-import { Size, Storage, StorageVisibility } from "@scribe/storage/mod.ts";
+import { Bytes, Storage, StorageVisibility } from "@scribe/storage/mod.ts";
 import type { FakePostgrestSeed } from "@scribe/foundation/tests/testing/database.ts";
 import { installStorageMock } from "@scribe/storage/testing/mock.ts";
 import { installDatabaseFake } from "./mocks/database.ts";
 
 const shelves = Storage.public("shelves/{shelfId}");
-shelves.file("label", { extensions: ["json"], maxSize: Size.kilobytes(4) });
+shelves.file("label", { extensions: ["json"], maxSize: Bytes.kilobytes(4) });
 
 function storedAt(path: string, visibility = StorageVisibility.Public) {
   return {

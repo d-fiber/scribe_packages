@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 
-import { Failure, OK } from "@scribe/core/contracts/result.ts";
+import { Failure, Ok, okay } from "@scribe/alchemy";
 import { bucketOf } from "../bucket/registry.ts";
 import { objectUrl } from "../core/visibility.ts";
 import { forgetObjects, type RecordedWrite, recordObject } from "../db/objects.ts";
@@ -44,12 +44,7 @@ import { mimeTypeOf } from "../media/mime.ts";
 import { mediaError } from "../media/validation.ts";
 import { StoragePathError } from "../path/segment.ts";
 import type { StorageResourceConfig } from "./config.ts";
-import {
-  StorageRemoveError,
-  type StorageRemoveResult,
-  StorageUploadError,
-  type StorageUploadResult,
-} from "./result.ts";
+import { StorageRemoveError, StorageUploadError, type StorageRemoveResult, type StorageUploadResult } from "./result.ts";
 
 /**
  * One object of a storage tree: where it goes, what it accepts, and what an upload answers.
@@ -108,7 +103,7 @@ export abstract class StorageResource<TData, TArgs extends string[]> {
     if (written === null) return new Failure(StorageUploadError.IndexFailed);
     if (written.displaced !== null) await bucketOf(written.displaced).remove([path]);
 
-    return new OK(data);
+    return new Ok(data);
   }
 
   /** Removes the object `args` render, and forgets the row that named it. */
@@ -123,7 +118,7 @@ export abstract class StorageResource<TData, TArgs extends string[]> {
    * caller never has to work out which half of its list went.
    */
   async removeMany(argsList: readonly TArgs[]): Promise<StorageRemoveResult> {
-    if (argsList.length === 0) return new OK();
+    if (argsList.length === 0) return okay;
 
     const paths: string[] = [];
     for (const args of argsList) {
@@ -137,7 +132,7 @@ export abstract class StorageResource<TData, TArgs extends string[]> {
     }
 
     if (!(await this.#forget(paths))) return new Failure(StorageRemoveError.IndexFailed);
-    return new OK();
+    return okay;
   }
 
   /** Where the object `args` render is served from, or null when they render no usable key. */

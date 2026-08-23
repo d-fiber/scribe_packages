@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 
-import type { Size } from "@scribe/core/contracts/common/size.ts";
+import type { Bytes } from "@scribe/alchemy";
 import type { StorageVisibility } from "../core/visibility.ts";
 
 /** Renders the key of one object, from the arguments its folder's template asks for. */
@@ -50,7 +50,7 @@ export interface StorageResourceConfig<TArgs extends string[]> {
   readonly extensions: readonly string[];
 
   /** The largest upload this resource takes. */
-  readonly maxSize: Size;
+  readonly maxSize: Bytes;
 
   /** Where the bytes go, which is the folder's rendered prefix plus this resource's name. */
   readonly path: StoragePath<TArgs>;

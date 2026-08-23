@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 
-import type { Result } from "@scribe/core/contracts/result.ts";
+import type { Result } from "@scribe/alchemy";
 import type { StorageVisibility } from "../core/visibility.ts";
 
 /** Why an upload did not happen. */

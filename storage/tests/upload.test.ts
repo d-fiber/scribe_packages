@@ -37,13 +37,13 @@
 
 import "@scribe/core/testing/settings.ts";
 import { assertEquals } from "@std/assert";
-import type { Failure } from "@scribe/core/contracts/result.ts";
-import { Size, Storage, StorageUploadError, StorageVisibility } from "@scribe/storage/mod.ts";
+import type { Failure } from "@scribe/alchemy";
+import { Bytes, Storage, StorageUploadError, StorageVisibility } from "@scribe/storage/mod.ts";
 import { installStorageMock } from "@scribe/storage/testing/mock.ts";
 import { installDatabaseFake, installRefusingDatabase } from "./mocks/database.ts";
 
 const reports = Storage.public("reports/{reportId}");
-const sheet = reports.file("sheet", { extensions: ["json"], maxSize: Size.kilobytes(4) });
+const sheet = reports.file("sheet", { extensions: ["json"], maxSize: Bytes.kilobytes(4) });
 
 function json(bytes = 3): File {
   return new File([new Uint8Array(bytes)], "a.json", { type: "application/json" });

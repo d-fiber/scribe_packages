@@ -1,4 +1,4 @@
-import { Size, Storage, StorageVisibility } from "@scribe/storage/mod.ts";
+import { Bytes, Storage, StorageVisibility } from "@scribe/storage/mod.ts";
 
 /**
  * A folder whose objects anyone holding their URL can read.
@@ -16,13 +16,13 @@ export const users = Storage.public("users/{userId}");
  */
 export const avatar = users.image("avatar", {
   extensions: ["png", "jpg", "webp"],
-  maxSize: Size.megabytes(5),
+  maxSize: Bytes.megabytes(5),
 });
 
 /** A video, whose blur hash is derived from its first frame. */
 export const intro = users.video("intro", {
   extensions: ["mp4"],
-  maxSize: Size.megabytes(200),
+  maxSize: Bytes.megabytes(200),
 });
 
 /**
@@ -43,5 +43,5 @@ export const documents = users.child("docs/{docId}", StorageVisibility.Private);
  */
 export const contract = documents.file("contract", {
   extensions: ["pdf"],
-  maxSize: Size.megabytes(20),
+  maxSize: Bytes.megabytes(20),
 });

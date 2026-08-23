@@ -34,19 +34,19 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Size } from "@scribe/core/contracts/common/size.ts";
+import type { Bytes } from "@scribe/alchemy";
 import { StorageUploadError } from "../runtime/result.ts";
 import { extensionOf } from "./extension.ts";
 
 export function mediaError(
   file: File,
   extensions: readonly string[],
-  maxSize: Size,
+  maxSize: Bytes,
 ): StorageUploadError | null {
   const extension = extensionOf(file.name);
   if (!extension || !extensions.some((e) => e.toLowerCase() === extension)) {
     return StorageUploadError.InvalidType;
   }
-  if (file.size > maxSize.value) return StorageUploadError.FileTooLarge;
+  if (file.size > maxSize.inBytes) return StorageUploadError.FileTooLarge;
   return null;
 }

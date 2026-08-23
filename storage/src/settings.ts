@@ -36,8 +36,8 @@
 
 
 import type { StorageSettings } from "@scribe/storage/contracts/settings.ts";
-import { SettingsSlot } from "@scribe/core/runtime/support/settings/slot.ts";
+import { Slot } from "@scribe/alchemy";
 
-export const storageSettings: SettingsSlot<StorageSettings> = new SettingsSlot<StorageSettings>(
+export const storageSettings: Slot<StorageSettings> = new Slot<StorageSettings>(
   "storage",
 );

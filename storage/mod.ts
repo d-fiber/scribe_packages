@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 
-export { Size } from "@scribe/core/contracts/common/size.ts";
+export { Bytes } from "@scribe/alchemy";
 
 export { Storage } from "./src/core/storage.ts";
 export type { StorageMediaSpec } from "./src/core/storage.ts";

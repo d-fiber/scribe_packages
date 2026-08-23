@@ -41,14 +41,14 @@ import { fetchObject, report, requireStack, RUN_ID, STACK, useStack } from "./su
 await requireStack();
 await useStack();
 
-const { Size, Storage, StorageVisibility } = await import("@scribe/storage/mod.ts");
+const { Bytes, Storage, StorageVisibility } = await import("@scribe/storage/mod.ts");
 const { storageObjects } = await import("@scribe/storage/src/db/tables.ts");
 
 const notes = Storage.public(`e2e-${RUN_ID}/{ownerId}`);
-const note = notes.file("note", { extensions: ["png"], maxSize: Size.megabytes(1) });
-const photo = notes.image("photo", { extensions: ["png"], maxSize: Size.megabytes(1) });
+const note = notes.file("note", { extensions: ["png"], maxSize: Bytes.megabytes(1) });
+const photo = notes.image("photo", { extensions: ["png"], maxSize: Bytes.megabytes(1) });
 const sealed = notes.child("sealed", StorageVisibility.Private);
-const secret = sealed.file("secret", { extensions: ["png"], maxSize: Size.megabytes(1) });
+const secret = sealed.file("secret", { extensions: ["png"], maxSize: Bytes.megabytes(1) });
 
 const PIXEL = Uint8Array.from(
   atob(

@@ -37,14 +37,14 @@
 
 import "@scribe/core/testing/settings.ts";
 import { assertEquals, assertThrows } from "@std/assert";
-import { Size, Storage, StoragePathError, StorageVisibility } from "@scribe/storage/mod.ts";
+import { Bytes, Storage, StoragePathError, StorageVisibility } from "@scribe/storage/mod.ts";
 
-const SPEC = { extensions: ["png"], maxSize: Size.megabytes(1) };
+const SPEC = { extensions: ["png"], maxSize: Bytes.megabytes(1) };
 
 const people = Storage.public("people/{personId}");
 const avatar = people.image("avatar", SPEC);
 const badges = people.child("badges/{badgeId}");
-const badge = badges.file("badge", { extensions: ["json"], maxSize: Size.kilobytes(4) });
+const badge = badges.file("badge", { extensions: ["json"], maxSize: Bytes.kilobytes(4) });
 
 Deno.test("declaration: a resource renders under the folder that declared it", () => {
   assertEquals(
@@ -62,7 +62,7 @@ Deno.test("declaration: a child takes the arguments of both templates, in order"
 
 Deno.test("declaration: a child may land in another bucket than its parent", () => {
   const notes = people.child("notes", StorageVisibility.Private);
-  const note = notes.file("note", { extensions: ["json"], maxSize: Size.kilobytes(4) });
+  const note = notes.file("note", { extensions: ["json"], maxSize: Bytes.kilobytes(4) });
 
   assertEquals(
     note.url("p1"),

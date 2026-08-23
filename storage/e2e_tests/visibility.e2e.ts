@@ -41,13 +41,13 @@ import { fetchObject, report, requireStack, RUN_ID, STACK, useStack } from "./su
 await requireStack();
 await useStack();
 
-const { Size, Storage, StorageVisibility } = await import("@scribe/storage/mod.ts");
+const { Bytes, Storage, StorageVisibility } = await import("@scribe/storage/mod.ts");
 
 const open = Storage.public(`e2e-open-${RUN_ID}/{ownerId}`);
-const openNote = open.file("note", { extensions: ["png"], maxSize: Size.megabytes(1) });
+const openNote = open.file("note", { extensions: ["png"], maxSize: Bytes.megabytes(1) });
 
 const shut = Storage.private(`e2e-shut-${RUN_ID}/{ownerId}`);
-const shutNote = shut.file("note", { extensions: ["png"], maxSize: Size.megabytes(1) });
+const shutNote = shut.file("note", { extensions: ["png"], maxSize: Bytes.megabytes(1) });
 
 const PIXEL = Uint8Array.from(
   atob(
