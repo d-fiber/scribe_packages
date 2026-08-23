@@ -41,7 +41,7 @@ import { DateTime, Duration, Future } from "@scribe/alchemy";
 const POLL_EVERY: Duration = Duration.milliseconds(50);
 
 /** Reads back what the replica that won the lock wrote, or `null` while it has not. */
-export type ReadBack<T> = () => Future<T | null>;
+export type ReadBack<out T> = () => Future<T | null>;
 
 /**
  * Coordinates the replicas of a fleet so one of them produces a missing value.

@@ -43,7 +43,7 @@ import { DateTime } from "@scribe/alchemy";
  * entry expires, and how long producing it took. Neither can be recovered from Redis after the
  * fact: `PTTL` costs a second round trip and says nothing about the cost of a recompute.
  */
-export interface CacheEntry<T> {
+export interface CacheEntry<out T> {
   /** The value the caller stored, as it was given. */
   readonly value: T;
 

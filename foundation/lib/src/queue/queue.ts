@@ -84,7 +84,7 @@ export interface BatchQueueDefinition extends QueueDefinition {
  * declared, so it needs everything below without declaring anything. Constructing a `Queue`
  * there would register a second one under a name already taken, and throw.
  */
-export class QueuePublisher<TJob> {
+export class QueuePublisher<in TJob> {
   protected readonly queue: RegisteredQueue;
 
   constructor(queue: RegisteredQueue) {
@@ -159,7 +159,7 @@ export class QueuePublisher<TJob> {
  * Draining is deliberately absent from the surface. A pass over a queue belongs to the runner,
  * and `core/` is not allowed to reach into `runner/`.
  */
-export class Queue<TJob> extends QueuePublisher<TJob> {
+export class Queue<in TJob> extends QueuePublisher<TJob> {
   /** Declares a queue whose body is called once with a group of payloads. */
   constructor(definition: BatchQueueDefinition, handler: BatchHandler<TJob>);
   /** Declares a queue whose body is called once per message. */

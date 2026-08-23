@@ -86,7 +86,7 @@ export const DEFAULT_TTL: Duration = Duration.days(15);
  * Nothing here throws: an unreachable Redis is reported and read as a miss, so a cache outage
  * degrades into recomputation rather than into an error the caller has to handle.
  */
-export class RedisCache<T> {
+export class RedisCache<in out T> {
   /** The namespace every key of this cache is written under. */
   readonly key: string;
 

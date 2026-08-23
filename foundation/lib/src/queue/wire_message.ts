@@ -48,7 +48,7 @@ const decoder = new TextDecoder();
  * message published before this change carries `{ data, attempts }`, and reading `.data`
  * decodes both shapes without a guess. A bare payload would have made the two ambiguous.
  */
-export interface WireMessage<T> {
+export interface WireMessage<out T> {
   /** The payload the producer sent, untouched. */
   readonly data: T;
 }

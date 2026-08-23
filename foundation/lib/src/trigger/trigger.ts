@@ -81,7 +81,7 @@ export interface TriggerOptions {
 }
 
 /** The transition a column has to make, both bounds optional. */
-export interface Transition<V> {
+export interface Transition<out V> {
   /** The value the column has to be leaving, any value when absent. */
   readonly from?: V;
 
