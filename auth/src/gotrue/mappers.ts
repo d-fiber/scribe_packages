@@ -36,7 +36,7 @@
 
 import { authSettings } from "../settings.ts";
 import type { GoTrueSessionResponse, GoTrueUser } from "./transport.ts";
-import type { Session, SessionUser } from "@scribe/core/contracts/account.ts";
+import type { Session } from "@scribe/core/contracts/account.ts";
 import type { AccountRole } from "../../contracts/role.ts";
 import {
   fromBase64Url,
@@ -50,11 +50,9 @@ class AccountMapper {
     return typeof role === "string" && role.length > 0 ? role : null;
   }
 
-  static user(raw: GoTrueUser): SessionUser {
-    return {
-      id: raw.id,
-      email: raw.email ? raw.email : null,
-    };
+  /** Who the identity service says was let in, as it describes them. */
+  static user(raw: GoTrueUser): NonNullable<Session["user"]> {
+    return { ...raw, id: raw.id };
   }
 
   static session(raw: GoTrueSessionResponse): Session {
