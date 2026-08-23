@@ -35,8 +35,8 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { QueueSettings } from "@scribe/foundation/lib/contracts/settings.ts";
-import { SettingsSlot } from "@scribe/core/runtime/support/settings/slot.ts";
+import { Slot } from "@scribe/alchemy";
 
-export const queueSettings: SettingsSlot<QueueSettings> = new SettingsSlot<QueueSettings>(
+export const queueSettings: Slot<QueueSettings> = new Slot<QueueSettings>(
   "queue",
 );

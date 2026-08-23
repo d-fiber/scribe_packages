@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Time } from "@scribe/core/contracts/common/time.ts";
+import type { Duration } from "@scribe/alchemy";
 import type { CronExpressionSchedule } from "./expression.ts";
 import type { DailySchedule } from "./daily.ts";
 import type { IntervalSchedule } from "./interval.ts";
@@ -69,7 +69,7 @@ export interface Scheduled {
    * Resolved here, unlike on a declaration where it may be left out. Always a whole number
    * of minutes, for the reason `core/duration.ts` gives.
    */
-  readonly timeout: Time;
+  readonly timeout: Duration;
 }
 
 /** The body of a job. */

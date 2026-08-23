@@ -34,13 +34,13 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { kv } from "@scribe/foundation/lib/src/redis/mod.ts";
 import { RateLimit, type RateLimitCommands } from "@scribe/foundation/lib/src/rate_limit/mod.ts";
 import { installMock } from "@scribe/core/testing/install.ts";
 import { assertEquals } from "@std/assert";
 
-const POLICY = { limit: 3, window: Time.seconds(90), penalty: Time.seconds(90) };
+const POLICY = { limit: 3, window: Duration.seconds(90), penalty: Duration.seconds(90) };
 const ALLOWED: [number, number, number, number] = [1, 2, 0, 0];
 
 interface Recorder {
@@ -136,8 +136,8 @@ Deno.test("a limit that measures nothing refuses nobody", async () => {
   const limit = new RateLimit({
     key: "misdeclared",
     limit: 0,
-    window: Time.seconds(0),
-    penalty: Time.seconds(0),
+    window: Duration.seconds(0),
+    penalty: Duration.seconds(0),
   });
   const calls = recordCalls();
 
@@ -151,7 +151,7 @@ Deno.test("a limit that measures nothing refuses nobody", async () => {
 });
 
 Deno.test("a declaration hands its ceiling to the script untouched", async () => {
-  const limit = new RateLimit({ key: "sign-up:user", ...POLICY, maxPenalty: Time.days(1) });
+  const limit = new RateLimit({ key: "sign-up:user", ...POLICY, maxPenalty: Duration.days(1) });
   const calls = recordCalls();
 
   try {
@@ -162,7 +162,7 @@ Deno.test("a declaration hands its ceiling to the script untouched", async () =>
 
   assertEquals(
     calls.ceilings,
-    [Time.days(1).value],
+    [Duration.days(1).inSeconds],
     "capping a shared address is the caller's call, not this class's",
   );
 });

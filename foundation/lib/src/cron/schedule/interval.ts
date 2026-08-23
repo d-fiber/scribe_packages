@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Time } from "@scribe/core/contracts/common/time.ts";
+import type { Duration } from "@scribe/alchemy";
 import { wholeMinutes } from "@scribe/foundation/lib/src/cron/core/duration.ts";
 
 /** A job that runs every so often, with no regard for the calendar. */
@@ -55,6 +55,6 @@ export interface IntervalSchedule {
  * into minutes rounds differently on two machines whose clocks differ slightly, so they would
  * claim two keys and the job would run twice.
  */
-export function every(interval: Time): IntervalSchedule {
-  return { kind: "interval", ms: wholeMinutes("every()", interval).ms };
+export function every(interval: Duration): IntervalSchedule {
+  return { kind: "interval", ms: wholeMinutes("every()", interval).inMilliseconds };
 }

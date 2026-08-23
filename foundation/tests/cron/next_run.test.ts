@@ -36,14 +36,14 @@
 
 import { nextRun, nextRunAfterSlot } from "@scribe/foundation/lib/src/cron/core/next_run.ts";
 import { at, cronExpression, every } from "@scribe/foundation/lib/src/cron/schedule/mod.ts";
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { CronTimezone } from "@scribe/foundation/lib/src/cron/timezone.ts";
 import { assertEquals } from "@std/assert";
 
 Deno.test(
   "nextRun() for an interval schedule adds the interval to `after`, no wall-clock involved",
   () => {
-    const schedule = every(Time.minutes(5));
+    const schedule = every(Duration.minutes(5));
     const after = new Date("2026-01-01T00:00:00.000Z");
 
     const next = nextRun(schedule, after);
@@ -103,7 +103,7 @@ Deno.test(
 Deno.test(
   "nextRunAfterSlot() anchors an interval on the grid, not on the firing instant",
   () => {
-    const schedule = every(Time.minutes(1));
+    const schedule = every(Duration.minutes(1));
     const slot = new Date("2026-01-01T00:00:00.000Z");
     const firedFifteenSecondsLate = new Date("2026-01-01T00:00:15.000Z");
 
@@ -118,7 +118,7 @@ Deno.test(
 Deno.test(
   "nextRunAfterSlot() jumps to the next future slot after a long outage",
   () => {
-    const schedule = every(Time.minutes(1));
+    const schedule = every(Duration.minutes(1));
     const slot = new Date("2026-01-01T00:00:00.000Z");
     const nineSlotsLater = new Date("2026-01-01T00:09:30.000Z");
 

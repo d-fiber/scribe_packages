@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { kv } from "@scribe/foundation/lib/src/redis/mod.ts";
 import { RateLimitBucket } from "./bucket.ts";
 import { rateLimitCommands } from "./script.ts";
@@ -60,10 +60,10 @@ export interface RateLimitOptions {
   readonly limit: number;
 
   /** How long the whole allowance takes to come back. */
-  readonly window: Time;
+  readonly window: Duration;
 
   /** How long the first penalty lasts, before any doubling. */
-  readonly penalty: Time;
+  readonly penalty: Duration;
 
   /**
    * The ceiling the doubling stops at.
@@ -71,7 +71,7 @@ export interface RateLimitOptions {
    * Left out, it is {@link DEFAULT_MAX_PENALTY}. A limit whose suffix is an address rather than an
    * account wants {@link SHARED_ADDRESS_MAX_PENALTY} instead, and says so.
    */
-  readonly maxPenalty?: Time;
+  readonly maxPenalty?: Duration;
 
   /**
    * How long a penalty counts against the next one.
@@ -79,7 +79,7 @@ export interface RateLimitOptions {
    * Left out, it is {@link DEFAULT_STRIKE_MEMORY}. Shorten it where a caller is expected to hit
    * the limit in normal use, so that a bad afternoon does not decide the next morning.
    */
-  readonly strikeMemory?: Time;
+  readonly strikeMemory?: Duration;
 
   /**
    * Whether a caller is let through when Redis cannot answer.
@@ -120,10 +120,10 @@ export type RateLimitOutcome =
   };
 
 /** The ceiling a penalty stops doubling at when a declaration does not say. */
-export const DEFAULT_MAX_PENALTY: Time = Time.days(1);
+export const DEFAULT_MAX_PENALTY: Duration = Duration.days(1);
 
 /** How long a strike counts against the next penalty when a declaration does not say. */
-export const DEFAULT_STRIKE_MEMORY: Time = Time.hours(24);
+export const DEFAULT_STRIKE_MEMORY: Duration = Duration.hours(24);
 
 /**
  * The longest penalty a limit keyed on a network address should ever reach.
@@ -135,7 +135,7 @@ export const DEFAULT_STRIKE_MEMORY: Time = Time.hours(24);
  * It is a value to pass, not a rule this class applies: only the code that built the suffix knows
  * whether it named an account or an address.
  */
-export const SHARED_ADDRESS_MAX_PENALTY: Time = Time.minutes(15);
+export const SHARED_ADDRESS_MAX_PENALTY: Duration = Duration.minutes(15);
 
 /**
  * How long a limit keyed on a network address should remember its strikes.
@@ -143,7 +143,7 @@ export const SHARED_ADDRESS_MAX_PENALTY: Time = Time.minutes(15);
  * Kept short for the same reason as {@link SHARED_ADDRESS_MAX_PENALTY}: a strike count that
  * survives a day would make the second visitor of the day pay for the first.
  */
-export const SHARED_ADDRESS_STRIKE_MEMORY: Time = Time.hours(1);
+export const SHARED_ADDRESS_STRIKE_MEMORY: Duration = Duration.hours(1);
 
 /**
  * One rate limit, declared once and asked at every call.
@@ -152,8 +152,8 @@ export const SHARED_ADDRESS_STRIKE_MEMORY: Time = Time.hours(1);
  * const signIn = new RateLimit({
  *   key: "sign-in:email",
  *   limit: 10,
- *   window: Time.minutes(1),
- *   penalty: Time.minutes(5),
+ *   window: Duration.minutes(1),
+ *   penalty: Duration.minutes(5),
  *   failOpen: false,
  * });
  *
@@ -183,10 +183,10 @@ export class RateLimit {
   readonly limit: number;
 
   /** How long the whole allowance takes to come back. */
-  readonly window: Time;
+  readonly window: Duration;
 
   /** How long the first penalty lasts, before any doubling. */
-  readonly penalty: Time;
+  readonly penalty: Duration;
 
   /**
    * Whether a caller is let through when this limit cannot be measured.
@@ -197,8 +197,8 @@ export class RateLimit {
    */
   readonly failOpen: boolean;
 
-  readonly #maxPenalty: Time;
-  readonly #strikeMemory: Time;
+  readonly #maxPenalty: Duration;
+  readonly #strikeMemory: Duration;
 
   constructor(options: RateLimitOptions) {
     this.key = options.key;
@@ -233,10 +233,10 @@ export class RateLimit {
         bucket.arrivalKey,
         bucket.strikesKey,
         this.limit,
-        this.window.value,
-        this.penalty.value,
-        this.#maxPenalty.value,
-        this.#strikeMemory.value,
+        this.window.inSeconds,
+        this.penalty.inSeconds,
+        this.#maxPenalty.inSeconds,
+        this.#strikeMemory.inSeconds,
       );
 
       return allowed === 1 ? { ok: true, remaining } : { ok: false, retryAfter, strikes };
@@ -271,15 +271,15 @@ export class RateLimit {
    * suffix rather than by this class.
    */
   unmeasured(): RateLimitOutcome {
-    return this.failOpen ? this.#allow() : { ok: false, retryAfter: Math.ceil(this.window.value), strikes: 0 };
+    return this.failOpen ? this.#allow() : { ok: false, retryAfter: Math.ceil(this.window.inSeconds), strikes: 0 };
   }
 
   #usable(): boolean {
-    if (this.limit > 0 && this.window.value > 0 && this.penalty.value > 0) return true;
+    if (this.limit > 0 && this.window.inSeconds > 0 && this.penalty.inSeconds > 0) return true;
 
     console.error(
-      `[rate-limit] "${this.key}" declares limit=${this.limit} window=${this.window.value}s ` +
-        `penalty=${this.penalty.value}s, which measures nothing, so nothing is refused`,
+      `[rate-limit] "${this.key}" declares limit=${this.limit} window=${this.window.inSeconds}s ` +
+        `penalty=${this.penalty.inSeconds}s, which measures nothing, so nothing is refused`,
     );
     return false;
   }

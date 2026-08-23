@@ -36,6 +36,7 @@
 
 import { sleep } from "@scribe/core/runtime/support/async/sleep.ts";
 import { type DistributedLock, LOCK_TTL_MS } from "../lock/distributed_lock.ts";
+import { Duration } from "@scribe/alchemy";
 
 const POLL_MS = 50;
 const MAX_WAIT_MS = LOCK_TTL_MS + 3_000;
@@ -90,7 +91,7 @@ export class DistributedFlight {
         }
       }
 
-      await sleep(POLL_MS);
+      await sleep(Duration.milliseconds(POLL_MS));
       const written = await readBack();
       if (written !== null) return written;
     }

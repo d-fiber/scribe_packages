@@ -36,14 +36,14 @@
 
 import { SlotLock } from "@scribe/foundation/lib/src/cron/runner/slot_lock.ts";
 import type { Scheduled } from "@scribe/foundation/lib/src/cron/schedule/mod.ts";
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { assertEquals, assertNotEquals } from "@std/assert";
 
 function intervalJob(name: string, ms: number): Scheduled {
   return {
     name,
     schedule: { kind: "interval", ms },
-    timeout: Time.seconds(30),
+    timeout: Duration.seconds(30),
   } as unknown as Scheduled;
 }
 
@@ -51,7 +51,7 @@ function cronJob(name: string): Scheduled {
   return {
     name,
     schedule: { kind: "cron" },
-    timeout: Time.seconds(30),
+    timeout: Duration.seconds(30),
   } as unknown as Scheduled;
 }
 

@@ -1,4 +1,4 @@
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { Queue } from "@scribe/foundation/lib/src/queue/mod.ts";
 import type { QueueMessage } from "@scribe/foundation/lib/contracts/queue/queue.ts";
 
@@ -28,7 +28,7 @@ interface PageView {
  * dies between handling and acknowledging gets it again.
  */
 export const emails = new Queue<EmailJob>(
-  { name: "emails", options: { maxRetries: 5, retryBackoff: Time.seconds(30) } },
+  { name: "emails", options: { maxRetries: 5, retryBackoff: Duration.seconds(30) } },
   async (job: EmailJob, message: QueueMessage<EmailJob>) => {
     if (message.attempts > 1) return;
     await send(job.to, job.template);
@@ -55,7 +55,7 @@ export function welcome(to: string): Promise<string> {
 
 /** Pushes a job that only becomes available later. */
 export function remind(to: string): Promise<string> {
-  return emails.push({ to, template: "reminder" }, { delay: Time.hours(24) });
+  return emails.push({ to, template: "reminder" }, { delay: Duration.hours(24) });
 }
 
 /** Pushes a group in one call, which is one publish per item and no round trip in between. */

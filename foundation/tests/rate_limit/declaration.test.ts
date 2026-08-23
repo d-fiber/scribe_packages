@@ -34,11 +34,11 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { RateLimit, RateLimitBucket } from "@scribe/foundation/lib/src/rate_limit/mod.ts";
 import { assertEquals, assertNotEquals } from "@std/assert";
 
-const POLICY = { limit: 10, window: Time.minutes(1), penalty: Time.minutes(5) };
+const POLICY = { limit: 10, window: Duration.minutes(1), penalty: Duration.minutes(5) };
 
 Deno.test("a bucket derives its three keys from the segments it was given", () => {
   const bucket = new RateLimitBucket("admin", "sign-in", "1.2.3.4");
@@ -68,8 +68,8 @@ Deno.test("a declaration keeps the policy it was given", () => {
 
   assertEquals(limit.key, "sign-in:email");
   assertEquals(limit.limit, 10);
-  assertEquals(limit.window, Time.minutes(1));
-  assertEquals(limit.penalty, Time.minutes(5));
+  assertEquals(limit.window, Duration.minutes(1));
+  assertEquals(limit.penalty, Duration.minutes(5));
   assertEquals(limit.failOpen, false);
 });
 

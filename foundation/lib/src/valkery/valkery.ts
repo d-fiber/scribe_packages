@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { DEFAULT_BETA, shouldRefreshEarly } from "./early_expiry.ts";
 import type { Entry } from "./entry.ts";
 import { withJitter } from "./entry_ttl.ts";
@@ -61,7 +61,7 @@ export interface ValkeryOptions {
    * correct at any ttl and only its freshness changes, so the default is the one that costs
    * the origin least. A namespace whose values go stale says how fast.
    */
-  readonly ttl?: Time;
+  readonly ttl?: Duration;
 
   /**
    * How eagerly a reader refreshes an entry that is close to expiring.
@@ -78,13 +78,13 @@ export interface ValkeryOptions {
  *
  * Fifteen days.
  */
-export const DEFAULT_TTL: Time = Time.days(15);
+export const DEFAULT_TTL: Duration = Duration.days(15);
 
 /**
  * A namespace of cached entries, with one name, one ttl and one value type.
  *
  * ```ts
- * const sessions = new Valkery<Session>({ key: "session", ttl: Time.minutes(5) });
+ * const sessions = new Valkery<Session>({ key: "session", ttl: Duration.minutes(5) });
  *
  * await sessions.add("u1", session);   // only a Session goes in
  * const found = await sessions.get("u1");  // Session | null comes out
@@ -106,7 +106,7 @@ export class Valkery<T> {
   readonly key: string;
 
   /** How long an entry is served before it is recomputed. */
-  readonly ttl: Time;
+  readonly ttl: Duration;
 
   readonly #beta: number;
 
@@ -123,7 +123,7 @@ export class Valkery<T> {
 
   /** The value cached under `id`, or `null` when nothing usable is cached. */
   async get(id: string): Promise<T | null> {
-    const entry = await this.#store().read<T>(id, this.ttl.ms);
+    const entry = await this.#store().read<T>(id, this.ttl.inMilliseconds);
     return entry === null ? null : entry.value;
   }
 
@@ -133,7 +133,7 @@ export class Valkery<T> {
    * One round trip whatever the number of ids.
    */
   async getMany(ids: readonly string[]): Promise<(T | null)[]> {
-    const entries = await this.#store().readMany<T>(ids, this.ttl.ms);
+    const entries = await this.#store().readMany<T>(ids, this.ttl.inMilliseconds);
     return entries.map((entry) => (entry === null ? null : entry.value));
   }
 
@@ -182,7 +182,7 @@ export class Valkery<T> {
    */
   upsert(id: string, compute: () => Promise<T>): Promise<T> {
     return this.#local().run(this.#keySpace().keyOf(id), async () => {
-      const entry = await this.#store().read<T>(id, this.ttl.ms);
+      const entry = await this.#store().read<T>(id, this.ttl.inMilliseconds);
 
       if (entry !== null) {
         if (!shouldRefreshEarly(entry, this.#beta)) return entry.value;
@@ -293,11 +293,11 @@ export class Valkery<T> {
   }
 
   #usableTtl(context: string): boolean {
-    if (this.ttl.value > 0) return true;
+    if (this.ttl.inSeconds > 0) return true;
 
     this.#report(
       "set",
-      new Error(`invalid ttl ${this.ttl.value} ${context}`.trimEnd()),
+      new Error(`invalid ttl ${this.ttl.inSeconds} ${context}`.trimEnd()),
     );
     return false;
   }

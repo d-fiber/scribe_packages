@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Time } from "@scribe/core/contracts/common/time.ts";
+import type { Duration } from "@scribe/alchemy";
 
 /**
  * What a declaration can tune about a queue.
@@ -51,17 +51,17 @@ export interface QueueOptions {
   /** How many messages of this queue are handled at once inside a pass. */
   readonly concurrency?: number;
   /** The first retry delay; each further attempt doubles it. */
-  readonly retryBackoff?: Time;
+  readonly retryBackoff?: Duration;
   /** The ceiling the doubling stops at. */
-  readonly retryBackoffMax?: Time;
+  readonly retryBackoffMax?: Duration;
   /** How long a handler is given before it is treated as failed. */
-  readonly processingTimeout?: Time;
+  readonly processingTimeout?: Duration;
 }
 
 /** What a single push can decide for itself. */
 export interface PushOptions {
   /** How long the job waits before it becomes available. */
-  readonly delay?: Time;
+  readonly delay?: Duration;
 }
 
 /** A message as its handler sees it. */

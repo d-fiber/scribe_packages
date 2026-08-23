@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { kv } from "@scribe/foundation/lib/src/redis/mod.ts";
-import { runPooled } from "@scribe/core/runtime/support/async/pool.ts";
+import { runPooled } from "@scribe/alchemy";
 import { topology } from "../topology/topology.ts";
 import { encode } from "../wire.ts";
 import { decodeMember, DELAYED_KEY, type DelayedMember } from "./member.ts";

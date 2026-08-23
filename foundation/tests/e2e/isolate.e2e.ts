@@ -44,7 +44,7 @@ const { Isolate } = await import("@scribe/foundation/lib/src/isolate/mod.ts");
 const { PostgrestClients } = await import("@scribe/foundation/lib/src/database/client.ts");
 const { from } = await import("@scribe/foundation/lib/src/database/tables.ts");
 const { Valkery } = await import("@scribe/foundation/lib/src/valkery/mod.ts");
-const { Time } = await import("@scribe/core/contracts/common/time.ts");
+const { Duration } = await import("@scribe/core/contracts/common/time.ts");
 
 async function until(reached: () => boolean): Promise<void> {
   for (let attempt = 0; attempt < 2_000 && !reached(); attempt++) {
@@ -105,7 +105,7 @@ Deno.test("isolate: ten bodies finish their writes although nobody waits for any
 });
 
 Deno.test("isolate: a body reaches Redis after the caller is long gone", async () => {
-  const store = new Valkery<{ n: number }>({ key: `e2e:isolate:${RUN_ID}`, ttl: Time.seconds(30) });
+  const store = new Valkery<{ n: number }>({ key: `e2e:isolate:${RUN_ID}`, ttl: Duration.seconds(30) });
   await store.clear();
   let cached = false;
 

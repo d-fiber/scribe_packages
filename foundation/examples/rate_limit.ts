@@ -1,9 +1,5 @@
-import { Time } from "@scribe/core/contracts/common/time.ts";
-import {
-  RateLimit,
-  SHARED_ADDRESS_MAX_PENALTY,
-  SHARED_ADDRESS_STRIKE_MEMORY,
-} from "@scribe/foundation/lib/src/rate_limit/mod.ts";
+import { Duration } from "@scribe/alchemy";
+import { RateLimit, SHARED_ADDRESS_MAX_PENALTY, SHARED_ADDRESS_STRIKE_MEMORY } from "@scribe/foundation/lib/src/rate_limit/mod.ts";
 
 /**
  * A limit that guards a credential, so an unmeasured caller is refused.
@@ -15,8 +11,8 @@ import {
 export const signIn = new RateLimit({
   key: "sign-in:email",
   limit: 10,
-  window: Time.minutes(1),
-  penalty: Time.minutes(5),
+  window: Duration.minutes(1),
+  penalty: Duration.minutes(5),
   failOpen: false,
 });
 
@@ -31,8 +27,8 @@ export const signIn = new RateLimit({
 export const anonymousReads = new RateLimit({
   key: "reads",
   limit: 300,
-  window: Time.minutes(1),
-  penalty: Time.minutes(1),
+  window: Duration.minutes(1),
+  penalty: Duration.minutes(1),
   maxPenalty: SHARED_ADDRESS_MAX_PENALTY,
   strikeMemory: SHARED_ADDRESS_STRIKE_MEMORY,
 });

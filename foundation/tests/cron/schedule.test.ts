@@ -34,35 +34,35 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { at, cronExpression, every } from "@scribe/foundation/lib/src/cron/schedule/mod.ts";
 import { CronTimezone } from "@scribe/foundation/lib/src/cron/timezone.ts";
 import { assertEquals, assertThrows } from "@std/assert";
 
-Deno.test("Time.minutes/hours/days convert to the right ms", () => {
-  assertEquals(Time.minutes(1).ms, 60_000);
-  assertEquals(Time.minutes(5).ms, 300_000);
-  assertEquals(Time.hours(1).ms, 3_600_000);
-  assertEquals(Time.days(1).ms, 86_400_000);
+Deno.test("Duration.minutes/hours/days convert to the right ms", () => {
+  assertEquals(Duration.minutes(1).inMilliseconds, 60_000);
+  assertEquals(Duration.minutes(5).inMilliseconds, 300_000);
+  assertEquals(Duration.hours(1).inMilliseconds, 3_600_000);
+  assertEquals(Duration.days(1).inMilliseconds, 86_400_000);
 });
 
 Deno.test(
   "every() rejects zero, negative, fractional and sub-minute intervals the scheduler only ticks on the minute",
   () => {
-    assertThrows(() => every(Time.minutes(0)));
-    assertThrows(() => every(Time.minutes(-1)));
-    assertThrows(() => every(Time.minutes(1.5)));
-    assertThrows(() => every(Time.hours(0)));
-    assertThrows(() => every(Time.days(-2)));
-    assertThrows(() => every(Time.seconds(30)));
-    assertThrows(() => every(Time.ms(1)));
+    assertThrows(() => every(Duration.minutes(0)));
+    assertThrows(() => every(Duration.minutes(-1)));
+    assertThrows(() => every(Duration.minutes(1.5)));
+    assertThrows(() => every(Duration.hours(0)));
+    assertThrows(() => every(Duration.days(-2)));
+    assertThrows(() => every(Duration.seconds(30)));
+    assertThrows(() => every(Duration.milliseconds(1)));
   },
 );
 
 Deno.test(
   "every() wraps a whole-minute interval as-is, no timezone attached",
   () => {
-    const schedule = every(Time.minutes(5));
+    const schedule = every(Duration.minutes(5));
     assertEquals(schedule, { kind: "interval", ms: 300_000 });
   },
 );

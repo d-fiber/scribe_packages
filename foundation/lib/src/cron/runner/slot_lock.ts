@@ -72,7 +72,7 @@ export class SlotLock {
         this.keyFor(job, slot),
         "1",
         "PX",
-        job.timeout.ms,
+        job.timeout.inMilliseconds,
         "NX",
       );
       return claimed === "OK";

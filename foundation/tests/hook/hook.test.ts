@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Hook, hookRegistry } from "@scribe/foundation/lib/src/hook/mod.ts";
-import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
+import { Failure, okay, type Result } from "@scribe/alchemy";
 import { assertEquals, assertRejects, assertStrictEquals, assertThrows } from "@std/assert";
 
 Deno.test("hook.on() returns the handler unchanged", () => {
@@ -89,14 +89,14 @@ Deno.test("hook.run() chains handlers in registration order", async () => {
 Deno.test("hook.run() stops at the first refusal, like an early return", async () => {
   const hook = new Hook<string, Result<void, string>>({
     name: "test.refusal",
-    fallback: new OK(),
+    fallback: okay,
   });
   let secondRan = false;
 
   hook.on(() => new Failure("refused"));
   hook.on(() => {
     secondRan = true;
-    return new OK();
+    return okay;
   });
 
   const result = await hook.run("x");

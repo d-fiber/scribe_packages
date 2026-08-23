@@ -45,6 +45,7 @@ import { queueNameOf } from "../core/trigger.ts";
 import { triggerRegistry } from "../core/registry.ts";
 import { eventFrom, type TriggerEvent } from "../core/wire.ts";
 import { DrainLock } from "./drain_lock.ts";
+import { Duration } from "@scribe/alchemy";
 
 /** How long the loop waits between two passes. */
 const DEFAULT_TICK_MS = 500;
@@ -168,7 +169,7 @@ export class TriggerRunner {
         }
       }
 
-      await sleep(tickMs);
+      await sleep(Duration.milliseconds(tickMs));
     }
   }
 }

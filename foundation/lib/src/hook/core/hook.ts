@@ -67,7 +67,7 @@ export interface HookDefinition<R> {
  * export const signInHook = new Hook<SignInPayload>({ name: "auth.sign-in" });
  * export const signUpHook = new Hook<SignUpPayload, Result>({
  *   name: "auth.sign-up",
- *   fallback: new OK(),
+ *   fallback: okay,
  * });
  * ```
  *

@@ -36,7 +36,7 @@
 
 import { withJitter } from "@scribe/foundation/lib/src/valkery/entry_ttl.ts";
 import { KeySpace } from "@scribe/foundation/lib/src/valkery/key_space.ts";
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { assert, assertEquals } from "@std/assert";
 
 const keys = new KeySpace("auth:device");
@@ -60,16 +60,16 @@ Deno.test("KeySpace takes a glob, not a prefix", () => {
 });
 
 Deno.test("withJitter never returns less than the ttl", () => {
-  const ttl = Time.seconds(100);
+  const ttl = Duration.seconds(100);
 
   for (let i = 0; i < 200; i++) {
-    assert(withJitter(ttl) >= ttl.value);
+    assert(withJitter(ttl) >= ttl.inSeconds);
   }
 });
 
 Deno.test("withJitter stays within a tenth above the ttl", () => {
-  const ttl = Time.seconds(100);
-  const ceiling = ttl.value + Math.ceil(ttl.value * 0.1);
+  const ttl = Duration.seconds(100);
+  const ceiling = ttl.inSeconds + Math.ceil(ttl.inSeconds * 0.1);
 
   for (let i = 0; i < 200; i++) {
     assert(withJitter(ttl) < ceiling);
@@ -77,11 +77,11 @@ Deno.test("withJitter stays within a tenth above the ttl", () => {
 });
 
 Deno.test("withJitter leaves a ttl too small to spread untouched", () => {
-  assertEquals(withJitter(Time.seconds(0)), 0);
+  assertEquals(withJitter(Duration.seconds(0)), 0);
 });
 
 Deno.test("withJitter actually spreads across calls", () => {
-  const ttl = Time.seconds(1000);
+  const ttl = Duration.seconds(1000);
   const seen = new Set(Array.from({ length: 100 }, () => withJitter(ttl)));
 
   assert(seen.size > 1, "jitter produced a single value");

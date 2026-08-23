@@ -42,7 +42,7 @@ await useStack();
 
 const { RateLimit } = await import("@scribe/foundation/lib/src/rate_limit/mod.ts");
 const { kv } = await import("@scribe/foundation/lib/src/redis/mod.ts");
-const { Time } = await import("@scribe/core/contracts/common/time.ts");
+const { Duration } = await import("@scribe/core/contracts/common/time.ts");
 
 async function clear(key: string): Promise<void> {
   await kv().del(`rl:blocked:${key}`, `rl:tat:${key}`, `rl:strikes:${key}`);
@@ -55,8 +55,8 @@ Deno.test("rate limit: the allowance runs out on the hit after the limit", async
   const limit = new RateLimit({
     key,
     limit: 3,
-    window: Time.seconds(30),
-    penalty: Time.seconds(5),
+    window: Duration.seconds(30),
+    penalty: Duration.seconds(5),
   });
 
   const [first, ms] = await timed(() => limit.check());
@@ -78,8 +78,8 @@ Deno.test("rate limit: a refused caller stays refused until the penalty expires"
   const limit = new RateLimit({
     key,
     limit: 1,
-    window: Time.seconds(30),
-    penalty: Time.seconds(2),
+    window: Duration.seconds(30),
+    penalty: Duration.seconds(2),
   });
 
   await limit.check();
@@ -101,9 +101,9 @@ Deno.test("rate limit: a second penalty lasts twice the first", async () => {
   const limit = new RateLimit({
     key,
     limit: 1,
-    window: Time.seconds(30),
-    penalty: Time.seconds(2),
-    maxPenalty: Time.minutes(10),
+    window: Duration.seconds(30),
+    penalty: Duration.seconds(2),
+    maxPenalty: Duration.minutes(10),
   });
 
   await limit.check();
@@ -128,9 +128,9 @@ Deno.test("rate limit: a penalty never exceeds the ceiling its declaration set",
   const limit = new RateLimit({
     key,
     limit: 1,
-    window: Time.seconds(30),
-    penalty: Time.seconds(30),
-    maxPenalty: Time.seconds(31),
+    window: Duration.seconds(30),
+    penalty: Duration.seconds(30),
+    maxPenalty: Duration.seconds(31),
   });
 
   await limit.check();
@@ -153,8 +153,8 @@ Deno.test("rate limit: a subject gets its own bucket inside one declaration", as
   const limit = new RateLimit({
     key,
     limit: 1,
-    window: Time.seconds(30),
-    penalty: Time.seconds(5),
+    window: Duration.seconds(30),
+    penalty: Duration.seconds(5),
   });
 
   await limit.check("", "one");
@@ -173,8 +173,8 @@ Deno.test("rate limit: the allowance comes back one slot at a time", async () =>
   const limit = new RateLimit({
     key,
     limit: 4,
-    window: Time.seconds(4),
-    penalty: Time.minutes(10),
+    window: Duration.seconds(4),
+    penalty: Duration.minutes(10),
   });
 
   assertEquals(await limit.check(), { ok: true, remaining: 3 });
@@ -201,8 +201,8 @@ Deno.test("rate limit: a refused caller does not push its own release further aw
   const limit = new RateLimit({
     key,
     limit: 1,
-    window: Time.seconds(30),
-    penalty: Time.seconds(20),
+    window: Duration.seconds(30),
+    penalty: Duration.seconds(20),
   });
 
   await limit.check();

@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Time } from "@scribe/core/contracts/common/time.ts";
+import type { Duration } from "@scribe/alchemy";
 
 const _MINUTE_MS = 60_000;
 
@@ -46,8 +46,8 @@ const _MINUTE_MS = 60_000;
  * the interval, and a value that does not divide into minutes rounds differently on two
  * machines whose clocks differ, so both would claim and the job would run twice.
  */
-export function wholeMinutes(label: string, value: Time): Time {
-  const ms = value.ms;
+export function wholeMinutes(label: string, value: Duration): Duration {
+  const ms = value.inMilliseconds;
   if (!Number.isInteger(ms) || ms <= 0 || ms % _MINUTE_MS !== 0) {
     throw new Error(
       `${label}: expected a positive whole number of minutes, got ${ms}ms`,

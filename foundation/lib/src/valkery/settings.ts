@@ -35,8 +35,8 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { CacheSettings } from "@scribe/foundation/lib/contracts/settings.ts";
-import { SettingsSlot } from "@scribe/core/runtime/support/settings/slot.ts";
+import { Slot } from "@scribe/alchemy";
 
-export const cacheSettings: SettingsSlot<CacheSettings> = new SettingsSlot<CacheSettings>(
+export const cacheSettings: Slot<CacheSettings> = new Slot<CacheSettings>(
   "cache",
 );

@@ -36,10 +36,11 @@
 
 import type { RegisteredQueue } from "@scribe/foundation/lib/src/queue/core/declaration.ts";
 import { decode } from "@scribe/foundation/lib/src/queue/core/wire.ts";
-import { withDeadline } from "@scribe/core/runtime/support/async/deadline.ts";
+import { withDeadline } from "@scribe/alchemy";
 import type { JsMsg } from "@nats-io/jetstream";
 import type { DrainTally } from "../drain_tally.ts";
 import { FailurePolicy } from "../failure_policy.ts";
+import { Duration } from "@scribe/alchemy";
 
 /** Runs a group of messages that all belong to the same queue. */
 export interface MessageProcessor {
@@ -82,7 +83,7 @@ export abstract class BaseProcessor implements MessageProcessor {
   protected guarded<R>(call: Promise<R>): Promise<R> {
     return withDeadline(
       `queue:${this.queue.name}`,
-      this.queue.processingTimeoutMs,
+      Duration.milliseconds(this.queue.processingTimeoutMs),
       call,
     );
   }

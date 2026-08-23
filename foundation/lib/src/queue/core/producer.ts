@@ -34,12 +34,17 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { BatchHandler, JobHandler, PushOptions, QueueOptions } from "@scribe/foundation/lib/contracts/queue/queue.ts";
+import type {
+    BatchHandler,
+    JobHandler,
+    PushOptions,
+    QueueOptions,
+} from "@scribe/foundation/lib/contracts/queue/queue.ts";
 import { limitsFrom, type RegisteredQueue, subjectsOf } from "./declaration.ts";
-import { queueRegistry } from "./registry.ts";
 import { delayedCounts } from "./delayed/counts.ts";
 import { pushDelayed } from "./delayed/schedule.ts";
 import { DEAD_STREAM, streamOf } from "./naming.ts";
+import { queueRegistry } from "./registry.ts";
 import { type QueueStatus, queueStatus } from "./status.ts";
 import { ensureTopology } from "./topology/ready.ts";
 import { topology } from "./topology/topology.ts";
@@ -90,12 +95,12 @@ export class QueuePublisher<TJob> {
   }
 
   async push(data: TJob, opts: PushOptions = {}): Promise<string> {
-    if (opts.delay && opts.delay.ms > 0) {
+    if (opts.delay && opts.delay.inMilliseconds > 0) {
       return await pushDelayed(
         this.queue.name,
         this.queue.subject,
         data,
-        opts.delay.ms,
+        opts.delay.inMilliseconds,
       );
     }
 
@@ -142,7 +147,7 @@ export class QueuePublisher<TJob> {
  * A durable queue: declaring it and holding its producer are the same thing.
  *
  * ```ts
- * const emails = new Queue<EmailJob>({ name: "emails" }, async (job) => { … });
+ * const emails = new Queue<EmailJob>({ name: "emails" }, async (job) => { ... });
  * await emails.push({ to: "a@b.c" });
  * ```
  *

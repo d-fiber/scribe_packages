@@ -35,14 +35,14 @@
 // LICENSE file, the LICENSE file governs.
 
 import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { Cron, cronRegistry, every } from "@scribe/foundation/lib/src/cron/mod.ts";
 
 const noop = () => Promise.resolve();
 
 Deno.test("new Cron() arms the job and returns its next occurrence", () => {
   const job = new Cron(
-    { name: "test:define:next-run", schedule: every(Time.minutes(5)) },
+    { name: "test:define:next-run", schedule: every(Duration.minutes(5)) },
     noop,
   );
 
@@ -52,11 +52,11 @@ Deno.test("new Cron() arms the job and returns its next occurrence", () => {
 
 Deno.test("new Cron() applies the default 10-minute timeout", () => {
   const job = new Cron(
-    { name: "test:define:default-timeout", schedule: every(Time.minutes(1)) },
+    { name: "test:define:default-timeout", schedule: every(Duration.minutes(1)) },
     noop,
   );
 
-  assertEquals(job.timeout.ms, Time.minutes(10).ms);
+  assertEquals(job.timeout.inMilliseconds, Duration.minutes(10).inMilliseconds);
 });
 
 Deno.test("new Cron() refuses a timeout that is not a whole number of minutes", () => {
@@ -64,8 +64,8 @@ Deno.test("new Cron() refuses a timeout that is not a whole number of minutes", 
     new Cron(
       {
         name: "test:define:bad-timeout",
-        schedule: every(Time.minutes(1)),
-        timeout: Time.seconds(90),
+        schedule: every(Duration.minutes(1)),
+        timeout: Duration.seconds(90),
       },
       noop,
     )
@@ -74,13 +74,13 @@ Deno.test("new Cron() refuses a timeout that is not a whole number of minutes", 
 
 Deno.test("new Cron() refuses two jobs with the same name", () => {
   new Cron(
-    { name: "test:define:duplicate", schedule: every(Time.minutes(1)) },
+    { name: "test:define:duplicate", schedule: every(Duration.minutes(1)) },
     noop,
   );
 
   assertThrows(() =>
     new Cron(
-      { name: "test:define:duplicate", schedule: every(Time.minutes(1)) },
+      { name: "test:define:duplicate", schedule: every(Duration.minutes(1)) },
       noop,
     )
   );
@@ -88,7 +88,7 @@ Deno.test("new Cron() refuses two jobs with the same name", () => {
 
 Deno.test("the registry lists armed jobs and their next occurrence", () => {
   new Cron(
-    { name: "test:define:reported", schedule: every(Time.minutes(2)) },
+    { name: "test:define:reported", schedule: every(Duration.minutes(2)) },
     noop,
   );
 

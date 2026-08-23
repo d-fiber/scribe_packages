@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Time } from "@scribe/core/contracts/common/time.ts";
+import type { Duration } from "@scribe/alchemy";
 
 /** How much of the ttl the spread is drawn from. */
 const JITTER_RATIO = 0.1;
@@ -49,9 +49,9 @@ const JITTER_RATIO = 0.1;
  * The result is never below the ttl asked for, and a ttl too small to spread is returned
  * untouched rather than rounded to nothing.
  */
-export function withJitter(ttl: Time): number {
-  const spread = Math.ceil(ttl.value * JITTER_RATIO);
-  if (spread <= 0) return ttl.value;
+export function withJitter(ttl: Duration): number {
+  const spread = Math.ceil(ttl.inSeconds * JITTER_RATIO);
+  if (spread <= 0) return ttl.inSeconds;
 
-  return ttl.value + Math.floor(Math.random() * spread);
+  return ttl.inSeconds + Math.floor(Math.random() * spread);
 }

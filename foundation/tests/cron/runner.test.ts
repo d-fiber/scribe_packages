@@ -41,7 +41,7 @@ import { FakeTime } from "@std/testing/time";
 import type { Scheduled } from "@scribe/foundation/lib/src/cron/schedule/mod.ts";
 import { CronRunner } from "@scribe/foundation/lib/src/cron/runner/cron_runner.ts";
 import { kv } from "@scribe/foundation/lib/src/redis/mod.ts";
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 
 function shadowOccurrenceClaim(): { restore(): void } {
   const target = kv() as unknown as Record<string, unknown>;
@@ -81,7 +81,7 @@ function shadowUnreachableRedis(): { restore(): void } {
 function intervalJob(
   name: string,
   intervalMs: number,
-  timeout = Time.minutes(10),
+  timeout = Duration.minutes(10),
 ): Scheduled {
   return {
     name,
@@ -196,7 +196,7 @@ Deno.test("CronRunner's watchdog frees a job that exceeds its timeout, without a
     let calls = 0;
     const releases: Array<() => void> = [];
     runner.register(
-      intervalJob("job", 180_000, Time.minutes(1)),
+      intervalJob("job", 180_000, Duration.minutes(1)),
       () => {
         calls++;
         return new Promise<void>((resolve) => releases.push(resolve));

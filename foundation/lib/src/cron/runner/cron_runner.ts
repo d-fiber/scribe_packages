@@ -34,12 +34,13 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { withDeadline } from "@scribe/core/runtime/support/async/deadline.ts";
-import { Semaphore } from "@scribe/core/runtime/support/async/semaphore.ts";
+import { withDeadline } from "@scribe/alchemy";
+import { Semaphore } from "@scribe/alchemy";
 import { sleep } from "@scribe/core/runtime/support/async/sleep.ts";
 import type { CronHandler, Scheduled } from "@scribe/foundation/lib/src/cron/schedule/mod.ts";
 import { ScheduledJob } from "./scheduled_job.ts";
 import { SlotLock } from "./slot_lock.ts";
+import { Duration } from "@scribe/alchemy";
 
 /** The longest the loop sleeps, however far away the next occurrence is. */
 const DEFAULT_TICK_MS = 30_000;
@@ -134,7 +135,7 @@ export class CronRunner {
         this.#fire(scheduled, slot);
       }
 
-      await sleep(this.#sleepFor(tickMs));
+      await sleep(Duration.milliseconds(this.#sleepFor(tickMs)));
     }
   }
 
@@ -170,7 +171,7 @@ export class CronRunner {
 
         await withDeadline(
           `cron:${scheduled.name}`,
-          scheduled.job.timeout.ms,
+          scheduled.job.timeout,
           Promise.resolve(scheduled.handler()),
         );
       } catch (error) {

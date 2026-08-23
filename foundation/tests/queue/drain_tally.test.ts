@@ -35,11 +35,9 @@
 // LICENSE file, the LICENSE file governs.
 
 import { DrainTally } from "@scribe/foundation/lib/src/queue/runner/drain_tally.ts";
-import {
-  DeadlineExceededError,
-  withDeadline,
-} from "@scribe/core/runtime/support/async/deadline.ts";
+import { TimeoutException, withDeadline } from "@scribe/alchemy";
 import { assertEquals, assertInstanceOf, assertRejects } from "@std/assert";
+import { Duration } from "@scribe/alchemy";
 
 Deno.test("DrainTally starts at zero on every counter", () => {
   assertEquals(new DrainTally().toResult(), {
@@ -79,17 +77,17 @@ Deno.test("DrainTally hands out a snapshot, not its own state", () => {
 });
 
 Deno.test("withDeadline resolves when the handler beats the clock", async () => {
-  assertEquals(await withDeadline("fast", 50, Promise.resolve("ok")), "ok");
+  assertEquals(await withDeadline("fast", Duration.milliseconds(50), Promise.resolve("ok")), "ok");
 });
 
-Deno.test("withDeadline rejects with DeadlineExceededError past the deadline", async () => {
+Deno.test("withDeadline rejects with TimeoutException past the deadline", async () => {
   let release: (value: string) => void = () => {};
   const pending = new Promise<string>((resolve) => {
     release = resolve;
   });
 
-  const error = await assertRejects(() => withDeadline("slow", 5, pending));
-  assertInstanceOf(error, DeadlineExceededError);
+  const error = await assertRejects(() => withDeadline("slow", Duration.milliseconds(5), pending));
+  assertInstanceOf(error, TimeoutException);
 
   release("late");
   await pending;
@@ -99,7 +97,7 @@ Deno.test("withDeadline propagates the handler's own failure untouched", async (
   const boom = new TypeError("handler exploded");
 
   const error = await assertRejects(() =>
-    withDeadline("broken", 50, Promise.reject(boom))
+    withDeadline("broken", Duration.milliseconds(50), Promise.reject(boom))
   );
 
   assertEquals(error, boom);

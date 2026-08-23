@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { wholeMinutes } from "@scribe/foundation/lib/src/cron/core/duration.ts";
 import { nextRun } from "@scribe/foundation/lib/src/cron/core/next_run.ts";
 import { cronRegistry } from "@scribe/foundation/lib/src/cron/core/registry.ts";
@@ -45,7 +45,7 @@ import type {
   Scheduled,
 } from "@scribe/foundation/lib/src/cron/schedule/mod.ts";
 
-const _DEFAULT_TIMEOUT = Time.minutes(10);
+const _DEFAULT_TIMEOUT = Duration.minutes(10);
 
 /** What declaring a periodic job takes. */
 export interface CronDefinition {
@@ -66,7 +66,7 @@ export interface CronDefinition {
    * Left out, ten minutes. It has to be a whole number of minutes, for the reason
    * `core/duration.ts` gives.
    */
-  readonly timeout?: Time;
+  readonly timeout?: Duration;
 }
 
 /**
@@ -83,7 +83,7 @@ export interface CronDefinition {
 export class Cron implements Scheduled {
   readonly name: string;
   readonly schedule: Schedule;
-  readonly timeout: Time;
+  readonly timeout: Duration;
 
   constructor(definition: CronDefinition, handler: CronHandler) {
     this.name = definition.name;

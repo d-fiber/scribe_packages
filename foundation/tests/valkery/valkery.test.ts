@@ -36,7 +36,7 @@
 
 import "@scribe/core/testing/settings.ts";
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { kv } from "@scribe/foundation/lib/src/redis/mod.ts";
 import { installValkeryMock } from "@scribe/foundation/tests/testing/valkery.ts";
 import { encodeEntry } from "@scribe/foundation/lib/src/valkery/entry.ts";
@@ -60,7 +60,7 @@ function seed(key: string, value: unknown, expiresInMs: number, computeMs: numbe
 
 Deno.test("upsert computes once and serves the cached value afterwards", async () => {
   const mock = installValkeryMock();
-  const cache = new Valkery<number>({ key: "test", ttl: Time.minutes(5) });
+  const cache = new Valkery<number>({ key: "test", ttl: Duration.minutes(5) });
   let computed = 0;
 
   try {
@@ -76,7 +76,7 @@ Deno.test("upsert computes once and serves the cached value afterwards", async (
 
 Deno.test("upsert collapses concurrent callers before it touches Redis", async () => {
   const mock = installValkeryMock();
-  const cache = new Valkery<string>({ key: "test", ttl: Time.minutes(5) });
+  const cache = new Valkery<string>({ key: "test", ttl: Duration.minutes(5) });
   const gate = deferred<string>();
   const get = spy(kv(), "get");
   let computed = 0;
@@ -111,7 +111,7 @@ Deno.test("upsert collapses concurrent callers before it touches Redis", async (
 
 Deno.test("upsert refreshes ahead of the expiry and returns the fresh value", async () => {
   const mock = installValkeryMock();
-  const cache = new Valkery<string>({ key: "test", ttl: Time.minutes(5) });
+  const cache = new Valkery<string>({ key: "test", ttl: Duration.minutes(5) });
 
   try {
     const oneMillisecondLeft = 1;
@@ -131,7 +131,7 @@ Deno.test("upsert refreshes ahead of the expiry and returns the fresh value", as
 
 Deno.test("upsert serves the cached value rather than recomputing far from the expiry", async () => {
   const mock = installValkeryMock();
-  const cache = new Valkery<string>({ key: "test", ttl: Time.minutes(5) });
+  const cache = new Valkery<string>({ key: "test", ttl: Duration.minutes(5) });
   let computed = 0;
 
   try {
@@ -152,7 +152,7 @@ Deno.test("upsert serves the cached value rather than recomputing far from the e
 
 Deno.test("a refresh that throws still serves the value the cache already holds", async () => {
   const mock = installValkeryMock();
-  const cache = new Valkery<string>({ key: "test", ttl: Time.minutes(5) });
+  const cache = new Valkery<string>({ key: "test", ttl: Duration.minutes(5) });
 
   try {
     await seed("test:k", "stale", 1, 1_000_000);
@@ -169,7 +169,7 @@ Deno.test("a refresh that throws still serves the value the cache already holds"
 
 Deno.test("getMany reads every id in a single round trip", async () => {
   const mock = installValkeryMock();
-  const cache = new Valkery<number>({ key: "test", ttl: Time.minutes(5) });
+  const cache = new Valkery<number>({ key: "test", ttl: Duration.minutes(5) });
   const mget = spy(kv(), "mget");
 
   try {
@@ -187,7 +187,7 @@ Deno.test("getMany reads every id in a single round trip", async () => {
 
 Deno.test("getMany on an empty list does not touch Redis at all", async () => {
   const mock = installValkeryMock();
-  const cache = new Valkery<string>({ key: "test", ttl: Time.minutes(5) });
+  const cache = new Valkery<string>({ key: "test", ttl: Duration.minutes(5) });
   const mget = spy(kv(), "mget");
 
   try {
@@ -201,7 +201,7 @@ Deno.test("getMany on an empty list does not touch Redis at all", async () => {
 
 Deno.test("clear removes a namespace with UNLINK, never DEL", async () => {
   const mock = installValkeryMock();
-  const cache = new Valkery<number>({ key: "test", ttl: Time.minutes(5) });
+  const cache = new Valkery<number>({ key: "test", ttl: Duration.minutes(5) });
   const unlink = spy(kv(), "unlink");
   const del = spy(kv(), "del");
 
@@ -223,7 +223,7 @@ Deno.test("clear removes a namespace with UNLINK, never DEL", async () => {
 
 Deno.test("delete removes a single entry with UNLINK", async () => {
   const mock = installValkeryMock();
-  const cache = new Valkery<number>({ key: "test", ttl: Time.minutes(5) });
+  const cache = new Valkery<number>({ key: "test", ttl: Duration.minutes(5) });
   const unlink = spy(kv(), "unlink");
 
   try {
@@ -239,7 +239,7 @@ Deno.test("delete removes a single entry with UNLINK", async () => {
 });
 
 Deno.test("a cache stays usable when Redis is down", async () => {
-  const cache = new Valkery<string>({ key: "test", ttl: Time.minutes(5) });
+  const cache = new Valkery<string>({ key: "test", ttl: Duration.minutes(5) });
   const reported: string[] = [];
   const broken = stub(kv(), "get", () => Promise.reject(new Error("no redis")));
   const reporter = stub(console, "error", (...args: unknown[]) => {

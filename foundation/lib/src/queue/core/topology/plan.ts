@@ -72,7 +72,7 @@ export function planFor(queues: readonly RegisteredQueue[]): TopologyPlan {
       ...queues.map((queue) => queue.maxLen),
     ),
     ackWaitMs: Math.max(
-      QUEUE_DEFAULTS.processingTimeout.ms,
+      QUEUE_DEFAULTS.processingTimeout.inMilliseconds,
       ...queues.map((queue) => queue.processingTimeoutMs),
     ),
     maxDeliver: Math.max(

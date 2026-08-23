@@ -36,7 +36,7 @@
 
 import type { BatchHandler } from "@scribe/foundation/lib/contracts/queue/queue.ts";
 import { decode } from "@scribe/foundation/lib/src/queue/core/wire.ts";
-import { runPooled } from "@scribe/core/runtime/support/async/pool.ts";
+import { runPooled } from "@scribe/alchemy";
 import type { JsMsg } from "@nats-io/jetstream";
 import type { DrainTally } from "../drain_tally.ts";
 import { BaseProcessor } from "./base_processor.ts";

@@ -42,7 +42,7 @@ await useStack();
 
 const { Cron, cronExpression, CronTimezone, every } = await import("@scribe/foundation/lib/src/cron/mod.ts");
 const { SlotLock } = await import("@scribe/foundation/lib/src/cron/runner/slot_lock.ts");
-const { Time } = await import("@scribe/core/contracts/common/time.ts");
+const { Duration } = await import("@scribe/core/contracts/common/time.ts");
 
 function minuteSlot(offsetMinutes = 0): Date {
   return new Date(
@@ -52,7 +52,7 @@ function minuteSlot(offsetMinutes = 0): Date {
 
 Deno.test("cron: an interval schedule names an occurrence still ahead", () => {
   const job = new Cron(
-    { name: `e2e-interval-${RUN_ID}`, schedule: every(Time.minutes(5)) },
+    { name: `e2e-interval-${RUN_ID}`, schedule: every(Duration.minutes(5)) },
     () => Promise.resolve(),
   );
   const next = job.nextRun();
@@ -90,7 +90,7 @@ Deno.test("cron: an expression lands on the minutes it names", () => {
 
 Deno.test("cron: the slot lock lets exactly one replica through", async () => {
   const job = new Cron(
-    { name: `e2e-lock-${RUN_ID}`, schedule: every(Time.minutes(1)) },
+    { name: `e2e-lock-${RUN_ID}`, schedule: every(Duration.minutes(1)) },
     () => Promise.resolve(),
   );
   const lock = new SlotLock();
@@ -112,7 +112,7 @@ Deno.test("cron: the slot lock lets exactly one replica through", async () => {
 
 Deno.test("cron: the next occurrence is a claim of its own", async () => {
   const job = new Cron(
-    { name: `e2e-lock-next-${RUN_ID}`, schedule: every(Time.minutes(1)) },
+    { name: `e2e-lock-next-${RUN_ID}`, schedule: every(Duration.minutes(1)) },
     () => Promise.resolve(),
   );
   const lock = new SlotLock();
@@ -128,11 +128,11 @@ Deno.test("cron: the next occurrence is a claim of its own", async () => {
 
 Deno.test("cron: two jobs never share an occurrence", async () => {
   const first = new Cron(
-    { name: `e2e-lock-a-${RUN_ID}`, schedule: every(Time.minutes(1)) },
+    { name: `e2e-lock-a-${RUN_ID}`, schedule: every(Duration.minutes(1)) },
     () => Promise.resolve(),
   );
   const second = new Cron(
-    { name: `e2e-lock-b-${RUN_ID}`, schedule: every(Time.minutes(1)) },
+    { name: `e2e-lock-b-${RUN_ID}`, schedule: every(Duration.minutes(1)) },
     () => Promise.resolve(),
   );
   const lock = new SlotLock();
@@ -148,7 +148,7 @@ Deno.test("cron: two jobs never share an occurrence", async () => {
 
 Deno.test("cron: claiming costs one Redis round trip", async () => {
   const job = new Cron(
-    { name: `e2e-lock-rate-${RUN_ID}`, schedule: every(Time.minutes(1)) },
+    { name: `e2e-lock-rate-${RUN_ID}`, schedule: every(Duration.minutes(1)) },
     () => Promise.resolve(),
   );
   const lock = new SlotLock();

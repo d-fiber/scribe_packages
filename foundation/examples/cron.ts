@@ -1,4 +1,4 @@
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { at, Cron, cronExpression, CronTimezone, every } from "@scribe/foundation/lib/src/cron/mod.ts";
 
 /**
@@ -26,7 +26,7 @@ export const reconcile = new Cron(
  * they claim an occurrence.
  */
 export const sweep = new Cron(
-  { name: "sweep-expired", schedule: every(Time.minutes(15)), timeout: Time.minutes(2) },
+  { name: "sweep-expired", schedule: every(Duration.minutes(15)), timeout: Duration.minutes(2) },
   () => dropExpired(),
 );
 

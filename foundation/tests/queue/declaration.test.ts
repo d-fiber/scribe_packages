@@ -34,16 +34,11 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import {
-  limitsFrom,
-  QUEUE_DEFAULTS,
-  type RegisteredQueue,
-  subjectsOf,
-} from "@scribe/foundation/lib/src/queue/core/declaration.ts";
+import { QUEUE_DEFAULTS, limitsFrom, subjectsOf, type RegisteredQueue } from "@scribe/foundation/lib/src/queue/core/declaration.ts";
 import { planFor, planSignature } from "@scribe/foundation/lib/src/queue/core/topology/plan.ts";
 import { Queue } from "@scribe/foundation/lib/src/queue/mod.ts";
 import { graceFor, IMMEDIATE_GRACE_MS } from "@scribe/foundation/lib/src/queue/runner/grace.ts";
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { assertEquals, assertNotEquals } from "@std/assert";
 
 function queue(over: Partial<RegisteredQueue> = {}): RegisteredQueue {
@@ -63,17 +58,17 @@ Deno.test("limitsFrom falls back to the declared defaults", () => {
     maxRetries: QUEUE_DEFAULTS.maxRetries,
     maxLen: QUEUE_DEFAULTS.maxLen,
     concurrency: QUEUE_DEFAULTS.concurrency,
-    retryBackoffMs: QUEUE_DEFAULTS.retryBackoff.ms,
-    retryBackoffMaxMs: QUEUE_DEFAULTS.retryBackoffMax.ms,
-    processingTimeoutMs: QUEUE_DEFAULTS.processingTimeout.ms,
+    retryBackoffMs: QUEUE_DEFAULTS.retryBackoff.inMilliseconds,
+    retryBackoffMaxMs: QUEUE_DEFAULTS.retryBackoffMax.inMilliseconds,
+    processingTimeoutMs: QUEUE_DEFAULTS.processingTimeout.inMilliseconds,
   });
 });
 
 Deno.test("limitsFrom converts every duration to milliseconds", () => {
   const limits = limitsFrom({
-    retryBackoff: Time.seconds(2),
-    retryBackoffMax: Time.minutes(1),
-    processingTimeout: Time.seconds(30),
+    retryBackoff: Duration.seconds(2),
+    retryBackoffMax: Duration.minutes(1),
+    processingTimeout: Duration.seconds(30),
   });
 
   assertEquals(limits.retryBackoffMs, 2_000);
@@ -101,14 +96,14 @@ Deno.test("planFor keeps the most permissive value of the whole declaration set"
   ]);
 
   assertEquals(plan.maxPerSubject, 500_000);
-  assertEquals(plan.ackWaitMs, QUEUE_DEFAULTS.processingTimeout.ms);
+  assertEquals(plan.ackWaitMs, QUEUE_DEFAULTS.processingTimeout.inMilliseconds);
 });
 
 Deno.test("planFor never goes below the defaults, however small a queue asks", () => {
   const plan = planFor([queue({ maxLen: 1, processingTimeoutMs: 1 })]);
 
   assertEquals(plan.maxPerSubject, QUEUE_DEFAULTS.maxLen);
-  assertEquals(plan.ackWaitMs, QUEUE_DEFAULTS.processingTimeout.ms);
+  assertEquals(plan.ackWaitMs, QUEUE_DEFAULTS.processingTimeout.inMilliseconds);
 });
 
 Deno.test("planFor holds without a single queue declared", () => {

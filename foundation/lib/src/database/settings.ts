@@ -35,8 +35,8 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { DatabaseSettings } from "@scribe/foundation/lib/contracts/settings.ts";
-import { SettingsSlot } from "@scribe/core/runtime/support/settings/slot.ts";
+import { Slot } from "@scribe/alchemy";
 
-export const databaseSettings: SettingsSlot<DatabaseSettings> = new SettingsSlot<DatabaseSettings>(
+export const databaseSettings: Slot<DatabaseSettings> = new Slot<DatabaseSettings>(
   "database",
 );

@@ -34,12 +34,13 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { ExponentialBackoff } from "@scribe/core/runtime/support/async/backoff.ts";
+import { ExponentialBackoff } from "@scribe/alchemy";
 import type { RegisteredQueue } from "@scribe/foundation/lib/src/queue/core/declaration.ts";
 import { encode, type WireMessage } from "@scribe/foundation/lib/src/queue/core/wire.ts";
 import { topology } from "@scribe/foundation/lib/src/queue/core/topology/topology.ts";
 import type { JsMsg } from "@nats-io/jetstream";
 import type { JobOutcome } from "./drain_tally.ts";
+import { Duration } from "@scribe/alchemy";
 
 /**
  * What becomes of a message whose handler threw.
@@ -60,8 +61,8 @@ export class FailurePolicy {
   constructor(queue: RegisteredQueue) {
     this.#queue = queue;
     this.#backoff = new ExponentialBackoff(
-      queue.retryBackoffMs,
-      queue.retryBackoffMaxMs,
+      Duration.milliseconds(queue.retryBackoffMs),
+      Duration.milliseconds(queue.retryBackoffMaxMs),
     );
   }
 
@@ -86,7 +87,7 @@ export class FailurePolicy {
       return "dead";
     }
 
-    message.nak(this.#backoff.delayFor(attempts));
+    message.nak(this.#backoff.delayFor(attempts).inMilliseconds);
     return "retried";
   }
 }

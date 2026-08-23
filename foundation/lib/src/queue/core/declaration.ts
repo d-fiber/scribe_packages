@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import type { BatchHandler, JobHandler, QueueOptions } from "@scribe/foundation/lib/contracts/queue/queue.ts";
 import { deadSubjectOf, subjectOf } from "./naming.ts";
 
@@ -50,13 +50,13 @@ export interface QueueDefaults {
   readonly concurrency: number;
 
   /** The first retry delay; each further attempt doubles it. */
-  readonly retryBackoff: Time;
+  readonly retryBackoff: Duration;
 
   /** The ceiling the doubling stops at. */
-  readonly retryBackoffMax: Time;
+  readonly retryBackoffMax: Duration;
 
   /** How long a handler is given before it is treated as failed. */
-  readonly processingTimeout: Time;
+  readonly processingTimeout: Duration;
 }
 
 /** The values a declaration inherits when it leaves an option out. */
@@ -64,9 +64,9 @@ export const QUEUE_DEFAULTS: QueueDefaults = {
   maxRetries: 5,
   maxLen: 100_000,
   concurrency: 10,
-  retryBackoff: Time.seconds(1),
-  retryBackoffMax: Time.minutes(5),
-  processingTimeout: Time.minutes(10),
+  retryBackoff: Duration.seconds(1),
+  retryBackoffMax: Duration.minutes(5),
+  processingTimeout: Duration.minutes(10),
 };
 
 /**
@@ -154,12 +154,12 @@ export function limitsFrom(options: QueueOptions = {}): QueueLimits {
     maxRetries: options.maxRetries ?? QUEUE_DEFAULTS.maxRetries,
     maxLen: options.maxLen ?? QUEUE_DEFAULTS.maxLen,
     concurrency: Math.max(1, options.concurrency ?? QUEUE_DEFAULTS.concurrency),
-    retryBackoffMs: (options.retryBackoff ?? QUEUE_DEFAULTS.retryBackoff).ms,
+    retryBackoffMs: (options.retryBackoff ?? QUEUE_DEFAULTS.retryBackoff).inMilliseconds,
     retryBackoffMaxMs: (
       options.retryBackoffMax ?? QUEUE_DEFAULTS.retryBackoffMax
-    ).ms,
+    ).inMilliseconds,
     processingTimeoutMs: (
       options.processingTimeout ?? QUEUE_DEFAULTS.processingTimeout
-    ).ms,
+    ).inMilliseconds,
   };
 }

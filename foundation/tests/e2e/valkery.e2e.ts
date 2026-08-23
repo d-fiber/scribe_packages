@@ -41,10 +41,10 @@ await requireStack(STACK.natsMonitorUrl, `${STACK.restUrl}/`);
 await useStack();
 
 const { Valkery } = await import("@scribe/foundation/lib/src/valkery/mod.ts");
-const { Time } = await import("@scribe/core/contracts/common/time.ts");
+const { Duration } = await import("@scribe/core/contracts/common/time.ts");
 
 function cache() {
-  return new Valkery<{ n: number }>({ key: "e2e:valkery", ttl: Time.seconds(30) });
+  return new Valkery<{ n: number }>({ key: "e2e:valkery", ttl: Duration.seconds(30) });
 }
 
 Deno.test("valkery: a value written to Redis comes back as it went in", async () => {
@@ -85,7 +85,7 @@ Deno.test("valkery: concurrent readers of a cold key compute it once", async () 
 });
 
 Deno.test("valkery: an entry is served until its ttl runs out, then it is a miss", async () => {
-  const store = new Valkery<{ n: number }>({ key: "e2e:valkery:ttl", ttl: Time.seconds(1) });
+  const store = new Valkery<{ n: number }>({ key: "e2e:valkery:ttl", ttl: Duration.seconds(1) });
   await store.clear();
   await store.add("short", { n: 1 });
 

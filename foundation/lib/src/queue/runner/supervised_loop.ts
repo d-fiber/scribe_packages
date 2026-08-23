@@ -34,8 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { ExponentialBackoff } from "@scribe/core/runtime/support/async/backoff.ts";
+import { ExponentialBackoff } from "@scribe/alchemy";
 import { sleep } from "@scribe/core/runtime/support/async/sleep.ts";
+import { Duration } from "@scribe/alchemy";
 
 const RESTART_DELAY_MS = 5_000;
 const PASS_BACKOFF_MS = 1_000;
@@ -57,8 +58,8 @@ export class SupervisedLoop {
   readonly #pass: Pass;
   readonly #isRunning: () => boolean;
   readonly #backoff = new ExponentialBackoff(
-    PASS_BACKOFF_MS,
-    PASS_BACKOFF_MAX_MS,
+    Duration.milliseconds(PASS_BACKOFF_MS),
+    Duration.milliseconds(PASS_BACKOFF_MAX_MS),
   );
 
   readonly #prepare: Prepare;

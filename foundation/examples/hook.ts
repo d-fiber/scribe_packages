@@ -1,4 +1,4 @@
-import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
+import { Failure, okay, type Result } from "@scribe/alchemy";
 import { Hook } from "@scribe/foundation/lib/src/hook/mod.ts";
 
 /** What a sign-up carries to whoever listens for it. */
@@ -29,7 +29,7 @@ export const signedIn = new Hook<{ accountId: string }>({ name: "auth.signed-in"
  */
 export const signingUp = new Hook<SignUp, Result<void, SignUpRefusal>>({
   name: "auth.signing-up",
-  fallback: new OK(),
+  fallback: okay,
 });
 
 /**
@@ -39,7 +39,7 @@ export const signingUp = new Hook<SignUp, Result<void, SignUpRefusal>>({
  * Answering something whose `ok` is false stops the chain, and the emitter sees that answer.
  */
 export const refuseBlockedDomains = signingUp.on((payload: SignUp) => {
-  return payload.email.endsWith("@blocked.example") ? new Failure<SignUpRefusal>("blocked_domain") : new OK();
+  return payload.email.endsWith("@blocked.example") ? new Failure<SignUpRefusal>("blocked_domain") : okay;
 });
 
 /**
