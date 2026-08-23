@@ -36,12 +36,9 @@
 
 import { authSettings } from "../settings.ts";
 import type { GoTrueSessionResponse, GoTrueUser } from "./transport.ts";
-import type { Session } from "@scribe/core/contracts/account.ts";
+import type { Session } from "@scribe/auth/contracts/account.ts";
 import type { AccountRole } from "../../contracts/role.ts";
-import {
-  fromBase64Url,
-  jsonFromBase64Url,
-} from "@scribe/core/runtime/support/crypto/base64.ts";
+import { fromBase64Url, jsonFromBase64Url } from "@scribe/core/runtime/support/crypto/base64.ts";
 
 class AccountMapper {
   static role(raw: GoTrueUser | GoTrueSessionResponse): AccountRole | null {

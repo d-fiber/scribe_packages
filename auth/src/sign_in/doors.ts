@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Session } from "@scribe/core/contracts/account.ts";
+import type { Session } from "@scribe/auth/contracts/account.ts";
 import { Failure, Ok, type Result } from "@scribe/alchemy";
 import { Channel } from "../../contracts/channel.ts";
 import type { AccountRole } from "../../contracts/role.ts";

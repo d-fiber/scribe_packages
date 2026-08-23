@@ -38,6 +38,45 @@ import type { IpLocation } from "@scribe/alchemy/route";
 import type { RequestDevice } from "@scribe/core/contracts/device.ts";
 import type { Channel } from "./channel.ts";
 
+/**
+ * How far a sign-out reaches.
+ *
+ * @remarks
+ * `Local` ends the one session the call was made with. `Global` ends every session the account
+ * holds, on every device, which is what somebody asks for when they think a token was taken.
+ */
+export enum SignOutScope {
+  /** Ends the session the call was made with, and no other. */
+  Local = "local",
+
+  /** Ends every session the account holds. */
+  Global = "global",
+}
+
+/**
+ * What an identity service hands back once it has let somebody in.
+ *
+ * @remarks
+ * The names are the ones the wire uses, underscores and all, because this is read straight off an
+ * answer rather than built here.
+ */
+export type Session = {
+  /** The bearer token calls are made with. */
+  access_token: string;
+
+  /** What is exchanged for a new access token once this one lapses. */
+  refresh_token: string;
+
+  /** How many seconds the access token is good for. */
+  expires_in: number;
+
+  /** What kind of token the access token is, which is `bearer` everywhere so far. */
+  token_type: string;
+
+  /** Who was let in, as the identity service describes them, when it says at all. */
+  user?: { id: string; [claim: string]: unknown };
+};
+
 /** One row of the table this package keeps of who exists. */
 export interface AccountRow {
   /** The identifier the identity provider issued, which every other table points at. */

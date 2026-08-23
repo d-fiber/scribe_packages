@@ -34,9 +34,19 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { SignOutScope } from "@scribe/core/contracts/account.ts";
+import type { SignOutScope } from "@scribe/auth/contracts/account.ts";
 import type { Result } from "@scribe/alchemy";
-import { adminHeaders, anonHeaders, authUrl, requestAuth, requestAuthVoid, type AuthError, type GoTrueSessionResponse, type GoTrueUser, userHeaders } from "./transport.ts";
+import {
+  adminHeaders,
+  anonHeaders,
+  type AuthError,
+  authUrl,
+  type GoTrueSessionResponse,
+  type GoTrueUser,
+  requestAuth,
+  requestAuthVoid,
+  userHeaders,
+} from "./transport.ts";
 
 export class GoTrueSession {
   refreshToken(

@@ -34,7 +34,16 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-export type { AccountIdentity, AccountRow, Ban, BanOptions, BanRow, SignInContext } from "./contracts/account.ts";
+export { SignOutScope } from "./contracts/account.ts";
+export type {
+  AccountIdentity,
+  AccountRow,
+  Ban,
+  BanOptions,
+  BanRow,
+  Session,
+  SignInContext,
+} from "./contracts/account.ts";
 export { Channel } from "./contracts/channel.ts";
 export type { AccountDevice } from "./contracts/device.ts";
 export type { AccountRole } from "./contracts/role.ts";

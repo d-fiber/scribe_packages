@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { SignOutScope } from "@scribe/core/contracts/account.ts";
+import { SignOutScope } from "@scribe/auth/contracts/account.ts";
 import { Duration } from "@scribe/alchemy";
 import { Failure, Ok, okay, type Result } from "@scribe/alchemy";
 import { requestDevice } from "@scribe/core/runtime/device/device.ts";

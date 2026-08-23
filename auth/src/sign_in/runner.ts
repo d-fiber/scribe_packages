@@ -34,17 +34,14 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Session } from "@scribe/core/contracts/account.ts";
+import type { Session } from "@scribe/auth/contracts/account.ts";
 import { Duration } from "@scribe/alchemy";
 import type { IpLocation } from "@scribe/alchemy/route";
 import type { RequestDevice } from "@scribe/core/contracts/device.ts";
 import { Failure, Ok, type Result } from "@scribe/alchemy";
 import { requestDevice } from "@scribe/core/runtime/device/device.ts";
 import { currentLocation } from "@scribe/core/runtime/http/accessors/location.ts";
-import {
-  callerBlocked,
-  checkCaller,
-} from "@scribe/core/runtime/http/caller.ts";
+import { callerBlocked, checkCaller } from "@scribe/core/runtime/http/caller.ts";
 import { sha256Hex } from "@scribe/core/runtime/support/crypto/hash.ts";
 import { rateLimit } from "@scribe/alchemy";
 import type { RateLimiter } from "@scribe/alchemy";
@@ -128,9 +125,7 @@ export class SignInDoor<TInput, TAccount, TRefusal> {
   ) {
     this.#target = target;
     this.#credential = credential;
-    this.#challenge = credential.otp
-      ? new OtpChallenge(target.name, credential.otp)
-      : null;
+    this.#challenge = credential.otp ? new OtpChallenge(target.name, credential.otp) : null;
     this.#caller = callerLimit(target.name, credential.channel);
     this.#recipient = recipientLimit(target.name, credential.channel);
   }
@@ -148,9 +143,7 @@ export class SignInDoor<TInput, TAccount, TRefusal> {
     const read = await this.#credential.read(input);
     if (!read.ok) return new Failure(read.error);
 
-    const recipient = read.data.identifier === null
-      ? null
-      : await sha256Hex(read.data.identifier);
+    const recipient = read.data.identifier === null ? null : await sha256Hex(read.data.identifier);
     if (
       recipient !== null && (await callerBlocked(this.#recipient, recipient))
     ) {
@@ -198,9 +191,7 @@ export class SignInDoor<TInput, TAccount, TRefusal> {
         if (started.ok) return new Ok(started.data);
 
         return new Failure(
-          started.error === OtpError.TooManyRequests
-            ? SignInError.TooManyRequests
-            : SignInError.Unexpected,
+          started.error === OtpError.TooManyRequests ? SignInError.TooManyRequests : SignInError.Unexpected,
         );
       }
 

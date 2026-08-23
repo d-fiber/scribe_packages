@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { SignOutScope } from "@scribe/core/contracts/account.ts";
+import { SignOutScope } from "@scribe/auth/contracts/account.ts";
 import { Duration } from "@scribe/alchemy";
 import { Failure, Ok, type Result } from "@scribe/alchemy";
 import { requestDevice } from "@scribe/core/runtime/device/device.ts";
@@ -204,9 +204,7 @@ export class OtpChallenge {
     const sent = await this.#channel.send(identifier, this.#role);
     if (!sent.ok) {
       return new Failure(
-        isRateLimitCode(sent.error.code)
-          ? OtpError.TooManyRequests
-          : OtpError.Unexpected,
+        isRateLimitCode(sent.error.code) ? OtpError.TooManyRequests : OtpError.Unexpected,
       );
     }
 
@@ -217,9 +215,7 @@ export class OtpChallenge {
       device?.device_id ?? null,
     );
 
-    return pendingToken
-      ? new Ok({ pendingToken })
-      : new Failure(OtpError.Unexpected);
+    return pendingToken ? new Ok({ pendingToken }) : new Failure(OtpError.Unexpected);
   }
 
   /** Sends another code for a challenge already open, and replaces its token. */
@@ -247,9 +243,7 @@ export class OtpChallenge {
     const sent = await this.#channel.send(identifier, this.#role);
     if (!sent.ok) {
       return new Failure(
-        isRateLimitCode(sent.error.code)
-          ? OtpError.TooManyRequests
-          : OtpError.Unexpected,
+        isRateLimitCode(sent.error.code) ? OtpError.TooManyRequests : OtpError.Unexpected,
       );
     }
 
@@ -294,9 +288,7 @@ export class OtpChallenge {
         return new Failure(OtpError.TooManyRequests);
       }
       return new Failure(
-        answer.error.code === "otp_disabled"
-          ? OtpError.Unexpected
-          : OtpError.InvalidOrExpired,
+        answer.error.code === "otp_disabled" ? OtpError.Unexpected : OtpError.InvalidOrExpired,
       );
     }
 
