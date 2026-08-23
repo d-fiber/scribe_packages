@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { ByteStream } from "@scribe/foundation/lib/src/http/byte_stream.ts";
+import { ByteStream } from "@scribe/alchemy/http";
 import { assert, assertEquals } from "@std/assert";
 
 function streamOf(...chunks: string[]): ByteStream {
@@ -94,5 +94,8 @@ Deno.test("the underlying stream is handed back rather than wrapped away", async
   const wrapped = new ByteStream(underlying);
 
   assert(wrapped.stream === underlying);
-  assertEquals((await wrapped.stream.getReader().read()).value, new Uint8Array([1]));
+  assertEquals(
+    (await wrapped.stream.getReader().read()).value,
+    new Uint8Array([1]),
+  );
 });

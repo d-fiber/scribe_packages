@@ -34,22 +34,25 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { ClientException } from "@scribe/foundation/lib/src/http/exception.ts";
-import type { Request } from "@scribe/foundation/lib/src/http/request/request.ts";
+import { Duration } from "@scribe/alchemy";
+import { ClientException, DEFAULT_REQUEST_TIMEOUT } from "@scribe/alchemy/http";
+import type { HttpRequest } from "@scribe/alchemy/http";
 import { assertEquals, assertRejects } from "@std/assert";
-import { RecordingClient } from "./mocks/recording_client.ts";
+import { MemoryClient } from "@scribe/alchemy/test";
 
 const URL_UNDER_TEST = "https://example.test/a";
 
-async function sent(options: Parameters<RecordingClient["post"]>[1]): Promise<Request> {
-  const client = new RecordingClient();
+async function sent(
+  options: Parameters<MemoryClient["post"]>[1],
+): Promise<HttpRequest> {
+  const client = new MemoryClient();
   await client.post(URL_UNDER_TEST, options);
 
-  return client.only as Request;
+  return client.only as HttpRequest;
 }
 
 Deno.test("each convenience method sends its own verb", async () => {
-  const client = new RecordingClient();
+  const client = new MemoryClient();
 
   await client.head(URL_UNDER_TEST);
   await client.get(URL_UNDER_TEST);
@@ -79,14 +82,20 @@ Deno.test("a record body goes as a url-encoded form", async () => {
   const request = await sent({ body: { name: "ada", city: "lovelace lane" } });
 
   assertEquals(request.body, "name=ada&city=lovelace+lane");
-  assertEquals(request.headers.get("content-type"), "application/x-www-form-urlencoded; charset=utf-8");
+  assertEquals(
+    request.headers.get("content-type"),
+    "application/x-www-form-urlencoded; charset=utf-8",
+  );
 });
 
 Deno.test("text goes as text", async () => {
   const request = await sent({ body: "hello" });
 
   assertEquals(request.body, "hello");
-  assertEquals(request.headers.get("content-type"), "text/plain; charset=utf-8");
+  assertEquals(
+    request.headers.get("content-type"),
+    "text/plain; charset=utf-8",
+  );
 });
 
 Deno.test("bytes go as they are, and claim no type", async () => {
@@ -100,12 +109,21 @@ Deno.test("the encoding of the call reaches the content-type of the body", async
   const request = await sent({ body: "x", encoding: "latin1" });
 
   assertEquals(request.encoding, "latin1");
-  assertEquals(request.headers.get("content-type"), "text/plain; charset=latin1");
+  assertEquals(
+    request.headers.get("content-type"),
+    "text/plain; charset=latin1",
+  );
 });
 
 Deno.test("the timeout of the call reaches the request", async () => {
-  assertEquals((await sent({ timeout: 2_500 })).timeoutMs, 2_500);
-  assertEquals((await sent({})).timeoutMs, null);
+  assertEquals(
+    (await sent({ timeout: Duration.milliseconds(2_500) })).timeoutMs,
+    2_500,
+  );
+  assertEquals(
+    (await sent({})).timeoutMs,
+    DEFAULT_REQUEST_TIMEOUT.inMilliseconds,
+  );
 });
 
 Deno.test("the headers of the call reach the request", async () => {
@@ -115,42 +133,51 @@ Deno.test("the headers of the call reach the request", async () => {
 });
 
 Deno.test("a header given by the caller wins over the one a body would set", async () => {
-  const request = await sent({ headers: { "content-type": "application/json" }, body: "{}" });
+  const request = await sent({
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
 
   assertEquals(request.headers.get("content-type"), "application/json");
 });
 
 Deno.test("read and readBytes answer the body of a 2xx", async () => {
-  const client = new RecordingClient({ status: 204, body: "hello" });
+  const client = new MemoryClient({ status: 204, body: "hello" });
 
   assertEquals(await client.read(URL_UNDER_TEST), "hello");
-  assertEquals(await client.readBytes(URL_UNDER_TEST), new TextEncoder().encode("hello"));
+  assertEquals(
+    await client.readBytes(URL_UNDER_TEST),
+    new TextEncoder().encode("hello"),
+  );
 });
 
 Deno.test("read refuses any status but a 2xx", async () => {
-  const client = new RecordingClient({ status: 404, body: "<html>not found</html>" });
+  const client = new MemoryClient({
+    status: 404,
+    body: "<html>not found</html>",
+  });
 
   const raised = await assertRejects(
     () => client.read(URL_UNDER_TEST),
     ClientException,
-    "Request to https://example.test/a failed with status 404.",
+    "The call to https://example.test/a failed with status 404.",
   );
 
   assertEquals(raised.uri?.href, URL_UNDER_TEST);
   assertEquals(
     String(raised),
-    "ClientException: Request to https://example.test/a failed with status 404., uri=https://example.test/a",
+    "ClientException: The call to https://example.test/a failed with status 404., uri=https://example.test/a",
   );
 });
 
 Deno.test("readBytes refuses any status but a 2xx", async () => {
-  const client = new RecordingClient({ status: 500 });
+  const client = new MemoryClient({ status: 500 });
 
   await assertRejects(() => client.readBytes(URL_UNDER_TEST), ClientException);
 });
 
 Deno.test("a status the caller asked for is a response, not an exception", async () => {
-  const client = new RecordingClient({ status: 404, body: "gone" });
+  const client = new MemoryClient({ status: 404, body: "gone" });
 
   const response = await client.get(URL_UNDER_TEST);
 
@@ -168,7 +195,7 @@ Deno.test("an exception with no url reads without one", () => {
 });
 
 Deno.test("a url given as a URL is sent as it is", async () => {
-  const client = new RecordingClient();
+  const client = new MemoryClient();
 
   await client.get(new URL(URL_UNDER_TEST));
 

@@ -34,9 +34,10 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { ClientException } from "@scribe/foundation/lib/src/http/exception.ts";
+import { Duration } from "@scribe/alchemy";
+import { ClientException } from "@scribe/alchemy/http";
 import { FetchClient } from "@scribe/foundation/lib/src/http/fetch_client.ts";
-import { Request } from "@scribe/foundation/lib/src/http/request/request.ts";
+import { HttpRequest } from "@scribe/alchemy/http";
 import { assert, assertEquals, assertRejects } from "@std/assert";
 
 const URL_UNDER_TEST = "https://example.test/a";
@@ -104,7 +105,8 @@ Deno.test("every way of never reaching the server arrives as one exception", asy
 
 Deno.test("a failure that is not an Error is still described", async () => {
   const original = globalThis.fetch;
-  globalThis.fetch = (() => Promise.reject("gave up")) as typeof globalThis.fetch;
+  globalThis.fetch =
+    (() => Promise.reject("gave up")) as typeof globalThis.fetch;
 
   try {
     await assertRejects(
@@ -121,7 +123,7 @@ Deno.test("GET and HEAD send no body and announce no length", async () => {
   await withFetch(ok, async (calls) => {
     const client = new FetchClient();
 
-    const get = new Request("GET", URL_UNDER_TEST);
+    const get = new HttpRequest("GET", URL_UNDER_TEST);
     get.body = "ignored";
     await client.send(get);
     await client.head(URL_UNDER_TEST);
@@ -142,7 +144,11 @@ Deno.test("a verb that may carry a body but carries none sends nothing", async (
     await new FetchClient().post(URL_UNDER_TEST);
 
     assertEquals(calls[0].init.method, "POST");
-    assertEquals(calls[0].init.body, undefined, "an empty body is no body, not an empty buffer");
+    assertEquals(
+      calls[0].init.body,
+      undefined,
+      "an empty body is no body, not an empty buffer",
+    );
   });
 });
 
@@ -157,17 +163,22 @@ Deno.test("a body is sent as bytes, with its length announced", async () => {
   });
 });
 
-Deno.test("followRedirects decides the redirect mode", async () => {
+Deno.test("the redirect mode of the request reaches fetch, all three of them", async () => {
   await withFetch(ok, async (calls) => {
     const client = new FetchClient();
 
     await client.get(URL_UNDER_TEST);
+    await client.get(URL_UNDER_TEST, { redirect: "follow" });
 
-    const manual = new Request("GET", URL_UNDER_TEST);
-    manual.followRedirects = false;
+    const manual = new HttpRequest("GET", URL_UNDER_TEST);
+    manual.redirect = "manual";
     await client.send(manual);
 
-    assertEquals(calls.map((call) => call.init.redirect), ["follow", "manual"]);
+    assertEquals(calls.map((call) => call.init.redirect), [
+      "error",
+      "follow",
+      "manual",
+    ]);
   });
 });
 
@@ -205,7 +216,10 @@ Deno.test("a status the server sent no text for has no reason phrase", async () 
   await withFetch(
     () => new globalThis.Response("x", { status: 200, statusText: "" }),
     async () => {
-      assertEquals((await new FetchClient().get(URL_UNDER_TEST)).reasonPhrase, null);
+      assertEquals(
+        (await new FetchClient().get(URL_UNDER_TEST)).reasonPhrase,
+        null,
+      );
     },
   );
 });
@@ -230,29 +244,33 @@ Deno.test("a server that says nothing about the length leaves it unknown", async
       return answered;
     },
     async () => {
-      const streamed = await new FetchClient().send(new Request("GET", URL_UNDER_TEST));
+      const streamed = await new FetchClient().send(
+        new HttpRequest("GET", URL_UNDER_TEST),
+      );
 
       assertEquals(
         streamed.contentLength,
         null,
-        "the streamed response carries the server's claim, and the server made none: the "
-          + "count of what actually arrived only exists once the stream is drained",
+        "the streamed response carries the server's claim, and the server made none: the " +
+          "count of what actually arrived only exists once the stream is drained",
       );
     },
   );
 });
 
-Deno.test("no timeout is asked for unless the call asks for one", async () => {
+Deno.test("a call that names no timeout still carries the default one", async () => {
   await withFetch(ok, async (calls) => {
     await new FetchClient().get(URL_UNDER_TEST);
 
-    assertEquals(calls[0].init.signal, undefined);
+    assert(calls[0].init.signal instanceof AbortSignal);
   });
 });
 
 Deno.test("a timeout reaches fetch as a signal", async () => {
   await withFetch(ok, async (calls) => {
-    await new FetchClient().get(URL_UNDER_TEST, { timeout: 5_000 });
+    await new FetchClient().get(URL_UNDER_TEST, {
+      timeout: Duration.seconds(5),
+    });
 
     assert(calls[0].init.signal instanceof AbortSignal);
   });
@@ -260,14 +278,21 @@ Deno.test("a timeout reaches fetch as a signal", async () => {
 
 Deno.test("an exchange that runs out of time names the limit it reached", async () => {
   const original = globalThis.fetch;
-  globalThis.fetch = ((_input: URL | RequestInfo, init: RequestInit = {}) =>
-    new Promise((_resolve, reject) => {
-      init.signal?.addEventListener("abort", () => reject(init.signal?.reason));
-    })) as typeof globalThis.fetch;
+  globalThis.fetch =
+    ((_input: URL | RequestInfo, init: RequestInit = {}) =>
+      new Promise((_resolve, reject) => {
+        init.signal?.addEventListener(
+          "abort",
+          () => reject(init.signal?.reason),
+        );
+      })) as typeof globalThis.fetch;
 
   try {
     const raised = await assertRejects(
-      () => new FetchClient().get(URL_UNDER_TEST, { timeout: 20 }),
+      () =>
+        new FetchClient().get(URL_UNDER_TEST, {
+          timeout: Duration.milliseconds(20),
+        }),
       ClientException,
       "HTTP request failed. Timed out after 20 ms.",
     );
@@ -282,7 +307,12 @@ Deno.test("a request that answers in time is not cut short", async () => {
   await withFetch(
     () => new Promise((resolve) => setTimeout(() => resolve(ok()), 5)),
     async () => {
-      assertEquals((await new FetchClient().get(URL_UNDER_TEST, { timeout: 2_000 })).body, "hello");
+      assertEquals(
+        (await new FetchClient().get(URL_UNDER_TEST, {
+          timeout: Duration.seconds(2),
+        })).body,
+        "hello",
+      );
     },
   );
 });

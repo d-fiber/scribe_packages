@@ -34,11 +34,22 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { ClientException } from "@scribe/foundation/lib/src/http/exception.ts";
+import { Duration } from "@scribe/alchemy";
+import { ClientException } from "@scribe/alchemy/http";
 import { FetchClient } from "@scribe/foundation/lib/src/http/fetch_client.ts";
-import { get, readBytes, runWithClient } from "@scribe/foundation/lib/src/http/mod.ts";
+import {
+  get,
+  readBytes,
+  runWithClient,
+} from "@scribe/foundation/lib/src/http/mod.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
-import { report, requireStack, STACK, timed, useStack } from "./support/stack.ts";
+import {
+  report,
+  requireStack,
+  STACK,
+  timed,
+  useStack,
+} from "./support/stack.ts";
 
 await requireStack(`${STACK.natsMonitorUrl}/healthz`);
 await useStack();
@@ -49,7 +60,9 @@ const CLOSED = "http://localhost:51999/nothing";
 Deno.test(
   "http: a live endpoint answers, and its body reads as JSON",
   async () => {
-    const [answer, ms] = await timed(() => get(HEALTH, { timeout: 5_000 }));
+    const [answer, ms] = await timed(() =>
+      get(HEALTH, { timeout: Duration.seconds(5) })
+    );
 
     report("one GET against NATS monitoring", `${ms.toFixed(2)} ms`);
     assertEquals(answer.statusCode, 200);
@@ -62,7 +75,7 @@ Deno.test(
   "http: a status the server chose is a response, not an exception",
   async () => {
     const answer = await get(`${STACK.natsMonitorUrl}/no-such-route`, {
-      timeout: 5_000,
+      timeout: Duration.seconds(5),
     });
 
     assertEquals(answer.ok, false);
@@ -77,7 +90,10 @@ Deno.test(
   "http: readBytes refuses a status outside the 2xx window",
   async () => {
     await assertRejects(
-      () => readBytes(`${STACK.natsMonitorUrl}/no-such-route`, { timeout: 5_000 }),
+      () =>
+        readBytes(`${STACK.natsMonitorUrl}/no-such-route`, {
+          timeout: Duration.seconds(5),
+        }),
       ClientException,
     );
   },
@@ -87,7 +103,7 @@ Deno.test(
   "http: a connection nothing accepts arrives as one exception",
   async () => {
     const raised = await assertRejects(
-      () => get(CLOSED, { timeout: 2_000 }),
+      () => get(CLOSED, { timeout: Duration.seconds(2) }),
       ClientException,
     );
 
@@ -103,7 +119,10 @@ Deno.test(
   "http: an exchange that runs out of time says so, and how long it waited",
   async () => {
     const raised = await assertRejects(
-      () => get("http://10.255.255.1:8080/", { timeout: 700 }),
+      () =>
+        get("http://10.255.255.1:8080/", {
+          timeout: Duration.milliseconds(700),
+        }),
       ClientException,
       "Timed out after 700 ms.",
     );
@@ -134,11 +153,15 @@ Deno.test(
 
     report(
       `${count} calls on a kept client`,
-      `${(keptMs / count).toFixed(3)} ms each, or ${Math.round((count / keptMs) * 1000)} a second`,
+      `${(keptMs / count).toFixed(3)} ms each, or ${
+        Math.round((count / keptMs) * 1000)
+      } a second`,
     );
     report(
       `${count} one-off calls`,
-      `${(oneOffMs / count).toFixed(3)} ms each, or ${Math.round((count / oneOffMs) * 1000)} a second`,
+      `${(oneOffMs / count).toFixed(3)} ms each, or ${
+        Math.round((count / oneOffMs) * 1000)
+      } a second`,
     );
   },
 );

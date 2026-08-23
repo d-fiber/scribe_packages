@@ -34,12 +34,12 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Request } from "@scribe/foundation/lib/src/http/request/request.ts";
+import { HttpRequest } from "@scribe/alchemy/http";
 import { assertEquals, assertThrows } from "@std/assert";
-import { RecordingClient } from "./mocks/recording_client.ts";
+import { MemoryClient } from "@scribe/alchemy/test";
 
 Deno.test("a request upper-cases its method and keeps the whole url", () => {
-  const request = new Request("post", "https://example.test/a?b=1#c");
+  const request = new HttpRequest("post", "https://example.test/a?b=1#c");
 
   assertEquals(request.method, "POST");
   assertEquals(request.url.href, "https://example.test/a?b=1#c");
@@ -49,7 +49,7 @@ Deno.test("a request upper-cases its method and keeps the whole url", () => {
 Deno.test(
   "the three views of the body are three views of the same bytes",
   () => {
-    const request = new Request("POST", "https://example.test/");
+    const request = new HttpRequest("POST", "https://example.test/");
 
     request.bodyFields = { name: "ada", city: "lovelace lane" };
 
@@ -63,7 +63,7 @@ Deno.test(
 );
 
 Deno.test("setting one view replaces the other two", () => {
-  const request = new Request("POST", "https://example.test/");
+  const request = new HttpRequest("POST", "https://example.test/");
 
   request.bodyFields = { name: "ada" };
   request.bodyBytes = new Uint8Array([104, 105]);
@@ -75,10 +75,10 @@ Deno.test("setting one view replaces the other two", () => {
 Deno.test(
   "text gives itself a content-type, and leaves one already set alone",
   () => {
-    const plain = new Request("POST", "https://example.test/");
+    const plain = new HttpRequest("POST", "https://example.test/");
     plain.body = "hello";
 
-    const json = new Request("POST", "https://example.test/");
+    const json = new HttpRequest("POST", "https://example.test/");
     json.headers.set("content-type", "application/json");
     json.body = "{}";
 
@@ -91,7 +91,7 @@ Deno.test(
 );
 
 Deno.test("the content-type carries the encoding the request was given", () => {
-  const request = new Request("POST", "https://example.test/");
+  const request = new HttpRequest("POST", "https://example.test/");
 
   request.encoding = "latin1";
   request.body = "x";
@@ -103,18 +103,18 @@ Deno.test("the content-type carries the encoding the request was given", () => {
 });
 
 Deno.test("reading form fields off a body that is not a form throws", () => {
-  const request = new Request("POST", "https://example.test/");
+  const request = new HttpRequest("POST", "https://example.test/");
   request.body = "name=ada";
 
   assertThrows(
     () => request.bodyFields,
     Error,
-    'Can\'t access the body fields of a Request without content-type "application/x-www-form-urlencoded".',
+    'The body fields of a request can only be read when its content-type is "application/x-www-form-urlencoded".',
   );
 });
 
 Deno.test("the content length counts bytes, not characters", () => {
-  const request = new Request("POST", "https://example.test/");
+  const request = new HttpRequest("POST", "https://example.test/");
 
   request.body = "héllo";
 
@@ -124,7 +124,7 @@ Deno.test("the content length counts bytes, not characters", () => {
 Deno.test(
   "finalize hands the body over, and refuses to do it twice",
   async () => {
-    const request = new Request("POST", "https://example.test/");
+    const request = new HttpRequest("POST", "https://example.test/");
     request.body = "hello";
 
     assertEquals(request.finalized, false);
@@ -133,13 +133,13 @@ Deno.test(
     assertThrows(
       () => request.finalize(),
       Error,
-      "Can't modify a finalized Request.",
+      "This request has already been sent, and a sent request cannot be changed.",
     );
   },
 );
 
 Deno.test("a finalized request refuses every write", () => {
-  const request = new Request("POST", "https://example.test/");
+  const request = new HttpRequest("POST", "https://example.test/");
   request.finalize();
 
   for (
@@ -154,14 +154,18 @@ Deno.test("a finalized request refuses every write", () => {
       () => (request.timeoutMs = 1_000),
     ]
   ) {
-    assertThrows(write, Error, "Can't modify a finalized Request.");
+    assertThrows(
+      write,
+      Error,
+      "This request has already been sent, and a sent request cannot be changed.",
+    );
   }
 });
 
 Deno.test(
   "a request follows redirects five deep on a kept connection unless told otherwise",
   () => {
-    const request = new Request("GET", "https://example.test/");
+    const request = new HttpRequest("GET", "https://example.test/");
 
     assertEquals(request.followRedirects, true);
     assertEquals(request.maxRedirects, 5);
@@ -183,8 +187,8 @@ Deno.test(
 );
 
 Deno.test("send goes through the client it is handed", async () => {
-  const client = new RecordingClient({ status: 201 });
-  const request = new Request("PUT", "https://example.test/a");
+  const client = new MemoryClient({ status: 201 });
+  const request = new HttpRequest("PUT", "https://example.test/a");
 
   const response = await request.send(client);
 

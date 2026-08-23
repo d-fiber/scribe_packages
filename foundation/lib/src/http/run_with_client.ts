@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { AsyncLocalStorage } from "node:async_hooks";
-import type { Client } from "./client.ts";
+import type { Client } from "@scribe/alchemy/http";
 import { FetchClient } from "./fetch_client.ts";
 
 const _current = new AsyncLocalStorage<Client>();

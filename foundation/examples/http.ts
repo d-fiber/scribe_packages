@@ -1,5 +1,13 @@
-import { ClientException, FetchClient, get, post, read, runWithClient } from "@scribe/foundation/lib/src/http/mod.ts";
-import type { Response } from "@scribe/foundation/lib/src/http/mod.ts";
+import { Duration } from "@scribe/alchemy";
+import { ClientException } from "@scribe/alchemy/http";
+import type { HttpResponse } from "@scribe/alchemy/http";
+import {
+  FetchClient,
+  get,
+  post,
+  read,
+  runWithClient,
+} from "@scribe/foundation/lib/src/http/mod.ts";
 
 /** The shape the rates endpoint answers with. */
 interface Rates {
@@ -13,8 +21,8 @@ interface Rates {
  * `del` and `read` carry those names rather than `delete` and `readString` because one of the
  * two is a reserved word and the other is the name the underlying library uses.
  */
-export function ping(url: string): Promise<Response> {
-  return get(url, { timeout: 2_000 });
+export function ping(url: string): Promise<HttpResponse> {
+  return get(url, { timeout: Duration.seconds(2) });
 }
 
 /**
@@ -23,7 +31,7 @@ export function ping(url: string): Promise<Response> {
  * A `content-type` given in the headers is never overwritten by the one the body would have
  * implied, which is how a caller sends JSON.
  */
-export function publish(url: string, event: object): Promise<Response> {
+export function publish(url: string, event: object): Promise<HttpResponse> {
   return post(url, {
     headers: { "content-type": "application/json" },
     body: JSON.stringify(event),

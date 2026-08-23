@@ -34,12 +34,13 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import { Duration } from "@scribe/alchemy";
 import type { StorageBucket } from "./transport.ts";
 import { currentClient } from "@scribe/foundation/lib/src/http/run_with_client.ts";
-import type { RequestBody } from "@scribe/foundation/lib/src/http/client.ts";
-import type { Response as HttpResponse } from "@scribe/foundation/lib/src/http/response/response.ts";
+import type { RequestBody } from "@scribe/alchemy/http";
+import type { HttpResponse } from "@scribe/alchemy/http";
 
-const REQUEST_TIMEOUT_MS = 30_000;
+const REQUEST_TIMEOUT: Duration = Duration.seconds(30);
 
 /** One bucket of the Supabase storage service, reached over HTTP with the service key. */
 export class Bucket implements StorageBucket {
@@ -103,14 +104,20 @@ export class Bucket implements StorageBucket {
         ...options.headers,
       },
       body: options.body,
-      timeout: REQUEST_TIMEOUT_MS,
+      timeout: REQUEST_TIMEOUT,
     };
 
     try {
-      const res = method === "POST" ? await client.post(url, sent) : await client.delete(url, sent);
+      const res = method === "POST"
+        ? await client.post(url, sent)
+        : await client.delete(url, sent);
       if (res.ok) return res;
 
-      console.error(`[storage] ${method} ${route} failed (${res.statusCode}): ${_reason(res)}`);
+      console.error(
+        `[storage] ${method} ${route} failed (${res.statusCode}): ${
+          _reason(res)
+        }`,
+      );
       return null;
     } catch (e) {
       console.error(`[storage] ${method} ${route} unreachable:`, e);

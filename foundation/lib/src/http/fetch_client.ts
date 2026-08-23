@@ -34,11 +34,13 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { BaseClient } from "./base_client.ts";
-import { ByteStream } from "./byte_stream.ts";
-import { ClientException } from "./exception.ts";
-import type { BaseRequest } from "./request/base_request.ts";
-import { StreamedResponse } from "./response/streamed_response.ts";
+import {
+  BaseClient,
+  type BaseRequest,
+  ByteStream,
+  ClientException,
+  StreamedResponse,
+} from "@scribe/alchemy/http";
 
 /**
  * The client that actually goes on the network, over the platform's `fetch`.
@@ -75,7 +77,9 @@ export class FetchClient extends BaseClient {
     }
 
     const carriesBytes = hasBody && request.contentLength !== 0;
-    const payload: BodyInit | undefined = carriesBytes ? (await body.toBytes()) as BodyInit : undefined;
+    const payload: BodyInit | undefined = carriesBytes
+      ? (await body.toBytes()) as BodyInit
+      : undefined;
 
     const timeoutMs = request.timeoutMs;
 
@@ -85,7 +89,7 @@ export class FetchClient extends BaseClient {
         method: request.method,
         headers: request.headers,
         body: payload,
-        redirect: request.followRedirects ? "follow" : "manual",
+        redirect: request.redirect,
         signal: timeoutMs === null ? undefined : AbortSignal.timeout(timeoutMs),
       });
     } catch (cause) {
@@ -99,7 +103,9 @@ export class FetchClient extends BaseClient {
     const length = answered.headers.get("content-length");
 
     return new StreamedResponse(
-      new ByteStream(answered.body ?? ByteStream.fromBytes(new Uint8Array(0)).stream),
+      new ByteStream(
+        answered.body ?? ByteStream.fromBytes(new Uint8Array(0)).stream,
+      ),
       answered.status,
       {
         contentLength: length === null ? null : Number(length),
@@ -132,7 +138,10 @@ export class FetchClient extends BaseClient {
  * of the report.
  */
 function _describe(cause: unknown, timeoutMs: number | null): string {
-  if (timeoutMs !== null && cause instanceof DOMException && cause.name === "TimeoutError") {
+  if (
+    timeoutMs !== null && cause instanceof DOMException &&
+    cause.name === "TimeoutError"
+  ) {
     return `Timed out after ${timeoutMs} ms.`;
   }
   return cause instanceof Error ? cause.message : String(cause);

@@ -34,22 +34,14 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Client, RequestOptions } from "./client.ts";
-import type { Response } from "./response/response.ts";
+import type {
+  Client,
+  HttpResponse,
+  RequestOptions,
+} from "@scribe/alchemy/http";
 import { currentClient } from "./run_with_client.ts";
 
-export { BaseClient } from "./base_client.ts";
-export { ByteStream } from "./byte_stream.ts";
-export type { Client, RequestBody, RequestOptions } from "./client.ts";
-export { ClientException } from "./exception.ts";
 export { FetchClient } from "./fetch_client.ts";
-export { BaseRequest } from "./request/base_request.ts";
-export { MultipartFile } from "./request/multipart_file.ts";
-export { MultipartRequest } from "./request/multipart_request.ts";
-export { Request } from "./request/request.ts";
-export { BaseResponse } from "./response/base_response.ts";
-export { Response } from "./response/response.ts";
-export { StreamedResponse } from "./response/streamed_response.ts";
 export { runWithClient } from "./run_with_client.ts";
 
 /**
@@ -61,8 +53,8 @@ export { runWithClient } from "./run_with_client.ts";
  * across calls, and a one-off function gives it no chance to.
  */
 async function _once(
-  call: (client: Client) => Promise<Response>,
-): Promise<Response> {
+  call: (client: Client) => Promise<HttpResponse>,
+): Promise<HttpResponse> {
   const client = currentClient();
   try {
     return await call(client);
@@ -72,32 +64,50 @@ async function _once(
 }
 
 /** Sends a one-off HEAD. */
-export function head(url: URL | string, options?: RequestOptions): Promise<Response> {
+export function head(
+  url: URL | string,
+  options?: RequestOptions,
+): Promise<HttpResponse> {
   return _once((client) => client.head(url, options));
 }
 
 /** Sends a one-off GET. */
-export function get(url: URL | string, options?: RequestOptions): Promise<Response> {
+export function get(
+  url: URL | string,
+  options?: RequestOptions,
+): Promise<HttpResponse> {
   return _once((client) => client.get(url, options));
 }
 
 /** Sends a one-off POST. */
-export function post(url: URL | string, options?: RequestOptions): Promise<Response> {
+export function post(
+  url: URL | string,
+  options?: RequestOptions,
+): Promise<HttpResponse> {
   return _once((client) => client.post(url, options));
 }
 
 /** Sends a one-off PUT. */
-export function put(url: URL | string, options?: RequestOptions): Promise<Response> {
+export function put(
+  url: URL | string,
+  options?: RequestOptions,
+): Promise<HttpResponse> {
   return _once((client) => client.put(url, options));
 }
 
 /** Sends a one-off PATCH. */
-export function patch(url: URL | string, options?: RequestOptions): Promise<Response> {
+export function patch(
+  url: URL | string,
+  options?: RequestOptions,
+): Promise<HttpResponse> {
   return _once((client) => client.patch(url, options));
 }
 
 /** Sends a one-off DELETE. */
-export function del(url: URL | string, options?: RequestOptions): Promise<Response> {
+export function del(
+  url: URL | string,
+  options?: RequestOptions,
+): Promise<HttpResponse> {
   return _once((client) => client.delete(url, options));
 }
 
@@ -108,7 +118,10 @@ export function del(url: URL | string, options?: RequestOptions): Promise<Respon
  * for the same reason: they are the names package:http uses, and one of them is a reserved
  * word here.
  */
-export async function read(url: URL | string, options?: RequestOptions): Promise<string> {
+export async function read(
+  url: URL | string,
+  options?: RequestOptions,
+): Promise<string> {
   const client = currentClient();
   try {
     return await client.read(url, options);

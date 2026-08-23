@@ -34,9 +34,15 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { MultipartFile } from "@scribe/foundation/lib/src/http/request/multipart_file.ts";
-import { MultipartRequest } from "@scribe/foundation/lib/src/http/request/multipart_request.ts";
-import { assert, assertEquals, assertNotEquals, assertStringIncludes, assertThrows } from "@std/assert";
+import { MultipartFile } from "@scribe/alchemy/http";
+import { MultipartRequest } from "@scribe/alchemy/http";
+import {
+  assert,
+  assertEquals,
+  assertNotEquals,
+  assertStringIncludes,
+  assertThrows,
+} from "@std/assert";
 
 function boundaryOf(request: MultipartRequest): string {
   const type = request.headers.get("content-type") ?? "";
@@ -83,15 +89,24 @@ Deno.test("the announced length is the length of the body", async () => {
   const cases: Array<[string, (request: MultipartRequest) => void]> = [
     ["nothing at all", () => {}],
     ["one field", (request) => request.fields.set("name", "ada")],
-    ["a field name outside ascii", (request) => request.fields.set("prénom", "ada")],
+    [
+      "a field name outside ascii",
+      (request) => request.fields.set("prénom", "ada"),
+    ],
     ["a value outside ascii", (request) => request.fields.set("name", "adá")],
     [
       "a file",
-      (request) => request.files.push(MultipartFile.fromString("f", "hello", { filename: "a.txt" })),
+      (request) =>
+        request.files.push(
+          MultipartFile.fromString("f", "hello", { filename: "a.txt" }),
+        ),
     ],
     [
       "a filename outside ascii",
-      (request) => request.files.push(MultipartFile.fromString("f", "hello", { filename: "é.txt" })),
+      (request) =>
+        request.files.push(
+          MultipartFile.fromString("f", "hello", { filename: "é.txt" }),
+        ),
     ],
     [
       "a name that needs escaping",
@@ -106,7 +121,11 @@ Deno.test("the announced length is the length of the body", async () => {
     const announced = request.contentLength;
     const sent = (await request.finalize().toBytes()).length;
 
-    assertEquals(announced, sent, `${label}: announced ${announced}, sent ${sent}`);
+    assertEquals(
+      announced,
+      sent,
+      `${label}: announced ${announced}, sent ${sent}`,
+    );
   }
 });
 
@@ -127,13 +146,18 @@ Deno.test("the boundary is drawn at finalize, not before", () => {
 
   request.finalize();
 
-  assertStringIncludes(request.headers.get("content-type") ?? "", "multipart/form-data; boundary=");
+  assertStringIncludes(
+    request.headers.get("content-type") ?? "",
+    "multipart/form-data; boundary=",
+  );
 });
 
 Deno.test("a quote or a newline in a name cannot end the header early", async () => {
   const request = new MultipartRequest("POST", "https://example.test/upload");
   request.fields.set('a"b\r\nc', "v");
-  request.files.push(MultipartFile.fromString("f", "x", { filename: 'd"e\nf' }));
+  request.files.push(
+    MultipartFile.fromString("f", "x", { filename: 'd"e\nf' }),
+  );
 
   const body = await request.finalize().bytesToString();
 
@@ -146,7 +170,11 @@ Deno.test("a file hands its bytes over once", () => {
 
   file.finalize();
 
-  assertThrows(() => file.finalize(), Error, "Can't finalize a finalized MultipartFile.");
+  assertThrows(
+    () => file.finalize(),
+    Error,
+    "This file has already been finalised, and a finalised file cannot be sent twice.",
+  );
 });
 
 Deno.test("a file made from text announces its length in bytes and calls itself text", () => {
@@ -158,7 +186,9 @@ Deno.test("a file made from text announces its length in bytes and calls itself 
 });
 
 Deno.test("a content type given by the caller wins over the one text assumes", () => {
-  const file = MultipartFile.fromString("f", "{}", { contentType: "application/json" });
+  const file = MultipartFile.fromString("f", "{}", {
+    contentType: "application/json",
+  });
 
   assertEquals(file.contentType, "application/json");
 });
@@ -167,5 +197,9 @@ Deno.test("a finalized multipart request refuses a second finalize", () => {
   const request = new MultipartRequest("POST", "https://example.test/upload");
   request.finalize();
 
-  assertThrows(() => request.finalize(), Error, "Can't modify a finalized Request.");
+  assertThrows(
+    () => request.finalize(),
+    Error,
+    "This request has already been sent, and a sent request cannot be changed.",
+  );
 });

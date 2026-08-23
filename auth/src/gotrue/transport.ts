@@ -34,9 +34,10 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import { Duration } from "@scribe/alchemy";
 import { Failure, Ok, okay, type Result } from "@scribe/alchemy";
 import { currentClient } from "@scribe/foundation/lib/src/http/run_with_client.ts";
-import type { Response as HttpResponse } from "@scribe/foundation/lib/src/http/response/response.ts";
+import type { HttpResponse } from "@scribe/alchemy/http";
 import { identitySettings } from "@scribe/core/runtime/support/settings/identity.ts";
 
 export type AuthError = { code: string; message: string };
@@ -87,7 +88,7 @@ export function anonHeaders(): HeadersInit {
   };
 }
 
-const AUTH_TIMEOUT_MS = 10_000;
+const AUTH_TIMEOUT: Duration = Duration.seconds(10);
 
 export function adminHeaders(): HeadersInit {
   return {
@@ -114,7 +115,14 @@ export interface AuthRequest {
 
 export function parseError(res: HttpResponse): AuthError {
   try {
-    const body = res.json<{ error_code?: string; error?: string; msg?: string; error_description?: string }>();
+    const body = res.json<
+      {
+        error_code?: string;
+        error?: string;
+        msg?: string;
+        error_description?: string;
+      }
+    >();
     return {
       code: body.error_code ?? body.error ?? "unexpected_error",
       message: body.msg ?? body.error_description ?? "Unexpected error",
@@ -130,9 +138,16 @@ export function parseError(res: HttpResponse): AuthError {
  * The timeout is the whole point of routing this through the package client: GoTrue sits on the
  * sign-in path, and a request that never comes back holds the caller's request with it.
  */
-export async function sendAuth(url: string, init: AuthRequest): Promise<HttpResponse> {
+export async function sendAuth(
+  url: string,
+  init: AuthRequest,
+): Promise<HttpResponse> {
   const client = currentClient();
-  const options = { headers: init.headers, body: init.body ?? null, timeout: AUTH_TIMEOUT_MS };
+  const options = {
+    headers: init.headers,
+    body: init.body ?? null,
+    timeout: AUTH_TIMEOUT,
+  };
 
   try {
     switch (init.method.toUpperCase()) {

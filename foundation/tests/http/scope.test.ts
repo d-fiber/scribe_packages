@@ -34,12 +34,24 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { del, get, head, patch, post, put, read, readBytes } from "@scribe/foundation/lib/src/http/mod.ts";
-import { ClientException } from "@scribe/foundation/lib/src/http/exception.ts";
+import {
+  del,
+  get,
+  head,
+  patch,
+  post,
+  put,
+  read,
+  readBytes,
+} from "@scribe/foundation/lib/src/http/mod.ts";
+import { ClientException } from "@scribe/alchemy/http";
 import { FetchClient } from "@scribe/foundation/lib/src/http/fetch_client.ts";
-import { currentClient, runWithClient } from "@scribe/foundation/lib/src/http/run_with_client.ts";
+import {
+  currentClient,
+  runWithClient,
+} from "@scribe/foundation/lib/src/http/run_with_client.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
-import { RecordingClient } from "./mocks/recording_client.ts";
+import { MemoryClient } from "@scribe/alchemy/test";
 
 const URL_UNDER_TEST = "https://example.test/a";
 
@@ -51,13 +63,13 @@ Deno.test("outside a scope the client is a real one", () => {
 });
 
 Deno.test("inside a scope the client is the one the scope made", () => {
-  const client = new RecordingClient();
+  const client = new MemoryClient();
 
   assertEquals(runWithClient(() => currentClient(), () => client), client);
 });
 
 Deno.test("the substitution follows the asynchronous call tree", async () => {
-  const client = new RecordingClient();
+  const client = new MemoryClient();
 
   const [inside, outside] = await runWithClient(async () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -67,11 +79,14 @@ Deno.test("the substitution follows the asynchronous call tree", async () => {
 
   assertEquals(inside, client);
   assertEquals(outside, null);
-  assert(currentClient() instanceof FetchClient, "the scope does not outlive its body");
+  assert(
+    currentClient() instanceof FetchClient,
+    "the scope does not outlive its body",
+  );
 });
 
 Deno.test("each top-level verb sends its own, through the client in scope", async () => {
-  const client = new RecordingClient();
+  const client = new MemoryClient();
 
   await runWithClient(async () => {
     await head(URL_UNDER_TEST);
@@ -93,21 +108,26 @@ Deno.test("each top-level verb sends its own, through the client in scope", asyn
 });
 
 Deno.test("a one-off call closes the client it opened", async () => {
-  const client = new RecordingClient();
+  const client = new MemoryClient();
 
   await runWithClient(async () => {
     await get(URL_UNDER_TEST);
     await get(URL_UNDER_TEST);
   }, () => client);
 
-  assertEquals(client.closed, 2, "one close per call is what makes these calls one-off");
+  assertEquals(
+    client.closed,
+    2,
+    "one close per call is what makes these calls one-off",
+  );
 });
 
 Deno.test("read and readBytes answer through the client in scope, and close it", async () => {
-  const client = new RecordingClient({ body: "hello" });
+  const client = new MemoryClient({ body: "hello" });
 
   const [text, bytes] = await runWithClient(
-    async () => [await read(URL_UNDER_TEST), await readBytes(URL_UNDER_TEST)] as const,
+    async () =>
+      [await read(URL_UNDER_TEST), await readBytes(URL_UNDER_TEST)] as const,
     () => client,
   );
 
@@ -117,7 +137,7 @@ Deno.test("read and readBytes answer through the client in scope, and close it",
 });
 
 Deno.test("a one-off call closes its client even when the call fails", async () => {
-  const client = new RecordingClient({ status: 500 });
+  const client = new MemoryClient({ status: 500 });
 
   await runWithClient(
     () => assertRejects(() => read(URL_UNDER_TEST), ClientException),
@@ -135,7 +155,7 @@ Deno.test("the factory is called once per scope, not once per call", async () =>
     await get(URL_UNDER_TEST);
   }, () => {
     made++;
-    return new RecordingClient();
+    return new MemoryClient();
   });
 
   assertEquals(made, 1);
