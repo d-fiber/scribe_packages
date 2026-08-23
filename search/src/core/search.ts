@@ -34,19 +34,12 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Time } from "@scribe/core/contracts/common/time.ts";
+import type { Duration } from "@scribe/alchemy";
 import type { IndexSettings, QueryPlan, Search as SearchHandle, SearchParams } from "../../contracts/definition.ts";
 import type { SearchSort } from "../../contracts/query.ts";
 import { compilePreview } from "../document/preview.ts";
 import { compileDocument } from "../document/projection.ts";
-import {
-  type DocumentSelector,
-  documentSelector,
-  type PreviewOf,
-  type PreviewSelector,
-  previewSelector,
-  type PreviewShape,
-} from "../document/selector.ts";
+import { documentSelector, previewSelector, type DocumentSelector, type PreviewOf, type PreviewSelector, type PreviewShape } from "../document/selector.ts";
 import { DEFAULT_SETTINGS, type DocumentShape, type EmbeddedField, type MappedField } from "../fields/mapping.ts";
 import { type DocumentProperties, type QueryFields, queryFields } from "../fields/projection.ts";
 import { QueryBuilder } from "../fields/query.ts";
@@ -114,7 +107,7 @@ export interface IndexOptions {
   readonly pageSize?: number;
 
   /** How long a page and a preview are kept. Five minutes when absent. */
-  readonly ttl?: Time;
+  readonly ttl?: Duration;
 
   /** The analysis the index is created with. Lowercased and accent-folded when absent. */
   readonly settings?: IndexSettings;
@@ -193,7 +186,7 @@ interface Draft {
   pageSize: number;
 
   /** How long a page and a preview are kept. */
-  ttl: Time;
+  ttl: Duration;
 
   /** The analysis the index is created with. */
   settings: IndexSettings;

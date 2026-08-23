@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Pagination } from "@scribe/core/contracts/pagination.ts";
-import type { Result } from "@scribe/core/contracts/result.ts";
+import type { Pagination } from "@scribe/alchemy";
+import type { Result } from "@scribe/alchemy";
 import type { BoolQuery, SearchSort } from "./query.ts";
 
 /** What every set of search parameters carries, whatever else a declaration asks for. */

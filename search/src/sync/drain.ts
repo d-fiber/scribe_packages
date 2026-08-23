@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { extensions } from "@scribe/core/runtime/support/extensions/mod.ts";
 import { Cron, every } from "@scribe/foundation/lib/src/cron/mod.ts";
 import { SearchOperation } from "../../contracts/definition.ts";
@@ -163,7 +163,7 @@ function group(rows: readonly SearchOutboxRow[]): Map<string, Work> {
  * and not once per replica, which is what the occurrence lock of the runner is for.
  */
 export const searchDrain: Cron = new Cron(
-  { name: "search-drain", schedule: every(Time.minutes(1)) },
+  { name: "search-drain", schedule: every(Duration.minutes(1)) },
   async () => {
     await drainSearchOutbox();
   },

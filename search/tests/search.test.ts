@@ -132,7 +132,8 @@ Deno.test("a page that does not reach the total says there is more to read", asy
     transport.answer(["a", "b"]);
     const answered = await stores.search({});
 
-    assertEquals(answered.ok && answered.data.pagination, { offset: 2, total: 2, has_more: false });
+    assertEquals(answered.ok && answered.data.offset, 2);
+    assertEquals(answered.ok && answered.data.hasMore, false);
   } finally {
     restore();
   }

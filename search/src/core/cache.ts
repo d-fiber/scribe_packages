@@ -34,11 +34,11 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { Valkery } from "@scribe/foundation/lib/src/valkery/valkery.ts";
 
 /** How long a result set and a preview are kept when a declaration asks for nothing else. */
-export const DEFAULT_TTL: Time = Time.minutes(5);
+export const DEFAULT_TTL: Duration = Duration.minutes(5);
 
 /**
  * The two things one index caches: the pages it answered, and the previews it hydrated.
@@ -53,7 +53,7 @@ export class SearchCache<TPreview> {
   readonly #pages: Valkery<unknown>;
   readonly #previews: Valkery<TPreview>;
 
-  constructor(name: string, ttl: Time = DEFAULT_TTL) {
+  constructor(name: string, ttl: Duration = DEFAULT_TTL) {
     this.#pages = new Valkery<unknown>({ key: `search:${name}:page`, ttl });
     this.#previews = new Valkery<TPreview>({ key: `search:${name}:item`, ttl });
   }

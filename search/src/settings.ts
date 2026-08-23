@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { SettingsSlot } from "@scribe/core/runtime/support/settings/slot.ts";
+import { Slot } from "@scribe/alchemy";
 import type { SearchSettings } from "@scribe/search/contracts/settings.ts";
 
 /** Where this package reaches the cluster, handed over by whoever mounts it. */
-export const searchSettings: SettingsSlot<SearchSettings> = new SettingsSlot<SearchSettings>("search");
+export const searchSettings: Slot<SearchSettings> = new Slot<SearchSettings>("search");

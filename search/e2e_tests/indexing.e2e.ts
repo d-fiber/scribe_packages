@@ -35,16 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { assert, assertEquals } from "@std/assert";
-import {
-  clusterHas,
-  clusterMapping,
-  dropIndex,
-  refresh,
-  report,
-  requireStack,
-  timed,
-  useStack,
-} from "./support/stack.ts";
+import { clusterHas, clusterMapping, dropIndex, refresh, report, requireStack, timed, useStack } from "./support/stack.ts";
 
 await requireStack();
 await useStack();
@@ -159,13 +150,13 @@ Deno.test("search e2e: a page is narrowed and ranked by what the declaration nam
 
   assert(open.ok, "the cluster did not answer the filtered page");
   assertEquals(open.data.items.map((item) => item.name), ["Chez Lino", "Chez Rosa"]);
-  assertEquals(open.data.pagination.total, 2, "a closed store was counted in an open page");
+  assertEquals(open.data.total, 2, "a closed store was counted in an open page");
 
   const byName = await stores.search({ sort: "name" });
 
   assert(byName.ok);
   assertEquals(byName.data.items.map((item) => item.name), ["Chez Ada", "Chez Lino", "Chez Rosa"]);
-  report("page over three documents", `${byName.data.pagination.total} matched`);
+  report("page over three documents", `${byName.data.total} matched`);
 });
 
 Deno.test("search e2e: a row that changes is rebuilt, and one that is deleted leaves the index", async () => {

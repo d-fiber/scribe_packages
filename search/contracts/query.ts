@@ -265,16 +265,17 @@ export interface MatchQuery {
   /** The field, and either the text alone or the text with its options. */
   match: Record<
     string,
-    string | {
-      /** What the caller typed. */
-      query: string;
+    | string
+    | {
+        /** What the caller typed. */
+        query: string;
 
-      /** How the terms combine. One term is enough when absent. */
-      operator?: Operator;
+        /** How the terms combine. One term is enough when absent. */
+        operator?: Operator;
 
-      /** How many character edits a term may be away from what was typed. */
-      fuzziness?: Fuzziness;
-    }
+        /** How many character edits a term may be away from what was typed. */
+        fuzziness?: Fuzziness;
+      }
   >;
 }
 
@@ -407,7 +408,7 @@ export interface ScriptSort {
       /** The language the source is written in. */
       lang: ScriptLang;
 
-      /** The source, which reads `doc[…]` for field values and `params[…]` for the rest. */
+      /** The source, which reads `doc[...]` for field values and `params[...]` for the rest. */
       source: string;
 
       /** What the source reads out of `params`, which keeps the source itself constant. */
@@ -417,8 +418,4 @@ export interface ScriptSort {
 }
 
 /** Any sort clause a plan can carry. */
-export type SearchSort =
-  | "_score"
-  | FieldSort
-  | GeoDistanceSort
-  | ScriptSort;
+export type SearchSort = "_score" | FieldSort | GeoDistanceSort | ScriptSort;

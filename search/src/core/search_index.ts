@@ -34,9 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Time } from "@scribe/core/contracts/common/time.ts";
-import type { Pagination } from "@scribe/core/contracts/pagination.ts";
-import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
+import type { Duration } from "@scribe/alchemy";
+import { Pagination } from "@scribe/alchemy";
+import { Failure, Ok, type Result } from "@scribe/alchemy";
 import type {
   IndexConfig,
   IndexSettings,
@@ -82,7 +82,7 @@ export interface ResolvedIndex<TParams extends SearchParams, TPreview> {
   readonly pageSize: number;
 
   /** How long a page and a preview are kept. */
-  readonly ttl: Time;
+  readonly ttl: Duration;
 
   /** What one set of parameters compiles into. */
   readonly plan: (params: TParams) => QueryPlan;
@@ -176,10 +176,10 @@ export class SearchIndex<TParams extends SearchParams, TPreview> implements Sear
 
     try {
       const page = await this.#cache.page(stableKey({ plan, from, size }), () => this.#answer(plan, from, size));
-      return new OK(page);
+      return new Ok(page);
     } catch (error) {
       console.error(`[search:${this.name}] the page could not be answered.`, error);
-      return new Failure();
+      return new Failure(undefined);
     }
   }
 
@@ -253,7 +253,7 @@ export class SearchIndex<TParams extends SearchParams, TPreview> implements Sear
     if (hits === null) throw new Error(`search index "${this.name}" was not answered by the cluster.`);
 
     if (hits.ids.length === 0) {
-      return { items: [], pagination: { offset: from, total: hits.total, has_more: false } };
+      return Pagination.of([], from, 0);
     }
 
     const byId = await this.#cache.hydrate(hits.ids, (missing) => this.#previewsOf(missing));
@@ -262,7 +262,7 @@ export class SearchIndex<TParams extends SearchParams, TPreview> implements Sear
       .filter((preview): preview is TPreview => preview !== undefined);
 
     const offset = from + items.length;
-    return { items, pagination: { offset, total: hits.total, has_more: offset < hits.total } };
+    return Pagination.of(items, offset, items.length);
   }
 
   /** The previews of `ids`, read in one call and keyed by identifier. */

@@ -11,7 +11,7 @@ type StorePreview = { id: string; name: string };
  */
 export async function find(params: StoreSearch): Promise<StorePreview[]> {
   const result = await stores.search(params);
-  return result.ok ? result.data.items : [];
+  return result.ok ? [...result.data.items] : [];
 }
 
 /** A page is asked for by offset and size, and the declaration decides the size left out. */
