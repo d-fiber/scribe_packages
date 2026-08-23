@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { assertEquals } from "@std/assert";
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { report, requireStack, RUN_ID, STACK, timed, useStack } from "./support/stack.ts";
 
 await requireStack(`${STACK.restUrl}/`);
@@ -48,7 +48,7 @@ const motd = RemoteConfig.of<string>(`e2e-cached-motd-${RUN_ID}`, { default: "qu
 const absent = RemoteConfig.of<string>(`e2e-cached-absent-${RUN_ID}`, { default: "quiet" });
 const seats = RemoteConfig.of<number>(`e2e-cached-seats-${RUN_ID}`);
 const doors = RemoteConfig.of<string>(`e2e-cached-doors-${RUN_ID}`);
-const lease = RemoteConfig.of<string>(`e2e-cached-lease-${RUN_ID}`, { ttl: Time.minutes(1) });
+const lease = RemoteConfig.of<string>(`e2e-cached-lease-${RUN_ID}`, { ttl: Duration.minutes(1) });
 
 Deno.test("remote configs e2e: a value answered once is answered from Redis, not from the table", async () => {
   await motd.set("loud");
@@ -110,6 +110,6 @@ Deno.test("remote configs e2e: retiming a value that was already read is seen at
   await lease.set("open");
   assertEquals(await lease.get(), "open");
 
-  await lease.ttl(Time.ms(-1_000));
+  await lease.ttl(Duration.milliseconds(-1_000));
   assertEquals(await lease.get(), null, "retiming must drop what the cache holds");
 });

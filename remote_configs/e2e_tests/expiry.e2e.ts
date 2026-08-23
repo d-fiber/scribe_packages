@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { assert, assertEquals, assertFalse } from "@std/assert";
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { requireStack, RUN_ID, STACK, useStack } from "./support/stack.ts";
 
 await requireStack(`${STACK.restUrl}/`);
@@ -45,9 +45,9 @@ const { RemoteConfig } = await import("@scribe/remote_configs/mod.ts");
 const { ConfigError } = await import("@scribe/remote_configs/contracts/config.ts");
 const { remoteConfigs } = await import("@scribe/remote_configs/src/db/tables.ts");
 
-const banner = RemoteConfig.of<string>(`e2e-banner-${RUN_ID}`, { ttl: Time.days(7) });
-const notice = RemoteConfig.of<string>(`e2e-notice-${RUN_ID}`, { ttl: Time.days(7) });
-const maintenance = RemoteConfig.of<string>(`e2e-maintenance-${RUN_ID}`, { ttl: Time.days(7) });
+const banner = RemoteConfig.of<string>(`e2e-banner-${RUN_ID}`, { ttl: Duration.days(7) });
+const notice = RemoteConfig.of<string>(`e2e-notice-${RUN_ID}`, { ttl: Duration.days(7) });
+const maintenance = RemoteConfig.of<string>(`e2e-maintenance-${RUN_ID}`, { ttl: Duration.days(7) });
 const held = RemoteConfig.of<string>(`e2e-held-${RUN_ID}`, { default: "closed" });
 
 async function expiryOf(name: string): Promise<number | null> {
@@ -65,7 +65,7 @@ Deno.test("remote configs e2e: the declared delay is what a written value inheri
   const expiresAt = await expiryOf(banner.name);
 
   assert(expiresAt !== null, "the declared delay wrote no expiry");
-  assert(expiresAt >= before + Time.days(7).ms, "the expiry is closer than the declaration says");
+  assert(expiresAt >= before + Duration.days(7).inMilliseconds, "the expiry is closer than the declaration says");
 });
 
 Deno.test("remote configs e2e: a caller that names null keeps the value past the declaration", async () => {
@@ -76,7 +76,7 @@ Deno.test("remote configs e2e: a caller that names null keeps the value past the
 });
 
 Deno.test("remote configs e2e: a value past its expiry stops answering", async () => {
-  await maintenance.set("open", { ttl: Time.ms(-1_000) });
+  await maintenance.set("open", { ttl: Duration.milliseconds(-1_000) });
 
   const expiresAt = await expiryOf(maintenance.name);
   assert(expiresAt !== null && expiresAt <= Date.now(), "the negative delay wrote an expiry in the future");
@@ -84,13 +84,13 @@ Deno.test("remote configs e2e: a value past its expiry stops answering", async (
 });
 
 Deno.test("remote configs e2e: an expired value falls back to the declared one", async () => {
-  await held.set("open", { ttl: Time.ms(-1_000) });
+  await held.set("open", { ttl: Duration.milliseconds(-1_000) });
 
   assertEquals(await held.get(), "closed");
 });
 
 Deno.test("remote configs e2e: retiming moves the expiry without touching the value", async () => {
-  await banner.set("open", { ttl: Time.minutes(1) });
+  await banner.set("open", { ttl: Duration.minutes(1) });
   const before = await expiryOf(banner.name);
 
   assert((await banner.ttl(null)).ok);
@@ -101,7 +101,7 @@ Deno.test("remote configs e2e: retiming moves the expiry without touching the va
 });
 
 Deno.test("remote configs e2e: writing again restarts the declared delay", async () => {
-  await notice.set("open", { ttl: Time.minutes(1) });
+  await notice.set("open", { ttl: Duration.minutes(1) });
   const short = await expiryOf(notice.name);
 
   await notice.set("open");
@@ -112,10 +112,10 @@ Deno.test("remote configs e2e: writing again restarts the declared delay", async
 });
 
 Deno.test("remote configs e2e: retiming a value that expired still moves its row", async () => {
-  await maintenance.set("open", { ttl: Time.ms(-1_000) });
+  await maintenance.set("open", { ttl: Duration.milliseconds(-1_000) });
   assertEquals(await maintenance.get(), null);
 
-  const retimed = await maintenance.ttl(Time.days(1));
+  const retimed = await maintenance.ttl(Duration.days(1));
 
   assert(retimed.ok, `retiming answered ${retimed.ok ? "" : retimed.error}`);
   assertEquals(await maintenance.get(), "open", "a row that is still there must come back when its expiry moves");
@@ -124,7 +124,7 @@ Deno.test("remote configs e2e: retiming a value that expired still moves its row
 Deno.test("remote configs e2e: retiming a name the table never held answers not found", async () => {
   const gone = RemoteConfig.of<string>(`e2e-gone-${RUN_ID}`);
 
-  const retimed = await gone.ttl(Time.days(1));
+  const retimed = await gone.ttl(Duration.days(1));
 
   assertFalse(retimed.ok);
   assertEquals(retimed.ok ? null : retimed.error, ConfigError.NotFound);

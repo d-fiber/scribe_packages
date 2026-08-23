@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Time } from "@scribe/core/contracts/common/time.ts";
-import { Failure, OK, type Result } from "@scribe/core/contracts/result.ts";
+import type { Duration } from "@scribe/alchemy";
+import { Failure, okay, type Result } from "@scribe/alchemy";
 import { ConfigError } from "../../contracts/config.ts";
 import type { RemoteConfigRow } from "../db/tables.ts";
 import { dropValue, retimeValue, valueOf, writeValue } from "../db/values.ts";
@@ -51,7 +51,7 @@ export interface ConfigOptions {
    * A value never expires when absent. Naming it here is what makes a switch nobody remembers to
    * turn back off impossible: the declaration decides, and every caller inherits it.
    */
-  readonly ttl?: Time;
+  readonly ttl?: Duration;
 }
 
 /** What declaring a config that always answers takes on top of that. */
@@ -73,7 +73,7 @@ export interface SetOptions {
    * Null and absent are two answers on purpose: absent means the declaration decides, and null
    * means this value outlives whatever the declaration says.
    */
-  readonly ttl?: Time | null;
+  readonly ttl?: Duration | null;
 }
 
 /**
@@ -105,7 +105,7 @@ export interface Config<T> {
    * Null makes it never expire. A config that holds nothing answers `NotFound`, since there is no
    * row to move.
    */
-  ttl(ttl: Time | null): Promise<Result<void, ConfigError>>;
+  ttl(ttl: Duration | null): Promise<Result<void, ConfigError>>;
 
   /** Removes what is stored, so `get` goes back to answering the declared value, or null. */
   delete(): Promise<Result<void, ConfigError>>;
@@ -131,13 +131,13 @@ export interface DefaultedConfig<T> extends Config<T> {
  *   lastname: string;
  * }
  *
- * const key1 = RemoteConfig.of<Example>("key1", { default: BLANK, ttl: Time.hours(2) });
- * const key2 = RemoteConfig.of<string>("key2", { ttl: Time.hours(2) });
+ * const key1 = RemoteConfig.of<Example>("key1", { default: BLANK, ttl: Duration.hours(2) });
+ * const key2 = RemoteConfig.of<string>("key2", { ttl: Duration.hours(2) });
  *
  * await key1.get();                                        // Example
  * await key2.get();                                        // string | null
  * await key1.set({ firstname: "Ada", lastname: "Lovelace" });
- * await key1.ttl(Time.hours(5));
+ * await key1.ttl(Duration.hours(5));
  * await key1.delete();
  * ```
  *
@@ -153,9 +153,9 @@ export class RemoteConfig<T> implements Config<T> {
   readonly name: string;
 
   readonly #fallback: T | null;
-  readonly #ttl: Time | null;
+  readonly #ttl: Duration | null;
 
-  private constructor(name: string, fallback: T | null, ttl: Time | null) {
+  private constructor(name: string, fallback: T | null, ttl: Duration | null) {
     this.name = name;
     this.#fallback = fallback;
     this.#ttl = ttl;
@@ -191,22 +191,22 @@ export class RemoteConfig<T> implements Config<T> {
       const written = await writeValue({
         name: this.name,
         value,
-        expiresAt: ttl === null ? null : Date.now() + ttl.ms,
+        expiresAt: ttl === null ? null : Date.now() + ttl.inMilliseconds,
       });
       if (!written) return new Failure(ConfigError.Backend);
 
       await forgetValue(this.name);
-      return new OK();
+      return okay;
     });
   }
 
-  ttl(ttl: Time | null): Promise<Result<void, ConfigError>> {
+  ttl(ttl: Duration | null): Promise<Result<void, ConfigError>> {
     return guarded(async () => {
-      const retimed = await retimeValue(this.name, ttl === null ? null : Date.now() + ttl.ms);
+      const retimed = await retimeValue(this.name, ttl === null ? null : Date.now() + ttl.inMilliseconds);
       if (!retimed) return new Failure(ConfigError.NotFound);
 
       await forgetValue(this.name);
-      return new OK();
+      return okay;
     });
   }
 
@@ -214,7 +214,7 @@ export class RemoteConfig<T> implements Config<T> {
     return guarded(async () => {
       await dropValue(this.name);
       await forgetValue(this.name);
-      return new OK();
+      return okay;
     });
   }
 

@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { RemoteConfig } from "@scribe/remote_configs/src/core/declaration.ts";
 import { forgetValue } from "@scribe/remote_configs/src/runtime/cache.ts";
 import { installRemoteConfigsMock } from "@scribe/remote_configs/testing/mock.ts";
@@ -89,7 +89,7 @@ Deno.test("retiming a value that was already read is seen by the next read", asy
   const database = installRemoteConfigsMock();
 
   try {
-    await motd.set("loud", { ttl: Time.minutes(5) });
+    await motd.set("loud", { ttl: Duration.minutes(5) });
     assertEquals(await motd.get(), "loud");
 
     await motd.ttl(null);

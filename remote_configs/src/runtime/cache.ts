@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { Valkery } from "@scribe/foundation/lib/src/valkery/valkery.ts";
 import type { RemoteConfigRow } from "../db/tables.ts";
 
@@ -45,7 +45,7 @@ import type { RemoteConfigRow } from "../db/tables.ts";
  * entry, and the store is shared, so every replica stops serving the old value at the same
  * instant.
  */
-const CACHE_TTL = Time.minutes(10);
+const CACHE_TTL = Duration.minutes(10);
 
 /**
  * What one cached config holds.

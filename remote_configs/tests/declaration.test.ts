@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Time } from "@scribe/core/contracts/common/time.ts";
+import { Duration } from "@scribe/alchemy";
 import { ConfigError } from "@scribe/remote_configs/contracts/config.ts";
 import { RemoteConfig } from "@scribe/remote_configs/src/core/declaration.ts";
 import { installRemoteConfigsMock } from "@scribe/remote_configs/testing/mock.ts";
@@ -48,8 +48,8 @@ interface Example {
 const BLANK: Example = { firstname: "", lastname: "" };
 const ADA: Example = { firstname: "Ada", lastname: "Lovelace" };
 
-const key1 = RemoteConfig.of<Example>("declaration-key1", { default: BLANK, ttl: Time.hours(2) });
-const key2 = RemoteConfig.of<string>("declaration-key2", { ttl: Time.hours(2) });
+const key1 = RemoteConfig.of<Example>("declaration-key1", { default: BLANK, ttl: Duration.hours(2) });
+const key2 = RemoteConfig.of<string>("declaration-key2", { ttl: Duration.hours(2) });
 const key3 = RemoteConfig.of<Example>("declaration-key3");
 const forever = RemoteConfig.of<number>("declaration-forever");
 
@@ -149,7 +149,7 @@ Deno.test("a declaration ttl decides how long a written value lives", async () =
     await key1.set(ADA);
 
     const written = database.values()[0].expires_at as number;
-    assert(written >= before + Time.hours(2).ms, `the declared ttl must be carried: ${written}`);
+    assert(written >= before + Duration.hours(2).inMilliseconds, `the declared ttl must be carried: ${written}`);
   } finally {
     database.restore();
   }
@@ -171,9 +171,9 @@ Deno.test("set names its own ttl over the declaration's, and null outlives it", 
   const database = installRemoteConfigsMock();
 
   try {
-    await key1.set(ADA, { ttl: Time.minutes(5) });
+    await key1.set(ADA, { ttl: Duration.minutes(5) });
     const short = database.values()[0].expires_at as number;
-    assert(short < Date.now() + Time.hours(1).ms, `the caller's ttl must win: ${short}`);
+    assert(short < Date.now() + Duration.hours(1).inMilliseconds, `the caller's ttl must win: ${short}`);
 
     await key1.set(ADA, { ttl: null });
     assertEquals(database.values()[0].expires_at, null);
@@ -186,10 +186,10 @@ Deno.test("ttl moves when a value is dropped without touching the value", async 
   const database = installRemoteConfigsMock();
 
   try {
-    await key1.set(ADA, { ttl: Time.minutes(5) });
+    await key1.set(ADA, { ttl: Duration.minutes(5) });
     const before = database.values()[0].expires_at as number;
 
-    const retimed = await key1.ttl(Time.hours(5));
+    const retimed = await key1.ttl(Duration.hours(5));
 
     assert(retimed.ok);
     const after = database.values()[0].expires_at as number;
@@ -204,7 +204,7 @@ Deno.test("ttl null makes a value that was expiring stop expiring", async () => 
   const database = installRemoteConfigsMock();
 
   try {
-    await key1.set(ADA, { ttl: Time.minutes(5) });
+    await key1.set(ADA, { ttl: Duration.minutes(5) });
     await key1.ttl(null);
 
     assertEquals(database.values()[0].expires_at, null);
@@ -217,7 +217,7 @@ Deno.test("retiming a config that holds nothing answers not found", async () => 
   const database = installRemoteConfigsMock();
 
   try {
-    const retimed = await key2.ttl(Time.hours(5));
+    const retimed = await key2.ttl(Duration.hours(5));
 
     assert(!retimed.ok);
     assertEquals(retimed.error, ConfigError.NotFound);
