@@ -37,18 +37,32 @@
 import { assertEquals } from "@std/assert";
 import { database } from "@scribe/foundation/lib/src/database/database.ts";
 import { DeviceThemeMode } from "@scribe/core/contracts/enums.ts";
-import { RequestIdentityCache, type RequestUser } from "@scribe/core/runtime/http/accessors/identity.ts";
+import type { RequestUser } from "@scribe/alchemy/route";
+import { RequestIdentityCache } from "@scribe/core/runtime/http/accessors/identity.ts";
+import { READS_EVERY_ROW } from "@scribe/foundation/lib/src/database/query/scope.ts";
 import { RequestScope } from "@scribe/core/runtime/scope.ts";
 import { installDatabaseMock } from "@scribe/foundation/tests/database/mocks/install_database.ts";
 
-const USER = { id: "u1", email: "u1@example.com" };
-const ADMIN = {
-  id: "a1",
-  email: "a1@example.com",
-  rules: { role: "owner", permissions: [] },
+const USER: RequestUser = {
+  id: "u1",
+  caller: "authenticated",
+  role: "",
+  permissions: [],
+  claims: { email: "u1@example.com" },
 };
 
-function withIdentity<T>(identity: RequestUser, run: () => Promise<T>): Promise<T> {
+const EVERY_ROW: RequestUser = {
+  id: "a1",
+  caller: "authenticated",
+  role: "owner",
+  permissions: [READS_EVERY_ROW],
+  claims: { email: "a1@example.com" },
+};
+
+function withIdentity<T>(
+  identity: RequestUser | null,
+  run: () => Promise<T>,
+): Promise<T> {
   return RequestScope.run(
     new Request("http://test.local/"),
     new Uint8Array(0),
@@ -65,15 +79,20 @@ const SETTINGS = [
   { user_id: "u2", localization: "en", theme_mode: "light" },
 ];
 
-const ADMIN_SETTINGS = [
+const OWNED_SETTINGS = [
   { admin_id: "a1", localization: "fr", theme_mode: DeviceThemeMode.DARK },
   { admin_id: "a2", localization: "en", theme_mode: "light" },
 ];
 
 Deno.test("scope: a user only reads its own rows", async () => {
-  const mock = installDatabaseMock({ internal_t__app_user_settings: [...SETTINGS] });
+  const mock = installDatabaseMock({
+    internal_t__app_user_settings: [...SETTINGS],
+  });
   try {
-    const rows = await withIdentity(USER, () => database.internal_t__app_user_settings().get());
+    const rows = await withIdentity(
+      USER,
+      () => database.internal_t__app_user_settings().get(),
+    );
     assertEquals(rows.length, 1);
     assertEquals((rows[0] as { user_id: string }).user_id, "u1");
   } finally {
@@ -82,33 +101,82 @@ Deno.test("scope: a user only reads its own rows", async () => {
 });
 
 Deno.test("scope: an admin sees a whole user table", async () => {
-  const mock = installDatabaseMock({ internal_t__app_user_settings: [...SETTINGS] });
+  const mock = installDatabaseMock({
+    internal_t__app_user_settings: [...SETTINGS],
+  });
   try {
-    const rows = await withIdentity(ADMIN, () => database.internal_t__app_user_settings().get());
-    assertEquals(rows.length, 2, "an admin reading a user table gets every row of it");
+    const rows = await withIdentity(
+      EVERY_ROW,
+      () => database.internal_t__app_user_settings().get(),
+    );
+    assertEquals(
+      rows.length,
+      2,
+      "an admin reading a user table gets every row of it",
+    );
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("scope: an admin is bounded on an admin table", async () => {
+Deno.test("scope: a caller is bounded on a table it owns rows of", async () => {
   const mock = installDatabaseMock({
-    internal_t__admin_users_settings: [...ADMIN_SETTINGS],
+    internal_t__admin_users_settings: [...OWNED_SETTINGS],
+  });
+  const owner: RequestUser = { ...EVERY_ROW, permissions: [] };
+  try {
+    const rows = await withIdentity(
+      owner,
+      () => database.internal_t__admin_users_settings().get(),
+    );
+    assertEquals(
+      rows.length,
+      1,
+      "the table is owned, so the read narrowed to one row",
+    );
+    assertEquals(
+      (rows[0] as { admin_id: string }).admin_id,
+      "a1",
+      "and it is the caller's row",
+    );
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("scope: the permission to read every row lifts the narrowing", async () => {
+  const mock = installDatabaseMock({
+    internal_t__admin_users_settings: [...OWNED_SETTINGS],
   });
   try {
-    const rows = await withIdentity(ADMIN, () => database.internal_t__admin_users_settings().get());
-    assertEquals(rows.length, 1, "an admin table is owned, so the read narrowed to one row");
-    assertEquals((rows[0] as { admin_id: string }).admin_id, "a1", "and it is the caller's row");
+    const rows = await withIdentity(
+      EVERY_ROW,
+      () => database.internal_t__admin_users_settings().get(),
+    );
+    assertEquals(
+      rows.length,
+      2,
+      "nothing narrowed the read, so every row came back",
+    );
   } finally {
     mock.restore();
   }
 });
 
 Deno.test("scope: without an identity, service scope (no filter)", async () => {
-  const mock = installDatabaseMock({ internal_t__app_user_settings: [...SETTINGS] });
+  const mock = installDatabaseMock({
+    internal_t__app_user_settings: [...SETTINGS],
+  });
   try {
-    const rows = await withIdentity(null, () => database.internal_t__app_user_settings().get());
-    assertEquals(rows.length, 2, "with nobody to scope to, the read runs unfiltered");
+    const rows = await withIdentity(
+      null,
+      () => database.internal_t__app_user_settings().get(),
+    );
+    assertEquals(
+      rows.length,
+      2,
+      "with nobody to scope to, the read runs unfiltered",
+    );
   } finally {
     mock.restore();
   }
@@ -119,11 +187,16 @@ Deno.test({
   sanitizeOps: false,
   sanitizeResources: false,
   async fn() {
-    const mock = installDatabaseMock({ internal_t__app_user_settings: [...SETTINGS] });
+    const mock = installDatabaseMock({
+      internal_t__app_user_settings: [...SETTINGS],
+    });
     try {
       const ok = await withIdentity(
         USER,
-        () => database.internal_t__app_user_settings().update({ theme_mode: DeviceThemeMode.SYSTEM }),
+        () =>
+          database.internal_t__app_user_settings().update({
+            theme_mode: DeviceThemeMode.SYSTEM,
+          }),
       );
       assertEquals(ok, true);
 
@@ -137,11 +210,16 @@ Deno.test({
 });
 
 Deno.test("scope: an update without filter or identity is refused", async () => {
-  const mock = installDatabaseMock({ internal_t__app_user_settings: [...SETTINGS] });
+  const mock = installDatabaseMock({
+    internal_t__app_user_settings: [...SETTINGS],
+  });
   try {
     const ok = await withIdentity(
       null,
-      () => database.internal_t__app_user_settings().update({ theme_mode: DeviceThemeMode.DARK }),
+      () =>
+        database.internal_t__app_user_settings().update({
+          theme_mode: DeviceThemeMode.DARK,
+        }),
     );
     assertEquals(ok, false);
 
@@ -153,7 +231,9 @@ Deno.test("scope: an update without filter or identity is refused", async () => 
 });
 
 Deno.test("scope: .unscoped() returns the whole table to a user", async () => {
-  const mock = installDatabaseMock({ internal_t__app_user_settings: [...SETTINGS] });
+  const mock = installDatabaseMock({
+    internal_t__app_user_settings: [...SETTINGS],
+  });
   try {
     const rows = await withIdentity(
       USER,
@@ -174,7 +254,10 @@ Deno.test({
     try {
       const ok = await withIdentity(
         USER,
-        () => database.internal_t__app_user_settings().insert({ localization: "fr" } as never),
+        () =>
+          database.internal_t__app_user_settings().insert(
+            { localization: "fr" } as never,
+          ),
       );
       assertEquals(ok, true);
       assertEquals(mock.rows("internal_t__app_user_settings")[0].user_id, "u1");

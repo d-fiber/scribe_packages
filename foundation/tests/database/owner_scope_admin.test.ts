@@ -58,8 +58,10 @@ function asCaller<T>(run: () => Promise<T>): Promise<T> {
     await RequestIdentityCache.remember(() =>
       Promise.resolve({
         id: CALLER,
-        email: "caller@example.com",
-        rules: { role: "owner", permissions: [] },
+        caller: "authenticated" as const,
+        role: "owner",
+        permissions: [],
+        claims: {},
       })
     );
     return await run();

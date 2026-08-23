@@ -34,21 +34,34 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { assertEquals, assertRejects } from "@std/assert";
+import { assertEquals } from "@std/assert";
 import { database } from "@scribe/foundation/lib/src/database/database.ts";
-import { OwnerScopeError } from "@scribe/foundation/lib/src/database/query/builder.ts";
-import { RequestIdentityCache, type RequestUser } from "@scribe/core/runtime/http/accessors/identity.ts";
+import type { RequestUser } from "@scribe/alchemy/route";
+import { RequestIdentityCache } from "@scribe/core/runtime/http/accessors/identity.ts";
+import { READS_EVERY_ROW } from "@scribe/foundation/lib/src/database/query/scope.ts";
 import { RequestScope } from "@scribe/core/runtime/scope.ts";
 import { installDatabaseMock } from "@scribe/foundation/tests/database/mocks/install_database.ts";
 
-const USER = { id: "u1", email: "u1@example.com" };
-const ADMIN = {
-  id: "a1",
-  email: "a1@example.com",
-  rules: { role: "owner", permissions: [] },
+const USER: RequestUser = {
+  id: "u1",
+  caller: "authenticated",
+  role: "",
+  permissions: [],
+  claims: { email: "u1@example.com" },
 };
 
-function withIdentity<T>(identity: RequestUser, run: () => Promise<T>): Promise<T> {
+const EVERY_ROW: RequestUser = {
+  id: "a1",
+  caller: "authenticated",
+  role: "owner",
+  permissions: [READS_EVERY_ROW],
+  claims: { email: "a1@example.com" },
+};
+
+function withIdentity<T>(
+  identity: RequestUser | null,
+  run: () => Promise<T>,
+): Promise<T> {
   return RequestScope.run(
     new Request("http://test.local/"),
     new Uint8Array(0),
@@ -60,7 +73,7 @@ function withIdentity<T>(identity: RequestUser, run: () => Promise<T>): Promise<
   );
 }
 
-const ADMIN_DEVICES = [
+const EVERY_ROW_DEVICES = [
   { id: "d1", admin_id: "a1", device_id: "x1" },
   { id: "d2", admin_id: "a2", device_id: "x2" },
 ];
@@ -72,23 +85,28 @@ const TEMPLATES = [
 
 const templates = () => database.internal_t__email_templates();
 
-Deno.test("cross-owner: a user cannot sweep an admin-owned table", async () => {
+Deno.test("cross-owner: a caller reads no row of a table whose owner column never names it", async () => {
   const mock = installDatabaseMock({
-    internal_t__admin_users_devices: [...ADMIN_DEVICES],
+    internal_t__admin_users_devices: [...EVERY_ROW_DEVICES],
   });
   try {
-    await assertRejects(
-      () => withIdentity(USER, () => database.internal_t__admin_users_devices().get()),
-      OwnerScopeError,
+    const rows = await withIdentity(
+      USER,
+      () => database.internal_t__admin_users_devices().get(),
+    );
+    assertEquals(
+      rows.length,
+      0,
+      "the read narrowed to the caller, and the caller owns none of it",
     );
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("cross-owner: an explicit predicate on the owner column is allowed", async () => {
+Deno.test("cross-owner: naming another owner in the predicate does not widen the read", async () => {
   const mock = installDatabaseMock({
-    internal_t__admin_users_devices: [...ADMIN_DEVICES],
+    internal_t__admin_users_devices: [...EVERY_ROW_DEVICES],
   });
   try {
     const rows = await withIdentity(
@@ -98,7 +116,11 @@ Deno.test("cross-owner: an explicit predicate on the owner column is allowed", a
           .where((f) => f.admin_id.eq("a2"))
           .get(),
     );
-    assertEquals(rows.length, 1);
+    assertEquals(
+      rows.length,
+      0,
+      "the scope narrows on top of the predicate, it is not replaced by it",
+    );
   } finally {
     mock.restore();
   }
@@ -106,7 +128,7 @@ Deno.test("cross-owner: an explicit predicate on the owner column is allowed", a
 
 Deno.test("cross-owner: .unscoped() stays the deliberate way through", async () => {
   const mock = installDatabaseMock({
-    internal_t__admin_users_devices: [...ADMIN_DEVICES],
+    internal_t__admin_users_devices: [...EVERY_ROW_DEVICES],
   });
   try {
     const rows = await withIdentity(
@@ -127,7 +149,10 @@ Deno.test("cross-owner: an admin reading a user table is untouched", async () =>
     ],
   });
   try {
-    const rows = await withIdentity(ADMIN, () => database.internal_t__app_user_settings().get());
+    const rows = await withIdentity(
+      EVERY_ROW,
+      () => database.internal_t__app_user_settings().get(),
+    );
     assertEquals(rows.length, 2);
   } finally {
     mock.restore();
@@ -135,9 +160,11 @@ Deno.test("cross-owner: an admin reading a user table is untouched", async () =>
 });
 
 Deno.test("unbounded write: an unowned table is no longer a free-for-all", async () => {
-  const mock = installDatabaseMock({ internal_t__email_templates: [...TEMPLATES] });
+  const mock = installDatabaseMock({
+    internal_t__email_templates: [...TEMPLATES],
+  });
   try {
-    const ok = await withIdentity(ADMIN, () => templates().delete());
+    const ok = await withIdentity(EVERY_ROW, () => templates().delete());
     assertEquals(ok, false);
     assertEquals(mock.rows("internal_t__email_templates").length, 2);
   } finally {
@@ -146,9 +173,14 @@ Deno.test("unbounded write: an unowned table is no longer a free-for-all", async
 });
 
 Deno.test("unbounded write: .entireTable() is the explicit opt-in", async () => {
-  const mock = installDatabaseMock({ internal_t__email_templates: [...TEMPLATES] });
+  const mock = installDatabaseMock({
+    internal_t__email_templates: [...TEMPLATES],
+  });
   try {
-    const ok = await withIdentity(ADMIN, () => templates().entireTable().delete());
+    const ok = await withIdentity(
+      EVERY_ROW,
+      () => templates().entireTable().delete(),
+    );
     assertEquals(ok, true);
     assertEquals(mock.rows("internal_t__email_templates").length, 0);
   } finally {
@@ -157,9 +189,11 @@ Deno.test("unbounded write: .entireTable() is the explicit opt-in", async () => 
 });
 
 Deno.test("unbounded write: deleteOne without a predicate is refused too", async () => {
-  const mock = installDatabaseMock({ internal_t__email_templates: [...TEMPLATES] });
+  const mock = installDatabaseMock({
+    internal_t__email_templates: [...TEMPLATES],
+  });
   try {
-    const row = await withIdentity(ADMIN, () => templates().deleteOne());
+    const row = await withIdentity(EVERY_ROW, () => templates().deleteOne());
     assertEquals(row, null);
     assertEquals(mock.rows("internal_t__email_templates").length, 2);
   } finally {
@@ -172,7 +206,10 @@ Deno.test("insert: an explicit null owner is filled in, not written", async () =
   try {
     await withIdentity(
       USER,
-      () => database.internal_t__app_user_settings().insert({ user_id: null } as never),
+      () =>
+        database.internal_t__app_user_settings().insert(
+          { user_id: null } as never,
+        ),
     );
     assertEquals(mock.rows("internal_t__app_user_settings")[0]?.user_id, "u1");
   } finally {

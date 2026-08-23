@@ -37,16 +37,36 @@
 import { currentIdentity } from "@scribe/core/runtime/http/accessors/identity.ts";
 import { ownerOf } from "../schema.ts";
 
-const ADMIN_COLUMN = "admin_id";
-const USER_COLUMN = "user_id";
+/**
+ * The permission that lets a caller read past the rows it owns.
+ *
+ * @remarks
+ * It is a permission and not a kind of account, because who is allowed to see a whole table is a
+ * decision a deployment makes and this framework cannot: a back office, a support tool and an
+ * export job all need it, and none of them is a word this layer could have known.
+ */
+export const READS_EVERY_ROW = "database.unscoped";
 
+/** What a query is allowed to see of an owned table. */
 export type ScopeDecision =
   | { readonly kind: "open" }
-  | { readonly kind: "scoped"; readonly column: string; readonly id: string }
-  | { readonly kind: "denied"; readonly column: string };
+  | { readonly kind: "scoped"; readonly column: string; readonly id: string };
 
 const OPEN: ScopeDecision = { kind: "open" };
 
+/**
+ * What the caller of the current request may see of `table`.
+ *
+ * @remarks
+ * A table that declares an owner column is read as that caller's own rows and no others. There is
+ * one rule and not one per kind of account: the framework knows who is calling and what column the
+ * table says owns a row, and it has no way of knowing that a deployment has two populations, or
+ * five, or one. A caller whose identifier appears in no row simply reads no row, which is the
+ * same answer as a refusal and does not require guessing which population they belong to.
+ *
+ * Seeing the whole table is {@link READS_EVERY_ROW}, which a deployment grants to whoever it
+ * decides needs it.
+ */
 export function ownerScope(table: string): ScopeDecision {
   const column = ownerOf(table);
   if (column === null) return OPEN;
@@ -54,10 +74,7 @@ export function ownerScope(table: string): ScopeDecision {
   const identity = currentIdentity();
   if (!identity) return OPEN;
 
-  const callerColumn = "rules" in identity ? ADMIN_COLUMN : USER_COLUMN;
-  if (column === callerColumn) return { kind: "scoped", column, id: identity.id };
+  if (identity.permissions.includes(READS_EVERY_ROW)) return OPEN;
 
-  if (callerColumn === ADMIN_COLUMN) return OPEN;
-
-  return { kind: "denied", column };
+  return { kind: "scoped", column, id: identity.id };
 }

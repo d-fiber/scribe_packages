@@ -60,7 +60,9 @@ function describeCause(cause: unknown): string {
     text = String(cause);
   }
 
-  return text.length > MAX_CAUSE_CHARS ? `${text.slice(0, MAX_CAUSE_CHARS)}…` : text;
+  return text.length > MAX_CAUSE_CHARS
+    ? `${text.slice(0, MAX_CAUSE_CHARS)}...`
+    : text;
 }
 
 export class DatabaseQueryError extends Error {
@@ -71,16 +73,6 @@ export class DatabaseQueryError extends Error {
   ) {
     super(`[${operation}] ${table}: ${describeCause(cause)}`);
     this.name = "DatabaseQueryError";
-  }
-}
-
-export class OwnerScopeError extends Error {
-  constructor(readonly table: string, readonly column: string) {
-    super(
-      `${table} is owned by "${column}" and the caller is not an admin: refusing an unscoped query. ` +
-        `Call .unscoped() if crossing owners is deliberate and authorised upstream.`,
-    );
-    this.name = "OwnerScopeError";
   }
 }
 
@@ -121,27 +113,25 @@ export class TypedQueryBuilder<
    * the boot filled the settings still works.
    */
   get #db(): any {
-    return (this.#client ??= typeof this.#source === "function" ? this.#source() : this.#source);
+    return (this.#client ??= typeof this.#source === "function"
+      ? this.#source()
+      : this.#source);
   }
 
   #constrainsOwner(): boolean {
     const column = ownerOf(this.#table);
-    return column !== null &&
-      this.#state.filters.some((f) => f.column === column);
+    return (
+      column !== null && this.#state.filters.some((f) => f.column === column)
+    );
   }
 
-  #decide(ownerAlreadyBound: boolean): ScopeDecision {
-    if (this.#state.unscoped) return OPEN_SCOPE;
-
-    const decision = ownerScope(this.#table);
-    if (decision.kind !== "denied") return decision;
-    if (ownerAlreadyBound) return OPEN_SCOPE;
-
-    throw new OwnerScopeError(this.#table, decision.column);
+  /** What this query is allowed to see, once the caller and the table have both been read. */
+  #decide(): ScopeDecision {
+    return this.#state.unscoped ? OPEN_SCOPE : ownerScope(this.#table);
   }
 
   #scoped(): { state: QueryState; owned: boolean } {
-    const decision = this.#decide(this.#constrainsOwner());
+    const decision = this.#decide();
     if (decision.kind !== "scoped") return { state: this.#state, owned: false };
 
     return {
@@ -176,9 +166,7 @@ export class TypedQueryBuilder<
   #failed(op: string, error: unknown): boolean {
     if (!error) return false;
 
-    console.error(
-      `[db-query:${op}] ${this.#table}: ${describeCause(error)}`,
-    );
+    console.error(`[db-query:${op}] ${this.#table}: ${describeCause(error)}`);
     return true;
   }
 
@@ -187,20 +175,24 @@ export class TypedQueryBuilder<
     if (column === null) return false;
 
     const rows = Array.isArray(data) ? data : [data];
-    return rows.length > 0 &&
+    return (
+      rows.length > 0 &&
       rows.every((row) => {
         const value = (row as Record<string, unknown>)[column];
         return value !== undefined && value !== null;
-      });
+      })
+    );
   }
 
   #owned<T extends Partial<Row>>(data: T | T[]): T | T[] {
-    const decision = this.#decide(this.#carriesOwner(data));
+    const decision = this.#decide();
     if (decision.kind !== "scoped") return data;
 
     const withOwner = (row: T): T => {
       const current = (row as Record<string, unknown>)[decision.column];
-      return current === undefined || current === null ? { ...row, [decision.column]: decision.id } : row;
+      return current === undefined || current === null
+        ? { ...row, [decision.column]: decision.id }
+        : row;
     };
 
     return Array.isArray(data) ? data.map(withOwner) : withOwner(data);
@@ -352,7 +344,9 @@ export class TypedQueryBuilder<
     if (this.#refusesUnboundedWrite("deleteOne", scoped)) return null;
 
     let qb = buildWrite(this.#db, this.#table, scoped.state, "delete");
-    qb = builder ? qb.select(columnsOf(builder(selector<Row, Rels>()))) : qb.select("*");
+    qb = builder
+      ? qb.select(columnsOf(builder(selector<Row, Rels>())))
+      : qb.select("*");
     const { data, error } = await qb.maybeSingle();
     if (this.#failed("deleteOne", error)) return null;
     return data as any;
