@@ -34,12 +34,21 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { type Future, type UnmodifiableList } from "@scribe/alchemy";
+import { Duration, type Future, type UnmodifiableList } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
 import { queueRegistry } from "@scribe/foundation/lib/src/queue/queue_registry.ts";
 import type { JsMsg } from "@nats-io/jetstream";
 import type { DrainTally } from "./drain_tally.ts";
 import { processorFor } from "./processor_for.ts";
+
+/**
+ * How long a message for a subject this process does not know waits before it is offered again.
+ *
+ * @remarks
+ * Long enough that a process which will never know the subject does not spin on it, short enough
+ * that a replica which does know is not kept waiting for work it could be doing.
+ */
+const HAND_BACK_AFTER: Duration = Duration.seconds(30);
 
 function groupBySubject(
   messages: UnmodifiableList<JsMsg>,
@@ -72,19 +81,40 @@ export class MessageDispatcher {
     );
   }
 
+  /**
+   * Hands a group back for another replica to take, rather than destroying it.
+   *
+   * @remarks
+   * A subject nothing in this process declares is not a subject nobody declares. The stream is
+   * shared by every package, and the shared consumer reads all of it, so a process that mounts
+   * one package and not another sees the other's messages go by. Ending them here would delete
+   * work that belongs to a replica that does know what to do with it, and a rolling deploy runs
+   * two such processes side by side on purpose.
+   *
+   * Answering with a delay rather than nothing at all is what keeps the consumer moving: an
+   * unanswered message holds its slot until the server gives up on it, a refused one comes back
+   * when somebody asks again.
+   */
+  #handBack(subject: string, group: UnmodifiableList<JsMsg>): Future<void> {
+    log.warn("queue.subject_undeclared", {
+      metadata: {
+        subject,
+        handedBack: group.length,
+        reason: "no queue of that subject is declared in this process",
+      },
+    });
+
+    for (const message of group) message.nak(HAND_BACK_AFTER.inMilliseconds);
+    return Promise.resolve();
+  }
+
   #dispatchGroup(
     subject: string,
     group: UnmodifiableList<JsMsg>,
     tally: DrainTally,
   ): Future<void> {
     const queue = queueRegistry.bySubject(subject);
-    if (!queue) {
-      log.error("queue.subject_undeclared", {
-        metadata: { subject, discarded: group.length },
-      });
-      for (const message of group) message.term();
-      return Promise.resolve();
-    }
+    if (!queue) return this.#handBack(subject, group);
 
     return processorFor(queue).process(group, tally);
   }

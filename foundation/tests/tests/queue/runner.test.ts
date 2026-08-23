@@ -154,12 +154,13 @@ Deno.test("dispatch() splits a mixed batch by queue", async () => {
   assertEquals(second, ["b1"]);
 });
 
-Deno.test("dispatch() discards an orphan subject instead of blocking the consumer", async () => {
-  const messages = [message("q.gone_queue", { id: "x" }, 1)];
+Deno.test("dispatch() hands a subject this process does not declare back, it does not destroy it", async () => {
+  const messages = [message("q.owned_by_another_package", { id: "x" }, 1)];
 
   const result = await dispatch(asJsMsgs(messages));
 
-  assertEquals(messages[0].termed, true);
+  assertEquals(messages[0].termed, false, "another replica may be the one that declares it");
+  assertEquals(messages[0].naked, true, "and it comes back rather than holding its slot");
   assertEquals(messages[0].acked, false);
   assertEquals(result.done, 0);
 });
