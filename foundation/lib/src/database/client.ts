@@ -34,15 +34,23 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { currentIdentity } from "@scribe/core/runtime/http/accessors/identity.ts";
-import { request } from "@scribe/core/runtime/http/request.ts";
-import { RequestScope } from "@scribe/core/runtime/scope.ts";
 import { databaseSettings } from "@scribe/foundation/lib/src/database/settings.ts";
 import { PostgrestClient } from "@supabase/postgrest-js";
 
+/**
+ * The PostgREST client every path inside the framework shares.
+ *
+ * @remarks
+ * There is one client and one role. Owner scoping is decided in TypeScript, by `ownerScope` in
+ * `query/scope.ts`, and never delegated to a row level security policy: the framework reaches
+ * PostgREST with the service role, so `auth.uid()` and `auth.jwt()` never see a caller's identity
+ * on this path. A per-caller client passing the request's own `Authorization` header used to sit
+ * beside this one, and nothing ever called it.
+ */
 export class PostgrestClients {
   static #serviceClient: PostgrestClient | null = null;
 
+  /** The shared client, authenticated with the service role key. */
   static service(): PostgrestClient {
     if (!this.#serviceClient) {
       const { restUrl, serviceRoleKey } = databaseSettings.get();
@@ -54,34 +62,5 @@ export class PostgrestClients {
       });
     }
     return this.#serviceClient;
-  }
-
-  static user(): PostgrestClient | null {
-    return this.#scoped("user");
-  }
-
-  static admin(): PostgrestClient | null {
-    return this.#scoped("admin");
-  }
-
-  static #scoped(scope: "user" | "admin"): PostgrestClient | null {
-    const header = request.headers().get("Authorization");
-    const identity = currentIdentity();
-    if (!header || !identity) return null;
-    if ((scope === "admin") !== ("rules" in identity)) return null;
-
-    const cacheKey = `rest:${scope}`;
-    const cached = RequestScope.cache.get<PostgrestClient>(cacheKey);
-    if (cached) return cached;
-
-    const { restUrl, anonKey } = databaseSettings.get();
-    const client = new PostgrestClient(restUrl, {
-      headers: {
-        apikey: anonKey,
-        Authorization: header,
-      },
-    });
-    RequestScope.cache.set(cacheKey, client);
-    return client;
   }
 }
