@@ -42,7 +42,7 @@ import { log } from "@scribe/alchemy/observe";
 import { ownerOf } from "../table_owners.ts";
 import type { FilterBuilder, FilterSpec } from "./filter_builder.ts";
 import { filter } from "./filter_builder.ts";
-import type { ScopeDecision } from "./owner_scope.ts";
+import { NOBODY, type ScopeDecision } from "./owner_scope.ts";
 import { ownerScope } from "./owner_scope.ts";
 import type { ExtractShape, RelNode, Selector } from "./selector.ts";
 import { columnsOf, selector } from "./selector.ts";
@@ -135,6 +135,20 @@ export class TypedQueryBuilder<
 
   #scoped(): { state: QueryState; owned: boolean } {
     const decision = this.#decide();
+
+    if (decision.kind === "nobody") {
+      return {
+        state: {
+          ...this.#state,
+          filters: [
+            ...this.#state.filters,
+            { column: decision.column, apply: (qb: any) => qb.eq(decision.column, NOBODY) },
+          ],
+        },
+        owned: false,
+      };
+    }
+
     if (decision.kind !== "scoped") return { state: this.#state, owned: false };
 
     return {
@@ -157,7 +171,7 @@ export class TypedQueryBuilder<
     scoped: { state: QueryState; owned: boolean },
   ): boolean {
     if (this.#state.entireTable) return false;
-    if (scoped.owned || scoped.state.filters.length > 0) return false;
+    if (scoped.owned || this.#state.filters.length > 0) return false;
 
     log.error("db-query.unbounded_write_refused", {
       metadata: {

@@ -34,7 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { currentIdentity } from "@scribe/core/runtime/http/accessors/identity.ts";
+import { currentPrincipal } from "@scribe/core/runtime/http/accessors/identity.ts";
+import { ScribeError } from "@scribe/alchemy";
 import { ownerOf } from "../table_owners.ts";
 
 /**
@@ -50,9 +51,30 @@ export const READS_EVERY_ROW = "database.unscoped";
 /** What a query is allowed to see of an owned table. */
 export type ScopeDecision =
   | { readonly kind: "open" }
-  | { readonly kind: "scoped"; readonly column: string; readonly id: string };
+  | { readonly kind: "scoped"; readonly column: string; readonly id: string }
+  | { readonly kind: "nobody"; readonly column: string };
 
 const OPEN: ScopeDecision = { kind: "open" };
+
+/**
+ * The owner an anonymous caller is narrowed to, which no row can hold.
+ *
+ * @remarks
+ * The read runs and answers nothing, which is what an anonymous caller should see of a table
+ * somebody owns. Answering nothing is not refusing, and the difference matters: a refusal would
+ * tell the caller the table exists.
+ */
+export const NOBODY = "\u0000nobody";
+
+/**
+ * Raised when an owned table is read from a path that never resolved a caller.
+ *
+ * @remarks
+ * A queue worker, a cron body, a trigger handler and a webhook endpoint all run outside a
+ * request, so nothing resolved an identity on the way in. That is not an anonymous caller, and
+ * reading the whole table because nobody asked is how a background job comes to see everything.
+ */
+export class UnprovenCallerError extends ScribeError {}
 
 /**
  * What the caller of the current request may see of `table`.
@@ -66,15 +88,26 @@ const OPEN: ScopeDecision = { kind: "open" };
  *
  * Seeing the whole table is {@link READS_EVERY_ROW}, which a deployment grants to whoever it
  * decides needs it.
+ *
+ * @throws {UnprovenCallerError} When nothing on this path ever resolved a caller. It is not the
+ * same as an anonymous one, which reads no row, and telling the two apart is the whole of why
+ * this reads {@link currentPrincipal} rather than an identifier that is null in both cases.
  */
 export function ownerScope(table: string): ScopeDecision {
   const column = ownerOf(table);
   if (column === null) return OPEN;
 
-  const identity = currentIdentity();
-  if (!identity) return OPEN;
+  const principal = currentPrincipal();
 
-  if (identity.permissions.includes(READS_EVERY_ROW)) return OPEN;
+  if (principal.kind === "unproven") {
+    throw new UnprovenCallerError(
+      `refusing to read "${table}" from a path with no caller. Call unscoped() when the `
+        + `authorisation was decided upstream, which is what a worker, a cron and a hook do.`,
+    );
+  }
 
-  return { kind: "scoped", column, id: identity.id };
+  if (principal.kind === "anonymous") return { kind: "nobody", column };
+  if (principal.user.permissions.includes(READS_EVERY_ROW)) return OPEN;
+
+  return { kind: "scoped", column, id: principal.user.id };
 }

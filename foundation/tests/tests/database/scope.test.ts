@@ -34,13 +34,13 @@
 // This header is a summary written for convenience. Where it differs from the
 
 import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertRejects } from "@std/assert";
 import type { RequestUser } from "@scribe/alchemy/route";
 import { RequestIdentityCache } from "@scribe/core/runtime/http/accessors/identity.ts";
 import { RequestScope } from "@scribe/core/runtime/scope.ts";
 import { from } from "@scribe/foundation/lib/src/database/tables_base.ts";
 import { registerTableOwners } from "@scribe/foundation/lib/src/database/table_owners.ts";
-import { READS_EVERY_ROW } from "@scribe/foundation/lib/src/database/query/owner_scope.ts";
+import { READS_EVERY_ROW, UnprovenCallerError } from "@scribe/foundation/lib/src/database/query/owner_scope.ts";
 import { clientOf, installDatabaseMock } from "@scribe/foundation/tests/tests/database/mocks/install_database.ts";
 
 interface Preference {
@@ -176,12 +176,36 @@ Deno.test("scope: a table that declares no owner is read whole", async () => {
   }
 });
 
-Deno.test("scope: without a proved identity the read runs unfiltered", async () => {
+Deno.test("scope: an anonymous caller reads no row of a table somebody owns", async () => {
   const mock = installDatabaseMock({ [PREFERENCES]: [...SOME_PREFERENCES] });
   try {
     const rows = await withIdentity(null, () => from<Preference>(clientOf(mock), PREFERENCES).get());
 
-    assertEquals(rows.length, 2, "with nobody to scope to, the read runs unfiltered");
+    assertEquals(rows.length, 0, "proving nobody is not the same as owning every row");
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("scope: a path that never resolved a caller is refused, not opened", async () => {
+  const mock = installDatabaseMock({ [PREFERENCES]: [...SOME_PREFERENCES] });
+  try {
+    await assertRejects(
+      () => from<Preference>(clientOf(mock), PREFERENCES).get(),
+      UnprovenCallerError,
+      "with no caller",
+    );
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("scope: a path with no caller says how to read the table on purpose", async () => {
+  const mock = installDatabaseMock({ [PREFERENCES]: [...SOME_PREFERENCES] });
+  try {
+    const rows = await from<Preference>(clientOf(mock), PREFERENCES).unscoped().get();
+
+    assertEquals(rows.length, 2, "unscoped() is what a worker, a cron and a hook write");
   } finally {
     mock.restore();
   }
