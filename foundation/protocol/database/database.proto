@@ -113,6 +113,15 @@ message QueryResult {
   scribe.v1.Failure error = 3;
 }
 
+message QueryBatch {
+  repeated Query queries = 1;
+}
+
+message QueryResultBatch {
+  repeated QueryResult results = 1;
+}
+
 service Database {
   rpc Execute(Query) returns (QueryResult);
+  rpc ExecuteBatch(QueryBatch) returns (QueryResultBatch);
 }
