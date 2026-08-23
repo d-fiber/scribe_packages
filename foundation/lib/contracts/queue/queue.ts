@@ -34,7 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Duration } from "@scribe/alchemy";
+import type { Duration, QueueMessage } from "@scribe/alchemy";
+
+export type { QueueMessage };
 
 /**
  * What a declaration can tune about a queue.
@@ -62,22 +64,6 @@ export interface QueueOptions {
 export interface PushOptions {
   /** How long the job waits before it becomes available. */
   readonly delay?: Duration;
-}
-
-/** A message as its handler sees it. */
-export interface QueueMessage<T> {
-  /** The identifier the queue assigned when this message was enqueued. */
-  readonly id: string;
-
-  /** The payload the producer sent, decoded into the handler's own type. */
-  readonly data: T;
-
-  /**
-   * How many times this message has been delivered, starting at one.
-   *
-   * It is the server's count, not the payload's, so it cannot drift from what happened.
-   */
-  readonly attempts: number;
 }
 
 /**
