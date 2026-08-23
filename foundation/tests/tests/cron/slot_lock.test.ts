@@ -87,3 +87,33 @@ Deno.test("SlotLock namespaces by job name", () => {
     lock.keyFor(intervalJob("b", Duration.milliseconds(60_000)), at),
   );
 });
+
+Deno.test("the lease covers the occurrence the key names, not the time the body is given", () => {
+  const quarterly = intervalJob("sweep", Duration.minutes(15));
+  const slot = new Date(0);
+
+  assertEquals(lock.leaseFor(quarterly, slot).inMinutes, 15);
+  assertNotEquals(lock.leaseFor(quarterly, slot).inMinutes, quarterly.timeout.inMinutes);
+});
+
+Deno.test("a job given longer than its own interval keeps the marker for as long as it runs", () => {
+  const slow: Scheduled = {
+    name: "slow",
+    schedule: { kind: "interval", every: Duration.minutes(1) },
+    timeout: Duration.minutes(10),
+  };
+
+  assertEquals(lock.leaseFor(slow, new Date(0)).inMinutes, 10);
+});
+
+Deno.test("a second replica reaching a current occurrence finds it already spoken for", () => {
+  const quarterly = intervalJob("sweep", Duration.minutes(15));
+  const cell = new Date(0);
+  const lease = lock.leaseFor(quarterly, cell).inMilliseconds;
+
+  for (const arrivalMinutes of [0, 7, 14]) {
+    const arrival = new Date(arrivalMinutes * 60_000);
+    assertEquals(lock.keyFor(quarterly, arrival), lock.keyFor(quarterly, cell));
+    assertEquals(arrival.getTime() - cell.getTime() < lease, true, `t+${arrivalMinutes} min`);
+  }
+});

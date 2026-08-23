@@ -34,14 +34,11 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { type DistributedLock, LOCK_TTL } from "../lock/distributed_lock.ts";
+import type { DistributedLock } from "../lock/distributed_lock.ts";
 import { DateTime, Duration, Future } from "@scribe/alchemy";
 
 /** How long a loser waits between two read-backs. */
 const POLL_EVERY: Duration = Duration.milliseconds(50);
-
-/** How long a loser waits in all before it stops waiting and computes anyway. */
-const WAIT_AT_MOST: Duration = LOCK_TTL.add(Duration.seconds(3));
 
 /** Reads back what the replica that won the lock wrote, or `null` while it has not. */
 export type ReadBack<T> = () => Future<T | null>;
@@ -72,17 +69,24 @@ export class DistributedFlight {
    * not the turn. When nothing shows up before the deadline, whether from a holder that died or
    * one slower than the lock's own ttl, it computes without the lock: a duplicated computation
    * costs less than a request that never returns.
+   *
+   * @param within - How long the caller is prepared to wait, and the whole of what bounds this
+   * loop. It is the caller's budget and not the winner's lease: whoever is waiting decides how
+   * long waiting is worth it, and a lease says how long a holder may keep a key, which is a
+   * different quantity. Deriving one from the other leaves a loop nobody waits for still running
+   * once the caller has been answered.
    */
   async run<T>(
     id: string,
     lockKey: string,
     readBack: ReadBack<T>,
     compute: () => Future<T>,
+    within: Duration,
   ): Future<T> {
-    const deadline = DateTime.now().add(WAIT_AT_MOST);
+    const deadline = DateTime.now().add(within);
 
     while (DateTime.now().isBefore(deadline)) {
-      const lock = await this.#lock.acquire(lockKey);
+      const lock = await this.#lock.acquire(lockKey, within);
       if (lock.state === "error") break;
 
       if (lock.state === "acquired") {

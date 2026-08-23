@@ -33,6 +33,7 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
+import { Duration } from "@scribe/alchemy";
 import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
 import type { DistributedLock, LockOutcome } from "@scribe/foundation/lib/src/cache/lock/distributed_lock.ts";
 import { DistributedFlight } from "@scribe/foundation/lib/src/cache/flight/distributed_flight.ts";
@@ -151,6 +152,7 @@ Deno.test("DistributedFlight computes and releases when it wins the lock", async
     "lock:id",
     () => Promise.resolve(null),
     () => Promise.resolve("computed"),
+    Duration.seconds(8),
   );
 
   assertEquals(value, "computed");
@@ -168,6 +170,7 @@ Deno.test("DistributedFlight releases the lock even if the computation throws", 
       "lock:id",
       () => Promise.resolve(null),
       () => Promise.reject(new Error("boom")),
+      Duration.seconds(8),
     )
     .catch(() => {});
 
@@ -188,6 +191,7 @@ Deno.test("DistributedFlight reads back the winner's value instead of computing 
       computed++;
       return Promise.resolve("mine");
     },
+    Duration.seconds(8),
   );
 
   assertEquals(value, "from winner");
@@ -204,6 +208,7 @@ Deno.test("DistributedFlight computes without the lock when acquiring errors", a
     "lock:id",
     () => Promise.resolve(null),
     () => Promise.resolve("fallback"),
+    Duration.seconds(8),
   );
 
   assertEquals(value, "fallback");
@@ -235,4 +240,24 @@ Deno.test("attempt() gives up at once when another replica holds the lock", asyn
   assertEquals(value, null, "a refresh must never wait, the old value is still good");
   assertEquals(computed, 0);
   assertEquals(lock.acquired, 1, "it must not poll");
+});
+
+Deno.test("DistributedFlight stops waiting when the caller's budget runs out, not when the lease does", async () => {
+  const lock = new ScriptedLock([]);
+  const gaveUp: string[] = [];
+  const started = Date.now();
+
+  const value = await flight(lock, gaveUp).run(
+    "id",
+    "lock:id",
+    () => Promise.resolve(null),
+    () => Promise.resolve("computed anyway"),
+    Duration.milliseconds(250),
+  );
+  const spent = Date.now() - started;
+
+  assertEquals(value, "computed anyway");
+  assertEquals(gaveUp, ["id"]);
+  assert(spent < 1_000, `the loser waited ${spent} ms on a 250 ms budget`);
+  assert(lock.acquired < 12, `the loser made ${lock.acquired} round trips on a 250 ms budget`);
 });

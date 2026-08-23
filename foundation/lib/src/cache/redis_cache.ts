@@ -34,7 +34,14 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Duration, type Future, Stopwatch, type UnmodifiableList } from "@scribe/alchemy";
+import {
+  type CacheOptions,
+  DEFAULT_CACHE_DEADLINE,
+  Duration,
+  type Future,
+  Stopwatch,
+  type UnmodifiableList,
+} from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
 import { DEFAULT_BETA, shouldRefreshEarly } from "./early_expiry.ts";
 import type { CacheEntry } from "./cache_entry.ts";
@@ -51,29 +58,6 @@ import { RedisCacheStore } from "./redis_cache_store.ts";
  * Only the namespace is required. Everything else has an answer that is right far more often
  * than it is wrong, and an option nobody passes is an option that goes stale unnoticed.
  */
-export interface RedisCacheOptions {
-  /** The namespace every key of this cache is written under. */
-  readonly key: string;
-
-  /**
-   * How long an entry is served before it is recomputed.
-   *
-   * Left out, it is {@link DEFAULT_TTL}. That is long, and deliberately so: a cache is
-   * correct at any ttl and only its freshness changes, so the default is the one that costs
-   * the origin least. A namespace whose values go stale says how fast.
-   */
-  readonly ttl?: Duration;
-
-  /**
-   * How eagerly a reader refreshes an entry that is close to expiring.
-   *
-   * Raising it refreshes earlier and more often, lowering it lets more readers arrive at the
-   * expiry together. Zero turns refresh-ahead off and brings back a plain miss on expiry. See
-   * {@link shouldRefreshEarly} for what the number does.
-   */
-  readonly beta?: number;
-}
-
 /**
  * How long an entry lives when its declaration does not say.
  *
@@ -111,10 +95,21 @@ export class RedisCache<T> {
 
   readonly #beta: number;
 
-  constructor(options: RedisCacheOptions) {
+  /**
+   * How long one call to this cache has, which is also what bounds a loser's wait.
+   *
+   * @remarks
+   * The port applies it to the call it hands out. This copy is what a coordination loop reads:
+   * a replica that lost the lock must stop waiting when the caller has stopped waiting, and the
+   * caller's budget is the only quantity that says when that is.
+   */
+  readonly #within: Duration;
+
+  constructor(options: CacheOptions) {
     this.key = options.key;
     this.ttl = options.ttl ?? DEFAULT_TTL;
     this.#beta = options.beta ?? DEFAULT_BETA;
+    this.#within = options.deadline ?? DEFAULT_CACHE_DEADLINE;
   }
 
   #keysMemo: KeySpace | null = null;
@@ -249,6 +244,7 @@ export class RedisCache<T> {
       this.#keySpace().lockKeyOf(id),
       () => this.get(id),
       () => this.#computeAndWrite(id, compute),
+      this.#within,
     );
   }
 

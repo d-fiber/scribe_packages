@@ -39,12 +39,15 @@ import { kv } from "@scribe/foundation/lib/src/redis/kv.ts";
 import { lockCommands } from "./lock_commands.ts";
 
 /**
- * How long a lock survives its holder.
+ * How long a lock is held when the caller named no budget of its own.
  *
- * It bounds the damage a replica that dies mid-computation does: the key expires on its own
- * and the next reader gets its turn, rather than the entry staying uncomputable forever.
+ * @remarks
+ * It is a floor and not a policy. What a lease should last is how long the work it protects may
+ * run, and only the caller knows that, so {@link DistributedLock.acquire} takes it. This answers
+ * when nothing was said, and it is short on purpose: a lease nobody can justify should expire
+ * quickly rather than hold a key nobody is using.
  */
-export const LOCK_TTL: Duration = Duration.seconds(5);
+export const DEFAULT_LOCK_HOLD: Duration = Duration.seconds(5);
 
 /**
  * What came of trying to take a lock.
@@ -63,10 +66,10 @@ export type LockErrorReporter = (operation: string, error: unknown) => void;
 /**
  * A lock one replica of a fleet holds while it computes an entry.
  *
- * The token is what makes releasing safe. A holder that overran {@link LOCK_TTL} no longer
- * owns the key, since another replica may have taken it, so releasing by key alone would free a
- * lock somebody else is relying on. See {@link lockCommands} for how the comparison
- * and the removal are made atomic.
+ * The token is what makes releasing safe. A holder that overran its lease no longer owns the key,
+ * since another replica may have taken it, so releasing by key alone would free a lock somebody
+ * else is relying on. See {@link lockCommands} for how the comparison and the removal are made
+ * atomic.
  */
 export class DistributedLock {
   readonly #onError: LockErrorReporter;
@@ -75,12 +78,19 @@ export class DistributedLock {
     this.#onError = onError;
   }
 
-  /** Takes the lock if it is free, and says which of the three things happened. */
-  async acquire(lockKey: string): Future<LockOutcome> {
+  /**
+   * Takes the lock if it is free, and says which of the three things happened.
+   *
+   * @param heldFor - How long the work this protects may run. It is the caller's quantity because
+   * the caller is the only side that knows it: a lease shorter than the work frees the key while
+   * it is still being used, and a lease longer holds it after the work has stopped. A constant
+   * would be neither, which is why there is a parameter rather than a policy here.
+   */
+  async acquire(lockKey: string, heldFor: Duration = DEFAULT_LOCK_HOLD): Future<LockOutcome> {
     const token = crypto.randomUUID();
 
     try {
-      const claimed = await kv().set(lockKey, token, "PX", LOCK_TTL.inMilliseconds, "NX");
+      const claimed = await kv().set(lockKey, token, "PX", heldFor.inMilliseconds, "NX");
       return claimed === "OK" ? { state: "acquired", token } : { state: "held" };
     } catch (error) {
       this.#onError("lock", error);

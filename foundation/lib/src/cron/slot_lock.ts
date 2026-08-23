@@ -34,17 +34,18 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Future } from "@scribe/alchemy";
+import { Duration, type Future } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
 import { kv } from "@scribe/foundation/lib/src/redis/kv.ts";
+import { nextRunAfterSlot } from "@scribe/foundation/lib/src/cron/next_run.ts";
 import type { Scheduled } from "@scribe/foundation/lib/src/cron/schedule.ts";
 
 /**
  * Claims one occurrence of one job, for the whole fleet.
  *
- * It is a marker rather than a mutex: it is never released, it expires. Holding it for the
- * job's timeout is what tells every other replica that this occurrence is spoken for, and
- * what frees it on its own if the replica that took it dies.
+ * It is a marker rather than a mutex: it is never released, it expires. Holding it for as long
+ * as the occurrence it names is current is what tells every other replica that this one is
+ * spoken for, and what frees it on its own if the replica that took it dies.
  */
 export class SlotLock {
   /**
@@ -74,7 +75,7 @@ export class SlotLock {
         this.keyFor(job, slot),
         "1",
         "PX",
-        job.timeout.inMilliseconds,
+        this.leaseFor(job, slot).inMilliseconds,
         "NX",
       );
       return claimed === "OK";
@@ -84,6 +85,24 @@ export class SlotLock {
       });
       return false;
     }
+  }
+
+  /**
+   * How long the marker of `slot` is held, which is how long that occurrence stays spoken for.
+   *
+   * @remarks
+   * It is the gap to the next occurrence, because that is what the key names: the marker stands
+   * for one occurrence, and the next replica to reach the same one has to find it still there.
+   * The job's timeout is a different quantity, and a shorter one on any schedule that runs less
+   * often than it takes: taking it as the lease frees the marker while its own occurrence is
+   * still current, and the next replica to arrive claims what has already run.
+   *
+   * The timeout is the floor rather than the value, so a run that outlives its own occurrence
+   * still holds what it is working on.
+   */
+  leaseFor(job: Scheduled, slot: Date): Duration {
+    const untilNext = nextRunAfterSlot(job.schedule, slot, slot).getTime() - slot.getTime();
+    return Duration.milliseconds(Math.max(untilNext, job.timeout.inMilliseconds));
   }
 }
 

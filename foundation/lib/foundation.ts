@@ -149,14 +149,14 @@ export { triggerRunner } from "./src/trigger/trigger_runner.ts";
 export { syncDeclaredSources } from "./src/trigger/trigger_sources.ts";
 export { type TriggerSourceRow, triggerSources } from "./src/trigger/trigger_tables.ts";
 
-export { DEFAULT_TTL, RedisCache, type RedisCacheOptions } from "./src/cache/redis_cache.ts";
+export { DEFAULT_TTL, RedisCache } from "./src/cache/redis_cache.ts";
 export { cacheSettings } from "./src/cache/cache_settings.ts";
 export { KeySpace } from "./src/cache/key_space.ts";
 export { withJitter } from "./src/cache/ttl_jitter.ts";
 export { DEFAULT_BETA } from "./src/cache/early_expiry.ts";
 export {
   DistributedLock,
-  LOCK_TTL,
+  DEFAULT_LOCK_HOLD,
   type LockErrorReporter,
   type LockOutcome,
 } from "./src/cache/lock/distributed_lock.ts";
