@@ -172,7 +172,7 @@ export { triggerRunner } from "./src/trigger/trigger_runner.ts";
 export { syncDeclaredSources } from "./src/trigger/trigger_sources.ts";
 export { type TriggerSourceRow, triggerSources } from "./src/trigger/trigger_tables.ts";
 
-export { DEFAULT_TTL, RedisCache } from "./src/cache/redis_cache.ts";
+export { DEFAULT_TTL, RedisCache, refreshesSettled } from "./src/cache/redis_cache.ts";
 export { RedisCaches } from "./src/cache/redis_caches.ts";
 export { cacheSettings } from "./src/cache/cache_settings.ts";
 export { KeySpace } from "./src/cache/key_space.ts";

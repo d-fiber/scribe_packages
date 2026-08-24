@@ -86,12 +86,22 @@ export function encodeCacheEntry<T>(
 }
 
 /**
- * Reads what {@link encodeCacheEntry} wrote, or `null` when the payload is unreadable.
+ * Reads what {@link encodeCacheEntry} wrote, or `null` when the payload is unreadable or spent.
+ *
+ * An envelope that says it expired is nothing, whatever the store still holds. Redis drops the key
+ * itself in the common case, so this is what answers when it did not: a store that lost its expiry
+ * on a restart, a replica whose clock runs behind the writer's, or a double a test put behind the
+ * port. The port promises an entry past its ttl is gone, and it is the reader that keeps it.
  *
  * An entry written before this envelope existed is a bare JSON value. It is returned with
  * `computeMs` at zero, which reads as "nothing is known about the cost of a recompute" and
  * makes the early refresh of `early_expiry.ts` decline. Those entries age out on their own, so the
  * transition costs one TTL and no cold start.
+ *
+ * An envelope claiming more life than the ttl allows is read down to the ttl. It is what a reader
+ * whose clock runs behind the writer's sees, and left alone it turns the early refresh off on
+ * exactly that replica: every read looks far from an expiry that is in fact minutes away. A
+ * number that came back as text is read the same way, as the value it would have had.
  */
 export function decodeCacheEntry<T>(raw: string, ttlMs: number): CacheEntry<T> | null {
   let parsed: unknown;
@@ -110,9 +120,27 @@ export function decodeCacheEntry<T>(raw: string, ttlMs: number): CacheEntry<T> |
     };
   }
 
+  const now = DateTime.now().millisecondsSinceEpoch;
+  const expiresAt = _finite(parsed.e, now + ttlMs);
+  if (expiresAt <= now) return null;
+
   return {
     value: parsed.v as T,
-    expiresAt: parsed.e,
-    computeMs: parsed.d,
+    expiresAt: Math.min(expiresAt, now + ttlMs),
+    computeMs: Math.max(0, _finite(parsed.d, 0)),
   };
+}
+
+/**
+ * `held` as a number, or `fallback` when it is not one.
+ *
+ * @remarks
+ * The marker says the payload was written by this package, and says nothing about what a store,
+ * a proxy or a hand-edited key did to the two numbers since. A `NaN` in either of them pins the
+ * entry: the comparison against the clock is false whichever way it is written, so the value is
+ * served for ever and never refreshed.
+ */
+function _finite(held: unknown, fallback: number): number {
+  const read = typeof held === "number" ? held : Number(held);
+  return Number.isFinite(read) ? read : fallback;
 }

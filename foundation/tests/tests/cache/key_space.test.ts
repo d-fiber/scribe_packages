@@ -43,21 +43,21 @@ import { assert, assertEquals } from "@std/assert";
 const keys = new KeySpace("auth:device");
 
 Deno.test("KeySpace namespaces an id under its prefix", () => {
-  assertEquals(keys.keyOf("42"), "auth:device:42");
+  assertEquals(keys.keyOf("42"), "auth:device/42");
 });
 
 Deno.test("KeySpace derives a distinct lock key", () => {
-  assertEquals(keys.lockKeyOf("42"), "lock:auth:device:42");
+  assertEquals(keys.lockKeyOf("42"), "lock:auth:device/42");
   assert(keys.lockKeyOf("42") !== keys.keyOf("42"));
 });
 
 Deno.test("KeySpace without a pattern matches the whole namespace", () => {
-  assertEquals(keys.matching(), "auth:device:*");
+  assertEquals(keys.matching(), "auth:device/*");
 });
 
 Deno.test("KeySpace takes a glob, not a prefix", () => {
-  assertEquals(keys.matching("u1:*"), "auth:device:u1:*");
-  assertEquals(keys.matching("u1"), "auth:device:u1");
+  assertEquals(keys.matching("u1:*"), "auth:device/u1:*");
+  assertEquals(keys.matching("u1"), "auth:device/u1");
 });
 
 Deno.test("withJitter never returns less than the ttl", () => {

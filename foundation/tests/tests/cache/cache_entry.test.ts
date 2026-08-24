@@ -37,17 +37,18 @@ import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
 import { decodeCacheEntry, encodeCacheEntry } from "@scribe/foundation/lib/src/cache/cache_entry.ts";
 import { assert, assertEquals } from "@std/assert";
 
+const NOT_YET = Date.now() + 30_000;
 const TTL_MS = 60_000;
 
 installDrivers();
 
 Deno.test("an entry survives the round trip with both of its numbers", () => {
-  const raw = encodeCacheEntry({ name: "ada" }, 1_700_000_000_000, 42);
+  const raw = encodeCacheEntry({ name: "ada" }, NOT_YET, 42);
   const entry = decodeCacheEntry<{ name: string }>(raw, TTL_MS);
 
   assertEquals(entry, {
     value: { name: "ada" },
-    expiresAt: 1_700_000_000_000,
+    expiresAt: NOT_YET,
     computeMs: 42,
   });
 });
@@ -73,9 +74,9 @@ Deno.test("a legacy entry is given the ttl it would have expired with", () => {
 });
 
 Deno.test("a scalar and a null survive the round trip", () => {
-  assertEquals(decodeCacheEntry<number>(encodeCacheEntry(7, 1, 2), TTL_MS)?.value, 7);
-  assertEquals(decodeCacheEntry<null>(encodeCacheEntry(null, 1, 2), TTL_MS)?.value, null);
-  assertEquals(decodeCacheEntry<string>(encodeCacheEntry("", 1, 2), TTL_MS)?.value, "");
+  assertEquals(decodeCacheEntry<number>(encodeCacheEntry(7, NOT_YET, 2), TTL_MS)?.value, 7);
+  assertEquals(decodeCacheEntry<null>(encodeCacheEntry(null, NOT_YET, 2), TTL_MS)?.value, null);
+  assertEquals(decodeCacheEntry<string>(encodeCacheEntry("", NOT_YET, 2), TTL_MS)?.value, "");
 });
 
 Deno.test("an unreadable payload is a miss, not a throw", () => {

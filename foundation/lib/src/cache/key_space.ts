@@ -44,12 +44,12 @@ export class KeySpace {
   readonly #prefix: string;
 
   constructor(prefix: string) {
-    this.#prefix = prefix;
+    this.#prefix = _unnestable(prefix);
   }
 
   /** The key an entry is stored under. */
   keyOf(id: string): string {
-    return `${this.#prefix}:${id}`;
+    return `${this.#prefix}/${id}`;
   }
 
   /**
@@ -70,6 +70,36 @@ export class KeySpace {
    * about what callers actually pass.
    */
   matching(pattern?: string): string {
-    return pattern ? `${this.#prefix}:${pattern}` : `${this.#prefix}:*`;
+    return `${_asGlobbed(this.#prefix)}/${pattern ?? "*"}`;
   }
+}
+
+/**
+ * A namespace with the separator neutralised inside it, so no two of them can nest.
+ *
+ * @remarks
+ * The namespace and the id are joined by a slash and not by a colon, which is what keeps the two
+ * apart: a namespace is written with colons, `auth:device`, so joining on one would let the cache
+ * named `auth` reading `device:d1` and the cache named `auth:device` reading `d1` build the same
+ * key. One declaration would read and overwrite another's entries and clearing either would sweep
+ * both, and neither declaration ever heard of the other.
+ *
+ * A namespace holding a slash of its own is escaped here for the same reason, and pays a
+ * backslash in its keys that a namespace written with colons never does.
+ */
+function _unnestable(prefix: string): string {
+  return prefix.includes("\\") || prefix.includes("/")
+    ? prefix.replaceAll("\\", "\\\\").replaceAll("/", "\\/")
+    : prefix;
+}
+
+/**
+ * A literal read as itself by the pattern matcher of a store, rather than as a pattern.
+ *
+ * @remarks
+ * A namespace holding a backslash, which is what {@link _unnestable} writes, would otherwise be
+ * read as an escape by the glob and select the keys of a namespace that does not exist.
+ */
+function _asGlobbed(literal: string): string {
+  return /[\\*?[\]]/.test(literal) ? literal.replaceAll(/([\\*?[\]])/g, "\\$1") : literal;
 }

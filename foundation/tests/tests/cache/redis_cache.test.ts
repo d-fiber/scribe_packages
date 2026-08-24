@@ -40,7 +40,7 @@ import { Duration } from "@scribe/alchemy";
 import { kv } from "@scribe/foundation/lib/src/redis/kv.ts";
 import { installValkeryMock } from "@scribe/foundation/tests/testing/cache.ts";
 import { encodeCacheEntry } from "@scribe/foundation/lib/src/cache/cache_entry.ts";
-import { RedisCache } from "@scribe/foundation/lib/src/cache/redis_cache.ts";
+import { RedisCache, refreshesSettled } from "@scribe/foundation/lib/src/cache/redis_cache.ts";
 import { assert, assertEquals } from "@std/assert";
 import { spy, stub } from "@std/testing/mock";
 
@@ -111,20 +111,22 @@ Deno.test("upsert collapses concurrent callers before it touches Redis", async (
   }
 });
 
-Deno.test("upsert refreshes ahead of the expiry and returns the fresh value", async () => {
+Deno.test("upsert refreshes ahead of the expiry and answers what it already held", async () => {
   const mock = installValkeryMock();
   const cache = new RedisCache<string>({ key: "test", ttl: Duration.minutes(5) });
 
   try {
-    const oneMillisecondLeft = 1;
+    const secondsLeft = 5_000;
     const costlyToProduce = 1_000_000;
-    await seed("test:k", "stale", oneMillisecondLeft, costlyToProduce);
+    await seed("test/k", "stale", secondsLeft, costlyToProduce);
 
     assertEquals(
       await cache.upsert("k", () => Promise.resolve("fresh")),
-      "fresh",
-      "an entry that costs a lot and expires in a millisecond makes every reader volunteer",
+      "stale",
+      "the reader that drew the refresh has an answer in hand and must not wait for the new one",
     );
+
+    await refreshesSettled();
     assertEquals(await cache.get("k"), "fresh", "and the refreshed value was written back");
   } finally {
     mock.restore();
@@ -137,7 +139,7 @@ Deno.test("upsert serves the cached value rather than recomputing far from the e
   let computed = 0;
 
   try {
-    await seed("test:k", "cached", 1_000_000_000, 1);
+    await seed("test/k", "cached", 1_000_000_000, 1);
 
     assertEquals(
       await cache.upsert("k", () => {
@@ -157,13 +159,15 @@ Deno.test("a refresh that throws still serves the value the cache already holds"
   const cache = new RedisCache<string>({ key: "test", ttl: Duration.minutes(5) });
 
   try {
-    await seed("test:k", "stale", 1, 1_000_000);
+    await seed("test/k", "stale", 5_000, 1_000_000);
 
     assertEquals(
       await cache.upsert("k", () => Promise.reject(new Error("origin down"))),
       "stale",
       "a flaky origin must not turn into an error when an answer is in hand",
     );
+
+    await refreshesSettled();
   } finally {
     mock.restore();
   }
@@ -180,7 +184,7 @@ Deno.test("getMany reads every id in a single round trip", async () => {
 
     assertEquals(await cache.getMany(["a", "b", "c"]), [1, null, 3]);
     assertEquals(mget.calls.length, 1, "three ids must cost one call");
-    assertEquals([...mget.calls[0].args], ["test:a", "test:b", "test:c"]);
+    assertEquals([...mget.calls[0].args], ["test/a", "test/b", "test/c"]);
   } finally {
     mget.restore();
     mock.restore();
@@ -233,7 +237,7 @@ Deno.test("delete removes a single entry with UNLINK", async () => {
     await cache.delete("a");
 
     assertEquals(await cache.get("a"), null);
-    assertEquals([...unlink.calls[0].args], ["test:a"]);
+    assertEquals([...unlink.calls[0].args], ["test/a"]);
   } finally {
     unlink.restore();
     mock.restore();

@@ -63,7 +63,7 @@ export class RedisCacheStore {
 
   /** Reads one entry, or `null` when it is missing, unreadable, or Redis is down. */
   read<T>(id: string, ttlMs: number): Future<CacheEntry<T> | null> {
-    return this.#guard("get", null, async () => {
+    return this.#guard("get", _null, async () => {
       const raw = await kv().get(this.#keys.keyOf(id));
       return raw === null ? null : decodeCacheEntry<T>(raw, ttlMs);
     });
@@ -82,7 +82,7 @@ export class RedisCacheStore {
   ): Future<(CacheEntry<T> | null)[]> {
     if (ids.length === 0) return Promise.resolve([]);
 
-    return this.#guard("mget", ids.map(() => null), async () => {
+    return this.#guard("mget", () => ids.map(() => null), async () => {
       const raws = await kv().mget(...ids.map((id) => this.#keys.keyOf(id)));
       return raws.map((raw) => (raw === null ? null : decodeCacheEntry<T>(raw, ttlMs)));
     });
@@ -95,11 +95,12 @@ export class RedisCacheStore {
     ttlSeconds: number,
     computeMs: number,
   ): Future<void> {
-    return this.#guard("set", undefined, async () => {
+    return this.#guard("set", _nothing, async () => {
+      const held = _wholeSeconds(ttlSeconds);
       await kv().setex(
         this.#keys.keyOf(id),
-        ttlSeconds,
-        encodeCacheEntry(value, _expiryAfter(ttlSeconds), computeMs),
+        held,
+        encodeCacheEntry(value, _expiryAfter(held), computeMs),
       );
     });
   }
@@ -111,14 +112,14 @@ export class RedisCacheStore {
   ): Future<void> {
     if (entries.length === 0) return Promise.resolve();
 
-    return this.#guard("set", undefined, async () => {
+    return this.#guard("set", _nothing, async () => {
       const pipeline = kv().pipeline();
       for (const [id, value] of entries) {
-        const ttlSeconds = ttlOf();
+        const held = _wholeSeconds(ttlOf());
         pipeline.setex(
           this.#keys.keyOf(id),
-          ttlSeconds,
-          encodeCacheEntry(value, _expiryAfter(ttlSeconds), 0),
+          held,
+          encodeCacheEntry(value, _expiryAfter(held), 0),
         );
       }
       await pipeline.exec();
@@ -129,7 +130,7 @@ export class RedisCacheStore {
   forget(ids: UnmodifiableList<string>): Future<void> {
     if (ids.length === 0) return Promise.resolve();
 
-    return this.#guard("del", undefined, async () => {
+    return this.#guard("del", _nothing, async () => {
       await kv().unlink(...ids.map((id) => this.#keys.keyOf(id)));
     });
   }
@@ -144,7 +145,7 @@ export class RedisCacheStore {
    * thread, where `DEL` would hold the single Redis thread for the length of the batch.
    */
   sweep(match: string): Future<void> {
-    return this.#guard("clear", undefined, async () => {
+    return this.#guard("clear", _nothing, async () => {
       let cursor = "0";
       do {
         const [next, keys] = await kv().scan(
@@ -160,16 +161,24 @@ export class RedisCacheStore {
     });
   }
 
+  /**
+   * Runs `call`, and answers what `fallback` builds when the store refuses.
+   *
+   * @remarks
+   * The fallback is built only when it is needed. It used to be an argument, which meant a batch
+   * read of two hundred ids walked its ids a second time and allocated two hundred nulls on every
+   * call, for an answer that is thrown away whenever Redis is up.
+   */
   async #guard<T>(
     operation: string,
-    fallback: T,
+    fallback: () => T,
     call: () => Future<T>,
   ): Future<T> {
     try {
       return await call();
     } catch (error) {
       this.#report(operation, error);
-      return fallback;
+      return fallback();
     }
   }
 }
@@ -177,4 +186,27 @@ export class RedisCacheStore {
 /** When an entry written now, under `ttlSeconds`, stops being readable. */
 function _expiryAfter(ttlSeconds: number): number {
   return DateTime.now().add(Duration.seconds(ttlSeconds)).millisecondsSinceEpoch;
+}
+
+/**
+ * How long a key is held, in the whole seconds `SETEX` takes.
+ *
+ * @remarks
+ * Redis answers "value is not an integer or out of range" to anything else, so a ttl of a second
+ * and a half used to fail every write of that cache: nothing was ever stored, every read was a
+ * miss, and every upsert recomputed and took a lock. Rounding up is what keeps a sub-second ttl
+ * a cache rather than an outage, and the envelope is dated from the same number so the two agree.
+ */
+function _wholeSeconds(ttlSeconds: number): number {
+  return Math.max(1, Math.ceil(ttlSeconds));
+}
+
+/** What a write answers when the store refused it, which is nothing. */
+function _nothing(): undefined {
+  return undefined;
+}
+
+/** What a read of one key answers when the store refused it, which is a miss. */
+function _null(): null {
+  return null;
 }

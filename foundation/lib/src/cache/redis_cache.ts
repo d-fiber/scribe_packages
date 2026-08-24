@@ -90,8 +90,16 @@ export class RedisCache<in out T> {
   /** The namespace every key of this cache is written under. */
   readonly key: string;
 
-  /** How long an entry is served before it is recomputed. */
-  readonly ttl: Duration;
+  /**
+   * How long an entry is served before it is recomputed.
+   *
+   * @remarks
+   * It follows the latest declaration of this key rather than the first. The port promises one
+   * store per key, so two declarations cannot both be honoured, and reading the newest is what
+   * makes a declaration mean something wherever it is written. Every conflict is recorded by
+   * {@link RedisCaches}, because either answer is wrong for one of the two packages.
+   */
+  ttl: Duration;
 
   readonly #beta: number;
 
@@ -114,7 +122,6 @@ export class RedisCache<in out T> {
 
   #keysMemo: KeySpace | null = null;
   #storeMemo: RedisCacheStore | null = null;
-  #localMemo: LocalFlight | null = null;
   #sharedMemo: DistributedFlight | null = null;
 
   /** The value cached under `id`, or `null` when nothing usable is cached. */
@@ -182,11 +189,11 @@ export class RedisCache<in out T> {
 
       if (entry !== null) {
         if (!shouldRefreshEarly(entry, this.#beta)) return entry.value;
-        return await this.#refreshAhead(id, entry, compute);
+        return this.#refreshAhead(id, entry, compute);
       }
 
       return await this.#fill(id, compute);
-    });
+    }, this.#within);
   }
 
   /** Removes every entry of this cache, or those a glob matches inside it. */
@@ -218,7 +225,7 @@ export class RedisCache<in out T> {
   }
 
   #local(): LocalFlight {
-    return (this.#localMemo ??= new LocalFlight());
+    return _flight;
   }
 
   #shared(): DistributedFlight {
@@ -251,24 +258,28 @@ export class RedisCache<in out T> {
   /**
    * Recomputes an entry that is close to expiring, while the old value keeps being served.
    *
-   * A loser takes the old value rather than waiting, and a failed recompute serves it too: a
-   * cache that already holds an answer must not turn a flaky origin into an error.
+   * @remarks
+   * The recompute is not waited on. The rule exists so that nobody waits on an expiry, and a
+   * reader that drew the refresh and then waited for it would be the one caller the rule makes
+   * slower: with half a second of computation under a one second ttl that is two reads in five.
+   * The old value is in hand, so it is answered and the recompute runs on its own.
+   *
+   * Nothing is thrown here for the same reason. A cache that already holds an answer must not
+   * turn a flaky origin into an error, so a failed recompute is recorded and the entry stands
+   * until it expires.
    */
-  async #refreshAhead(
+  #refreshAhead(
     id: string,
     entry: CacheEntry<T>,
     compute: () => Future<T>,
-  ): Future<T> {
-    try {
-      const refreshed = await this.#shared().attempt(
-        this.#keySpace().lockKeyOf(id),
-        () => this.#computeAndWrite(id, compute),
-      );
-      return refreshed ?? entry.value;
-    } catch (error) {
-      this.#report("refresh", error);
-      return entry.value;
-    }
+  ): T {
+    const running = this.#shared()
+      .attempt(this.#keySpace().lockKeyOf(id), () => this.#computeAndWrite(id, compute))
+      .catch((error: unknown) => this.#report("refresh", error))
+      .finally(() => void _refreshing.delete(running));
+
+    _refreshing.add(running);
+    return entry.value;
   }
 
   /**
@@ -298,4 +309,37 @@ export class RedisCache<in out T> {
     );
     return false;
   }
+}
+
+/**
+ * The in-process coordination every cache of this process shares.
+ *
+ * @remarks
+ * It is one flight and not one per store, because it keys on the namespaced key and because two
+ * stores opened on the same key are the same cache. Held per instance it coordinated nothing the
+ * moment a process built the store twice, and fifty replicas of one key each took their own lock
+ * to find out that one of them was already refreshing.
+ */
+const _flight: LocalFlight = new LocalFlight();
+
+/**
+ * The refreshes running on their own right now, so a process can wait for them.
+ *
+ * @remarks
+ * A refresh ahead of an expiry is not waited on by the reader that drew it, which is what keeps
+ * that reader as fast as every other. Something still has to be able to wait: a process shutting
+ * down would otherwise drop a value it has already paid for, and a test would end while a
+ * recompute is still in flight.
+ */
+const _refreshing: Set<Promise<unknown>> = new Set();
+
+/**
+ * Waits for every refresh this process started on its own.
+ *
+ * @remarks
+ * A refresh started while this waits is waited for too, so a chain of them drains rather than
+ * leaving the last one behind.
+ */
+export async function refreshesSettled(): Future<void> {
+  while (_refreshing.size > 0) await Promise.all([..._refreshing]);
 }

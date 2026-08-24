@@ -70,11 +70,17 @@ export class DistributedFlight {
    * one slower than the lock's own ttl, it computes without the lock: a duplicated computation
    * costs less than a request that never returns.
    *
+   * The number of passes is what bounds the loop, and the clock only ends it sooner. A wall clock
+   * is not a budget: a deployment whose clock is corrected backwards, or a test holding it still,
+   * would leave this loop asking for the same lock for as long as the clock says no time passed.
+   *
    * @param within - How long the caller is prepared to wait, and the whole of what bounds this
    * loop. It is the caller's budget and not the winner's lease: whoever is waiting decides how
    * long waiting is worth it, and a lease says how long a holder may keep a key, which is a
    * different quantity. Deriving one from the other leaves a loop nobody waits for still running
-   * once the caller has been answered.
+   * once the caller has been answered, and leases the key for a quarter of a second, which is
+   * shorter than any computation worth caching. The lease is the lock's own, the same one
+   * {@link attempt} takes, so one key protecting one computation is held for one length.
    */
   async run<T>(
     id: string,
@@ -83,10 +89,12 @@ export class DistributedFlight {
     compute: () => Future<T>,
     within: Duration,
   ): Future<T> {
-    const deadline = DateTime.now().add(within);
+    const waiting = _waitingShareOf(within);
+    const deadline = DateTime.now().add(waiting);
+    let left = _passesWithin(waiting);
 
-    while (DateTime.now().isBefore(deadline)) {
-      const lock = await this.#lock.acquire(lockKey, within);
+    while (left-- > 0 && DateTime.now().isBefore(deadline)) {
+      const lock = await this.#lock.acquire(lockKey);
       if (lock.state === "error") break;
 
       if (lock.state === "acquired") {
@@ -97,7 +105,7 @@ export class DistributedFlight {
         }
       }
 
-      await Future.delayed(POLL_EVERY);
+      await Future.delayed(_untilTheSoonerOf(POLL_EVERY, deadline));
       const written = await readBack();
       if (written !== null) return written;
     }
@@ -126,4 +134,40 @@ export class DistributedFlight {
       await this.#lock.release(lockKey, lock.token);
     }
   }
+}
+
+/**
+ * How long to sleep before the next pass, never past `deadline`.
+ *
+ * @remarks
+ * A full poll period slept on the last pass overshoots the deadline by whatever was left of it,
+ * and the caller pays that overshoot on top of the computation it then has to do itself.
+ */
+function _untilTheSoonerOf(period: Duration, deadline: DateTime): Duration {
+  const left = deadline.millisecondsSinceEpoch - DateTime.now().millisecondsSinceEpoch;
+  return left < period.inMilliseconds ? Duration.milliseconds(Math.max(0, left)) : period;
+}
+
+/**
+ * The share of a budget that may be spent waiting for whoever holds the lock.
+ *
+ * @remarks
+ * Two thirds, so a loser that waits its share out still has a third of the budget left to
+ * compute the value and answer with it. The budget covers the whole call: a loop that spent all
+ * of it on the lock would leave the caller past its deadline before the computation even
+ * started, which is the caller hanging rather than the lock protecting anything.
+ */
+function _waitingShareOf(within: Duration): Duration {
+  return Duration.milliseconds(Math.ceil((within.inMilliseconds * 2) / 3));
+}
+
+/**
+ * How many passes a budget of `within` pays for.
+ *
+ * @remarks
+ * One more than the budget divides into, so a budget that is not a whole number of poll periods
+ * still gets its last pass, and never fewer than one so every caller reaches the lock once.
+ */
+function _passesWithin(within: Duration): number {
+  return Math.max(1, Math.ceil(within.inMilliseconds / POLL_EVERY.inMilliseconds) + 1);
 }

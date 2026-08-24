@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 
 import type { Cache, CacheDriver, CacheOptions } from "@scribe/alchemy";
+import { log } from "@scribe/alchemy/observe";
 import { RedisCache } from "./redis_cache.ts";
 
 /**
@@ -49,16 +50,55 @@ import { RedisCache } from "./redis_cache.ts";
  * a field the port gains arrives here without this file being touched.
  */
 export class RedisCaches implements CacheDriver {
-  /** One store per key, so a key opened twice answers the same one. */
-  readonly #opened = new Map<string, Cache<unknown>>();
-
   /** The store `options` names, opened on the first ask and kept from then on. */
   open<T>(options: CacheOptions): Cache<T> {
-    const held = this.#opened.get(options.key);
-    if (held !== undefined) return held as Cache<T>;
+    const held = _opened.get(options.key);
+    if (held !== undefined) {
+      _reconcile(options, held as RedisCache<unknown>);
+      return held as Cache<T>;
+    }
 
     const opened = new RedisCache<T>(options);
-    this.#opened.set(options.key, opened as Cache<unknown>);
+    _opened.set(options.key, opened as Cache<unknown>);
     return opened;
   }
+}
+
+/**
+ * One store per key, so opening twice answers the one already opened.
+ *
+ * @remarks
+ * It lives beside the class and not inside an instance, because what a declaration writes to is
+ * process-global: a host that clears the slot and wires a second driver would meet a registry
+ * that already holds the first driver's keys, and every declaration made before the clear would
+ * be refused as a duplicate.
+ */
+const _opened: Map<string, Cache<unknown>> = new Map();
+
+/**
+ * Takes the newest declaration of a key already opened, and records that there were two.
+ *
+ * @remarks
+ * One key is one store, so the two policies cannot both hold. The newest one is taken because a
+ * declaration that changed nothing is the common case and a declaration nobody reads is the
+ * defect: a package asking for thirty days and being handed five minutes would expire its
+ * entries early forever, with nothing anywhere saying why.
+ *
+ * Taking the newest is not the safe answer either, since it can stretch a lifetime a package
+ * meant to keep short. That is what the record is for: whichever of the two is wrong, the line
+ * names both and the key they were declared under.
+ */
+function _reconcile(asked: CacheOptions, inForce: RedisCache<unknown>): void {
+  const wanted = asked.ttl;
+  if (wanted === undefined || wanted.inMilliseconds === inForce.ttl.inMilliseconds) return;
+
+  log.error("cache.key_declared_twice", {
+    metadata: {
+      key: asked.key,
+      askedSeconds: wanted.inSeconds,
+      replacedSeconds: inForce.ttl.inSeconds,
+      consequence: "the newest declaration is taken",
+    },
+  });
+  inForce.ttl = wanted;
 }
