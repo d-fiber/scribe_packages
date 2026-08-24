@@ -94,14 +94,14 @@ Deno.test("trigger: a table created after the framework's own SQL emits once dec
 
   const [written, ms] = await timed(() => table().insertOne({ label: "watched", weight: 3 }));
   report("insert through PostgREST", `${ms.toFixed(2)} ms`);
-  assert(written !== null);
+  assert(written.ok);
 
   const rows = await events();
 
   assertEquals(rows.length, 1);
   assertEquals(rows[0].table_name, E2E_TABLE);
   assertEquals(rows[0].op, "insert");
-  assertEquals(rows[0].entity_id, String(written.id));
+  assertEquals(rows[0].entity_id, String(written.data.id));
   assertEquals(rows[0].before, null);
   assertEquals((rows[0].after as unknown as E2eItem).label, "watched");
   await clear();
@@ -110,7 +110,9 @@ Deno.test("trigger: a table created after the framework's own SQL emits once dec
 Deno.test("trigger: an update carries both sides of the row", async () => {
   await clear();
   await declareSource();
-  const written = await table().insertOne({ label: "before", weight: 1 });
+  const outcome = await table().insertOne({ label: "before", weight: 1 });
+  assert(outcome.ok, "the row was not written");
+  const written = outcome.data;
   assert(written !== null);
   await forgetEvents();
 
@@ -127,7 +129,9 @@ Deno.test("trigger: an update carries both sides of the row", async () => {
 Deno.test("trigger: a write that leaves the row as it was writes nothing", async () => {
   await clear();
   await declareSource();
-  const written = await table().insertOne({ label: "still", weight: 7 });
+  const outcome = await table().insertOne({ label: "still", weight: 7 });
+  assert(outcome.ok, "the row was not written");
+  const written = outcome.data;
   assert(written !== null);
   await forgetEvents();
 
@@ -140,7 +144,9 @@ Deno.test("trigger: a write that leaves the row as it was writes nothing", async
 Deno.test("trigger: a deletion carries the row that went", async () => {
   await clear();
   await declareSource();
-  const written = await table().insertOne({ label: "gone", weight: 2 });
+  const outcome = await table().insertOne({ label: "gone", weight: 2 });
+  assert(outcome.ok, "the row was not written");
+  const written = outcome.data;
   assert(written !== null);
   await forgetEvents();
 

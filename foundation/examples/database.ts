@@ -33,7 +33,7 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import { type Future } from "@scribe/alchemy";
+import { type Future, type Result } from "@scribe/alchemy";
 import { Table } from "@scribe/foundation/lib/src/database/table.ts";
 
 /** One row of the orders table. */
@@ -103,8 +103,13 @@ export function pendingOver(amount: number): Future<OrderRow[]> {
   return orders.where((f) => [f.status.eq("pending"), f.total.gt(amount)]).get();
 }
 
-/** Writes a row and answers it back, with the owner column filled in when it was left out. */
-export function place(order: Partial<OrderRow>): Future<OrderRow | null> {
+/**
+ * Writes a row and answers it back, with the owner column filled in when it was left out.
+ *
+ * The outcome carries the row on success and a refusal otherwise, so a caller reads why a write
+ * did not happen rather than inferring it from an absence.
+ */
+export function place(order: Partial<OrderRow>): Future<Result<OrderRow>> {
   return orders.insertOne(order);
 }
 
@@ -114,7 +119,7 @@ export function place(order: Partial<OrderRow>): Future<OrderRow | null> {
  * A write with no filter is refused rather than applied to the table: `entireTable()` is how
  * a caller says that is what it meant.
  */
-export function markPaid(id: string): Future<boolean> {
+export function markPaid(id: string): Future<Result<number>> {
   return orders.where((f) => f.id.eq(id)).update({ status: "paid" });
 }
 

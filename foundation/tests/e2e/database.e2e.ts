@@ -53,8 +53,8 @@ Deno.test("database: the service client is authenticated, not anonymous", async 
   await wipe();
   const written = await items().insertOne({ label: "authenticated", weight: 1 });
 
-  assert(written !== null, "PostgREST refused the service token");
-  assertEquals(written.label, "authenticated");
+  assert(written.ok, "PostgREST refused the service token");
+  assertEquals(written.data.label, "authenticated");
   await wipe();
 });
 
@@ -64,9 +64,9 @@ Deno.test("database: a row survives the round trip through PostgREST", async () 
   const [inserted, ms] = await timed(() => items().insertOne({ label: "first", weight: 10 }));
   report("insertOne", `${ms.toFixed(2)} ms`);
 
-  assert(inserted !== null);
-  assert(inserted.id > 0, "the identity column is filled by the database, not by the caller");
-  assert(inserted.owner_id.length === 36, "the default uuid comes back too");
+  assert(inserted.ok);
+  assert(inserted.data.id > 0, "the identity column is filled by the database, not by the caller");
+  assert(inserted.data.owner_id.length === 36, "the default uuid comes back too");
   await wipe();
 });
 

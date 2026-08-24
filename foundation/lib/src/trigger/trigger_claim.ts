@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { type Future, type UnmodifiableList } from "@scribe/alchemy";
+import type { Future, Result, UnmodifiableList } from "@scribe/alchemy";
 import { type TriggerEventRow, triggerEvents } from "./trigger_tables.ts";
 
 /**
@@ -60,8 +60,15 @@ export function pendingEvents(): Future<TriggerEventRow[]> {
     .get();
 }
 
-/** Forgets the rows that have been published, which is what claims them. */
-export function forgetEvents(ids: UnmodifiableList<number>): Future<boolean> {
+/**
+ * Forgets the rows that have been published, which is what claims them.
+ *
+ * @remarks
+ * The outcome says how many rows were forgotten, or why none were. A pass that published and
+ * could not forget leaves those events to be published again, which the message identifier
+ * makes harmless, so the caller reads this to report rather than to decide.
+ */
+export function forgetEvents(ids: UnmodifiableList<number>): Future<Result<number>> {
   return triggerEvents()
     .where((f) => f.id.in([...ids]))
     .delete();

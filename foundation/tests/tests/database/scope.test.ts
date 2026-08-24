@@ -222,7 +222,7 @@ Deno.test({
         USER,
         () => from<Preference>(clientOf(mock), PREFERENCES).update({ theme: "system" }),
       );
-      assertEquals(outcome, true);
+      assertEquals(outcome.ok, true);
 
       const rows = mock.rows(PREFERENCES);
       assertEquals(rows.find((row) => row.user_id === "u1")?.theme, "system");
@@ -240,7 +240,7 @@ Deno.test("scope: an update with neither a filter nor an identity is refused", a
       null,
       () => from<Preference>(clientOf(mock), PREFERENCES).update({ theme: "dark" }),
     );
-    assertEquals(outcome, false, "a write that would touch every row is refused");
+    assertEquals(outcome.ok, false, "a write that would touch every row is refused");
 
     assertEquals(mock.rows(PREFERENCES).find((row) => row.user_id === "u2")?.theme, "light");
   } finally {
@@ -273,7 +273,7 @@ Deno.test({
         USER,
         () => from<Preference>(clientOf(mock), PREFERENCES).insert({ locale: "fr" } as never),
       );
-      assertEquals(outcome, true);
+      assertEquals(outcome.ok, true);
 
       assertEquals(mock.rows(PREFERENCES)[0].user_id, "u1", "the owning column was filled from the caller");
     } finally {

@@ -36,7 +36,7 @@
 
 // deno-lint-ignore-file no-explicit-any
 
-import type { Future } from "@scribe/alchemy";
+import { Failure, type Future, Ok, Refusal, type Result } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
 
 import { ownerOf } from "../table_owners.ts";
@@ -90,7 +90,7 @@ export type PostgrestClientSource = any | (() => any);
 
 export class TypedQueryBuilder<
   Row extends object,
-  Result = Row,
+  Answer = Row,
   Rels extends Record<string, RelNode> = Record<string, never>,
 > {
   readonly #source: PostgrestClientSource;
@@ -220,16 +220,16 @@ export class TypedQueryBuilder<
     return Array.isArray(data) ? data.map(withOwner) : withOwner(data);
   }
 
-  unscoped(): TypedQueryBuilder<Row, Result, Rels> {
+  unscoped(): TypedQueryBuilder<Row, Answer, Rels> {
     return this.#with({ unscoped: true });
   }
 
-  entireTable(): TypedQueryBuilder<Row, Result, Rels> {
+  entireTable(): TypedQueryBuilder<Row, Answer, Rels> {
     return this.#with({ entireTable: true });
   }
 
-  #with(state: Partial<QueryState>): TypedQueryBuilder<Row, Result, Rels> {
-    return new TypedQueryBuilder<Row, Result, Rels>(this.#source, this.#table, {
+  #with(state: Partial<QueryState>): TypedQueryBuilder<Row, Answer, Rels> {
+    return new TypedQueryBuilder<Row, Answer, Rels>(this.#source, this.#table, {
       ...this.#state,
       ...state,
     });
@@ -256,7 +256,7 @@ export class TypedQueryBuilder<
 
   where(
     builder: (f: FilterBuilder<Row>) => FilterSpec | FilterSpec[],
-  ): TypedQueryBuilder<Row, Result, Rels> {
+  ): TypedQueryBuilder<Row, Answer, Rels> {
     const specs = builder(filter<Row>());
     return this.#with({
       filters: [
@@ -273,29 +273,29 @@ export class TypedQueryBuilder<
       nullsFirst?: boolean;
       foreignTable?: string;
     },
-  ): TypedQueryBuilder<Row, Result, Rels> {
+  ): TypedQueryBuilder<Row, Answer, Rels> {
     return this.#with({
       orders: [...this.#state.orders, { col: column, options }],
     });
   }
 
-  limit(count: number): TypedQueryBuilder<Row, Result, Rels> {
+  limit(count: number): TypedQueryBuilder<Row, Answer, Rels> {
     return this.#with({ limitCount: count });
   }
 
-  range(from: number, to: number): TypedQueryBuilder<Row, Result, Rels> {
+  range(from: number, to: number): TypedQueryBuilder<Row, Answer, Rels> {
     return this.#with({ rangeVal: [from, to] });
   }
 
-  async get(): Future<Result[]> {
+  async get(): Future<Answer[]> {
     const qb = buildRead(this.#db, this.#table, this.#scoped().state);
     const { data, error } = (await qb) as { data: unknown; error: unknown };
 
     if (error) throw new DatabaseQueryError(this.#table, "get", error);
-    return (data ?? []) as Result[];
+    return (data ?? []) as Answer[];
   }
 
-  async getOne(): Future<Result | null> {
+  async getOne(): Future<Answer | null> {
     const qb = buildRead(
       this.#db,
       this.#table,
@@ -307,70 +307,112 @@ export class TypedQueryBuilder<
     };
 
     if (error) throw new DatabaseQueryError(this.#table, "getOne", error);
-    return data as Result | null;
+    return data as Answer | null;
   }
 
-  async insert(data: Partial<Row> | Partial<Row>[]): Future<boolean> {
+  /**
+   * Writes `data`, and answers what became of it.
+   *
+   * @remarks
+   * The outcome carries a refusal rather than a false, because a write has four ways of not
+   * happening and only two of them are worth retrying. `unavailable` says the store could not be
+   * reached, so the same call may work later; `conflict` says the store refused what was sent, so
+   * it will not.
+   */
+  async insert(data: Partial<Row> | Partial<Row>[]): Future<Result<number>> {
+    const rows = Array.isArray(data) ? data.length : 1;
     const { error } = await this.#db
       .from(this.#table)
       .insert(this.#owned(data));
-    return !this.#failed("insert", error);
+
+    return this.#failed("insert", error) ? new Failure(_refusalOf(error)) : new Ok(rows);
   }
 
-  async insertOne(data: Partial<Row>): Future<Row | null> {
+  /** Writes one row and answers it as the store wrote it, or what stopped the write. */
+  async insertOne(data: Partial<Row>): Future<Result<Row>> {
     const { data: result, error } = await this.#db
       .from(this.#table)
       .insert(this.#owned(data))
       .select("*")
       .maybeSingle();
 
-    if (this.#failed("insertOne", error)) return null;
-    return result as Row | null;
+    if (this.#failed("insertOne", error)) return new Failure(_refusalOf(error));
+    return result === null ? new Failure(Refusal.missing("the row was not written.")) : new Ok(result as Row);
   }
 
-  async update(data: Partial<Row>): Future<boolean> {
+  /** Writes `data` over every row this query reaches, and answers what became of it. */
+  async update(data: Partial<Row>): Future<Result<number>> {
     const scoped = this.#scoped();
-    if (this.#refusesUnboundedWrite("update", scoped)) return false;
+    if (this.#refusesUnboundedWrite("update", scoped)) return new Failure(_UNBOUNDED);
 
-    const { error } = await buildWrite(
+    const { data: written, error } = await buildWrite(
       this.#db,
       this.#table,
       scoped.state,
       "update",
       data,
-    );
-    return !this.#failed("update", error);
+    ).select("*");
+
+    if (this.#failed("update", error)) return new Failure(_refusalOf(error));
+    return new Ok(Array.isArray(written) ? written.length : 0);
   }
 
-  async delete(): Future<boolean> {
+  /** Removes every row this query reaches, and answers how many that was. */
+  async delete(): Future<Result<number>> {
     const scoped = this.#scoped();
-    if (this.#refusesUnboundedWrite("delete", scoped)) return false;
+    if (this.#refusesUnboundedWrite("delete", scoped)) return new Failure(_UNBOUNDED);
 
-    const { error } = await buildWrite(
+    const { data: removed, error } = await buildWrite(
       this.#db,
       this.#table,
       scoped.state,
       "delete",
-    );
-    return !this.#failed("delete", error);
+    ).select("*");
+
+    if (this.#failed("delete", error)) return new Failure(_refusalOf(error));
+    return new Ok(Array.isArray(removed) ? removed.length : 0);
   }
 
-  async deleteOne(): Future<Row | null>;
+  /** Removes the one row this query reaches, and answers it as it was before. */
+  async deleteOne(): Future<Result<Row>>;
   async deleteOne<const Shape extends Record<string, unknown>>(
     builder: (s: Selector<Row, Rels>) => Shape,
-  ): Future<ExtractShape<Row, Shape> | null>;
+  ): Future<Result<ExtractShape<Row, Shape>>>;
   async deleteOne<const Shape extends Record<string, unknown>>(
     builder?: (s: Selector<Row, Rels>) => Shape,
-  ): Future<Row | ExtractShape<Row, Shape> | null> {
+  ): Future<Result<Row | ExtractShape<Row, Shape>>> {
     const scoped = this.#scoped();
-    if (this.#refusesUnboundedWrite("deleteOne", scoped)) return null;
+    if (this.#refusesUnboundedWrite("deleteOne", scoped)) return new Failure(_UNBOUNDED);
 
     let qb = buildWrite(this.#db, this.#table, scoped.state, "delete");
     qb = builder
       ? qb.select(columnsOf(builder(selector<Row, Rels>())))
       : qb.select("*");
     const { data, error } = await qb.maybeSingle();
-    if (this.#failed("deleteOne", error)) return null;
-    return data as any;
+
+    if (this.#failed("deleteOne", error)) return new Failure(_refusalOf(error));
+    return data === null ? new Failure(Refusal.missing("no row matched.")) : new Ok(data as Row);
   }
+}
+
+/** What a write that names no row is refused with, whatever the store would have done. */
+const _UNBOUNDED: Refusal = Refusal.denied(
+  "the write names no row. Add a .where(), or .entireTable() if reaching every row is deliberate.",
+);
+
+/**
+ * What a store's failure means to a caller deciding whether to try again.
+ *
+ * @remarks
+ * The two that matter are told apart by where the failure came from. A store that answered says
+ * what it refused and will refuse it again, so the call is a conflict. A store that answered
+ * nothing may answer next time, so the call is unavailable, and only that one is worth replaying.
+ */
+function _refusalOf(error: unknown): Refusal {
+  const answered = error !== null && typeof error === "object" && "code" in error;
+  const said = error !== null && typeof error === "object" && "message" in error
+    ? String((error as { message: unknown }).message)
+    : "the write did not happen.";
+
+  return answered ? Refusal.conflict(said) : Refusal.unavailable(said);
 }

@@ -159,7 +159,7 @@ Deno.test("unbounded write: a table that declares no owner is not a free-for-all
   try {
     const outcome = await withIdentity(EVERY_ROW, () => from<Template>(clientOf(mock), TEMPLATES).delete());
 
-    assertEquals(outcome, false);
+    assertEquals(outcome.ok, false);
     assertEquals(mock.rows(TEMPLATES).length, 2, "nothing was removed");
   } finally {
     mock.restore();
@@ -174,7 +174,7 @@ Deno.test("unbounded write: entireTable is the explicit opt-in", async () => {
       () => from<Template>(clientOf(mock), TEMPLATES).entireTable().delete(),
     );
 
-    assertEquals(outcome, true);
+    assertEquals(outcome.ok, true);
     assertEquals(mock.rows(TEMPLATES).length, 0);
   } finally {
     mock.restore();
@@ -184,9 +184,12 @@ Deno.test("unbounded write: entireTable is the explicit opt-in", async () => {
 Deno.test("unbounded write: deleteOne without a predicate is refused too", async () => {
   const mock = installDatabaseMock({ [TEMPLATES]: [...SOME_TEMPLATES] });
   try {
-    const row = await withIdentity(EVERY_ROW, () => from<Template>(clientOf(mock), TEMPLATES).deleteOne());
+    const outcome = await withIdentity(
+      EVERY_ROW,
+      () => from<Template>(clientOf(mock), TEMPLATES).deleteOne(),
+    );
 
-    assertEquals(row, null);
+    assertEquals(outcome.ok, false);
     assertEquals(mock.rows(TEMPLATES).length, 2);
   } finally {
     mock.restore();
@@ -202,6 +205,34 @@ Deno.test("insert: an owner written as null is filled in from the caller, not wr
     );
 
     assertEquals(mock.rows(PREFERENCES)[0]?.user_id, "u1");
+  } finally {
+    mock.restore();
+  }
+});
+
+Deno.test("a write says which of the four things happened, not just whether it happened", async () => {
+  const mock = installDatabaseMock({ [TEMPLATES]: [...SOME_TEMPLATES] });
+  try {
+    const refused = await withIdentity(
+      EVERY_ROW,
+      () => from<Template>(clientOf(mock), TEMPLATES).delete(),
+    );
+    assertEquals(refused.ok, false);
+    assertEquals(refused.ok === false && refused.error.kind, "denied");
+
+    const removed = await withIdentity(
+      EVERY_ROW,
+      () => from<Template>(clientOf(mock), TEMPLATES).where((f) => f.id.eq("t1")).delete(),
+    );
+    assertEquals(removed.ok, true);
+    assertEquals(removed.ok === true && removed.data, 1);
+
+    const none = await withIdentity(
+      EVERY_ROW,
+      () => from<Template>(clientOf(mock), TEMPLATES).where((f) => f.id.eq("nothing")).delete(),
+    );
+    assertEquals(none.ok, true, "no row matched is not the same as refused");
+    assertEquals(none.ok === true && none.data, 0);
   } finally {
     mock.restore();
   }
