@@ -34,6 +34,24 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+/**
+ * What "storage" hands whoever mounts it.
+ *
+ * @remarks
+ * Everything it is made of lives in `src/`, the types it publishes in `contracts/`, and this is
+ * the one file that names them: a file no line below reaches is a file this package does not
+ * publish.
+ *
+ * `scribe` at the bottom is the other half of what it hands over. It is the three moments the
+ * host may run this package at, and a package that runs at none of them says so with an empty
+ * one rather than by exporting nothing.
+ */
+
+import type { LifecycleSteps } from "@scribe/alchemy";
+import { Env } from "@scribe/host/env.ts";
+import { SupabaseStorageTransport } from "./src/bucket/supabase.ts";
+import { StorageTransports } from "./src/bucket/registry.ts";
+import { storageSettings } from "./src/settings.ts";
 
 export { Bytes } from "@scribe/alchemy";
 
@@ -66,3 +84,24 @@ export type { StorageObjectRow } from "./src/db/tables.ts";
 export { StorageTransports } from "./src/bucket/registry.ts";
 export { SupabaseStorageTransport } from "./src/bucket/supabase.ts";
 export type { StorageBucket, StorageTransport } from "./src/bucket/transport.ts";
+
+/**
+ * When this package runs, which is once, at import, to fill what a mounted module needs.
+ *
+ * @remarks
+ * The settings are where this package reaches the storage service, read from the process
+ * environment. The transport is what answers a bucket once they are filled, and it needs nothing
+ * else to be built, so both belong at import.
+ */
+export const scribe: LifecycleSteps = {
+  wires: () => {
+    storageSettings.use({
+      apiUrl: Env.SUPABASE_STORAGE_INTERNAL_URL,
+      serviceRoleKey: Env.SUPABASE_SERVICE_ROLE_KEY,
+      publicBaseUrl: Env.APP_URL,
+      privateBaseUrl: Env.ADMIN_URL,
+    });
+
+    StorageTransports.use(new SupabaseStorageTransport());
+  },
+};

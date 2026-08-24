@@ -34,39 +34,24 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import { storageSettings } from "@scribe/storage/lib/src/settings.ts";
+import { bucketNameOf, type StorageVisibility } from "../core/visibility.ts";
+import { Bucket } from "./bucket.ts";
+import type { StorageBucket, StorageTransport } from "./transport.ts";
 
-import { storageSettings } from "@scribe/storage/src/settings.ts";
+/** The transport that reaches the Supabase storage service, one bucket object per name. */
+export class SupabaseStorageTransport implements StorageTransport {
+  readonly #buckets = new Map<string, Bucket>();
 
-/**
- * Which bucket an object lives in, and therefore how its URL is served.
- *
- * @remarks
- * It is not an application check. Nothing in this package asks who is calling: a route decides
- * whether its caller may reach a resource, and calls the resource once it has. What this enum
- * decides is where the bytes are written, which settles whether a URL alone is enough to read
- * them back.
- */
-export enum StorageVisibility {
-  /** The bytes are readable by anyone holding the URL, since the bucket is served openly. */
-  Public = "public",
+  /** The bucket `visibility` names, built once and kept for the life of the process. */
+  of(visibility: StorageVisibility): StorageBucket {
+    const name = bucketNameOf(visibility);
+    const existing = this.#buckets.get(name);
+    if (existing) return existing;
 
-  /** The bytes are behind the admin gateway, so a URL on its own reads nothing. */
-  Private = "private",
-}
-
-const PUBLIC_BUCKET = "public_bucket";
-const PRIVATE_BUCKET = "private_bucket";
-
-/** The bucket that holds the objects of `visibility`. */
-export function bucketNameOf(visibility: StorageVisibility): string {
-  return visibility === StorageVisibility.Private ? PRIVATE_BUCKET : PUBLIC_BUCKET;
-}
-
-/** The URL `path` is served from, which depends on the bucket it was written to. */
-export function objectUrl(path: string, visibility: StorageVisibility): string {
-  const { privateBaseUrl, publicBaseUrl } = storageSettings.get();
-
-  return visibility === StorageVisibility.Private
-    ? `${privateBaseUrl}/storage/v1/object/${PRIVATE_BUCKET}/${path}`
-    : `${publicBaseUrl}/storage/v1/object/public/${PUBLIC_BUCKET}/${path}`;
+    const { apiUrl, serviceRoleKey } = storageSettings.get();
+    const bucket = new Bucket(name, apiUrl, serviceRoleKey);
+    this.#buckets.set(name, bucket);
+    return bucket;
+  }
 }

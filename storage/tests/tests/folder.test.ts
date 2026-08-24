@@ -37,9 +37,9 @@
 
 import "@scribe/core/testing/settings.ts";
 import { assertEquals } from "@std/assert";
-import { Bytes, Storage, StorageVisibility } from "@scribe/storage/mod.ts";
+import { Bytes, Storage, StorageVisibility } from "@scribe/storage/lib/storage.ts";
 import type { FakePostgrestSeed } from "@scribe/foundation/tests/testing/database.ts";
-import { installStorageMock } from "@scribe/storage/testing/mock.ts";
+import { installStorageMock } from "@scribe/storage/tests/testing/mock.ts";
 import { installDatabaseFake } from "./mocks/database.ts";
 
 const shelves = Storage.public("shelves/{shelfId}");

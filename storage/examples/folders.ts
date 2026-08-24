@@ -1,4 +1,4 @@
-import { Bytes, Storage, StorageVisibility } from "@scribe/storage/mod.ts";
+import { Bytes, Storage, StorageVisibility } from "@scribe/storage/lib/storage.ts";
 
 /**
  * A folder whose objects anyone holding their URL can read.

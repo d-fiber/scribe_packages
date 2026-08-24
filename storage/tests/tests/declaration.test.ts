@@ -37,7 +37,7 @@
 
 import "@scribe/core/testing/settings.ts";
 import { assertEquals, assertThrows } from "@std/assert";
-import { Bytes, Storage, StoragePathError, StorageVisibility } from "@scribe/storage/mod.ts";
+import { Bytes, Storage, StoragePathError, StorageVisibility } from "@scribe/storage/lib/storage.ts";
 
 const SPEC = { extensions: ["png"], maxSize: Bytes.megabytes(1) };
 

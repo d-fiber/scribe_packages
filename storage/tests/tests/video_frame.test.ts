@@ -40,7 +40,7 @@ import {
   extractPosterFrame,
   FRAME_SIZE,
   pickPosterFrame,
-} from "@scribe/storage/src/media/video_frame.ts";
+} from "@scribe/storage/lib/src/media/video_frame.ts";
 
 const FRAME_BYTES = FRAME_SIZE * FRAME_SIZE * 4;
 

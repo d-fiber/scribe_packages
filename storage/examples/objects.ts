@@ -1,4 +1,4 @@
-import type { StorageImage, StorageObject } from "@scribe/storage/mod.ts";
+import type { StorageImage, StorageObject } from "@scribe/storage/lib/storage.ts";
 import { avatar, contract, documents, users } from "./folders.ts";
 
 /**

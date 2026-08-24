@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 
-import type { StorageSettings } from "@scribe/storage/contracts/settings.ts";
+import type { StorageSettings } from "@scribe/storage/lib/contracts/settings.ts";
 import { Slot } from "@scribe/alchemy";
 
 export const storageSettings: Slot<StorageSettings> = new Slot<StorageSettings>(

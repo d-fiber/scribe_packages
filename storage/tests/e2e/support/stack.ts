@@ -83,8 +83,8 @@ export async function useStack(): Promise<void> {
 
   await import("@scribe/core/testing/settings.ts");
 
-  const { StorageTransports } = await import("@scribe/storage/src/bucket/registry.ts");
-  const { SupabaseStorageTransport } = await import("@scribe/storage/src/bucket/supabase.ts");
+  const { StorageTransports } = await import("@scribe/storage/lib/src/bucket/registry.ts");
+  const { SupabaseStorageTransport } = await import("@scribe/storage/lib/src/bucket/supabase.ts");
   StorageTransports.use(new SupabaseStorageTransport());
 }
 

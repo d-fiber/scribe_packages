@@ -38,8 +38,8 @@
 import "@scribe/core/testing/settings.ts";
 import { assertEquals } from "@std/assert";
 import type { Failure } from "@scribe/alchemy";
-import { Bytes, Storage, StorageUploadError, StorageVisibility } from "@scribe/storage/mod.ts";
-import { installStorageMock } from "@scribe/storage/testing/mock.ts";
+import { Bytes, Storage, StorageUploadError, StorageVisibility } from "@scribe/storage/lib/storage.ts";
+import { installStorageMock } from "@scribe/storage/tests/testing/mock.ts";
 import { installDatabaseFake, installRefusingDatabase } from "./mocks/database.ts";
 
 const reports = Storage.public("reports/{reportId}");

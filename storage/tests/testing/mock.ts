@@ -37,9 +37,9 @@
 
 import "@scribe/core/testing/settings.ts";
 import type { InstalledMock } from "@scribe/core/testing/install.ts";
-import { StorageTransports } from "@scribe/storage/src/bucket/registry.ts";
-import type { StorageBucket, StorageTransport } from "@scribe/storage/src/bucket/transport.ts";
-import { bucketNameOf, type StorageVisibility } from "@scribe/storage/src/core/visibility.ts";
+import { StorageTransports } from "@scribe/storage/lib/src/bucket/registry.ts";
+import type { StorageBucket, StorageTransport } from "@scribe/storage/lib/src/bucket/transport.ts";
+import { bucketNameOf, type StorageVisibility } from "@scribe/storage/lib/src/core/visibility.ts";
 
 /** One upload a recording transport kept instead of sending it. */
 export interface RecordedUpload {
