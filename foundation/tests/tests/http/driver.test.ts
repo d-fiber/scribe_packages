@@ -33,7 +33,7 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import { Caches, Now, RateLimiters } from "@scribe/alchemy";
+import { Caches, Crons, Databases, FileSystems, Hooks, Now, Queues, RateLimiters, Triggers } from "@scribe/alchemy";
 import { Clients } from "@scribe/alchemy/http";
 import { Loggers } from "@scribe/alchemy/observe";
 import { FetchClient, FetchClients } from "@scribe/foundation/lib/src/http/fetch_client.ts";
@@ -68,14 +68,12 @@ Deno.test("wiring the package fills the slot an outbound call goes through", () 
 });
 
 Deno.test("wiring the package answers every slot its drivers are for", () => {
-  for (const slot of [Clients, Loggers, Now, Caches, RateLimiters]) slot.clear();
+  const every = [Clients, Loggers, Now, Caches, RateLimiters, Queues, Hooks, Crons, Triggers, Databases, FileSystems];
+  for (const slot of every) slot.clear();
 
   scribe.wires?.();
 
-  assertEquals(
-    [Clients, Loggers, Now, Caches, RateLimiters].map((slot) => slot.configured),
-    [true, true, true, true, true],
-  );
+  assertEquals(every.map((slot) => slot.configured), every.map(() => true));
   assertEquals(Caches.get().open({ key: "probe" }).constructor.name, "RedisCache");
 });
 
@@ -85,7 +83,8 @@ Deno.test("wiring the package leaves standing whatever the host already put ther
       return 42;
     }
   }
-  for (const slot of [Clients, Loggers, Now, Caches, RateLimiters]) slot.clear();
+  const every = [Clients, Loggers, Now, Caches, RateLimiters, Queues, Hooks, Crons, Triggers, Databases, FileSystems];
+  for (const slot of every) slot.clear();
   Now.use(new HostClock());
 
   scribe.wires?.();
@@ -94,5 +93,5 @@ Deno.test("wiring the package leaves standing whatever the host already put ther
   assertEquals(Now.get().millisecondsSinceEpoch(), 42);
   assertEquals(Caches.configured, true, "a slot nobody filled is still filled");
 
-  for (const slot of [Clients, Loggers, Now, Caches, RateLimiters]) slot.clear();
+  for (const slot of every) slot.clear();
 });

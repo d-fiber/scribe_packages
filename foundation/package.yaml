@@ -6,3 +6,11 @@ environment:
   scribe: "^4.0.0"
 
 dependencies:
+
+scribe:
+  db:
+    init: ./db/init/
+    migrations: ./db/migrations/
+    provisioning: ./db/provisioning/
+  protocol:
+    - 

@@ -51,7 +51,16 @@
  * needs to happen at import or after boot.
  */
 
-import { Caches, Crons, Hooks, Queues, RateLimiters, Triggers } from "@scribe/alchemy";
+import {
+  Caches,
+  Crons,
+  Databases,
+  FileSystems,
+  Hooks,
+  Queues,
+  RateLimiters,
+  Triggers,
+} from "@scribe/alchemy";
 import { Clients } from "@scribe/alchemy/http";
 import { Loggers } from "@scribe/alchemy/observe";
 import { Now } from "@scribe/alchemy";
@@ -62,6 +71,8 @@ import { NatsQueues } from "./src/queue/nats_queues.ts";
 import { InlineHooks } from "./src/hook/inline_hooks.ts";
 import { ScheduledCrons } from "./src/cron/scheduled_crons.ts";
 import { OutboxTriggers } from "./src/trigger/outbox_triggers.ts";
+import { PostgrestDatabases } from "./src/database/postgrest_databases.ts";
+import { LocalFileSystems } from "./src/files/local_files.ts";
 import { RedisRateLimiters } from "./src/rate_limit/redis_rate_limiter.ts";
 import { ConsoleLogger } from "./src/observe/console_logger.ts";
 import { SystemNow } from "./src/observe/system_now.ts";
@@ -83,6 +94,7 @@ export { databaseSettings } from "./src/database/database_settings.ts";
 export { ownerOf, registerTableOwners } from "./src/database/table_owners.ts";
 export { type DatabaseSchema, Table, type TableShape } from "./src/database/table.ts";
 export { from, type RpcBuilder, TablesBase } from "./src/database/tables_base.ts";
+export { PostgrestDatabases } from "./src/database/postgrest_databases.ts";
 export { ownerScope, READS_EVERY_ROW, type ScopeDecision } from "./src/database/query/owner_scope.ts";
 export { UnsafeFilterError } from "./src/database/query/filter_literal.ts";
 export { DatabaseQueryError, TypedQueryBuilder } from "./src/database/query/typed_query_builder.ts";
@@ -96,6 +108,7 @@ export { FetchClient, FetchClients } from "./src/http/fetch_client.ts";
 
 export { ConsoleLogger } from "./src/observe/console_logger.ts";
 export { type Kv, kv } from "./src/redis/kv.ts";
+export { LocalFiles, LocalFileSystems } from "./src/files/local_files.ts";
 export { SystemNow } from "./src/observe/system_now.ts";
 
 export {
@@ -196,5 +209,7 @@ export const scribe: LifecycleSteps = {
     if (!Hooks.configured) Hooks.use(new InlineHooks());
     if (!Crons.configured) Crons.use(new ScheduledCrons());
     if (!Triggers.configured) Triggers.use(new OutboxTriggers());
+    if (!Databases.configured) Databases.use(new PostgrestDatabases());
+    if (!FileSystems.configured) FileSystems.use(new LocalFileSystems());
   },
 };
