@@ -1,7 +1,7 @@
-import { Field, Search } from "@scribe/search/mod.ts";
-import type { SearchParams } from "@scribe/search/contracts/definition.ts";
-import { SortOrder } from "@scribe/search/contracts/query.ts";
-import type { DocumentSelector } from "@scribe/search/src/document/selector.ts";
+import { Field, Search } from "@scribe/search/lib/search.ts";
+import type { SearchParams } from "@scribe/search/lib/contracts/definition.ts";
+import { SortOrder } from "@scribe/search/lib/contracts/query.ts";
+import type { DocumentSelector } from "@scribe/search/lib/src/document/selector.ts";
 
 /** One row of the stores table. */
 export interface StoreRow {

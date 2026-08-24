@@ -109,7 +109,7 @@ export async function useStack(): Promise<void> {
 
   await import("@scribe/core/testing/settings.ts");
 
-  const { OpenSearchTransport, SearchTransports } = await import("@scribe/search/mod.ts");
+  const { OpenSearchTransport, SearchTransports } = await import("@scribe/search/lib/search.ts");
   SearchTransports.use(new OpenSearchTransport());
 }
 

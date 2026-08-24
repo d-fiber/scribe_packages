@@ -36,9 +36,9 @@
 
 import { assertEquals } from "@std/assert";
 import { installValkeryMock } from "@scribe/foundation/tests/testing/valkery.ts";
-import type { SearchParams } from "@scribe/search/contracts/definition.ts";
-import { installSearchMock } from "@scribe/search/testing/mock.ts";
-import { Field, Search } from "@scribe/search/mod.ts";
+import type { SearchParams } from "@scribe/search/lib/contracts/definition.ts";
+import { installSearchMock } from "@scribe/search/tests/testing/mock.ts";
+import { Field, Search } from "@scribe/search/lib/search.ts";
 import { installDatabaseFake } from "./mocks/database.ts";
 
 interface StoreRow {

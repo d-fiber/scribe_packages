@@ -34,6 +34,28 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+/**
+ * What "search" hands whoever mounts it.
+ *
+ * @remarks
+ * Everything it is made of lives in `src/`, the types it publishes in `contracts/`, and this is
+ * the one file that names them: a file no line below reaches is a file this package does not
+ * publish.
+ *
+ * `scribe` at the bottom is the other half of what it hands over. It is the three moments the
+ * host may run this package at, and a package that runs at none of them says so with an empty
+ * one rather than by exporting nothing.
+ */
+
+import type { LifecycleSteps } from "@scribe/alchemy";
+import { extensions, OptionalExtension } from "@scribe/core/runtime/support/extensions/mod.ts";
+import { Env } from "@scribe/host/env.ts";
+import { SEARCH_EXTENSION } from "./src/core/extension.ts";
+import { syncDeclaredIndices } from "./src/db/indices.ts";
+import { searchSettings } from "./src/settings.ts";
+import { OpenSearchTransport } from "./src/transport/opensearch.ts";
+import { SearchTransports } from "./src/transport/registry.ts";
+
 export { Search } from "./src/core/search.ts";
 export type {
   DeclaredSorts,
@@ -67,3 +89,34 @@ export type { SearchBacklog } from "./src/db/outbox.ts";
 export type { SearchIndexRow, SearchOutboxRow, SearchSourceRow } from "./src/db/tables.ts";
 
 export { drainSearchOutbox, searchDrain } from "./src/sync/drain.ts";
+
+/**
+ * When this package runs: the cluster at import, the mappings once the database answers.
+ *
+ * @remarks
+ * The settings are where this package reaches the cluster, read from the process environment, and
+ * the transport is what answers a query once they are filled. Neither needs anything running.
+ *
+ * The extension is where the project's own declarations are loaded from, on the first drain that
+ * needs them. A declaration lives in the project, and the drain runs in a process that has no
+ * reason to have imported it, so registering it here is what makes an index findable by name in a
+ * worker that only ever handled queue work. The drain's own cron job is registered by the line
+ * that publishes `searchDrain` above, since a re-export evaluates the file it names.
+ *
+ * The indices cannot be wired at import: a declaration lives at module scope and is evaluated
+ * before anything is connected, so the mapping it asks for is written after boot.
+ */
+export const scribe: LifecycleSteps = {
+  wires: () => {
+    searchSettings.use({ clusterUrl: Env.OPENSEARCH_URL });
+    SearchTransports.use(new OpenSearchTransport());
+
+    extensions.register(
+      new OptionalExtension(
+        SEARCH_EXTENSION,
+        () => import("@app/extensions/manifest/search/search.ts"),
+      ),
+    );
+  },
+  starts: () => syncDeclaredIndices(),
+};

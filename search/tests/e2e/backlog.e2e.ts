@@ -34,8 +34,48 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Slot } from "@scribe/alchemy";
-import type { SearchSettings } from "@scribe/search/contracts/settings.ts";
+import { assert, assertEquals } from "@std/assert";
+import { report, requireStack, useStack } from "./support/stack.ts";
 
-/** Where this package reaches the cluster, handed over by whoever mounts it. */
-export const searchSettings: Slot<SearchSettings> = new Slot<SearchSettings>("search");
+await requireStack();
+await useStack();
+
+const { drainSearchOutbox } = await import("@scribe/search/lib/search.ts");
+const { backlog, enqueue } = await import("@scribe/search/lib/src/db/outbox.ts");
+const { searchOutbox } = await import("@scribe/search/lib/src/db/tables.ts");
+const { remove } = await import("./support/rows.ts");
+const { SearchOperation } = await import("@scribe/search/lib/contracts/definition.ts");
+
+const ORPHAN = "e2e_unclaimed";
+const MAX_ATTEMPTS = 5;
+
+await remove("__search_outbox__", `index=eq.${ORPHAN}`);
+
+Deno.test("search e2e: a document no declaration answers for stops being retried, and says why", async () => {
+  assert(await enqueue(ORPHAN, ["ghost"], SearchOperation.Index), "the line refused the document");
+
+  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+    await drainSearchOutbox();
+  }
+
+  const row = await searchOutbox().where((f) => f.entity_id.eq("ghost")).getOne();
+
+  assertEquals(row?.attempts, MAX_ATTEMPTS);
+  assert(row?.failed_at !== null, "the document is still being claimed after it ran out of attempts");
+  assert(
+    row?.last_error?.includes(ORPHAN),
+    `the reason kept on the row does not name the index: ${row?.last_error}`,
+  );
+
+  const waiting = await backlog(ORPHAN);
+
+  assertEquals(waiting?.pending, 0);
+  assertEquals(waiting?.failed, 1, "a document that gave up is still counted as waiting");
+  report("gave up after", `${MAX_ATTEMPTS} attempts`);
+});
+
+Deno.test("search e2e: a line that holds nothing drains without reaching the cluster", async () => {
+  await remove("__search_outbox__", `index=eq.${ORPHAN}`);
+
+  assertEquals(await drainSearchOutbox(), 0, "an empty line drained something");
+});

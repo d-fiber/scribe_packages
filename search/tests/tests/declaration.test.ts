@@ -35,9 +35,9 @@
 // LICENSE file, the LICENSE file governs.
 
 import { assertEquals, assertThrows } from "@std/assert";
-import type { SearchParams } from "@scribe/search/contracts/definition.ts";
-import type { DocumentSelector } from "@scribe/search/src/document/selector.ts";
-import { Field, indexNamed, Search } from "@scribe/search/mod.ts";
+import type { SearchParams } from "@scribe/search/lib/contracts/definition.ts";
+import type { DocumentSelector } from "@scribe/search/lib/src/document/selector.ts";
+import { Field, indexNamed, Search } from "@scribe/search/lib/search.ts";
 
 interface StoreRow {
   store_id: string;

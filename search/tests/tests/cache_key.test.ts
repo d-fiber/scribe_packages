@@ -34,48 +34,46 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { assert, assertEquals } from "@std/assert";
-import { report, requireStack, useStack } from "./support/stack.ts";
+import { assertEquals, assertNotEquals } from "@std/assert";
+import { digest, roundCoord, stableKey, timeBucket } from "@scribe/search/lib/search.ts";
 
-await requireStack();
-await useStack();
-
-const { drainSearchOutbox } = await import("@scribe/search/mod.ts");
-const { backlog, enqueue } = await import("@scribe/search/src/db/outbox.ts");
-const { searchOutbox } = await import("@scribe/search/src/db/tables.ts");
-const { remove } = await import("./support/rows.ts");
-const { SearchOperation } = await import("@scribe/search/contracts/definition.ts");
-
-const ORPHAN = "e2e_unclaimed";
-const MAX_ATTEMPTS = 5;
-
-await remove("__search_outbox__", `index=eq.${ORPHAN}`);
-
-Deno.test("search e2e: a document no declaration answers for stops being retried, and says why", async () => {
-  assert(await enqueue(ORPHAN, ["ghost"], SearchOperation.Index), "the line refused the document");
-
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
-    await drainSearchOutbox();
-  }
-
-  const row = await searchOutbox().where((f) => f.entity_id.eq("ghost")).getOne();
-
-  assertEquals(row?.attempts, MAX_ATTEMPTS);
-  assert(row?.failed_at !== null, "the document is still being claimed after it ran out of attempts");
-  assert(
-    row?.last_error?.includes(ORPHAN),
-    `the reason kept on the row does not name the index: ${row?.last_error}`,
-  );
-
-  const waiting = await backlog(ORPHAN);
-
-  assertEquals(waiting?.pending, 0);
-  assertEquals(waiting?.failed, 1, "a document that gave up is still counted as waiting");
-  report("gave up after", `${MAX_ATTEMPTS} attempts`);
+Deno.test("two objects meaning the same thing write the same key whatever their field order", () => {
+  assertEquals(stableKey({ a: 1, b: 2 }), stableKey({ b: 2, a: 1 }));
 });
 
-Deno.test("search e2e: a line that holds nothing drains without reaching the cluster", async () => {
-  await remove("__search_outbox__", `index=eq.${ORPHAN}`);
+Deno.test("the key is sorted at every depth, not only at the top", () => {
+  assertEquals(stableKey({ outer: { a: 1, b: 2 } }), stableKey({ outer: { b: 2, a: 1 } }));
+});
 
-  assertEquals(await drainSearchOutbox(), 0, "an empty line drained something");
+Deno.test("a list of scalars means the same whichever order a caller passed it in", () => {
+  assertEquals(stableKey({ status: ["open", "closed"] }), stableKey({ status: ["closed", "open"] }));
+});
+
+Deno.test("a list of objects keeps its order, since there the order is the meaning", () => {
+  assertNotEquals(
+    stableKey([{ rank: "desc" }, { name: "asc" }]),
+    stableKey([{ name: "asc" }, { rank: "desc" }]),
+  );
+});
+
+Deno.test("two values that differ get different keys", () => {
+  assertNotEquals(stableKey({ text: "rosa" }), stableKey({ text: "lino" }));
+});
+
+Deno.test("a digest is eight hexadecimal characters, and follows what the value means", () => {
+  assertEquals(digest({ a: 1 }).length, 8);
+  assertEquals(digest({ a: 1, b: 2 }), digest({ b: 2, a: 1 }));
+  assertNotEquals(digest({ a: 1 }), digest({ a: 2 }));
+});
+
+Deno.test("every moment inside one bucket rounds down to the same start", () => {
+  assertEquals(timeBucket(1_000, 60_000), 0);
+  assertEquals(timeBucket(59_999, 60_000), 0);
+  assertEquals(timeBucket(60_000, 60_000), 60_000);
+  assertEquals(timeBucket(119_999, 60_000), 60_000);
+});
+
+Deno.test("two nearby callers round onto one coordinate, and distant ones do not", () => {
+  assertEquals(roundCoord(48.8564, 2), roundCoord(48.8576, 2));
+  assertNotEquals(roundCoord(48.8564, 3), roundCoord(48.8576, 3));
 });

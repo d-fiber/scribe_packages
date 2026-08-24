@@ -34,46 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { extensions, OptionalExtension } from "@scribe/core/runtime/support/extensions/mod.ts";
-import { Env } from "@scribe/host/env.ts";
-import { searchSettings } from "@scribe/search/src/settings.ts";
-import { OpenSearchTransport, SEARCH_EXTENSION, SearchTransports, syncDeclaredIndices } from "./mod.ts";
+import { Slot } from "@scribe/alchemy";
+import type { SearchSettings } from "@scribe/search/lib/contracts/settings.ts";
 
-import "./src/sync/drain.ts";
-
-/** Where this module reaches the cluster, from the process environment. */
-searchSettings.use({
-  clusterUrl: Env.OPENSEARCH_URL,
-});
-
-/** What this module hands the framework when it is mounted. */
-SearchTransports.use(new OpenSearchTransport());
-
-/**
- * Where the project's own declarations are loaded from, on the first drain that needs them.
- *
- * A declaration lives in the project, and the drain runs in a process that has no reason to
- * have imported it. Registering it here is what makes an index findable by name in a worker
- * that only ever handled queue work.
- *
- * The `sync/drain.ts` import above is for its effect: declaring a cron job registers it, and
- * the runner reads the registry at start.
- */
-extensions.register(
-  new OptionalExtension(
-    SEARCH_EXTENSION,
-    () => import("@app/extensions/manifest/search/search.ts"),
-  ),
-);
-
-/**
- * Makes the cluster hold what every declaration asks for, once the process can reach it.
- *
- * @remarks
- * The transport above is wired at import, because it needs nothing. The indices cannot be: a
- * declaration lives at module scope and is evaluated before anything is connected, so the
- * mapping it needs is written here, where the host calls a mounted module after boot.
- */
-export function start(): Promise<void> {
-  return syncDeclaredIndices();
-}
+/** Where this package reaches the cluster, handed over by whoever mounts it. */
+export const searchSettings: Slot<SearchSettings> = new Slot<SearchSettings>("search");

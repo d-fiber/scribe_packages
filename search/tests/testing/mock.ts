@@ -36,14 +36,14 @@
 
 import "@scribe/core/testing/settings.ts";
 import type { InstalledMock } from "@scribe/core/testing/install.ts";
-import type { IndexConfig } from "@scribe/search/contracts/definition.ts";
+import type { IndexConfig } from "@scribe/search/lib/contracts/definition.ts";
 import type {
   IndexedDocument,
   SearchHits,
   SearchRequest,
   SearchTransport,
-} from "@scribe/search/contracts/transport.ts";
-import { SearchTransports } from "@scribe/search/src/transport/registry.ts";
+} from "@scribe/search/lib/contracts/transport.ts";
+import { SearchTransports } from "@scribe/search/lib/src/transport/registry.ts";
 
 /** A transport that keeps every call instead of reaching a cluster, so a test can read them. */
 export class RecordingTransport implements SearchTransport {

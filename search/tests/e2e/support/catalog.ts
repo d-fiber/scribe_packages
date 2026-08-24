@@ -34,10 +34,10 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { SearchParams } from "@scribe/search/contracts/definition.ts";
-import { SortOrder } from "@scribe/search/contracts/query.ts";
-import { Field, Search } from "@scribe/search/mod.ts";
-import type { DocumentSelector, PreviewSelector } from "@scribe/search/src/document/selector.ts";
+import type { SearchParams } from "@scribe/search/lib/contracts/definition.ts";
+import { SortOrder } from "@scribe/search/lib/contracts/query.ts";
+import { Field, Search } from "@scribe/search/lib/search.ts";
+import type { DocumentSelector, PreviewSelector } from "@scribe/search/lib/src/document/selector.ts";
 
 /** One row of `e2e_brands`, the table the document folds in to carry a label. */
 export interface BrandRow {
