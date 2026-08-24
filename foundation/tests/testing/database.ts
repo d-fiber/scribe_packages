@@ -95,6 +95,22 @@ class FakeQueryBuilder implements PromiseLike<{ data: unknown; error: null }> {
     return this;
   }
 
+  filter(col: string, operator: string, literal: string): this {
+    if (operator === "in") return this.in(col, readFilterList(literal));
+
+    const value = readFilterLiteral(literal);
+    if (operator === "eq") return this.eq(col, value);
+    if (operator === "neq") return this.neq(col, value);
+    if (operator === "gt") return this.gt(col, value);
+    if (operator === "gte") return this.gte(col, value);
+    if (operator === "lt") return this.lt(col, value);
+    if (operator === "lte") return this.lte(col, value);
+    if (operator === "is") return this.is(col, value);
+    if (operator === "like") return this.like(col, String(value));
+    if (operator === "ilike") return this.ilike(col, String(value));
+    throw new Error(`FakePostgrestClient: no operator named "${operator}"`);
+  }
+
   eq(col: string, value: unknown): this {
     return this.#filter(col, (v) => v === value);
   }
@@ -273,4 +289,45 @@ export class FakePostgrestClient {
       error: null,
     });
   }
+}
+
+function readFilterLiteral(literal: string): unknown {
+  if (literal === "null") return null;
+  if (literal === "unknown") return undefined;
+  if (literal === "true") return true;
+  if (literal === "false") return false;
+  if (!literal.startsWith('"')) {
+    const asNumber = Number(literal);
+    return literal !== "" && Number.isFinite(asNumber) ? asNumber : literal;
+  }
+
+  let read = "";
+  for (let at = 1; at < literal.length - 1; at++) {
+    read += literal[at] === "\\" ? literal[++at] : literal[at];
+  }
+  return read;
+}
+
+function readFilterList(literal: string): unknown[] {
+  const members: string[] = [];
+  let member = "";
+  let quoted = false;
+
+  for (let at = 1; at < literal.length - 1; at++) {
+    const char = literal[at];
+    if (quoted && char === "\\") {
+      member += char + literal[++at];
+      continue;
+    }
+    if (char === '"') quoted = !quoted;
+    if (char === "," && !quoted) {
+      members.push(member);
+      member = "";
+      continue;
+    }
+    member += char;
+  }
+  members.push(member);
+
+  return members.map(readFilterLiteral);
 }

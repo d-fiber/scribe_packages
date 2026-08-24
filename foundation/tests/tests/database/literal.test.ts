@@ -75,7 +75,10 @@ Deno.test("a value cannot break out of the group to reach another parameter", ()
 });
 
 Deno.test("numbers and booleans stay bare-typed rather than becoming strings", () => {
-  assertEquals(quoteFilterLiteral(42), '"42"');
+  assertEquals(quoteFilterLiteral(42), "42");
+  assertEquals(quoteFilterLiteral(-1.5), "-1.5");
+  assertEquals(quoteFilterLiteral(NaN), '"NaN"');
+  assertEquals(quoteFilterLiteral(Infinity), '"Infinity"');
   assertEquals(quoteFilterLiteral(true), "true");
   assertEquals(quoteFilterLiteral(false), "false");
   assertEquals(quoteFilterLiteral(null), "null");

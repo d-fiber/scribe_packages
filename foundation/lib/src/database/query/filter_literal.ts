@@ -56,10 +56,11 @@ export function quoteFilterLiteral(value: unknown): string {
   if (value === null || value === undefined) return "null";
   if (typeof value === "boolean") return String(value);
 
-  const text = typeof value === "number" || typeof value === "bigint"
+  if (typeof value === "bigint") return String(value);
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+
+  const text = typeof value === "string" || typeof value === "number"
     ? String(value)
-    : typeof value === "string"
-    ? value
     : JSON.stringify(value);
 
   return `"${text.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;

@@ -43,7 +43,7 @@ import { ownerOf } from "../table_owners.ts";
 import type { FilterBuilder, FilterSpec } from "./filter_builder.ts";
 import { filter } from "./filter_builder.ts";
 import { NOBODY, type ScopeDecision } from "./owner_scope.ts";
-import { ownerScope } from "./owner_scope.ts";
+import { embeddedScopes, ownerScope } from "./owner_scope.ts";
 import type { ExtractShape, RelNode, Selector } from "./selector.ts";
 import { columnsOf, selector } from "./selector.ts";
 import type { QueryState } from "./query_state.ts";
@@ -135,6 +135,7 @@ export class TypedQueryBuilder<
 
   #scoped(): { state: QueryState; owned: boolean } {
     const decision = this.#decide();
+    const embedded = embeddedScopes(this.#state.selectCols);
 
     if (decision.kind === "nobody") {
       return {
@@ -142,6 +143,7 @@ export class TypedQueryBuilder<
           ...this.#state,
           filters: [
             ...this.#state.filters,
+            ...embedded,
             { column: decision.column, apply: (qb: any) => qb.eq(decision.column, NOBODY) },
           ],
         },
@@ -149,13 +151,18 @@ export class TypedQueryBuilder<
       };
     }
 
-    if (decision.kind !== "scoped") return { state: this.#state, owned: false };
+    if (decision.kind !== "scoped") {
+      return embedded.length === 0
+        ? { state: this.#state, owned: false }
+        : { state: { ...this.#state, filters: [...this.#state.filters, ...embedded] }, owned: false };
+    }
 
     return {
       state: {
         ...this.#state,
         filters: [
           ...this.#state.filters,
+          ...embedded,
           {
             column: decision.column,
             apply: (qb: any) => qb.eq(decision.column, decision.id),
@@ -183,8 +190,16 @@ export class TypedQueryBuilder<
     return true;
   }
 
+  /**
+   * Whether the store reported a failure, recording it when it did.
+   *
+   * @remarks
+   * Anything present is a failure, including the empty string and zero. A store answering a
+   * falsy error used to read as a write that happened, and the caller was told a row it never
+   * wrote was written.
+   */
   #failed(op: string, error: unknown): boolean {
-    if (!error) return false;
+    if (error === null || error === undefined) return false;
 
     log.error("db-query.failed", {
       metadata: { operation: op, table: this.#table, cause: describeCause(error) },
@@ -206,18 +221,49 @@ export class TypedQueryBuilder<
     );
   }
 
-  #owned<T extends Partial<Row>>(data: T | T[]): T | T[] {
+  /**
+   * `data` with the owning column filled from the caller, or what naming another owner earns.
+   *
+   * @remarks
+   * Filling a column nobody named and accepting one that names somebody else look alike from
+   * inside a write, and they are opposites. The second plants a row in another caller's account,
+   * where the read side will never show it to whoever wrote it, so it is refused rather than
+   * quietly corrected: a caller who meant their own row left the column out.
+   *
+   * A caller who proved nobody owns nothing, so there is no column to fill and the write has no
+   * owner to carry. It is refused for the same reason the read answers no row.
+   */
+  #owned<T extends Partial<Row>>(data: T | T[]): Result<T | T[]> {
     const decision = this.#decide();
-    if (decision.kind !== "scoped") return data;
+    if (decision.kind === "nobody") return new Failure(_NO_OWNER);
+    if (decision.kind !== "scoped") return new Ok(data);
 
-    const withOwner = (row: T): T => {
-      const current = (row as Record<string, unknown>)[decision.column];
-      return current === undefined || current === null
-        ? { ...row, [decision.column]: decision.id }
-        : row;
-    };
+    const rows = Array.isArray(data) ? data : [data];
+    for (const row of rows) {
+      const named = (row as Record<string, unknown>)[decision.column];
+      if (named !== undefined && named !== null && named !== decision.id) {
+        return new Failure(_FOREIGN_OWNER);
+      }
+    }
 
-    return Array.isArray(data) ? data.map(withOwner) : withOwner(data);
+    const withOwner = (row: T): T => ({ ...row, [decision.column]: decision.id });
+    return new Ok(Array.isArray(data) ? data.map(withOwner) : withOwner(data));
+  }
+
+  /**
+   * What writing the owning column earns, or null when the write leaves it where it is.
+   *
+   * @remarks
+   * The scope narrows an update to the caller's own rows and says nothing about what it writes.
+   * Moving the owning column moves the row out of that scope for good, and the caller who did it
+   * cannot read it back to undo it.
+   */
+  #movesTheOwner(data: Partial<Row>): Refusal | null {
+    const decision = this.#decide();
+    if (decision.kind !== "scoped") return null;
+
+    const named = (data as Record<string, unknown>)[decision.column];
+    return named === undefined || named === decision.id ? null : _FOREIGN_OWNER;
   }
 
   unscoped(): TypedQueryBuilder<Row, Answer, Rels> {
@@ -279,7 +325,23 @@ export class TypedQueryBuilder<
     });
   }
 
+  /**
+   * Asks for at most `count` rows.
+   *
+   * @remarks
+   * A count that is not a whole number of rows is dropped rather than sent. PostgREST reads the
+   * value as text, so `NaN`, `Infinity` and `1.5` reach it as words it refuses the whole request
+   * over, and a negative count asks for a window that cannot exist. Dropping it answers the
+   * query unbounded, which is what the caller would have got had it never called this, and the
+   * line says which call was ignored.
+   */
   limit(count: number): TypedQueryBuilder<Row, Answer, Rels> {
+    if (!_isRowCount(count)) {
+      log.error("database.limit_ignored", {
+        metadata: { table: this.#table, asked: count, consequence: "the query is not bounded" },
+      });
+      return this;
+    }
     return this.#with({ limitCount: count });
   }
 
@@ -320,19 +382,23 @@ export class TypedQueryBuilder<
    * it will not.
    */
   async insert(data: Partial<Row> | Partial<Row>[]): Future<Result<number>> {
+    const owned = this.#owned(data);
+    if (!owned.ok) return owned;
+
     const rows = Array.isArray(data) ? data.length : 1;
-    const { error } = await this.#db
-      .from(this.#table)
-      .insert(this.#owned(data));
+    const { error } = await this.#db.from(this.#table).insert(owned.data);
 
     return this.#failed("insert", error) ? new Failure(_refusalOf(error)) : new Ok(rows);
   }
 
   /** Writes one row and answers it as the store wrote it, or what stopped the write. */
   async insertOne(data: Partial<Row>): Future<Result<Row>> {
+    const owned = this.#owned(data);
+    if (!owned.ok) return owned;
+
     const { data: result, error } = await this.#db
       .from(this.#table)
-      .insert(this.#owned(data))
+      .insert(owned.data)
       .select("*")
       .maybeSingle();
 
@@ -342,6 +408,9 @@ export class TypedQueryBuilder<
 
   /** Writes `data` over every row this query reaches, and answers what became of it. */
   async update(data: Partial<Row>): Future<Result<number>> {
+    const moved = this.#movesTheOwner(data);
+    if (moved !== null) return new Failure(moved);
+
     const scoped = this.#scoped();
     if (this.#refusesUnboundedWrite("update", scoped)) return new Failure(_UNBOUNDED);
 
@@ -354,7 +423,7 @@ export class TypedQueryBuilder<
     ).select("*");
 
     if (this.#failed("update", error)) return new Failure(_refusalOf(error));
-    return new Ok(Array.isArray(written) ? written.length : 0);
+    return Array.isArray(written) ? new Ok(written.length) : new Failure(_SILENT);
   }
 
   /** Removes every row this query reaches, and answers how many that was. */
@@ -370,7 +439,7 @@ export class TypedQueryBuilder<
     ).select("*");
 
     if (this.#failed("delete", error)) return new Failure(_refusalOf(error));
-    return new Ok(Array.isArray(removed) ? removed.length : 0);
+    return Array.isArray(removed) ? new Ok(removed.length) : new Failure(_SILENT);
   }
 
   /** Removes the one row this query reaches, and answers it as it was before. */
@@ -395,6 +464,16 @@ export class TypedQueryBuilder<
   }
 }
 
+/** What a caller who proved nobody earns for trying to write a row somebody would own. */
+const _NO_OWNER: Refusal = Refusal.denied(
+  "a caller that proved nobody owns no row, so it may not write one into an owned table.",
+);
+
+/** What naming an owner other than the caller earns, on a write or on an update. */
+const _FOREIGN_OWNER: Refusal = Refusal.denied(
+  "the owning column names another caller. Leave it out and it is filled from whoever is calling.",
+);
+
 /** What a write that names no row is refused with, whatever the store would have done. */
 const _UNBOUNDED: Refusal = Refusal.denied(
   "the write names no row. Add a .where(), or .entireTable() if reaching every row is deliberate.",
@@ -409,10 +488,36 @@ const _UNBOUNDED: Refusal = Refusal.denied(
  * nothing may answer next time, so the call is unavailable, and only that one is worth replaying.
  */
 function _refusalOf(error: unknown): Refusal {
-  const answered = error !== null && typeof error === "object" && "code" in error;
-  const said = error !== null && typeof error === "object" && "message" in error
-    ? String((error as { message: unknown }).message)
-    : "the write did not happen.";
+  if (error === null || typeof error !== "object") {
+    return Refusal.conflict(_saidBy(error));
+  }
 
-  return answered ? Refusal.conflict(said) : Refusal.unavailable(said);
+  const said = "message" in error ? String((error as { message: unknown }).message) : _NOTHING_SAID;
+  return "code" in error ? Refusal.conflict(said) : Refusal.unavailable(said);
+}
+
+/** What a store said when what it answered was not an object holding a message. */
+const _NOTHING_SAID = "the write did not happen.";
+
+/**
+ * What a store that answered something other than an object said.
+ *
+ * @remarks
+ * A driver that answers a string or a code has still answered, so the call is refused rather than
+ * called retryable: replaying a duplicate key will produce the same duplicate key. Losing the text
+ * on the way is what left the caller a refusal with nothing in it to act on.
+ */
+function _saidBy(error: unknown): string {
+  const said = String(error);
+  return said === "" ? _NOTHING_SAID : said;
+}
+
+/** What is answered when the store wrote without saying what it wrote. */
+const _SILENT: Refusal = Refusal.unavailable(
+  "the store did not say which rows it wrote, so the count cannot be told from a write that matched nothing.",
+);
+
+/** Whether `count` is a number of rows a query can be asked for. */
+function _isRowCount(count: number): boolean {
+  return Number.isInteger(count) && count >= 0;
 }

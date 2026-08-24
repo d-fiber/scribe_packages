@@ -36,6 +36,13 @@
 
 // deno-lint-ignore-file no-explicit-any
 
+import {
+  assertPlainColumn,
+  keywordLiteral,
+  quoteFilterList,
+  quoteFilterLiteral,
+} from "./filter_literal.ts";
+
 /** One condition of a `where`, kept as the column it names and the call that applies it. */
 export interface FilterSpec {
   /** The column this condition narrows, which is what the owner scope is checked against. */
@@ -47,6 +54,23 @@ export interface FilterSpec {
 
 function on(column: string, apply: (qb: any) => any): FilterSpec {
   return { column, apply };
+}
+
+/**
+ * One condition, written as the term PostgREST reads rather than left to the client to render.
+ *
+ * @remarks
+ * The client renders a value by its JavaScript type, so the string `"null"` and an absent value
+ * become the same term, a quote inside a list member runs into the member after it, and a nested
+ * array flattens into as many members as it holds. Each of those is a caller asking one question
+ * and the database answering another.
+ *
+ * The literal is built by `filter_literal.ts`, which quotes and escapes, and handed to the
+ * client's own escape hatch, which appends what it is given.
+ */
+function said(column: string, operator: string, literal: string): FilterSpec {
+  assertPlainColumn(column);
+  return on(column, (qb) => qb.filter(column, operator, literal));
 }
 
 type FilterOps<V> = {
@@ -68,16 +92,16 @@ export type FilterBuilder<T> = {
 
 export function filter<T>(): FilterBuilder<T> {
   const ops = (col: string): FilterOps<any> => ({
-    eq: (v) => on(col, (qb) => qb.eq(col, v)),
-    neq: (v) => on(col, (qb) => qb.neq(col, v)),
-    gt: (v) => on(col, (qb) => qb.gt(col, v)),
-    lt: (v) => on(col, (qb) => qb.lt(col, v)),
-    gte: (v) => on(col, (qb) => qb.gte(col, v)),
-    lte: (v) => on(col, (qb) => qb.lte(col, v)),
-    is: (v) => on(col, (qb) => qb.is(col, v)),
-    in: (v) => on(col, (qb) => qb.in(col, v)),
-    like: (p) => on(col, (qb) => qb.like(col, p)),
-    ilike: (p) => on(col, (qb) => qb.ilike(col, p)),
+    eq: (v) => said(col, "eq", quoteFilterLiteral(v)),
+    neq: (v) => said(col, "neq", quoteFilterLiteral(v)),
+    gt: (v) => said(col, "gt", quoteFilterLiteral(v)),
+    lt: (v) => said(col, "lt", quoteFilterLiteral(v)),
+    gte: (v) => said(col, "gte", quoteFilterLiteral(v)),
+    lte: (v) => said(col, "lte", quoteFilterLiteral(v)),
+    is: (v) => said(col, "is", keywordLiteral(v)),
+    in: (v) => said(col, "in", quoteFilterList(v)),
+    like: (p) => said(col, "like", quoteFilterLiteral(p)),
+    ilike: (p) => said(col, "ilike", quoteFilterLiteral(p)),
   });
   return new Proxy({} as FilterBuilder<T>, {
     get: (_, col: string) => ops(col),

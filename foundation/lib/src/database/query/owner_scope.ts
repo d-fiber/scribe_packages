@@ -37,6 +37,8 @@
 import { currentPrincipal } from "@scribe/core/runtime/http/accessors/identity.ts";
 import { ScribeError } from "@scribe/alchemy";
 import { ownerOf } from "../table_owners.ts";
+import type { FilterSpec } from "./filter_builder.ts";
+import type { UnmodifiableList } from "@scribe/alchemy";
 
 /**
  * The permission that lets a caller read past the rows it owns.
@@ -110,4 +112,58 @@ export function ownerScope(table: string): ScopeDecision {
   if (principal.user.permissions.includes(READS_EVERY_ROW)) return OPEN;
 
   return { kind: "scoped", column, id: principal.user.id };
+}
+
+/**
+ * The filters that narrow every owned table `select` embeds to the caller's own rows.
+ *
+ * @remarks
+ * An embed is a join, and PostgREST reads a filter on it only when the filter names the embedded
+ * table: `cards.holder_id=eq.u1`. Without one the outer table is narrowed and the embedded one is
+ * read whole, so a caller reading its own orders is handed every card in the table under them.
+ *
+ * A caller that owns nothing is narrowed the same way a read of an owned table is, on a value no
+ * row holds, so the embed answers empty rather than answering everything.
+ *
+ * @throws {UnprovenCallerError} When the path reached here without a caller, as {@link ownerScope}
+ * throws for the table itself.
+ */
+export function embeddedScopes(select: string | null): UnmodifiableList<FilterSpec> {
+  if (select === null || !select.includes("(")) return [];
+
+  const narrowed: FilterSpec[] = [];
+  for (const embedded of _embeddedIn(select)) {
+    const decision = ownerScope(embedded);
+    if (decision.kind === "open") continue;
+
+    const column = `${embedded}.${decision.column}`;
+    const id = decision.kind === "scoped" ? decision.id : NOBODY;
+    narrowed.push({ column, apply: (qb: Narrowable) => qb.eq(column, id) });
+  }
+
+  return narrowed;
+}
+
+/** The one method an embed filter needs from the builder it is applied to. */
+interface Narrowable {
+  /** Narrows `column` to `value`, answering the builder back for chaining. */
+  eq(column: string, value: string): unknown;
+}
+
+/**
+ * The tables a select string embeds, at any depth.
+ *
+ * @remarks
+ * An embed is a name followed by a parenthesis, and it may be renamed with `as` or aliased with a
+ * colon. What is read is the name of the table, which is what a filter has to name.
+ */
+function _embeddedIn(select: string): UnmodifiableList<string> {
+  const found: string[] = [];
+
+  for (const match of select.matchAll(/([A-Za-z_][A-Za-z0-9_]*)\s*\(/g)) {
+    const named = match[1];
+    if (!found.includes(named)) found.push(named);
+  }
+
+  return found;
 }
