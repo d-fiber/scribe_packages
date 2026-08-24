@@ -48,7 +48,7 @@
  */
 
 import type { LifecycleSteps } from "@scribe/alchemy";
-import { Env } from "@scribe/host/env.ts";
+import { Env } from "@scribe/engine/env.ts";
 import { SupabaseStorageTransport } from "./src/bucket/supabase.ts";
 import { StorageTransports } from "./src/bucket/registry.ts";
 import { storageSettings } from "./src/settings.ts";

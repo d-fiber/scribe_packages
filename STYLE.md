@@ -89,7 +89,7 @@ the host's own modules stops standing alone, and the lint plugin refuses it by n
 
 ```ts
 // No
-import { serve } from "@scribe/host/core/host.ts";
+import { serve } from "@scribe/engine/core/host.ts";
 
 // Yes
 import { table } from "@scribe/foundation/database";

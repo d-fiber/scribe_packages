@@ -40,7 +40,7 @@ import type { AuthSettings } from "../contracts/settings.ts";
 /**
  * Where this package's secrets live, filled by `register.ts` when the module is mounted.
  *
- * They do not come from `@scribe/host/env.ts` because a package cannot read the host's
+ * They do not come from `@scribe/engine/env.ts` because a package cannot read the host's
  * environment: it would tie a package to the one process that declares those names.
  */
 export const authSettings: Slot<AuthSettings> = new Slot<AuthSettings>("auth");

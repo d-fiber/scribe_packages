@@ -53,7 +53,7 @@ fail() {
 command -v deno >/dev/null 2>&1 || fail "deno is not on your PATH. Install Deno 2, then run this again."
 command -v rsync >/dev/null 2>&1 || fail "rsync is not on your PATH."
 
-[ -d "$SCRIBE/host" ] || fail "$SCRIBE is not a scribe checkout. Name one, or set SCRIBE_CHECKOUT."
+[ -d "$SCRIBE/engine" ] || fail "$SCRIBE is not a scribe checkout. Name one, or set SCRIBE_CHECKOUT."
 
 cd "$ROOT"
 
@@ -63,10 +63,10 @@ bash .github/headers/check.sh
 say "checking the version"
 bash .github/version/check.sh
 
-say "copying the packages into $SCRIBE/host/packages"
-bash .github/sync/copy.sh "$SCRIBE/host/packages"
+say "copying the packages into $SCRIBE/engine/packages"
+bash .github/sync/copy.sh "$SCRIBE/engine/packages"
 
-cd "$SCRIBE/host"
+cd "$SCRIBE/engine"
 
 say "type checking the framework with them"
 deno task check

@@ -52,14 +52,14 @@ jobs:
       - uses: actions/cache@v4
         with:
           path: ~/.cache/deno
-          key: deno-${{ runner.os }}-${{ hashFiles('scribe/host/deno.lock') }}
+          key: deno-${{ runner.os }}-${{ hashFiles('scribe/engine/deno.lock') }}
           restore-keys: deno-${{ runner.os }}-
 
       - name: Put these packages in the framework
-        run: bash source/.github/sync/copy.sh "$GITHUB_WORKSPACE/scribe/host/packages"
+        run: bash source/.github/sync/copy.sh "$GITHUB_WORKSPACE/scribe/engine/packages"
 
       - name: Type check, lint and run the suite with them
-        working-directory: scribe/host
+        working-directory: scribe/engine
         run: |
           set -eu
           deno task check

@@ -1,4 +1,4 @@
 services:
   db:
     volumes:
-      - "{{sdk_root}}/host/packages/search/db/init:/docker-entrypoint-init-sql/modules/search:ro"
+      - "{{sdk_root}}/engine/packages/search/db/init:/docker-entrypoint-init-sql/modules/search:ro"

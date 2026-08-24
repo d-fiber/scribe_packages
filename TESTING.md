@@ -31,7 +31,7 @@ discard it there when you are done.
 
 ```
 tests/tests/    needs nothing running        scribedev pkg test, from the package
-tests/e2e/      needs the containers up      deno task test:e2e:<package>, in scribe/host
+tests/e2e/      needs the containers up      deno task test:e2e:<package>, in scribe/engine
 tests/testing/  is not a test at all         it is what a consumer stubs you with
 ```
 

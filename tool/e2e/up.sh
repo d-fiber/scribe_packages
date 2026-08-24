@@ -48,4 +48,4 @@ echo "[e2e:up] starting the containers and waiting for them to answer"
 compose up -d --build --wait
 
 echo ""
-echo "[e2e:up] the $PACKAGE stack is up. Run its suite from scribe/host with deno task test:e2e."
+echo "[e2e:up] the $PACKAGE stack is up. Run its suite from scribe/engine with deno task test:e2e."

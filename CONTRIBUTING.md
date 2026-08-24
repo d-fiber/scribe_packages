@@ -185,7 +185,7 @@ hand, refuses anybody else who asks, and refuses a version that was never tagged
 writes the release from the changelog sections `main` had not yet seen.
 
 The arrival on `main` fires `sync`, which puts these packages into `scribe` at
-`host/packages/`, checks that the framework still type checks and passes its suite with them,
+`engine/packages/`, checks that the framework still type checks and passes its suite with them,
 and only then commits to its `dev`. It leaves this repository's own files behind: the licence, the
 four documents, `.github/`, `.githooks/` and `tool/test.sh` belong to working here, not to the
 framework.
