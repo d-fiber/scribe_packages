@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import type { DatabaseSettings } from "@scribe/foundation/lib/src/settings.ts";
 import { databaseSettings } from "@scribe/foundation/lib/src/database/database_settings.ts";
 import { PostgrestClient } from "@supabase/postgrest-js";
 
@@ -49,17 +50,29 @@ import { PostgrestClient } from "@supabase/postgrest-js";
  */
 export class PostgrestClients {
   static #serviceClient: PostgrestClient | null = null;
+  static #builtFrom: DatabaseSettings | null = null;
 
-  /** The shared client, authenticated with the service role key. */
+  /**
+   * The shared client, authenticated with the service role key.
+   *
+   * @remarks
+   * It is kept between calls, and dropped when the settings it was built from are replaced. A
+   * client held past that point would go on reaching the address of a deployment nobody is
+   * pointed at any more, which is what a test that swaps the settings does on purpose and what a
+   * host doing it at boot would do by accident.
+   */
   static service(): PostgrestClient {
-    if (!this.#serviceClient) {
-      const { restUrl, serviceRoleKey } = databaseSettings.get();
+    const settings = databaseSettings.get();
+
+    if (this.#serviceClient === null || this.#builtFrom !== settings) {
+      const { restUrl, serviceRoleKey } = settings;
       this.#serviceClient = new PostgrestClient(restUrl, {
         headers: {
           apikey: serviceRoleKey,
           Authorization: `Bearer ${serviceRoleKey}`,
         },
       });
+      this.#builtFrom = settings;
     }
     return this.#serviceClient;
   }
