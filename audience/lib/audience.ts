@@ -34,56 +34,37 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Audience } from "@scribe/audience/src/core/declaration.ts";
-import { audiencesOf, forgetMember } from "@scribe/audience/src/core/member.ts";
-import { installAudienceMock } from "@scribe/audience/testing/mock.ts";
-import { assert, assertEquals, assertFalse } from "@std/assert";
+/**
+ * What "audience" hands whoever mounts it.
+ *
+ * @remarks
+ * Everything it is made of lives in `src/`, the types it publishes in `contracts/`, and this is
+ * the one file that names them: a file no line below reaches is a file this package does not
+ * publish.
+ *
+ * `scribe` at the bottom is the other half of what it hands over. It is the three moments the
+ * host may run this package at, and a package that runs at none of them says so with an empty
+ * one rather than by exporting nothing.
+ */
 
-const banned = Audience.plain("member-banned");
-const editors = Audience.keyed("member-editors");
+import type { LifecycleSteps } from "@scribe/alchemy";
 
-Deno.test("a member is listed under every audience it belongs to", async () => {
-  const audiences = installAudienceMock();
+export { Audience } from "./src/core/declaration.ts";
+export type { KeyedAudience, Members } from "./src/core/declaration.ts";
+export { audiencesOf, forgetMember } from "./src/core/member.ts";
+export { AudienceKeyError } from "./src/core/key.ts";
+export { MAX_AUDIENCES, MAX_MEMBERS } from "./src/db/members.ts";
+export type { AudienceRow } from "./src/db/tables.ts";
 
-  try {
-    await banned.add("a1");
-    await editors.in("p1").add("a1");
-    await editors.in("p2").add("a2");
+export { AudienceError } from "./contracts/audience.ts";
+export type { AudienceOptions, JoinOptions } from "./contracts/audience.ts";
 
-    assertEquals(await audiencesOf("a1"), ["member-banned", "member-editors:p1"]);
-  } finally {
-    audiences.restore();
-  }
-});
-
-Deno.test("a member that is forgotten belongs nowhere, cache included", async () => {
-  const audiences = installAudienceMock();
-
-  try {
-    await banned.add("a1");
-    await editors.in("p1").add("a1");
-    assert(await banned.has("a1"));
-    assert(await editors.in("p1").has("a1"));
-
-    assert((await forgetMember("a1")).ok);
-    assertFalse(await banned.has("a1"), "forgetting must drop what the cache holds");
-    assertFalse(await editors.in("p1").has("a1"));
-    assertEquals(await audiencesOf("a1"), []);
-  } finally {
-    audiences.restore();
-  }
-});
-
-Deno.test("forgetting a member leaves the others where they are", async () => {
-  const audiences = installAudienceMock();
-
-  try {
-    await editors.in("p1").add("a1");
-    await editors.in("p1").add("a2");
-
-    await forgetMember("a1");
-    assertEquals(await editors.in("p1").members(), ["a2"]);
-  } finally {
-    audiences.restore();
-  }
-});
+/**
+ * When this package runs, which is at none of the three moments.
+ *
+ * @remarks
+ * Nothing here answers a port or reads the environment: what this package does, it does when
+ * something calls it. The member is written empty rather than left out, because an entry that
+ * exports nothing for it and one whose steps are misspelt look the same to the host.
+ */
+export const scribe: LifecycleSteps = {};

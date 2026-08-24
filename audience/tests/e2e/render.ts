@@ -54,9 +54,9 @@
 
 /** The fragments a deployment mounts, in the order Compose reads them. */
 const FRAGMENTS: readonly { readonly from: string; readonly as: string }[] = [
-  { from: "../../foundation/ops/valkery/docker-compose.yaml", as: "valkery" },
-  { from: "../../foundation/ops/database/docker-compose.yaml", as: "database" },
-  { from: "../ops/overlay.yaml", as: "audience_overlay" },
+  { from: "../../../foundation/ops/valkery/docker-compose.yaml", as: "valkery" },
+  { from: "../../../foundation/ops/database/docker-compose.yaml", as: "database" },
+  { from: "../../ops/overlay.yaml", as: "audience_overlay" },
 ];
 
 /** What the CLI would substitute, and what it becomes for a run of the suite. */

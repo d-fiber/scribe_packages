@@ -34,65 +34,55 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Audience } from "@scribe/audience/src/core/declaration.ts";
-import { forgetMembership } from "@scribe/audience/src/runtime/cache.ts";
-import { installAudienceMock } from "@scribe/audience/testing/mock.ts";
-import { assert, assertFalse } from "@std/assert";
+import { Audience } from "@scribe/audience/lib/src/core/declaration.ts";
+import { audiencesOf, forgetMember } from "@scribe/audience/lib/src/core/member.ts";
+import { installAudienceMock } from "@scribe/audience/tests/testing/mock.ts";
+import { assert, assertEquals, assertFalse } from "@std/assert";
 
-const editors = Audience.keyed("cache-editors");
+const banned = Audience.plain("member-banned");
+const editors = Audience.keyed("member-editors");
 
-Deno.test("a membership asked about once is answered from the cache until something drops it", async () => {
+Deno.test("a member is listed under every audience it belongs to", async () => {
   const audiences = installAudienceMock();
 
   try {
+    await banned.add("a1");
+    await editors.in("p1").add("a1");
+    await editors.in("p2").add("a2");
+
+    assertEquals(await audiencesOf("a1"), ["member-banned", "member-editors:p1"]);
+  } finally {
+    audiences.restore();
+  }
+});
+
+Deno.test("a member that is forgotten belongs nowhere, cache included", async () => {
+  const audiences = installAudienceMock();
+
+  try {
+    await banned.add("a1");
+    await editors.in("p1").add("a1");
+    assert(await banned.has("a1"));
+    assert(await editors.in("p1").has("a1"));
+
+    assert((await forgetMember("a1")).ok);
+    assertFalse(await banned.has("a1"), "forgetting must drop what the cache holds");
     assertFalse(await editors.in("p1").has("a1"));
-
-    audiences.seed([{ audience: "cache-editors:p1", member: "a1", created_at: 1, expires_at: null }]);
-    assertFalse(await editors.in("p1").has("a1"), "a row written behind the package must not be seen at once");
-
-    await forgetMembership("cache-editors:p1", "a1");
-    assert(await editors.in("p1").has("a1"));
+    assertEquals(await audiencesOf("a1"), []);
   } finally {
     audiences.restore();
   }
 });
 
-Deno.test("putting a member in is seen by the next question", async () => {
-  const audiences = installAudienceMock();
-
-  try {
-    assertFalse(await editors.in("p1").has("a1"));
-
-    await editors.in("p1").add("a1");
-    assert(await editors.in("p1").has("a1"), "putting a member in must drop what the cache holds");
-  } finally {
-    audiences.restore();
-  }
-});
-
-Deno.test("taking a member out is seen by the next question", async () => {
+Deno.test("forgetting a member leaves the others where they are", async () => {
   const audiences = installAudienceMock();
 
   try {
     await editors.in("p1").add("a1");
-    assert(await editors.in("p1").has("a1"));
+    await editors.in("p1").add("a2");
 
-    await editors.in("p1").remove("a1");
-    assertFalse(await editors.in("p1").has("a1"), "taking a member out must drop what the cache holds");
-  } finally {
-    audiences.restore();
-  }
-});
-
-Deno.test("emptying an audience is seen by the next question", async () => {
-  const audiences = installAudienceMock();
-
-  try {
-    await editors.in("p1").add("a1");
-    assert(await editors.in("p1").has("a1"));
-
-    await editors.in("p1").clear();
-    assertFalse(await editors.in("p1").has("a1"), "emptying must drop what the cache holds");
+    await forgetMember("a1");
+    assertEquals(await editors.in("p1").members(), ["a2"]);
   } finally {
     audiences.restore();
   }

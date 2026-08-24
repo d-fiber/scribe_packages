@@ -34,12 +34,42 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-export { Audience } from "./src/core/declaration.ts";
-export type { KeyedAudience, Members } from "./src/core/declaration.ts";
-export { audiencesOf, forgetMember } from "./src/core/member.ts";
-export { AudienceKeyError } from "./src/core/key.ts";
-export { MAX_AUDIENCES, MAX_MEMBERS } from "./src/db/members.ts";
-export type { AudienceRow } from "./src/db/tables.ts";
+import { assert, assertEquals } from "@std/assert";
+import { readAsRole, requireStack, RUN_ID, STACK, useStack } from "./support/stack.ts";
 
-export { AudienceError } from "./contracts/audience.ts";
-export type { AudienceOptions, JoinOptions } from "./contracts/audience.ts";
+await requireStack(`${STACK.restUrl}/`);
+await useStack();
+
+const { Audience } = await import("@scribe/audience/lib/audience.ts");
+
+const banned = Audience.plain(`e2e-closed-${RUN_ID}`);
+
+const PERMISSION_DENIED = "42501";
+
+Deno.test(
+  "audience e2e: the table answers the role the package talks as",
+  async () => {
+    await banned.add("d1");
+
+    assertEquals(await readAsRole("service_role"), null);
+    assert(await banned.has("d1"));
+  },
+);
+
+Deno.test(
+  "audience e2e: a signed-in caller reads nothing of the table",
+  async () => {
+    assertEquals(
+      await readAsRole("authenticated"),
+      PERMISSION_DENIED,
+      "a session must not read who belongs to what, since the rights of everyone are in there",
+    );
+  },
+);
+
+Deno.test(
+  "audience e2e: an anonymous caller reads nothing of the table",
+  async () => {
+    assertEquals(await readAsRole("anon"), PERMISSION_DENIED);
+  },
+);

@@ -34,67 +34,66 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { AudienceError } from "@scribe/audience/contracts/audience.ts";
-import { Audience } from "@scribe/audience/src/core/declaration.ts";
-import { audiencesOf } from "@scribe/audience/src/core/member.ts";
-import { installAudienceMock } from "@scribe/audience/testing/mock.ts";
-import { PostgrestClients } from "@scribe/foundation/lib/src/database/client.ts";
-import { type InstalledMock, installMock } from "@scribe/core/testing/install.ts";
-import type { PostgrestClient } from "@supabase/postgrest-js";
-import { assertEquals, assertFalse } from "@std/assert";
+import { Audience } from "@scribe/audience/lib/src/core/declaration.ts";
+import { forgetMembership } from "@scribe/audience/lib/src/runtime/cache.ts";
+import { installAudienceMock } from "@scribe/audience/tests/testing/mock.ts";
+import { assert, assertFalse } from "@std/assert";
 
-const editors = Audience.keyed("down-editors");
+const editors = Audience.keyed("cache-editors");
 
-function installUnreachableDatabase(): InstalledMock {
-  const unreachable = {
-    from(): never {
-      throw new Error("connection refused");
-    },
-  };
-
-  return installMock(
-    PostgrestClients,
-    "service",
-    () => unreachable as unknown as PostgrestClient,
-  );
-}
-
-Deno.test("a table that cannot be reached lets nobody through", async () => {
+Deno.test("a membership asked about once is answered from the cache until something drops it", async () => {
   const audiences = installAudienceMock();
-  const down = installUnreachableDatabase();
 
   try {
     assertFalse(await editors.in("p1").has("a1"));
+
+    audiences.seed([{ audience: "cache-editors:p1", member: "a1", created_at: 1, expires_at: null }]);
+    assertFalse(await editors.in("p1").has("a1"), "a row written behind the package must not be seen at once");
+
+    await forgetMembership("cache-editors:p1", "a1");
+    assert(await editors.in("p1").has("a1"));
   } finally {
-    down.restore();
     audiences.restore();
   }
 });
 
-Deno.test("a table that cannot be reached lists nobody", async () => {
+Deno.test("putting a member in is seen by the next question", async () => {
   const audiences = installAudienceMock();
-  const down = installUnreachableDatabase();
 
   try {
-    assertEquals(await editors.in("p1").members(), []);
-    assertEquals(await audiencesOf("a1"), []);
+    assertFalse(await editors.in("p1").has("a1"));
+
+    await editors.in("p1").add("a1");
+    assert(await editors.in("p1").has("a1"), "putting a member in must drop what the cache holds");
   } finally {
-    down.restore();
     audiences.restore();
   }
 });
 
-Deno.test("a table that cannot be reached refuses a write instead of throwing", async () => {
+Deno.test("taking a member out is seen by the next question", async () => {
   const audiences = installAudienceMock();
-  const down = installUnreachableDatabase();
 
   try {
-    const added = await editors.in("p1").add("a1");
+    await editors.in("p1").add("a1");
+    assert(await editors.in("p1").has("a1"));
 
-    assertFalse(added.ok);
-    assertEquals(added.ok ? null : added.error, AudienceError.Backend);
+    await editors.in("p1").remove("a1");
+    assertFalse(await editors.in("p1").has("a1"), "taking a member out must drop what the cache holds");
   } finally {
-    down.restore();
+    audiences.restore();
+  }
+});
+
+Deno.test("emptying an audience is seen by the next question", async () => {
+  const audiences = installAudienceMock();
+
+  try {
+    await editors.in("p1").add("a1");
+    assert(await editors.in("p1").has("a1"));
+
+    await editors.in("p1").clear();
+    assertFalse(await editors.in("p1").has("a1"), "emptying must drop what the cache holds");
+  } finally {
     audiences.restore();
   }
 });

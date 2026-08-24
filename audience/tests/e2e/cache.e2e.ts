@@ -40,9 +40,9 @@ import { report, requireStack, RUN_ID, STACK, timed, useStack } from "./support/
 await requireStack(`${STACK.restUrl}/`);
 await useStack();
 
-const { Audience } = await import("@scribe/audience/mod.ts");
-const { forgetMembership } = await import("@scribe/audience/src/runtime/cache.ts");
-const { audiences } = await import("@scribe/audience/src/db/tables.ts");
+const { Audience } = await import("@scribe/audience/lib/audience.ts");
+const { forgetMembership } = await import("@scribe/audience/lib/src/runtime/cache.ts");
+const { audiences } = await import("@scribe/audience/lib/src/db/tables.ts");
 
 const editors = Audience.keyed(`e2e-cached-${RUN_ID}`);
 

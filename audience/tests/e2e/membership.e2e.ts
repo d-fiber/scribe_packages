@@ -40,9 +40,9 @@ import { member, report, requireStack, RUN_ID, STACK, timed, useStack } from "./
 await requireStack(`${STACK.restUrl}/`);
 await useStack();
 
-const { Audience, audiencesOf, forgetMember } = await import("@scribe/audience/mod.ts");
-const { AudienceError } = await import("@scribe/audience/contracts/audience.ts");
-const { audiences } = await import("@scribe/audience/src/db/tables.ts");
+const { Audience, audiencesOf, forgetMember } = await import("@scribe/audience/lib/audience.ts");
+const { AudienceError } = await import("@scribe/audience/lib/contracts/audience.ts");
+const { audiences } = await import("@scribe/audience/lib/src/db/tables.ts");
 
 const banned = Audience.plain(`e2e-banned-${RUN_ID}`);
 const editors = Audience.keyed(`e2e-editors-${RUN_ID}`);
