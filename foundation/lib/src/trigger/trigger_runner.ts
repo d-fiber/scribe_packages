@@ -119,19 +119,52 @@ export class TriggerRunner {
       if (await this.#publish(event)) published.push(row.id);
     }
 
-    if (published.length > 0) await forgetEvents(published);
+    if (published.length === 0) return 0;
+
+    const forgotten = await forgetEvents(published);
+    if (!forgotten.ok) {
+      log.error("trigger-runner.events_not_forgotten", {
+        metadata: {
+          events: published.length,
+          consequence: "the rows are handed over again on the next pass",
+          error: forgotten.error,
+        },
+      });
+      return 0;
+    }
+
+    for (const id of published) _taken.delete(id);
     return published.length;
   }
 
-  /** Publishes one event to every declaration it concerns, and answers whether all of them took it. */
+  /**
+   * Publishes one event to every declaration it concerns, and answers whether all of them took it.
+   *
+   * @remarks
+   * Every declaration is reached, whether or not the one before it refused. Stopping at the first
+   * refusal left the declarations after it waiting for a pass in which nobody ahead of them
+   * fails, which for an event too large for one queue is never.
+   *
+   * A declaration that took the event is remembered, so a later pass over the same row does not
+   * hand it the same event a second time. The memory is this process's: another replica draining
+   * the same row publishes again, and the message id is what lets the stream drop the duplicate.
+   */
   async #publish(event: TriggerEvent): Future<boolean> {
     const matches = matchesOf(triggerRegistry.list(), event);
+    const already = _taken.get(event.id) ?? new Set<string>();
+    let everyone = true;
 
     for (const match of matches) {
-      if (!await this.#deliver(event, match)) return false;
+      if (already.has(match.trigger.name)) continue;
+
+      if (await this.#deliver(event, match)) already.add(match.trigger.name);
+      else everyone = false;
     }
 
-    return true;
+    if (everyone) _taken.delete(event.id);
+    else _taken.set(event.id, already);
+
+    return everyone;
   }
 
   /** Publishes one event on one declaration's queue. */
@@ -182,3 +215,17 @@ export class TriggerRunner {
 
 /** The runner every declaration is drained through, one per process. */
 export const triggerRunner: TriggerRunner = new TriggerRunner();
+
+/**
+ * Which declarations have already taken each event this process could not finish publishing.
+ *
+ * @remarks
+ * It lives beside the class because a pass is a new runner every time, and because what it
+ * guards against is a row that stays in the table: an event one declaration refuses is handed
+ * over again on the next pass, and without this the declarations that took it would receive it
+ * once per pass for as long as the refusal lasts.
+ *
+ * An entry is dropped when the row is forgotten, which is the only moment the event stops
+ * existing. A process that dies holding entries loses nothing but the deduplication.
+ */
+const _taken: Map<number, Set<string>> = new Map();

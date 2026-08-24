@@ -94,13 +94,43 @@ function movedInto(event: TriggerEvent, field: string, when: FieldTransition | n
  * Whether two column values are the one same value.
  *
  * A column is compared as it comes out of JSON, so a scalar compares by identity and anything
- * structured compares by its serialisation. Serialising is the only comparison available here:
- * the engine holds no schema, so it cannot know that a column is a date or an array of them.
+ * structured is walked. Walking rather than serialising is what makes the comparison mean what
+ * it says: two encodings of one object differ as text whenever their keys come out in another
+ * order, which a database is free to do between two reads, and the column would read as changed
+ * when it holds exactly what it held.
+ *
+ * It is also what a caller pays for: walking stops at the first difference, where serialising
+ * builds both strings whole before comparing a single character of them.
+ *
+ * The walk keeps what is left to compare on a list of its own rather than on the call stack, so
+ * a column nested deeper than the stack is deep is compared instead of raising.
  */
 function sameValue(left: unknown, right: unknown): boolean {
-  if (left === right) return true;
-  if (left === null || right === null) return false;
-  if (typeof left !== "object" || typeof right !== "object") return false;
+  const pending: [unknown, unknown][] = [[left, right]];
 
-  return JSON.stringify(left) === JSON.stringify(right);
+  while (pending.length > 0) {
+    const [mine, theirs] = pending.pop() as [unknown, unknown];
+
+    if (mine === theirs) continue;
+    if (mine === null || theirs === null) return false;
+    if (typeof mine !== "object" || typeof theirs !== "object") return false;
+
+    if (Array.isArray(mine) || Array.isArray(theirs)) {
+      if (!Array.isArray(mine) || !Array.isArray(theirs) || mine.length !== theirs.length) return false;
+      for (let at = 0; at < mine.length; at++) pending.push([mine[at], theirs[at]]);
+      continue;
+    }
+
+    const ours = mine as Record<string, unknown>;
+    const yours = theirs as Record<string, unknown>;
+    const keys = Object.keys(ours);
+    if (keys.length !== Object.keys(yours).length) return false;
+
+    for (const key of keys) {
+      if (!(key in yours)) return false;
+      pending.push([ours[key], yours[key]]);
+    }
+  }
+
+  return true;
 }

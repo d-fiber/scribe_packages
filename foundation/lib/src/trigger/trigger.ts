@@ -298,8 +298,30 @@ function fieldDeclaration<TRow, P extends string>(target: FieldTarget<TRow, P>):
   const given = typeof target === "string" ? {} : target;
   const path = typeof target === "string" ? target : target.path;
   const when = typeof target === "string" ? null : target.when ?? null;
+  _refuseAStandingTransition(path, when);
 
   return { path, op: "update", observe: null, when, given };
+}
+
+/**
+ * Refuses a transition whose two bounds name the same value.
+ *
+ * @remarks
+ * A column that moved is a column holding something else than it held, so a body waiting to see
+ * one go from a value to that same value is waiting for something the engine never reports. The
+ * declaration is a mistake and it can only be found by noticing that a body never runs.
+ *
+ * @throws {DeclarationError} When `when` names one value on both sides.
+ */
+function _refuseAStandingTransition(path: string, when: FieldTransition | null): void {
+  if (when === null || when.from === undefined || when.to === undefined) return;
+  if (when.from !== when.to) return;
+
+  throw new DeclarationError(
+    `Trigger.onFieldChange("${path}"): this transition cannot fire. It waits for the column to `
+      + `reach ${JSON.stringify(when.to)} while leaving the same value, and a column that moved `
+      + "holds something else than it held.",
+  );
 }
 
 /** The declaration a row-watching method makes, from either shape of its target. */

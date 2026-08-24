@@ -43,7 +43,8 @@ import type {
   TriggerOptions as PortOptions,
   UpdateChange as PortUpdate,
 } from "@scribe/alchemy";
-import type { Future } from "@scribe/alchemy";
+import type { Future, QueueOptions as PortQueueOptions } from "@scribe/alchemy";
+import type { QueueOptions } from "@scribe/foundation/lib/src/queue/queue_options.ts";
 import { Trigger } from "./trigger.ts";
 
 /** The column a table is keyed on when a declaration does not say. */
@@ -59,25 +60,37 @@ const DEFAULT_KEY = "id";
  *
  * A change crosses the same boundary. What this package hands a body carries the path parameters
  * it parsed; what the port promises carries the operation as a discriminant instead. Neither is
- * a superset of the other, so each change is rebuilt rather than passed on.
+ * a superset of the other, so each change is rebuilt rather than passed on. A column that moved
+ * is an update there: the port names three operations and a write is what makes a column move.
  */
 export class OutboxTriggers implements TriggerDriver {
   /** The watch `table` and `options` name, declared on the first ask. */
   watch<TRow>(table: string, options?: PortOptions): PortTrigger<TRow> {
-    const path = `${table}/{${options?.key ?? DEFAULT_KEY}}` as const;
+    const key = options?.key ?? DEFAULT_KEY;
+    const path = `${table}/{${key}}` as const;
+    const said = { name: options?.name, key, options: _tunedBy(options?.queue) };
     const methods = Trigger.of<TRow & object>();
 
     const watched: PortTrigger<TRow> = {
       onInsert(handle): PortTrigger<TRow> {
-        methods.onInsert(path, (change) => handle({ ...change, op: "insert" } as PortInsert<TRow>));
+        methods.onInsert(
+          { ...said, path },
+          (change) => handle({ ...change, op: "insert" } as PortInsert<TRow>),
+        );
         return watched;
       },
       onUpdate(handle): PortTrigger<TRow> {
-        methods.onUpdate(path, (change) => handle({ ...change, op: "update" } as PortUpdate<TRow>));
+        methods.onUpdate(
+          { ...said, path },
+          (change) => handle({ ...change, op: "update" } as PortUpdate<TRow>),
+        );
         return watched;
       },
       onDelete(handle): PortTrigger<TRow> {
-        methods.onDelete(path, (change) => handle({ ...change, op: "delete" } as PortDelete<TRow>));
+        methods.onDelete(
+          { ...said, path },
+          (change) => handle({ ...change, op: "delete" } as PortDelete<TRow>),
+        );
         return watched;
       },
       onField<F extends keyof TRow>(
@@ -86,12 +99,9 @@ export class OutboxTriggers implements TriggerDriver {
         moving?: Transition<TRow[F]>,
       ): PortTrigger<TRow> {
         methods.onFieldChange(
-          {
-            path: `${table}/{${options?.key ?? DEFAULT_KEY}}/${String(field)}`,
-            when: moving,
-          } as never,
+          { ...said, path: `${path}/${String(field)}`, when: moving } as never,
           ((change: unknown) =>
-            handle({ ...(change as object), op: "field" } as unknown as PortField<TRow, F>)) as never,
+            handle({ ...(change as object), op: "update" } as unknown as PortField<TRow, F>)) as never,
         );
         return watched;
       },
@@ -99,4 +109,18 @@ export class OutboxTriggers implements TriggerDriver {
 
     return watched;
   }
+}
+
+/**
+ * The queue tuning the port named, said the way this package tunes a queue.
+ *
+ * @remarks
+ * The port counts deliveries and this package counts retries under the same names as its own
+ * queues, so the two are translated here rather than at each of the four call sites. A watch that
+ * tuned nothing leaves the queue on the defaults its declaration carries.
+ */
+function _tunedBy(queue?: PortQueueOptions): QueueOptions | undefined {
+  if (queue === undefined) return undefined;
+
+  return { maxRetries: queue.attempts ?? 1, processingTimeout: queue.visibility };
 }

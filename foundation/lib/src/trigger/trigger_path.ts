@@ -73,6 +73,17 @@ export interface ParsedPath {
 const SHAPE = "<table>/{<param>}[/<field>]";
 
 /**
+ * What a table, a parameter and a column may be spelled with.
+ *
+ * @remarks
+ * Every segment of a path becomes something else's name: a table reaches PostgREST, a column is
+ * compared against a row's keys, and both end up in the queue subject the declaration publishes
+ * on. A segment carrying a comma, an ampersand or a blank is one of those names carrying syntax
+ * that the thing reading it will act on.
+ */
+const NAME = /^[A-Za-z_][A-Za-z0-9_-]*$/;
+
+/**
  * Reads a declaration path, and refuses one the type system let through.
  *
  * The types in this file describe a path to the compiler, but a project can still hand over a
@@ -92,14 +103,28 @@ export function parsePath(path: string): ParsedPath {
     throw new DeclarationError(`Trigger("${path}"): the table is missing, a path is written ${SHAPE}`);
   }
 
-  if (!param.startsWith("{") || !param.endsWith("}") || param.length <= 2) {
+  if (!NAME.test(table)) {
+    throw new DeclarationError(
+      `Trigger("${path}"): "${table}" is not a table name, a path is written ${SHAPE}`,
+    );
+  }
+
+  if (
+    !param.startsWith("{") || !param.endsWith("}") || !NAME.test(param.slice(1, -1))
+  ) {
     throw new DeclarationError(
       `Trigger("${path}"): "${param}" is not a parameter, a path is written ${SHAPE}`,
     );
   }
 
-  if (field !== undefined && field.length === 0) {
+  if (field !== undefined && field.trim().length === 0) {
     throw new DeclarationError(`Trigger("${path}"): the field is empty, a path is written ${SHAPE}`);
+  }
+
+  if (field !== undefined && !NAME.test(field)) {
+    throw new DeclarationError(
+      `Trigger("${path}"): "${field}" is not a column, a path is written ${SHAPE}`,
+    );
   }
 
   return { table, param: param.slice(1, -1), field: field ?? null };
