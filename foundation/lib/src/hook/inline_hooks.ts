@@ -49,14 +49,11 @@ import { Hook } from "./hook.ts";
  * subscriber would only ever be called by one of them.
  */
 export class InlineHooks implements HookDriver {
-  /** One point per event name, so declaring twice answers the same one. */
-  readonly #opened = new Map<string, Hook<never, void>>();
-
   /** The point `options` names, declared on the first ask and kept from then on. */
   open<T>(options: HookOptions): PortHook<T> {
-    const held = this.#opened.get(options.event);
+    const held = _opened.get(options.event);
     const point = (held ?? new Hook<T, void>({ name: options.event, fallback: undefined })) as Hook<T, void>;
-    if (held === undefined) this.#opened.set(options.event, point as unknown as Hook<never, void>);
+    if (held === undefined) _opened.set(options.event, point as unknown as Hook<never, void>);
 
     return {
       emit: (payload: T): Future<void> => point.run(payload).then(() => undefined),
@@ -64,3 +61,14 @@ export class InlineHooks implements HookDriver {
     };
   }
 }
+
+/**
+ * One hook per event, so opening twice answers the one already declared.
+ *
+ * @remarks
+ * It lives beside the class and not inside an instance, because what a declaration writes to is
+ * process-global: a host that clears the slot and wires a second driver would meet a registry
+ * that already holds the first driver's keys, and every declaration made before the clear would
+ * be refused as a duplicate.
+ */
+const _opened: Map<string, Hook<never, void>> = new Map();

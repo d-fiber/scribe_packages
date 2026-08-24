@@ -45,9 +45,14 @@ import type { Result } from "@scribe/alchemy";
  * `instanceof`, because a handler is written by whoever uses the framework and may answer its
  * own record of that shape without having built it through `Ok` or `Failure`.
  *
+ * A function carrying the field counts, because a function is a value with fields like any
+ * other. Testing for an object alone let a refusal that happens to be callable read as an
+ * acceptance: the chain went on and the background work behind it was queued.
+ *
  * The engine has no business knowing what a decision means, only whether it stops the chain.
  */
 export function isRefusal(value: unknown): boolean {
-  return typeof value === "object" && value !== null &&
-    (value as Partial<Result<unknown, unknown>>).ok === false;
+  if (value === null || (typeof value !== "object" && typeof value !== "function")) return false;
+
+  return (value as Partial<Result<unknown, unknown>>).ok === false;
 }
