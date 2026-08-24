@@ -41,8 +41,8 @@ import { report, requireStack, RUN_ID, STACK, timed, useStack } from "./support/
 await requireStack(`${STACK.restUrl}/`);
 await useStack();
 
-const { forgetValue, RemoteConfig } = await import("@scribe/remote_configs/mod.ts");
-const { remoteConfigs } = await import("@scribe/remote_configs/src/db/tables.ts");
+const { forgetValue, RemoteConfig } = await import("@scribe/remote_configs/lib/remote_configs.ts");
+const { remoteConfigs } = await import("@scribe/remote_configs/lib/src/db/tables.ts");
 
 const motd = RemoteConfig.of<string>(`e2e-cached-motd-${RUN_ID}`, { default: "quiet" });
 const absent = RemoteConfig.of<string>(`e2e-cached-absent-${RUN_ID}`, { default: "quiet" });

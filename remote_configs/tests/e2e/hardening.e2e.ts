@@ -40,7 +40,7 @@ import { readAsRole, requireStack, RUN_ID, STACK, useStack } from "./support/sta
 await requireStack(`${STACK.restUrl}/`);
 await useStack();
 
-const { RemoteConfig } = await import("@scribe/remote_configs/mod.ts");
+const { RemoteConfig } = await import("@scribe/remote_configs/lib/remote_configs.ts");
 
 const secret = RemoteConfig.of<string>(`e2e-closed-${RUN_ID}`);
 
