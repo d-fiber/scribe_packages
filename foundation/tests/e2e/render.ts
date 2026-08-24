@@ -46,7 +46,7 @@ const target = `${here}.generated`;
 await Deno.mkdir(target, { recursive: true });
 
 for (const fragment of FRAGMENTS) {
-  const source = await Deno.readTextFile(`${here}../ops/${fragment}/docker-compose.yaml`);
+  const source = await Deno.readTextFile(`${here}../../ops/${fragment}/docker-compose.yaml`);
   const rendered = source
     .replaceAll("{{sdk_root}}", sdkRoot)
     .replaceAll(/\{\{(\w+)\}\}/g, (whole, name: string) => PLACEHOLDERS[name] ?? whole);
