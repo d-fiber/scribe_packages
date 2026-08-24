@@ -37,11 +37,19 @@
 import { DeclarationError } from "@scribe/alchemy";
 import type { Schedule } from "@scribe/foundation/lib/src/cron/schedule.ts";
 
-/** When the schedule next fires after `after`. */
+/**
+ * When the schedule next fires after `after`.
+ *
+ * @remarks
+ * An interval fires on the grid of the epoch rather than a period after `after`. Counted from
+ * whenever a process happened to register the job, two replicas of one deployment name two
+ * series of instants a fraction of a period apart: each claims an occurrence the other never
+ * computes, and a job declared to run once a minute runs once per replica.
+ */
 export function nextRun(schedule: Schedule, after: Date): Date {
   switch (schedule.kind) {
     case "interval":
-      return new Date(after.getTime() + schedule.every.inMilliseconds);
+      return _nextOnTheGrid(after, schedule.every.inMilliseconds);
 
     case "cron": {
       const next = schedule.job.nextRun(after);
@@ -84,4 +92,14 @@ export function nextRunAfterSlot(
   let next = slot.getTime() + step;
   while (next <= now.getTime()) next += step;
   return new Date(next);
+}
+
+/**
+ * The first multiple of `every` strictly after `after`, counted from the epoch.
+ *
+ * @remarks
+ * Strictly after, so an occurrence that has just been taken is not handed back as the next one.
+ */
+function _nextOnTheGrid(after: Date, every: number): Date {
+  return new Date((Math.floor(after.getTime() / every) + 1) * every);
 }

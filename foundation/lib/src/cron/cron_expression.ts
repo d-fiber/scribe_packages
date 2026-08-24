@@ -35,6 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { CronTimezone } from "@scribe/foundation/lib/src/cron/cron_timezone.ts";
+import { DeclarationError } from "@scribe/alchemy";
 import { Cron } from "croner";
 
 /** A five-field cron expression. */
@@ -69,10 +70,61 @@ export function cronExpression(
   expression: CronExpression,
   timezone: CronTimezone,
 ): CronExpressionSchedule {
-  return {
-    kind: "cron",
-    expression,
-    timezone,
-    job: new Cron(expression, { timezone }),
-  };
+  _refuseWhatTheTypeDoesNotDeclare(expression);
+  const job = new Cron(expression, { timezone });
+  _refuseWhatNeverComes(expression, job);
+
+  return { kind: "cron", expression, timezone, job };
+}
+
+/**
+ * Refuses an expression that is not the five fields this type declares.
+ *
+ * @remarks
+ * croner reads six fields, the first of them seconds, so an expression opening on a seconds
+ * field builds a schedule that runs every few seconds. The runner floors nothing below a minute, so such a job would be
+ * claimed once a minute and its declaration would be quietly wrong.
+ *
+ * @throws {DeclarationError} When `expression` does not hold exactly five fields.
+ */
+function _refuseWhatTheTypeDoesNotDeclare(expression: string): void {
+  const fields = expression.trim().split(/\s+/).filter((field) => field !== "");
+  if (fields.length === 5) return;
+
+  throw new DeclarationError(
+    `cronExpression("${expression}"): a cron expression here is five fields, minute to weekday. `
+      + `This one holds ${fields.length}. A sixth field is read as seconds, and nothing under a `
+      + "minute is scheduled.",
+  );
+}
+
+/**
+ * Refuses an expression that parses but names no occurrence.
+ *
+ * @remarks
+ * The thirtieth of February parses, so the refusal used to land on the first tick that asked for
+ * a next run rather than on the line that declared it, far from whoever wrote it. A zone croner
+ * does not know is the same case, and is refused here for the same reason.
+ *
+ * @throws {DeclarationError} When `expression` names a date the calendar never reaches, or when
+ * asking for one raises.
+ */
+function _refuseWhatNeverComes(expression: string, job: Cron): void {
+  let next: Date | null;
+
+  try {
+    next = job.nextRun();
+  } catch (raised) {
+    throw new DeclarationError(
+      `cronExpression("${expression}"): this schedule cannot be asked when it next runs. ${
+        raised instanceof Error ? raised.message : String(raised)
+      }`,
+    );
+  }
+
+  if (next === null) {
+    throw new DeclarationError(
+      `cronExpression("${expression}"): this expression names no date the calendar ever reaches.`,
+    );
+  }
 }

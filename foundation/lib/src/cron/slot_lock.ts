@@ -51,9 +51,14 @@ export class SlotLock {
   /**
    * The key one occurrence is claimed under.
    *
-   * An interval is floored to a multiple of itself so that two replicas whose clocks differ
-   * by a few hundred milliseconds compute the **same** key; without the flooring each would
-   * claim its own and the job would run twice. A calendar occurrence is already exact.
+   * An interval is floored to a multiple of itself so that two replicas whose clocks differ by
+   * a few hundred milliseconds compute the **same** key; without the flooring each would claim
+   * its own and the job would run twice. A calendar occurrence is already exact.
+   *
+   * The flooring is a safety net and not what makes the fleet agree. What does is that an
+   * interval's occurrences are placed on the grid of the epoch by `nextRun`, so two replicas
+   * registering the same job at different moments name the same instants and not two series a
+   * fraction of a period apart.
    */
   keyFor(job: Scheduled, slot: Date): string {
     const at = job.schedule.kind === "interval"
@@ -78,7 +83,17 @@ export class SlotLock {
         this.leaseFor(job, slot).inMilliseconds,
         "NX",
       );
-      return claimed === "OK";
+      if (claimed === "OK") return true;
+      if (claimed !== null) {
+        log.error("cron-runner.lock_answered_oddly", {
+          metadata: {
+            job: job.name,
+            answered: String(claimed),
+            consequence: "this occurrence is skipped",
+          },
+        });
+      }
+      return false;
     } catch (error) {
       log.error("cron-runner.lock_unavailable", {
         metadata: { job: job.name, consequence: "this occurrence is skipped", error },

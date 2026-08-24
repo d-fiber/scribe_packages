@@ -33,7 +33,13 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import type { Cron as PortCron, CronDriver, CronOptions, Schedule as PortSchedule } from "@scribe/alchemy";
+import type {
+  Cron as PortCron,
+  CronDriver,
+  CronOptions,
+  Schedule as PortSchedule,
+  TimeOfDay as PortTimeOfDay,
+} from "@scribe/alchemy";
 import { DeclarationError, Duration } from "@scribe/alchemy";
 import { Cron } from "./cron.ts";
 import { CronTimezone } from "./cron_timezone.ts";
@@ -54,21 +60,18 @@ import type { Schedule } from "./schedule.ts";
  * make the same declaration fire at different hours on two machines.
  */
 export class ScheduledCrons implements CronDriver {
-  /** One run per key, so declaring twice answers the same one rather than firing twice. */
-  readonly #armed = new Map<string, PortCron>();
-
   /** The run `options` names, armed on the first ask and kept from then on. */
   schedule(options: CronOptions): PortCron {
-    const held = this.#armed.get(options.key);
+    const held = _armed.get(options.key);
     if (held !== undefined) return held;
 
     const declared = new Cron(
-      { name: options.key, schedule: _translated(options.schedule) },
-      () => Promise.resolve(),
+      { name: options.key, schedule: _translated(options.schedule, options.timezone) },
+      () => Promise.resolve(options.run()),
     );
     const armed: PortCron = { key: declared.name, schedule: options.schedule };
 
-    this.#armed.set(options.key, armed);
+    _armed.set(options.key, armed);
     return armed;
   }
 }
@@ -77,23 +80,69 @@ export class ScheduledCrons implements CronDriver {
  * The schedule the port named, said in the three shapes this package understands.
  *
  * @remarks
- * The port types a time of day and an expression as plain text where this package types the shape
- * they must have. The conversion is safe because it is the callee that decides: `at` refuses
- * anything that is not a 24-hour `HH:MM`, and `cronExpression` parses eagerly and refuses at the
- * declaration. Both raise where the declaration is written rather than at the first occurrence.
+ * The port names a time of day as an hour and a minute, and this package names it as the text a
+ * calendar reads, so the driver writes the text. It is the only place the two ways of saying it
+ * meet, which is what keeps every other file speaking one of them.
+ *
+ * A zone the port did not name is read as UTC. Guessing the deployment's would make the same
+ * declaration fire at different hours on two machines, and a package that cares says so.
  *
  * @throws {DeclarationError} When `schedule` names none of the three, and when the value it names
- * is not one the shape accepts.
+ * is one the shape refuses.
  */
-function _translated(schedule: PortSchedule): Schedule {
+function _translated(schedule: PortSchedule, timezone?: string): Schedule {
+  const zone = _zoneNamed(timezone);
+
   if ("every" in schedule) return every(schedule.every as Duration);
-  if ("at" in schedule) return at(CronTimezone.Utc, schedule.at as unknown as `${number}:${number}`);
+  if ("at" in schedule) return at(zone, _asText(schedule.at));
   if ("expression" in schedule) {
     return cronExpression(
-      schedule.expression as unknown as `${string} ${string} ${string} ${string} ${string}`,
-      CronTimezone.Utc,
+      schedule.expression as `${string} ${string} ${string} ${string} ${string}`,
+      zone,
     );
   }
 
   throw new DeclarationError("a schedule names an interval, a time of day or an expression.");
 }
+
+/**
+ * The zone `timezone` names, or UTC when it names none.
+ *
+ * @remarks
+ * The port takes a zone as free text and this package reads a list of them. A name that is not on
+ * the list is refused here, where the message can say the declaration is wrong, rather than
+ * further down where the calendar refuses it as a value out of range and names neither the
+ * declaration nor the zone.
+ *
+ * @throws {DeclarationError} When `timezone` names a zone this package does not read.
+ */
+function _zoneNamed(timezone?: string): CronTimezone {
+  if (timezone === undefined) return CronTimezone.Utc;
+  if (_read.has(timezone)) return timezone as CronTimezone;
+
+  throw new DeclarationError(
+    `"${timezone}" is not a zone this package reads. Name one of the zones CronTimezone lists, or `
+      + "leave it out and the run is read in UTC.",
+  );
+}
+
+const _read: ReadonlySet<string> = new Set(Object.values(CronTimezone));
+
+/** An hour and a minute, written the way a calendar reads them. */
+function _asText(when: PortTimeOfDay): `${number}:${number}` {
+  const hour = String(when.hour).padStart(2, "0");
+  const minute = String(when.minute ?? 0).padStart(2, "0");
+
+  return `${hour}:${minute}` as `${number}:${number}`;
+}
+
+/**
+ * One run per key, so declaring twice answers the same one rather than firing twice.
+ *
+ * @remarks
+ * It lives beside the class and not inside an instance, because what a declaration writes to is
+ * process-global: a host that clears the slot and wires a second driver would meet a registry
+ * that already holds the first driver's keys, and every declaration made before the clear would
+ * be refused as a duplicate.
+ */
+const _armed: Map<string, PortCron> = new Map();
