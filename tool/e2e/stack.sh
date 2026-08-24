@@ -78,8 +78,8 @@ resolve_package() {
       usage
       ;;
   esac
-  E2E="$ROOT/$PACKAGE/e2e_tests"
-  [ -d "$E2E" ] || { echo "[e2e] $PACKAGE has no e2e_tests directory." >&2; exit 1; }
+  E2E="$ROOT/$PACKAGE/tests/e2e"
+  [ -d "$E2E" ] || { echo "[e2e] $PACKAGE has no tests/e2e directory." >&2; exit 1; }
 }
 
 rendered() {

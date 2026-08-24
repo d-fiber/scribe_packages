@@ -47,7 +47,7 @@ if rendered; then
 fi
 
 if [ -d "$E2E/.postgres" ]; then
-  echo "[e2e:reset] removing $PACKAGE/e2e_tests/.postgres"
+  echo "[e2e:reset] removing $PACKAGE/tests/e2e/.postgres"
   rm -rf "$E2E/.postgres"
 fi
 
