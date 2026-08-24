@@ -33,6 +33,7 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
+import "@scribe/foundation/tests/testing/hand_backs.ts";
 import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
 import { assertEquals } from "@std/assert";
 import { Queue } from "@scribe/foundation/lib/src/queue/queue.ts";

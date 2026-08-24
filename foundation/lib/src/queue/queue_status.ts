@@ -36,6 +36,7 @@
 
 import type { Future } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
+import { Duration } from "@scribe/alchemy";
 import { delayedCounts } from "./delayed/delayed_counts.ts";
 import type { QueueMode, RegisteredQueue } from "./queue_declaration.ts";
 import { DEAD_STREAM, streamOf } from "./queue_naming.ts";
@@ -85,6 +86,17 @@ class QueueStatusReader {
     return await this.#read(queue, delayed[queue.name] ?? 0);
   }
 
+  /**
+   * Drops the reading of the delayed set this reader is holding.
+   *
+   * @remarks
+   * The next standing asked for walks the set again. It exists for a caller that has just parked
+   * or promoted something and wants the number that follows rather than the one before.
+   */
+  forget(): void {
+    _lastCounts = null;
+  }
+
   async #read(queue: RegisteredQueue, delayed: number): Future<QueueStatus> {
     const [pending, dead] = await Promise.all([
       topology.countBySubject(streamOf(queue.dedicated), queue.subject),
@@ -101,7 +113,24 @@ class QueueStatusReader {
     };
   }
 
+  /**
+   * How many jobs are parked for each queue, read at most once per {@link COUNTS_HELD_FOR}.
+   *
+   * @remarks
+   * The delayed set is shared by every queue of the process, so counting one queue means walking
+   * all of it: at the scan cap that is a hundred round trips. A dashboard asking each queue for
+   * its standing in turn used to pay that walk once per queue, for a number `all` reads once.
+   *
+   * What is answered is a standing somebody is looking at, not a number anything decides on, so
+   * a second-old count is the same answer. The scan itself is what would make it expensive to
+   * be exact.
+   */
   async #delayed(): Future<Record<string, number>> {
+    const held = _lastCounts;
+    if (held !== null && Date.now() - held.readAt < COUNTS_HELD_FOR.inMilliseconds) {
+      return held.counts;
+    }
+
     const counts = await delayedCounts();
     if (counts.truncated) {
       log.warn("queue.delayed_counts_truncated", {
@@ -109,9 +138,16 @@ class QueueStatusReader {
       });
     }
 
+    _lastCounts = { counts: counts.counts, readAt: Date.now() };
     return counts.counts;
   }
 }
+
+/** How long a reading of the delayed set stands before it is walked again. */
+const COUNTS_HELD_FOR: Duration = Duration.seconds(1);
+
+/** The last reading of the delayed set, and when it was taken. */
+let _lastCounts: { counts: Record<string, number>; readAt: number } | null = null;
 
 /** Reads the standing of one queue or of all of them. */
 export const queueStatus: QueueStatusReader = new QueueStatusReader();

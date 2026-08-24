@@ -62,3 +62,30 @@ export function encode<T>(message: WireMessage<T>): Uint8Array {
 export function decode<T>(payload: Uint8Array): WireMessage<T> {
   return JSON.parse(decoder.decode(payload)) as WireMessage<T>;
 }
+
+/**
+ * The message `payload` carries, or null when it carries nothing this can read.
+ *
+ * @remarks
+ * A payload that cannot be parsed is a fact about the bytes, not an accident of the call, so it
+ * answers rather than raises: a decode that throws does it before any guard a caller could have
+ * put around it, and the caller is a pass over a group where one unreadable message would leave
+ * every other one unanswered.
+ *
+ * The shape is checked too. A payload that parses to a number or to an object carrying no `data`
+ * is as unreadable as one that does not parse, and finding out at the first property read would
+ * put the raise back where it was.
+ */
+export function safeDecode<T>(payload: Uint8Array): WireMessage<T> | null {
+  let parsed: unknown;
+
+  try {
+    parsed = JSON.parse(decoder.decode(payload));
+  } catch {
+    return null;
+  }
+
+  return typeof parsed === "object" && parsed !== null && "data" in parsed
+    ? (parsed as WireMessage<T>)
+    : null;
+}

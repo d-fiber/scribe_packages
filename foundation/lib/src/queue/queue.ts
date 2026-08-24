@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { type Future, type UnmodifiableList } from "@scribe/alchemy";
+import { type Future, runPooled, type UnmodifiableList } from "@scribe/alchemy";
 import type {
     BatchHandler,
     JobHandler,
@@ -50,6 +50,16 @@ import { type QueueStatus, queueStatus } from "./queue_status.ts";
 import { ensureTopology } from "./topology/ensure_topology.ts";
 import { topology } from "./topology/topology.ts";
 import { encode } from "./wire_message.ts";
+
+/**
+ * How many publications one call to {@link Queue.pushMany} keeps in flight.
+ *
+ * @remarks
+ * High enough that a batch is not paced by the round trip time of one publication, low enough
+ * that the memory a push costs is decided here and not by the length of the list a caller
+ * happened to build.
+ */
+export const PUBLISH_AT_ONCE = 64;
 
 /** What declaring a queue takes. */
 export interface QueueDefinition {
@@ -109,11 +119,25 @@ export class QueuePublisher<in TJob> {
     return await this.#publish(data);
   }
 
+  /**
+   * Publishes every item of `items`, at most {@link PUBLISH_AT_ONCE} of them in flight together.
+   *
+   * @remarks
+   * The pool is what keeps the cost of a push independent of the size of the list. Handing the
+   * whole list over at once opened one publication per item, so the producer's memory and the
+   * server's inbox both grew with what the caller happened to pass: ten thousand items were ten
+   * thousand connections' worth of work asked for in the same tick.
+   */
   async pushMany(items: UnmodifiableList<TJob>): Future<string[]> {
     if (items.length === 0) return [];
 
     await ensureTopology();
-    return await Promise.all(items.map((data) => this.#publish(data)));
+    const ids: string[] = new Array(items.length);
+    await runPooled([...items.keys()], PUBLISH_AT_ONCE, async (at) => {
+      ids[at] = await this.#publish(items[at]);
+    });
+
+    return ids;
   }
 
   async size(): Future<number> {

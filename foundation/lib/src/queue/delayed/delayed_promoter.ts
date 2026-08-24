@@ -79,7 +79,15 @@ async function dueMembers(): Future<string[]> {
   }
 }
 
-/** Publishes one delayed member and forgets it, answering whether it moved. */
+/**
+ * Publishes one delayed member and forgets it, answering whether this pass is the one that moved it.
+ *
+ * @remarks
+ * What decides that is the removal and not the publication. Two passes running at once both see
+ * the member as due and both publish it, which the stream's duplicate window absorbs, but only
+ * one of them takes it out of the set. Counting the publication instead made a status screen
+ * report one parked job promoted twice.
+ */
 async function promote(raw: string): Future<boolean> {
   const member = decodeMember(raw);
   if (member === null) {
@@ -97,8 +105,7 @@ async function promote(raw: string): Future<boolean> {
     return false;
   }
 
-  await forget(raw, member.queue);
-  return true;
+  return await forget(raw, member.queue);
 }
 
 /**
@@ -115,12 +122,14 @@ function publish(member: DelayedMember): Future<string> {
   );
 }
 
-async function forget(raw: string, queue: string): Future<void> {
+/** Takes a member out of the delayed set, answering whether this call is what removed it. */
+async function forget(raw: string, queue: string): Future<boolean> {
   try {
-    await kv().zrem(DELAYED_KEY, raw);
+    return await kv().zrem(DELAYED_KEY, raw) > 0;
   } catch (error) {
     log.error("queue.promoted_not_forgotten", {
       metadata: { queue, consequence: "the job will run again", error },
     });
+    return false;
   }
 }

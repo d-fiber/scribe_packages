@@ -35,10 +35,11 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { BatchHandler } from "@scribe/foundation/lib/src/queue/queue_options.ts";
-import { decode } from "@scribe/foundation/lib/src/queue/wire_message.ts";
+import { safeDecode, type WireMessage } from "@scribe/foundation/lib/src/queue/wire_message.ts";
 import { type Future, runPooled, type UnmodifiableList } from "@scribe/alchemy";
 import type { JsMsg } from "@nats-io/jetstream";
 import type { DrainTally } from "./drain_tally.ts";
+import { log } from "@scribe/alchemy/observe";
 import { BaseProcessor } from "./base_processor.ts";
 
 /**
@@ -52,19 +53,82 @@ export class BatchProcessor extends BaseProcessor {
     messages: UnmodifiableList<JsMsg>,
     tally: DrainTally,
   ): Future<void> {
-    const payloads = messages.map(
-      (message) => decode<unknown>(message.data).data,
-    );
+    const readable: JsMsg[] = [];
+    const wires: WireMessage<unknown>[] = [];
+
+    for (const message of messages) {
+      const wire = safeDecode<unknown>(message.data);
+      if (wire === null) await this.discard(message, tally);
+      else {
+        readable.push(message);
+        wires.push(wire);
+      }
+    }
+    if (readable.length === 0) return;
+
+    const payloads = wires.map((wire) => wire.data);
 
     try {
       await this.guarded(
         (this.queue.handler as BatchHandler<unknown>)(payloads),
       );
-      for (const message of messages) message.ack();
-      tally.record("done", messages.length);
     } catch (error) {
-      this.reportFailure(error, messages.length);
-      await runPooled(messages, this.queue.concurrency, (message) => this.fail(message, tally));
+      this.reportFailure(error, readable.length);
+      await runPooled(
+        readable.map((message, at) => ({ message, wire: wires[at] })),
+        this.queue.concurrency,
+        ({ message, wire }) => this.fail(message, tally, wire),
+      );
+      return;
     }
+
+    await this.#acknowledge(readable, wires, tally);
+  }
+
+  /**
+   * Acknowledges a group whose body agreed, one member at a time.
+   *
+   * @remarks
+   * It runs outside the try the body is called in. Acknowledging inside it made an
+   * acknowledgement that refuses read as a body that refused, so the whole group went down the
+   * failure path: the members already acknowledged were handed back or written to the dead
+   * letter on top of their acknowledgement, and a job that had succeeded was filed as a failure
+   * for whoever reads the dead letter to run a second time.
+   *
+   * A member whose acknowledgement refuses is left for the server to hand over again. The body
+   * agreed, so there is nothing to retry and nothing to file, and a body that is idempotent is
+   * what makes a second delivery safe. On its last delivery there is no second one to wait for,
+   * so it goes to the dead letter instead of disappearing when the server gives up on it.
+   */
+  async #acknowledge(
+    readable: UnmodifiableList<JsMsg>,
+    wires: UnmodifiableList<WireMessage<unknown>>,
+    tally: DrainTally,
+  ): Future<void> {
+    let answered = 0;
+
+    for (let at = 0; at < readable.length; at++) {
+      const message = readable[at];
+      const spent = message.info.deliveryCount >= this.queue.maxRetries;
+
+      try {
+        message.ack();
+        answered++;
+      } catch (error) {
+        log.error("queue.ack_failed", {
+          metadata: {
+            queue: this.queue.name,
+            seq: message.seq,
+            consequence: spent
+              ? "the message is on its last delivery, so it is written to the dead letter"
+              : "the body agreed, so the message is left for the server to hand over again",
+            error,
+          },
+        });
+        if (spent) await this.fail(message, tally, wires[at]);
+      }
+    }
+
+    if (answered > 0) tally.record("done", answered);
   }
 }

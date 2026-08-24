@@ -34,39 +34,32 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { queueRegistry } from "@scribe/foundation/lib/src/queue/queue_registry.ts";
+import "./settings.ts";
+import { kv } from "@scribe/foundation/lib/src/redis/kv.ts";
+import type { Kv } from "@scribe/foundation/lib/src/redis/kv.ts";
+import { installMock } from "./install.ts";
 
-/**
- * How long a queue that does not group waits for company.
- *
- * Just enough to pick up what lands in the same millisecond, and short enough that nobody
- * notices it.
- */
-export const IMMEDIATE_GRACE_MS = 25;
+const counted = new Map<string, number>();
 
-/** The grace a subject is entitled to: its linger, or the immediate one. */
-export function graceFor(subject: string): number {
-  return queueRegistry.bySubject(subject)?.lingerMs ?? IMMEDIATE_GRACE_MS;
+/** Forgets every hand-back counted so far, so one test cannot read another's. */
+export function forgetHandBackCounters(): void {
+  counted.clear();
 }
 
-/**
- * How long a fetch holds its window open, which is the longest grace anything declared asks for.
- *
- * @remarks
- * The window has to outlast every linger it may have to honour, because it is the iterator
- * closing that ends a group. A queue declared with a linger longer than the window would be
- * handed a group the moment the window closed, whatever it asked for.
- */
-export function longestGrace(): number {
-  let longest = FETCH_FLOOR_MS;
+installMock(kv(), "incr", ((key: string) => {
+  const next = (counted.get(key) ?? 0) + 1;
+  counted.set(key, next);
+  return Promise.resolve(next);
+}) as unknown as Kv["incr"]);
 
-  for (const queue of queueRegistry.list()) {
-    const linger = queue.lingerMs ?? 0;
-    if (linger > longest) longest = linger;
-  }
+installMock(kv(), "expire", (() => Promise.resolve(1)) as unknown as Kv["expire"]);
 
-  return longest;
-}
+installMock(kv(), "get", ((key: string) => {
+  const held = counted.get(key);
+  return Promise.resolve(held === undefined ? null : String(held));
+}) as unknown as Kv["get"]);
 
-/** How long a fetch waits when nothing declared asks for longer. */
-export const FETCH_FLOOR_MS = 5_000;
+installMock(kv(), "del", ((key: string) => {
+  counted.delete(key);
+  return Promise.resolve(1);
+}) as unknown as Kv["del"]);

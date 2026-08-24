@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { JobHandler, QueueMessage } from "@scribe/foundation/lib/src/queue/queue_options.ts";
-import { decode } from "@scribe/foundation/lib/src/queue/wire_message.ts";
+import { safeDecode } from "@scribe/foundation/lib/src/queue/wire_message.ts";
 import { type Future, runPooled, type UnmodifiableList } from "@scribe/alchemy";
 import type { JsMsg } from "@nats-io/jetstream";
 import type { DrainTally } from "./drain_tally.ts";
@@ -51,7 +51,9 @@ export class JobProcessor extends BaseProcessor {
   }
 
   async #processOne(message: JsMsg, tally: DrainTally): Future<void> {
-    const wire = decode<unknown>(message.data);
+    const wire = safeDecode<unknown>(message.data);
+    if (wire === null) return await this.discard(message, tally);
+
     const envelope: QueueMessage<unknown> = {
       id: String(message.seq),
       data: wire.data,
@@ -66,7 +68,7 @@ export class JobProcessor extends BaseProcessor {
       tally.record("done");
     } catch (error) {
       this.reportFailure(error, 1);
-      await this.fail(message, tally);
+      await this.fail(message, tally, wire);
     }
   }
 }

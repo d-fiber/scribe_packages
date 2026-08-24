@@ -56,7 +56,14 @@ export interface DelayedCounts {
   readonly truncated: boolean;
 }
 
-/** Counts the delayed jobs per queue, up to the scan cap. */
+/**
+ * Counts the delayed jobs per queue, up to the scan cap.
+ *
+ * @remarks
+ * The cap counts every member the scan walked past, readable or not. Counting only the readable
+ * ones let a set full of members nothing can read be walked end to end whatever its size, which
+ * is the one case where the cap was there to stop.
+ */
 export async function delayedCounts(): Future<DelayedCounts> {
   const counts: Record<string, number> = {};
   let scanned = 0;
@@ -73,11 +80,12 @@ export async function delayedCounts(): Future<DelayedCounts> {
       cursor = next;
 
       for (let i = 0; i < entries.length; i += 2) {
+        scanned++;
+
         const member = decodeMember(entries[i]);
         if (member === null) continue;
 
         counts[member.queue] = (counts[member.queue] ?? 0) + 1;
-        scanned++;
       }
     } while (cursor !== "0" && scanned < SCAN_MAX);
   } catch (error) {

@@ -57,6 +57,16 @@ export class QueueRegistry {
           + `NATS subject, it must be unique.`,
       );
     }
+
+    const taken = this.#bySubject.get(queue.subject);
+    if (taken !== undefined) {
+      throw new DuplicateDeclarationError(
+        `new Queue("${queue.name}"): this name reduces to the subject "${queue.subject}", which `
+          + `"${taken.name}" already publishes to. Two names that differ only in a character a `
+          + "subject token cannot carry are one queue, and the second would take the first's work.",
+      );
+    }
+
     this.#byName.set(queue.name, queue);
     this.#bySubject.set(queue.subject, queue);
   }

@@ -34,6 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import { DeclarationError } from "@scribe/alchemy";
+
 /**
  * The stream every queue that did not ask for isolation is published to.
  *
@@ -55,9 +57,25 @@ export const DEAD_STREAM = "QUEUE_DEAD";
 /** The single consumer every shared queue is drained through. */
 export const SHARED_CONSUMER = "workers";
 
-/** Reduces a queue name to what NATS accepts in a subject token. */
+/**
+ * Reduces a queue name to what NATS accepts in a subject token.
+ *
+ * @remarks
+ * A name that holds nothing NATS accepts is refused here rather than folded into the empty token.
+ * A subject whose second token is empty is refused by the server at publish time, which is long
+ * after the declaration that built it and far from the file that wrote the name.
+ *
+ * @throws {DeclarationError} When `name` holds no character a subject token can carry.
+ */
 export function sanitize(name: string): string {
-  return name.replace(/[^A-Za-z0-9_-]+/g, "_");
+  const token = name.replace(/[^A-Za-z0-9_-]+/g, "_");
+  if (token === "" || /^_+$/.test(token)) {
+    throw new DeclarationError(
+      `new Queue("${name}"): a queue name has to hold a letter, a digit or a dash. What this one `
+        + "reduces to is not a subject token NATS accepts.",
+    );
+  }
+  return token;
 }
 
 /** The subject a queue publishes to. */

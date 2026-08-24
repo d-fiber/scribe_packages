@@ -37,6 +37,7 @@
 import { ExponentialBackoff, type Future } from "@scribe/alchemy";
 import type { RegisteredQueue } from "@scribe/foundation/lib/src/queue/queue_declaration.ts";
 import { encode, type WireMessage } from "@scribe/foundation/lib/src/queue/wire_message.ts";
+import { forgetHandBacks, handBacksFor } from "./hand_backs.ts";
 import { topology } from "@scribe/foundation/lib/src/queue/topology/topology.ts";
 import type { JsMsg } from "@nats-io/jetstream";
 import type { JobOutcome } from "./drain_tally.ts";
@@ -70,7 +71,9 @@ export class FailurePolicy {
    * Sends a failed message back for another attempt, or to the dead letter.
    *
    * The attempt count is read from the server's `deliveryCount`, which is one on a first
-   * delivery and therefore counts attempts directly.
+   * delivery. Deliveries handed back by a replica that does not declare the subject are taken
+   * off it, and only where it decides something: a message this queue would otherwise give up on.
+   * Every other failure costs nothing to find that out.
    *
    * @param message - The message being given up on for now.
    * @param wire - Its decoded payload, needed only on the dead-letter path.
@@ -82,8 +85,16 @@ export class FailurePolicy {
     const attempts = message.info.deliveryCount;
 
     if (attempts >= this.#queue.maxRetries) {
+      const handedBack = await handBacksFor(message);
+
+      if (attempts - handedBack < this.#queue.maxRetries) {
+        message.nak(this.#backoff.delayFor(attempts - handedBack).inMilliseconds);
+        return "retried";
+      }
+
       await topology.publish(this.#queue.deadSubject, encode({ data: wire.data }));
       message.term();
+      await forgetHandBacks(message);
       return "dead";
     }
 

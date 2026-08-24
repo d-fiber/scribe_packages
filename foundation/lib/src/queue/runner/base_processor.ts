@@ -35,7 +35,8 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { RegisteredQueue } from "@scribe/foundation/lib/src/queue/queue_declaration.ts";
-import { decode } from "@scribe/foundation/lib/src/queue/wire_message.ts";
+import type { WireMessage } from "@scribe/foundation/lib/src/queue/wire_message.ts";
+import { topology } from "@scribe/foundation/lib/src/queue/topology/topology.ts";
 import { type Future, type UnmodifiableList, withDeadline } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
 import type { JsMsg } from "@nats-io/jetstream";
@@ -88,11 +89,66 @@ export abstract class BaseProcessor implements MessageProcessor {
     );
   }
 
-  protected async fail(message: JsMsg, tally: DrainTally): Future<void> {
-    const outcome = await this.#failures.apply(
-      message,
-      decode<unknown>(message.data),
-    );
-    tally.record(outcome);
+  /**
+   * Answers for a message whose body refused, whatever the policy decides.
+   *
+   * @remarks
+   * The dead-letter branch publishes, so it can fail on its own. Left to raise, that failure
+   * escapes the pool and leaves every message the pool had not reached yet unanswered until the
+   * server gives up on them. A refusal that comes back later loses nothing, so it is the answer
+   * of last resort.
+   *
+   * The decoded message is passed in rather than read again: whoever called this already has it,
+   * and decoding twice is both a waste and a second place the same payload could refuse.
+   */
+  protected async fail(
+    message: JsMsg,
+    tally: DrainTally,
+    wire: WireMessage<unknown>,
+  ): Future<void> {
+    try {
+      tally.record(await this.#failures.apply(message, wire));
+    } catch (error) {
+      log.error("queue.failure_policy_failed", {
+        metadata: {
+          queue: this.queue.name,
+          consequence: "the message is refused and comes back",
+          error,
+        },
+      });
+      message.nak(this.queue.retryBackoffMs);
+      tally.record("retried");
+    }
+  }
+
+  /**
+   * Sends a message nothing can read straight to the dead letter.
+   *
+   * @remarks
+   * A payload that does not parse will not parse on the next delivery either, so handing it back
+   * spends every attempt the queue allows and ends on the server giving up, which reports nothing
+   * anybody reads. The dead letter is where somebody looks.
+   *
+   * The bytes are forwarded as they arrived rather than re-encoded: what could not be parsed
+   * cannot be rebuilt, and whoever reads the dead letter needs what actually travelled.
+   */
+  protected async discard(message: JsMsg, tally: DrainTally): Future<void> {
+    log.error("queue.payload_unreadable", {
+      metadata: {
+        queue: this.queue.name,
+        seq: message.seq,
+        consequence: "the message goes straight to the dead letter",
+      },
+    });
+
+    try {
+      await topology.publish(this.queue.deadSubject, message.data);
+      message.term();
+      tally.record("dead");
+    } catch (error) {
+      log.error("queue.discard_failed", { metadata: { queue: this.queue.name, error } });
+      message.nak(this.queue.retryBackoffMs);
+      tally.record("retried");
+    }
   }
 }

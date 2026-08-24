@@ -87,17 +87,39 @@ export class TopologyProvisioner {
     }
   }
 
+  /**
+   * Creates the stream `plan` describes, or raises the ceiling of the one already there.
+   *
+   * @remarks
+   * A stream left entirely alone once it exists reads its ceiling on the day it is first
+   * created and never again, so every declaration a project makes after that names a number
+   * the server will not honour and nothing says so. A dead letter kept at what the first
+   * deployment asked for drops the failures a raised ceiling was meant to keep.
+   *
+   * The ceiling is only ever raised, for the same reason a consumer's bounds are: lowering it
+   * would drop messages a running deployment is still counting on.
+   */
   async #stream(
     name: string,
     subjects: string[],
     retention: RetentionPolicy,
     plan: TopologyPlan,
   ): Future<void> {
-    const exists = await this.#manager.streams
+    const held = await this.#manager.streams
       .info(name)
-      .then(() => true)
-      .catch(() => false);
-    if (exists) return;
+      .then((found: { config?: { max_msgs_per_subject?: number } }) => found.config ?? {})
+      .catch(() => null);
+
+    if (held !== null) {
+      const ceiling = held.max_msgs_per_subject ?? 0;
+      if (ceiling >= plan.maxPerSubject) return;
+
+      await this.#manager.streams.update(name, {
+        ...held,
+        max_msgs_per_subject: plan.maxPerSubject,
+      });
+      return;
+    }
 
     await this.#manager.streams.add({
       name,

@@ -49,11 +49,12 @@ import type { JobHandler } from "./queue_options.ts";
  *
  * A queue is kept per key, because declaring one twice would take the same NATS subject twice and
  * the second declaration would receive the first one's work.
+ *
+ * A queue opened without a number of attempts is handed over once, which is what the port says and
+ * not what this package's own default says. A declaration that named nothing did not ask for the
+ * four retries a job written for this package expects.
  */
 export class NatsQueues implements QueueDriver {
-  /** One declaration per key, so asking twice answers the same queue. */
-  readonly #opened = new Map<string, Queue<never>>();
-
   /** The queue `options` names, declared on the first ask and kept from then on. */
   open<T>(options: QueueOptions): PortQueue<T> {
     const declared = this.#declared<T>(options);
@@ -77,7 +78,7 @@ export class NatsQueues implements QueueDriver {
   }
 
   #declared<T>(options: QueueOptions): Queue<T> {
-    const held = this.#opened.get(options.key);
+    const held = _opened.get(options.key);
     if (held !== undefined) return held as unknown as Queue<T>;
 
     const handle = options.handle as ((message: QueueMessage<T>) => void | Future<void>) | undefined;
@@ -86,11 +87,28 @@ export class NatsQueues implements QueueDriver {
       : (_data, message) => Promise.resolve(handle(message));
 
     const opened = new Queue<T>(
-      { name: options.key, options: { maxRetries: options.attempts } },
+      {
+        name: options.key,
+        options: {
+          maxRetries: options.attempts ?? 1,
+          processingTimeout: options.visibility,
+        },
+      },
       body,
     );
 
-    this.#opened.set(options.key, opened as unknown as Queue<never>);
+    _opened.set(options.key, opened as unknown as Queue<never>);
     return opened;
   }
 }
+
+/**
+ * One declaration per key, so asking twice answers the same queue.
+ *
+ * @remarks
+ * It lives beside the class and not inside an instance, because what a declaration writes to is
+ * process-global: a host that clears the slot and wires a second driver would meet a registry
+ * that already holds the first driver's keys, and every declaration made before the clear would
+ * be refused as a duplicate.
+ */
+const _opened: Map<string, Queue<never>> = new Map();

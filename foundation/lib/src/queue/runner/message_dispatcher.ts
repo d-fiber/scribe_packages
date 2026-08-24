@@ -36,6 +36,7 @@
 
 import { Duration, type Future, type UnmodifiableList } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
+import { noteHandBack } from "./hand_backs.ts";
 import { queueRegistry } from "@scribe/foundation/lib/src/queue/queue_registry.ts";
 import type { JsMsg } from "@nats-io/jetstream";
 import type { DrainTally } from "./drain_tally.ts";
@@ -94,8 +95,12 @@ export class MessageDispatcher {
    * Answering with a delay rather than nothing at all is what keeps the consumer moving: an
    * unanswered message holds its slot until the server gives up on it, a refused one comes back
    * when somebody asks again.
+   *
+   * The hand-back is counted as a retry. Counted nowhere, a process refusing every message it was
+   * handed answered the same four zeros as a process that was handed nothing, and nothing an
+   * operator watches could tell a silent deployment from a busy one.
    */
-  #handBack(subject: string, group: UnmodifiableList<JsMsg>): Future<void> {
+  #handBack(subject: string, group: UnmodifiableList<JsMsg>, tally: DrainTally): Future<void> {
     log.warn("queue.subject_undeclared", {
       metadata: {
         subject,
@@ -105,7 +110,9 @@ export class MessageDispatcher {
     });
 
     for (const message of group) message.nak(HAND_BACK_AFTER.inMilliseconds);
-    return Promise.resolve();
+    tally.record("retried", group.length);
+
+    return Promise.all(group.map(noteHandBack)).then(() => undefined);
   }
 
   #dispatchGroup(
@@ -114,7 +121,7 @@ export class MessageDispatcher {
     tally: DrainTally,
   ): Future<void> {
     const queue = queueRegistry.bySubject(subject);
-    if (!queue) return this.#handBack(subject, group);
+    if (!queue) return this.#handBack(subject, group, tally);
 
     return processorFor(queue).process(group, tally);
   }

@@ -44,9 +44,8 @@ import {
 import { topology } from "@scribe/foundation/lib/src/queue/topology/topology.ts";
 import type { RegisteredQueue } from "@scribe/foundation/lib/src/queue/queue_declaration.ts";
 import type { JsMsg } from "@nats-io/jetstream";
-import { graceFor } from "./grace_period.ts";
+import { graceFor, longestGrace } from "./grace_period.ts";
 
-const FETCH_EXPIRES_MS = 5_000;
 
 /**
  * Where one loop reads from: the shared consumer, or a queue's own.
@@ -93,12 +92,21 @@ export class StreamSource {
       : StreamSource.shared();
   }
 
+  /**
+   * Pulls at most `count` messages, holding the window open long enough to group them.
+   *
+   * @remarks
+   * The window is the longest linger any declared queue asked for, and never shorter than the
+   * constant a queue that groups nothing needs. A fixed window shorter than a declaration closed
+   * the iterator first, so a queue that asked to group over half a minute was handed its group
+   * early and nothing said the number it declared was not the one applied.
+   */
   fetch(count: number): Future<JsMsg[]> {
     return topology.fetch(
       this.#stream,
       this.#durable,
       count,
-      FETCH_EXPIRES_MS,
+      longestGrace(),
       graceFor,
     );
   }
