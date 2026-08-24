@@ -67,10 +67,12 @@ rsync -a --delete \
   --exclude '/CHANGELOG.md' \
   --exclude '/tool/test.sh' \
   --exclude '/.githooks' \
-  --exclude 'e2e_tests/.generated' \
-  --exclude 'e2e_tests/.postgres' \
+  --exclude 'tests/e2e/.generated' \
+  --exclude 'tests/e2e/.postgres' \
+  --exclude '.scribe' \
+  --exclude '.vscode' \
   --exclude 'node_modules' \
   "$SOURCE/" "$TARGET/"
 
-say "copied $(find "$TARGET" -maxdepth 2 -mindepth 2 -name deno.json | wc -l | tr -d ' ') packages into $TARGET"
+say "copied $(find "$TARGET" -maxdepth 2 -mindepth 2 -name package.yaml | wc -l | tr -d ' ') packages into $TARGET"
 say "$(find "$TARGET" -type f | wc -l | tr -d ' ') files, without the repository's own"
