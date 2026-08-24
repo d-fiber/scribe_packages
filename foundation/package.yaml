@@ -10,7 +10,9 @@ dependencies:
 scribe:
   db:
     init: ./db/init/
-    migrations: ./db/migrations/
     provisioning: ./db/provisioning/
-  protocol:
-    - 
+  protocol: ./protocol/
+  ops:
+    - ./ops/database/
+    - ./ops/queue/
+    - ./ops/valkery/
