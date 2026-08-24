@@ -53,10 +53,29 @@ export class RateLimitBucket {
   readonly strikesKey: string;
 
   constructor(prefix: string, key: string, suffix: string) {
-    const subject = [prefix, key, suffix].filter((segment) => segment.length > 0).join(":");
+    const subject = [prefix, key, _escaped(suffix)]
+      .filter((segment) => segment.length > 0)
+      .join(":");
 
     this.blockedKey = `rl:blocked:${subject}`;
     this.arrivalKey = `rl:tat:${subject}`;
     this.strikesKey = `rl:strikes:${subject}`;
   }
+}
+
+/**
+ * The suffix of a bucket key, with the separator neutralised inside it.
+ *
+ * @remarks
+ * Only this segment is escaped. The prefix and the declared name are literals a call site wrote,
+ * and colons in them are the structure they meant, which is why `sign-in:email` reads as itself.
+ * The suffix carries whatever the caller was counted against, so left as it comes
+ * `("api", "read", "user:42")` and `("api", "read:user", "42")` produce the same key: one
+ * declaration's penalty blocks the other's callers, and a caller choosing its own suffix chooses
+ * which bucket it spends.
+ */
+function _escaped(segment: string): string {
+  return segment.includes("\\") || segment.includes(":")
+    ? segment.replaceAll("\\", "\\\\").replaceAll(":", "\\:")
+    : segment;
 }

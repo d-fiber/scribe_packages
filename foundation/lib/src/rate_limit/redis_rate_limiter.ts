@@ -132,10 +132,10 @@ export class RedisRateLimiter implements RateLimiter {
     this.key = options.key;
     this.limit = options.limit;
     this.window = options.window;
-    this.penalty = options.penalty;
     this.failOpen = options.failOpen ?? true;
     this.#maxPenalty = options.maxPenalty ?? DEFAULT_MAX_PENALTY;
-    this.#strikeMemory = options.strikeMemory ?? DEFAULT_STRIKE_MEMORY;
+    this.penalty = _underTheCeiling(options, this.#maxPenalty);
+    this.#strikeMemory = _outlivingThePenalty(options, this.penalty);
   }
 
   /**
@@ -151,7 +151,7 @@ export class RedisRateLimiter implements RateLimiter {
    * block itself, so a caller that keeps trying does not push its own release further away.
    */
   async check(prefix: string = "", suffix: string = ""): Future<RateLimitOutcome> {
-    if (!this.#usable()) return this.#allow();
+    if (!this.#usable()) return this.unmeasured();
 
     const bucket = new RateLimitBucket(prefix, this.key, suffix);
 
@@ -168,9 +168,9 @@ export class RedisRateLimiter implements RateLimiter {
           this.#strikeMemory.inSeconds,
         );
 
-      return allowed === 1
-        ? { ok: true, remaining }
-        : { ok: false, retryAfter, strikes };
+      return _counted(allowed, 0) === 1
+        ? { ok: true, remaining: _counted(remaining, this.limit) }
+        : { ok: false, retryAfter: _counted(retryAfter, this.window.inSeconds), strikes: _counted(strikes, 0) };
     } catch (error) {
       log.error("rate-limit.check_failed", {
         metadata: { limit: this.key, decision: this.#onOutage(), error },
@@ -187,6 +187,8 @@ export class RedisRateLimiter implements RateLimiter {
    * count.
    */
   async isBlocked(prefix: string = "", suffix: string = ""): Future<boolean> {
+    if (!this.#usable()) return !this.unmeasured().ok;
+
     try {
       const remaining = await kv().pttl(
         new RateLimitBucket(prefix, this.key, suffix).blockedKey,
@@ -210,12 +212,14 @@ export class RedisRateLimiter implements RateLimiter {
   unmeasured(): RateLimitOutcome {
     return this.failOpen
       ? this.#allow()
-      : { ok: false, retryAfter: Math.ceil(this.window.inSeconds), strikes: 0 };
+      : { ok: false, retryAfter: Math.max(0, Math.ceil(this.window.inSeconds)) || 1, strikes: 0 };
   }
 
   #usable(): boolean {
     if (
-      this.limit > 0 && this.window.inSeconds > 0 && this.penalty.inSeconds > 0
+      Number.isFinite(this.limit) && this.limit > 0 &&
+      Number.isFinite(this.window.inSeconds) && this.window.inSeconds > 0 &&
+      Number.isFinite(this.penalty.inSeconds) && this.penalty.inSeconds > 0
     ) return true;
 
     log.error("rate-limit.measures_nothing", {
@@ -229,7 +233,7 @@ export class RedisRateLimiter implements RateLimiter {
   }
 
   #allow(): RateLimitOutcome {
-    return { ok: true, remaining: this.limit };
+    return { ok: true, remaining: Math.max(0, this.limit) };
   }
 
   #onOutage(): string {
@@ -248,4 +252,64 @@ export class RedisRateLimiters implements RateLimiterDriver {
   open(options: RateLimitOptions): RateLimiter {
     return new RedisRateLimiter(options);
   }
+}
+
+/**
+ * What the script answered, as a number a caller can act on.
+ *
+ * @remarks
+ * A store answers text on some clients and numbers on others, and a script that was cut short
+ * answers a shorter tuple than the one it declares. Neither is a reason to hand a caller an
+ * allowance of `NaN` or a wait of `undefined`, both of which read as a refusal it cannot obey.
+ * What is not a number is what the declaration would have said with nothing measured.
+ */
+function _counted(held: unknown, fallback: number): number {
+  const read = typeof held === "number" ? held : Number(held);
+  return Number.isFinite(read) ? Math.max(0, read) : Math.max(0, fallback);
+}
+
+/**
+ * The first penalty a declaration gets, never longer than the ceiling it stops doubling at.
+ *
+ * @remarks
+ * The script grants the smaller of the two anyway, so a declaration that asks for a week and a
+ * ceiling of a day is already a day. Cutting it here is what makes the field say what happens.
+ */
+function _underTheCeiling(options: RateLimitOptions, ceiling: Duration): Duration {
+  const asked = options.penalty;
+  if (asked.inSeconds <= ceiling.inSeconds) return asked;
+
+  log.error("rate-limit.penalty_over_ceiling", {
+    metadata: {
+      limit: options.key,
+      askedSeconds: asked.inSeconds,
+      ceilingSeconds: ceiling.inSeconds,
+      consequence: "the ceiling is used",
+    },
+  });
+  return ceiling;
+}
+
+/**
+ * How long strikes are kept, never shorter than the block the last one produced.
+ *
+ * @remarks
+ * A count forgotten before its own block lifts defeats the escalation it belongs to: the caller
+ * comes back to a clean slate and pays the first penalty again, forever. It has to survive the
+ * block plus the window in which the next hit would land.
+ */
+function _outlivingThePenalty(options: RateLimitOptions, penalty: Duration): Duration {
+  const asked = options.strikeMemory ?? DEFAULT_STRIKE_MEMORY;
+  const needed = penalty.inSeconds + options.window.inSeconds;
+  if (asked.inSeconds > needed) return asked;
+
+  log.error("rate-limit.strike_memory_under_penalty", {
+    metadata: {
+      limit: options.key,
+      askedSeconds: asked.inSeconds,
+      penaltySeconds: penalty.inSeconds,
+      consequence: "the memory is stretched past the block it has to outlive",
+    },
+  });
+  return Duration.seconds(needed + 1);
 }
