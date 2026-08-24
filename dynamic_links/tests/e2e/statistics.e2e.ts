@@ -40,8 +40,8 @@ import { report, requireStack, RUN_ID, STACK, STATISTICS_QUEUE, timed, useStack 
 await requireStack(`${STACK.restUrl}/`, `${STACK.natsMonitorUrl}/healthz`);
 await useStack();
 
-const { DynamicLink, LinkOutcome, LinkPlatform, resolveLink } = await import("@scribe/dynamic_links/mod.ts");
-const { dynamicLinks, dynamicLinkStatistics } = await import("@scribe/dynamic_links/src/db/tables.ts");
+const { DynamicLink, LinkOutcome, LinkPlatform, resolveLink } = await import("@scribe/dynamic_links/lib/dynamic_links.ts");
+const { dynamicLinks, dynamicLinkStatistics } = await import("@scribe/dynamic_links/lib/src/db/tables.ts");
 const { queueRunner } = await import("@scribe/foundation/lib/src/queue/mod.ts");
 
 const KEEPS_A_CONNECTION = { sanitizeOps: false, sanitizeResources: false } as const;

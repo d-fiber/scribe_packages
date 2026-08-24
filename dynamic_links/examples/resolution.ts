@@ -5,7 +5,7 @@ import {
   LinkPlatform,
   resolveLink,
   type Visit,
-} from "@scribe/dynamic_links/mod.ts";
+} from "@scribe/dynamic_links/lib/dynamic_links.ts";
 import { invite } from "./declarations.ts";
 
 /** What the page serving a slug answers, once it has decided. */

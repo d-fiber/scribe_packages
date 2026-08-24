@@ -1,0 +1,15 @@
+name: dynamic_links
+description: The short links, what a declaration decides and what it measures.
+version: 1.0.0
+
+environment:
+  scribe: "^9.0.0"
+
+dependencies:
+  foundation: ^1.0.0
+
+scribe:
+  db:
+    init: ./db/init/
+  ops:
+    - ./ops/

@@ -34,6 +34,21 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+/**
+ * What "dynamic_links" hands whoever mounts it.
+ *
+ * @remarks
+ * Everything it is made of lives in `src/`, the types it publishes in `contracts/`, and this is
+ * the one file that names them: a file no line below reaches is a file this package does not
+ * publish.
+ *
+ * `scribe` at the bottom is the other half of what it hands over. It is the three moments the
+ * host may run this package at, and a package that runs at none of them says so with an empty
+ * one rather than by exporting nothing.
+ */
+
+import type { LifecycleSteps } from "@scribe/alchemy";
+
 export { DynamicLink } from "./src/core/declaration.ts";
 export type {
   AnyLinkData,
@@ -65,3 +80,13 @@ export type { DynamicLinkRow, DynamicLinkStatisticRow, StoredPayload } from "./s
 
 export { LinkError, LinkKind, LinkOutcome, LinkPlatform } from "./contracts/link.ts";
 export type { CreatedLink, LinkPreview, LinkStatistic, LinkVisitor } from "./contracts/link.ts";
+
+/**
+ * When this package runs, which is at none of the three moments.
+ *
+ * @remarks
+ * Nothing here answers a port or reads the environment: what this package does, it does when
+ * something calls it. The member is written empty rather than left out, because an entry that
+ * exports nothing for it and one whose steps are misspelt look the same to the host.
+ */
+export const scribe: LifecycleSteps = {};

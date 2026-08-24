@@ -41,11 +41,11 @@ await requireStack(`${STACK.restUrl}/`);
 await useStack();
 
 const { DestinationKind, DynamicLink, LinkError, LinkPlatform, resolveLink } = await import(
-  "@scribe/dynamic_links/mod.ts"
+  "@scribe/dynamic_links/lib/dynamic_links.ts"
 );
-type Visit = import("@scribe/dynamic_links/mod.ts").Visit;
-const { forgetLink } = await import("@scribe/dynamic_links/src/runtime/cache.ts");
-const { dynamicLinks } = await import("@scribe/dynamic_links/src/db/tables.ts");
+type Visit = import("@scribe/dynamic_links/lib/dynamic_links.ts").Visit;
+const { forgetLink } = await import("@scribe/dynamic_links/lib/src/runtime/cache.ts");
+const { dynamicLinks } = await import("@scribe/dynamic_links/lib/src/db/tables.ts");
 
 interface Invite {
   code: string;

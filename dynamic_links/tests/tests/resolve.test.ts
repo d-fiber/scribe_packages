@@ -34,13 +34,13 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { LinkError, LinkOutcome, LinkPlatform } from "@scribe/dynamic_links/contracts/link.ts";
-import { DynamicLink } from "@scribe/dynamic_links/src/core/declaration.ts";
-import { DestinationKind, type Visit } from "@scribe/dynamic_links/src/core/destination.ts";
-import { onLinkPreview } from "@scribe/dynamic_links/src/core/preview.ts";
-import { dynamicLinkStatisticsQueue, type RecordedVisit } from "@scribe/dynamic_links/src/db/statistics.ts";
-import { resolveLink } from "@scribe/dynamic_links/src/runtime/resolve.ts";
-import { installDynamicLinksMock } from "@scribe/dynamic_links/testing/mock.ts";
+import { LinkError, LinkOutcome, LinkPlatform } from "@scribe/dynamic_links/lib/contracts/link.ts";
+import { DynamicLink } from "@scribe/dynamic_links/lib/src/core/declaration.ts";
+import { DestinationKind, type Visit } from "@scribe/dynamic_links/lib/src/core/destination.ts";
+import { onLinkPreview } from "@scribe/dynamic_links/lib/src/core/preview.ts";
+import { dynamicLinkStatisticsQueue, type RecordedVisit } from "@scribe/dynamic_links/lib/src/db/statistics.ts";
+import { resolveLink } from "@scribe/dynamic_links/lib/src/runtime/resolve.ts";
+import { installDynamicLinksMock } from "@scribe/dynamic_links/tests/testing/mock.ts";
 import { installMock } from "@scribe/core/testing/install.ts";
 import type { Row } from "@scribe/foundation/tests/testing/database.ts";
 import { assert, assertEquals } from "@std/assert";
