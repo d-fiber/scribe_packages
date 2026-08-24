@@ -24,24 +24,28 @@ cannot be left out.
 ## What a package is made of
 
 ```
-mod.ts          the one way in
-register.ts     what the host runs when the package is mounted
-contracts/      the pure types that cross the boundary, no behaviour
-src/            the code, private by never being exported from mod.ts
-testing/        what a consumer imports to stub this package
-tests/          the tests that need nothing running
-e2e_tests/      the tests that need the stack up, with the compose that brings it
+package.yaml    the name, the version, the framework it accepts, and what it hands the stack
+lib/<name>.ts   the one way in: a list of re-exports, plus the `scribe` lifecycle
+lib/contracts/  the pure types that cross the boundary, no behaviour
+lib/src/        the code, private by never being named in the entry
+tests/tests/    the tests that need nothing running
+tests/testing/  what a consumer imports to stub this package
+tests/e2e/      the tests that need the stack up, with the compose that brings it
 examples/       what calling the package looks like
 db/init/        the SQL played when the stack is built
 ops/            the slices of the ops templates, when the package starts a container
 protocol/       the .proto files, when the package speaks to a worker
 ```
 
-`deno.json` names the package and lists what it exports, and that list is the whole of its surface.
-Nothing under `src/` is reachable from outside, because no export points at it.
+`scribedev pkg create <name>` writes this, and `scribedev pkg analyze .` refuses a package that
+departs from it. The entry is named after the package and is never declared: the manifest names
+the package, the layout says where the entry sits, and a manifest able to point elsewhere would
+only be a chance for the two to disagree.
 
-Only the first three are mandatory. A package that poses no SQL has no `db/`, and one that starts
-no container has no `ops/`.
+Five things are mandatory: `package.yaml`, `.gitignore`, `lib/<name>.ts`, `lib/src/`, and a
+`tests/` that carries a `tests/e2e/` and at least one `.test.ts`. The rest depends on what the
+package does. A package that poses no SQL has no `db/`, and one that starts no container has no
+`ops/`.
 
 ## Nothing here runs on its own
 
@@ -49,13 +53,20 @@ A package's imports resolve only through the framework's import map, so this rep
 type checked or tested by itself:
 
 ```
-$ deno check realtime/mod.ts
-TS2307 [ERROR]: Import "@scribe/foundation/src/database/table.ts" not a dependency
+$ deno check realtime/lib/realtime.ts
+TS2307 [ERROR]: Import "@scribe/foundation/lib/src/database/table.ts" not a dependency
                 and not in import map
 ```
 
-You verify a change by putting these packages in a scribe checkout and checking that. `tool/test.sh`
-does it for you:
+`scribedev pkg get` resolves one package against a checkout and writes what every specifier
+answers to, which is what `scribedev pkg test` then hands the runtime:
+
+```sh
+cd realtime && scribedev pkg get && scribedev pkg test
+```
+
+You verify the whole tree by putting these packages in a scribe checkout and checking that.
+`tool/test.sh` does it for you:
 
 ```sh
 bash tool/test.sh                       # uses ../scribe

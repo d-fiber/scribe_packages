@@ -11,10 +11,11 @@ wherever you write it.
 
 ---
 
-## 1. `mod.ts` is the whole surface, and it is a list
+## 1. `lib/<name>.ts` is the whole surface, and it is a list
 
-The entry re-exports and does nothing else. No logic, no state, no side effect. Reading it should
-tell you what the package hands out and where each piece lives.
+The entry re-exports, declares `scribe`, and does nothing else. No logic, no state, no side effect
+outside the three lifecycle steps. Reading it should tell you what the package hands out and where
+each piece lives.
 
 ```ts
 // No: the entry does work, so importing the package does work.
@@ -29,30 +30,29 @@ export { RealtimeTransports } from "./src/transport/registry.ts";
 export { EventLogTransport } from "./src/transport/event_log.ts";
 ```
 
-What is not in that list does not exist for anybody else. That is how `src/` stays private: not by
-a rule somebody enforces, but because no export points at it.
+What is not in that list does not exist for anybody else. That is how `lib/src/` stays private: not
+by a rule somebody enforces, but because no export points at it.
 
 ---
 
-## 2. `register.ts` is the only place that runs at mount
+## 2. `scribe` is the only thing that runs at mount
 
-The three moments belong there: what is wired at import, what runs after boot, what runs at
-shutdown. A package that runs something at module scope runs it whether or not it was mounted.
+The three moments belong there: `wires` at import, `starts` after boot, `stops` at shutdown. A
+package that runs something at module scope runs it whether or not it was mounted. The member is
+required, and a package that runs at none of the three writes it empty.
 
 ```ts
-// No, in src/: this fires the moment anything imports the file, connected or not.
+// No, in lib/src/: this fires the moment anything imports the file, connected or not.
 RealtimeTransports.use(new EventLogTransport());
 await syncDeclaredChannels();
 
-// Yes, in register.ts: the transport needs nothing, so it is wired at import.
-RealtimeTransports.use(new EventLogTransport());
-
-/**
- * Writes the openness every declaration asked for, once the process can reach the database.
- */
-export function starts(): Promise<void> {
-  return syncDeclaredChannels();
-}
+// Yes, in the entry: the transport needs nothing, so it is wired at import.
+export const scribe: LifecycleSteps = {
+  wires: () => {
+    RealtimeTransports.use(new EventLogTransport());
+  },
+  starts: () => syncDeclaredChannels(),
+};
 ```
 
 The rule that decides which of the two: if it needs the database, the cache or the network, it
@@ -60,9 +60,9 @@ cannot be wired at import.
 
 ---
 
-## 3. `contracts/` holds types and nothing else
+## 3. `lib/contracts/` holds types and nothing else
 
-No behaviour, no import of `src/`, no dependency beyond `@scribe/core/contracts/`. They are what
+No behaviour, no import of `lib/src/`, no dependency beyond `@scribe/core/contracts/`. They are what
 crosses the boundary, so anything that executes makes them impossible to share.
 
 ```ts
@@ -98,10 +98,10 @@ import type { Time } from "@scribe/core/contracts/common/time.ts";
 
 ---
 
-## 5. `testing/` is what a consumer stubs you with
+## 5. `tests/testing/` is what a consumer stubs you with
 
 It is a published surface, not a test helper. Somebody else's suite imports it, so it is documented
-like the rest and it never reaches into another package's `src/`.
+like the rest and it never reaches into another package's `lib/src/`.
 
 ```ts
 /** A transport that keeps every row instead of sending it, so a test can read what was emitted. */
@@ -122,7 +122,7 @@ search index. A declaration records what was asked for and touches nothing.
 // No: the declaration reaches the database while the module is being evaluated.
 export const editors = await Audience.keyed("project-editors").create();
 
-// Yes: it records, and register.ts writes it once the database is reachable.
+// Yes: it records, and the entry's `starts` writes it once the database is reachable.
 export const editors = Audience.keyed("project-editors");
 ```
 

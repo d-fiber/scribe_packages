@@ -90,25 +90,29 @@ they stop working.
 
 ## Adding a package
 
-A package is a directory carrying a `deno.json`, and nothing else says so. `scribedev pkg create`
-does not apply here: it writes the layout of a different definition of a package, and the two are
-still being reconciled. Copy the shape of the package closest to what you are writing.
-
-Four things, and the last two are the ones people forget:
+A package is a directory carrying a `package.yaml`, and nothing else says so.
+`scribedev pkg create <name> --in .` writes the mandatory layout, and `scribedev pkg analyze .`
+reads every package here and reports what is wrong with each.
 
 ```
-<name>/deno.json     the name and the whole of what it exports
-<name>/mod.ts        a list of re-exports, and nothing else
-<name>/tests/        the cases that need nothing running
-CHANGELOG.md         nothing to write, the CI writes it from your commit messages
+<name>/package.yaml   the name, the version, the framework it accepts, what it hands the stack
+<name>/.gitignore     what the tools write, kept out of your commits
+<name>/lib/<name>.ts  a list of re-exports, plus the `scribe` lifecycle
+<name>/lib/src/       the code
+<name>/tests/         the cases that need nothing running, plus tests/e2e/
+CHANGELOG.md          nothing to write, the CI writes it from your commit messages
 ```
 
-Then, in the scribe checkout, the package joins `host/deno.json` in two places: the `workspace`
-list, and one `imports` entry mapping `@scribe/<name>/` to its directory. Without both, nothing
-resolves.
+Fill in `description:`, which the skeleton leaves as an instruction, then the dependencies and the
+`scribe:` block, which is written commented out.
 
-A package that starts a container also adds its fragment under `ops/`, its compose override under
-`e2e_tests/`, and its name to the list `tool/e2e/stack.sh` accepts.
+Then, in the scribe checkout, the package gets one `imports` entry mapping `@scribe/<name>/` to
+its directory. It is not a `workspace` member: a member needs a `deno.json`, and a package carries
+none.
+
+A package that starts a container also adds its fragment under `ops/`, declares it under
+`scribe: ops:`, puts its compose override under `tests/e2e/`, and adds its name to the list
+`tool/e2e/stack.sh` accepts.
 
 ## Commit messages
 
@@ -197,8 +201,8 @@ Some things are not yours to decide alone. Stop, and say what you found.
 
 ```
 A secret in the diff              a token, a key, a .env, a long base64 in a config file
-A generated file about to ship    e2e_tests/.generated and .postgres are ignored for a reason
-A debugging leftover              a console.log in src/, a suite narrowed with a filter
+A generated file about to ship    tests/e2e/.generated and .postgres are ignored for a reason
+A debugging leftover              a console.log in lib/src/, a suite narrowed with a filter
 A container left running          a stack up on your machine is not a stack up on the runner
 A change you cannot explain       a file you did not touch, modified, and you do not know why
 ```

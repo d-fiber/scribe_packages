@@ -30,19 +30,20 @@ discard it there when you are done.
 ## 2. Three kinds of test live here, and they are not reached the same way
 
 ```
-tests/        needs nothing running          deno task test          in scribe/host
-e2e_tests/    needs the containers up        deno task test:e2e:<package>
-testing/      is not a test at all           it is what a consumer stubs you with
+tests/tests/    needs nothing running        scribedev pkg test, from the package
+tests/e2e/      needs the containers up      deno task test:e2e:<package>, in scribe/host
+tests/testing/  is not a test at all         it is what a consumer stubs you with
 ```
 
-`tests/` is where most of the proof belongs: a declaration, a key, a mapper, a refusal. No
+`tests/tests/` is where most of the proof belongs: a declaration, a key, a mapper, a refusal. No
 container, no clock, no network.
 
-`e2e_tests/` is for what only the real stack can answer: a notification that actually crosses
-Postgres, an object that actually lands in the bucket, an index that actually returns a hit.
+`tests/e2e/` is for what only the real stack can answer: a notification that actually crosses
+Postgres, an object that actually lands in the bucket, an index that actually returns a hit. Its
+files end in `.e2e.ts`, so `scribedev pkg test` walks past them.
 
-`testing/` is a published surface. It is documented like the rest, and its own correctness is
-proved by a case in `tests/` that uses it, since somebody else's suite will.
+`tests/testing/` is a published surface. It is documented like the rest, and its own correctness is
+proved by a case in `tests/tests/` that uses it, since somebody else's suite will.
 
 ---
 
@@ -173,7 +174,7 @@ const editors = audienceForThisRun("editors");
 ```
 
 A helper shared by the cases of one file lives at the top of that file. A helper several files
-share belongs in `testing/`, and being shared makes it code like any other: its surface is
+share belongs in `tests/testing/`, and being shared makes it code like any other: its surface is
 documented.
 
 ---
