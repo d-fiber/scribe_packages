@@ -62,7 +62,9 @@ export class FetchClient extends BaseClient {
    * A body of zero bytes is left out rather than drained, because draining one costs a turn of
    * the event loop and that turn is observable by a caller that sends without awaiting.
    * Everything that can go wrong before a status arrives as a different type, and all of them
-   * leave here as one {@link ClientException}.
+   * leave here as one {@link ClientException}. Producing the body is one of them: a request that
+   * cannot be sealed twice, or a body whose bytes cannot be produced, used to escape as whatever
+   * the request itself decided to raise.
    */
   override async send(request: BaseRequest): Future<StreamedResponse> {
     if (this.#closed) {
@@ -72,15 +74,24 @@ export class FetchClient extends BaseClient {
       );
     }
 
-    const body = request.finalize();
-    const hasBody = request.method !== "GET" && request.method !== "HEAD";
+    let payload: BodyInit | undefined;
+    try {
+      const body = request.finalize();
+      const hasBody = request.method !== "GET" && request.method !== "HEAD";
 
-    if (request.contentLength !== null && hasBody) {
-      request.headers.set("content-length", String(request.contentLength));
+      if (request.contentLength !== null && hasBody) {
+        request.headers.set("content-length", String(request.contentLength));
+      }
+
+      const carriesBytes = hasBody && request.contentLength !== 0;
+      payload = carriesBytes ? (await body.toBytes()) as BodyInit : undefined;
+    } catch (cause) {
+      throw new ClientException(
+        `HTTP request failed. ${_describe(cause, request.timeoutMs)}`,
+        request.url,
+        { cause },
+      );
     }
-
-    const carriesBytes = hasBody && request.contentLength !== 0;
-    const payload: BodyInit | undefined = carriesBytes ? (await body.toBytes()) as BodyInit : undefined;
 
     const timeoutMs = request.timeoutMs;
 
@@ -109,7 +120,7 @@ export class FetchClient extends BaseClient {
       ),
       answered.status,
       {
-        contentLength: length === null ? null : Number(length),
+        contentLength: _lengthOf(length),
         request,
         headers: answered.headers,
         reasonPhrase: answered.statusText === "" ? null : answered.statusText,
@@ -162,4 +173,19 @@ export class FetchClients implements ClientDriver {
   open(): Client {
     return new FetchClient();
   }
+}
+
+/**
+ * The length a server declared, or null when it declared nothing readable.
+ *
+ * @remarks
+ * The header is text a server wrote, so it may hold anything. Passed to `Number` as it comes, an
+ * empty header reads as zero bytes and a word reads as a number that is not one: a caller sizing
+ * a buffer from it allocates nothing for a body that has content, or reasons about `NaN`.
+ */
+function _lengthOf(header: string | null): number | null {
+  if (header === null || header.trim() === "") return null;
+
+  const read = Number(header);
+  return Number.isFinite(read) && read >= 0 ? read : null;
 }
