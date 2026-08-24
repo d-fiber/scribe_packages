@@ -45,8 +45,8 @@ import { atLeast } from "@scribe/alchemy/observe";
  * package writes `log.error` and never a console, and the day a deployment ships lines to a
  * collector it fills the slot again and not one call site changes.
  *
- * The line is `[action] {metadata}`, which is what the rest of the stack already prints, so a
- * deployment reading two processes side by side reads one format.
+ * The line is `level [action] {metadata}`, which is what the rest of the stack already prints, so
+ * a deployment reading two processes side by side reads one format.
  *
  * @param floor - The least severe level this writes. A line below it is dropped, unread.
  */
@@ -85,11 +85,15 @@ export class ConsoleLogger implements Logger {
    * What a line carries beyond its action is passed to the console as a value rather than folded
    * into the string, so a terminal expands it and a collector that reads this process keeps the
    * shape instead of a sentence it would have to parse back.
+   *
+   * The level opens the text and not only the console method it was written with. A collector
+   * reads the stream, where an info and a debug arrive on the same descriptor and the colour a
+   * terminal adds is gone.
    */
   at(level: LoggedLevel, action: string, input?: LogInput): void {
     if (!atLeast(level, this.#floor)) return;
 
-    const line = `[${action}]`;
+    const line = `${level} [${_onOneLine(action)}]`;
     const carried = _carriedBy(input);
 
     if (level === "error") return void console.error(line, ...carried);
@@ -103,11 +107,37 @@ export class ConsoleLogger implements Logger {
 function _carriedBy(input?: LogInput): UnmodifiableList<unknown> {
   if (input === undefined) return [];
 
-  const who = input.actorId === undefined ? null : `${input.actorType ?? "actor"}=${input.actorId}`;
+  const who = _whoBy(input);
   const carried: unknown[] = [];
 
   if (who !== null) carried.push(who);
   if (input.metadata !== undefined) carried.push(input.metadata);
 
   return carried;
+}
+
+/**
+ * Who a line is about, as one word, or null when it names nobody.
+ *
+ * @remarks
+ * A kind with no identifier still says something a reader wants: a cron and a request are not the
+ * same actor even when neither has a name to give.
+ */
+function _whoBy(input: LogInput): string | null {
+  if (input.actorId !== undefined) return `${input.actorType ?? "actor"}=${_onOneLine(input.actorId)}`;
+  return input.actorType === undefined ? null : _onOneLine(input.actorType);
+}
+
+/**
+ * `text` with the line breaks in it spelled out.
+ *
+ * @remarks
+ * An action is named by whoever writes the line, and some of them pass a value they were given. A
+ * break left as it comes ends the record and opens a second one that reads like a line the process
+ * wrote, which is how a journal is forged from the outside.
+ */
+function _onOneLine(text: string): string {
+  return text.includes("\n") || text.includes("\r")
+    ? text.replaceAll("\r", "\\r").replaceAll("\n", "\\n")
+    : text;
 }
