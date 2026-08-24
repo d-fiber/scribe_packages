@@ -1,4 +1,4 @@
-import { Realtime } from "@scribe/realtime/mod.ts";
+import { Realtime } from "@scribe/realtime/lib/realtime.ts";
 
 /** What one order broadcast carries. */
 interface Order {

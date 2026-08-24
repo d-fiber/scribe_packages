@@ -34,61 +34,55 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { assertEquals, assertThrows } from "@std/assert";
-import { Listen, Realtime } from "@scribe/realtime/mod.ts";
+import { assertEquals } from "@std/assert";
+import { Listen, Realtime, syncDeclaredChannels } from "@scribe/realtime/lib/realtime.ts";
+import { realtimeChannels } from "@scribe/realtime/lib/src/db/tables.ts";
+import { installDatabaseFake } from "./mocks/database.ts";
 
-interface Order {
-  orderId: string;
-  total: number;
-}
-
-interface Keyed {
+interface Item {
   id: string;
-  label: string;
 }
 
-Deno.test("a declaration keeps the name it was given", () => {
-  assertEquals(Realtime.granted<Order>("order", { key: "orderId" }).name, "order");
+Realtime.public<Item>("sync_public");
+Realtime.granted<Item>("sync_granted");
+
+async function storedListen(channel: string): Promise<string | null> {
+  const row = await realtimeChannels()
+    .selectRaw("listen")
+    .where((f) => f.channel.eq(channel))
+    .getOne();
+
+  return row === null ? null : String(row.listen);
+}
+
+Deno.test("a declaration nobody stored yet is written with its openness", async () => {
+  const db = installDatabaseFake();
+
+  await syncDeclaredChannels();
+
+  assertEquals(await storedListen("sync_public"), Listen.Public);
+  assertEquals(await storedListen("sync_granted"), Listen.Granted);
+  db.restore();
 });
 
-Deno.test("each factory carries its own openness", () => {
-  assertEquals(Realtime.public<Keyed>("public_one").listen, Listen.Public);
-  assertEquals(Realtime.authenticated<Keyed>("open_one").listen, Listen.Authenticated);
-  assertEquals(Realtime.granted<Keyed>("closed_one").listen, Listen.Granted);
+Deno.test("an openness that changed in the code is written over the stored one", async () => {
+  const db = installDatabaseFake({
+    __realtime_channels__: [{ channel: "sync_public", listen: Listen.Granted }],
+  });
+
+  await syncDeclaredChannels();
+
+  assertEquals(await storedListen("sync_public"), Listen.Public);
+  db.restore();
 });
 
-Deno.test("a declaration with no key falls back to id", () => {
-  const channel = Realtime.public<Keyed>("fallback_key");
-  assertEquals(channel.all.channel, "fallback_key");
-});
+Deno.test("a channel nobody declares any more keeps its row", async () => {
+  const db = installDatabaseFake({
+    __realtime_channels__: [{ channel: "sync_retired", listen: Listen.Public }],
+  });
 
-Deno.test("a name that is not snake case is refused at the declaration", () => {
-  assertThrows(
-    () => Realtime.granted<Keyed>("Order"),
-    TypeError,
-    "must be lowercase snake_case",
-  );
-});
+  await syncDeclaredChannels();
 
-Deno.test("a name longer than 64 characters is refused", () => {
-  assertThrows(
-    () => Realtime.granted<Keyed>("o".repeat(65)),
-    TypeError,
-    "exceeds 64 characters",
-  );
-});
-
-Deno.test("the same name declared twice with the same openness is accepted", () => {
-  Realtime.granted<Keyed>("declared_twice_same");
-  Realtime.granted<Keyed>("declared_twice_same");
-});
-
-Deno.test("the same name declared twice with two opennesses is refused", () => {
-  Realtime.granted<Keyed>("declared_twice_apart");
-
-  assertThrows(
-    () => Realtime.public<Keyed>("declared_twice_apart"),
-    TypeError,
-    "is declared twice",
-  );
+  assertEquals(await storedListen("sync_retired"), Listen.Public);
+  db.restore();
 });

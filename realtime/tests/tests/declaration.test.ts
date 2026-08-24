@@ -34,45 +34,61 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { assertEquals } from "@std/assert";
-import { Realtime } from "@scribe/realtime/mod.ts";
-import { installRealtimeMock } from "@scribe/realtime/testing/mock.ts";
+import { assertEquals, assertThrows } from "@std/assert";
+import { Listen, Realtime } from "@scribe/realtime/lib/realtime.ts";
 
-interface Item {
-  id: string;
+interface Order {
+  orderId: string;
+  total: number;
 }
 
-const item = Realtime.granted<Item>("mock_item");
+interface Keyed {
+  id: string;
+  label: string;
+}
 
-Deno.test("the recording transport keeps every row in the order it was sent", async () => {
-  const sent = installRealtimeMock();
-
-  await item.all.insert({ id: "a" });
-  await item.all.insert({ id: "b" });
-
-  assertEquals(sent.rows.map((row) => row.entityId), ["a", "b"]);
-  sent.restore();
+Deno.test("a declaration keeps the name it was given", () => {
+  assertEquals(Realtime.granted<Order>("order", { key: "orderId" }).name, "order");
 });
 
-Deno.test("the recording transport filters by channel", async () => {
-  const sent = installRealtimeMock();
-
-  await item.all.insert({ id: "a" });
-  await item.topic("seller").insert({ id: "b" });
-
-  assertEquals(sent.on("mock_item:#seller").map((row) => row.entityId), ["b"]);
-  sent.restore();
+Deno.test("each factory carries its own openness", () => {
+  assertEquals(Realtime.public<Keyed>("public_one").listen, Listen.Public);
+  assertEquals(Realtime.authenticated<Keyed>("open_one").listen, Listen.Authenticated);
+  assertEquals(Realtime.granted<Keyed>("closed_one").listen, Listen.Granted);
 });
 
-Deno.test("restoring puts back the transport that was there before", async () => {
-  const first = installRealtimeMock();
-  const second = installRealtimeMock();
+Deno.test("a declaration with no key falls back to id", () => {
+  const channel = Realtime.public<Keyed>("fallback_key");
+  assertEquals(channel.all.channel, "fallback_key");
+});
 
-  await item.all.insert({ id: "a" });
-  second.restore();
-  await item.all.insert({ id: "b" });
+Deno.test("a name that is not snake case is refused at the declaration", () => {
+  assertThrows(
+    () => Realtime.granted<Keyed>("Order"),
+    TypeError,
+    "must be lowercase snake_case",
+  );
+});
 
-  assertEquals(second.rows.map((row) => row.entityId), ["a"]);
-  assertEquals(first.rows.map((row) => row.entityId), ["b"]);
-  first.restore();
+Deno.test("a name longer than 64 characters is refused", () => {
+  assertThrows(
+    () => Realtime.granted<Keyed>("o".repeat(65)),
+    TypeError,
+    "exceeds 64 characters",
+  );
+});
+
+Deno.test("the same name declared twice with the same openness is accepted", () => {
+  Realtime.granted<Keyed>("declared_twice_same");
+  Realtime.granted<Keyed>("declared_twice_same");
+});
+
+Deno.test("the same name declared twice with two opennesses is refused", () => {
+  Realtime.granted<Keyed>("declared_twice_apart");
+
+  assertThrows(
+    () => Realtime.public<Keyed>("declared_twice_apart"),
+    TypeError,
+    "is declared twice",
+  );
 });

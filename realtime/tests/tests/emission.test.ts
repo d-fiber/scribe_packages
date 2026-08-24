@@ -35,8 +35,8 @@
 // LICENSE file, the LICENSE file governs.
 
 import { assertEquals, assertThrows } from "@std/assert";
-import { Realtime } from "@scribe/realtime/mod.ts";
-import { installRealtimeMock } from "@scribe/realtime/testing/mock.ts";
+import { Realtime } from "@scribe/realtime/lib/realtime.ts";
+import { installRealtimeMock } from "@scribe/realtime/tests/testing/mock.ts";
 
 interface Order {
   orderId: string;

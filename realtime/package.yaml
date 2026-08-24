@@ -1,0 +1,17 @@
+name: realtime
+description: The life of a row, broadcast to the callers a channel lets in.
+version: 1.0.0
+
+environment:
+  scribe: "^9.0.0"
+
+dependencies:
+  foundation: ^1.0.0
+
+scribe:
+  db:
+    init: ./db/init/
+    provisioning: ./db/provisioning/
+  protocol: ./protocol/
+  ops:
+    - ./ops/

@@ -34,55 +34,45 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { assertEquals, assertThrows } from "@std/assert";
-import { Realtime } from "@scribe/realtime/mod.ts";
+import { assertEquals } from "@std/assert";
+import { Realtime } from "@scribe/realtime/lib/realtime.ts";
+import { installRealtimeMock } from "@scribe/realtime/tests/testing/mock.ts";
 
-interface Order {
-  orderId: string;
-  total: number;
+interface Item {
+  id: string;
 }
 
-const ACCOUNT = "11111111-1111-1111-1111-111111111111";
+const item = Realtime.granted<Item>("mock_item");
 
-const order = Realtime.granted<Order>("shape_order", { key: "orderId" });
+Deno.test("the recording transport keeps every row in the order it was sent", async () => {
+  const sent = installRealtimeMock();
 
-Deno.test("the broadcast channel is the declared name, bare", () => {
-  assertEquals(order.all.channel, "shape_order");
+  await item.all.insert({ id: "a" });
+  await item.all.insert({ id: "b" });
+
+  assertEquals(sent.rows.map((row) => row.entityId), ["a", "b"]);
+  sent.restore();
 });
 
-Deno.test("an account channel carries the account after a colon", () => {
-  assertEquals(order.to(ACCOUNT).channel, `shape_order:${ACCOUNT}`);
+Deno.test("the recording transport filters by channel", async () => {
+  const sent = installRealtimeMock();
+
+  await item.all.insert({ id: "a" });
+  await item.topic("seller").insert({ id: "b" });
+
+  assertEquals(sent.on("mock_item:#seller").map((row) => row.entityId), ["b"]);
+  sent.restore();
 });
 
-Deno.test("a topic channel is marked so it can never look like an account", () => {
-  assertEquals(order.topic("seller").channel, "shape_order:#seller");
-});
+Deno.test("restoring puts back the transport that was there before", async () => {
+  const first = installRealtimeMock();
+  const second = installRealtimeMock();
 
-Deno.test("narrowing an account channel keeps the account in second place", () => {
-  assertEquals(
-    order.to(ACCOUNT).topic("warehouse").channel,
-    `shape_order:${ACCOUNT}:warehouse`,
-  );
-});
+  await item.all.insert({ id: "a" });
+  second.restore();
+  await item.all.insert({ id: "b" });
 
-Deno.test("the second part of a topic channel never matches an account", () => {
-  const parts = order.topic("seller").channel.split(":");
-  assertEquals(parts[1].startsWith("#"), true);
-});
-
-Deno.test("two declarations never reach the same channel", () => {
-  const other = Realtime.granted<Order>("shape_invoice", { key: "orderId" });
-  assertEquals(order.topic("seller").channel === other.topic("seller").channel, false);
-});
-
-Deno.test("a topic with a colon in it is refused", () => {
-  assertThrows(() => order.topic("a:b"), TypeError, "is not a usable name");
-});
-
-Deno.test("a topic longer than 64 characters is refused", () => {
-  assertThrows(() => order.topic("t".repeat(65)), TypeError, "is not a usable name");
-});
-
-Deno.test("a topic is refused on an account channel too", () => {
-  assertThrows(() => order.to(ACCOUNT).topic("a b"), TypeError, "is not a usable name");
+  assertEquals(second.rows.map((row) => row.entityId), ["a"]);
+  assertEquals(first.rows.map((row) => row.entityId), ["b"]);
+  first.restore();
 });

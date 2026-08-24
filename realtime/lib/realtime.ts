@@ -34,6 +34,23 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+/**
+ * What "realtime" hands whoever mounts it.
+ *
+ * @remarks
+ * Everything it is made of lives in `src/`, and this is the one file that names them: a file no
+ * line below reaches is a file this package does not publish.
+ *
+ * `scribe` at the bottom is the other half of what it hands over. It is the three moments the
+ * host may run this package at, and a package that runs at none of them says so with an empty
+ * one rather than by exporting nothing.
+ */
+
+import type { LifecycleSteps } from "@scribe/alchemy";
+import { syncDeclaredChannels } from "./src/db/channels.ts";
+import { EventLogTransport } from "./src/transport/event_log.ts";
+import { RealtimeTransports } from "./src/transport/registry.ts";
+
 export { Realtime } from "./src/core/channel.ts";
 export type { BroadcastOf } from "./src/core/channel.ts";
 export { Listen } from "./src/core/listen.ts";
@@ -46,3 +63,18 @@ export type { RealtimeRow, RealtimeTransport } from "./src/transport/transport.t
 
 export { syncDeclaredChannels } from "./src/db/channels.ts";
 export type { RealtimeChannelRow, RealtimeEventRow, RealtimeGrantRow } from "./src/db/tables.ts";
+
+/**
+ * When this package runs: the transport at import, the openness once the database answers.
+ *
+ * @remarks
+ * The transport needs nothing, so it is wired as soon as the entry is imported. The openness
+ * cannot be: a declaration lives at module scope and is evaluated before anything is connected,
+ * so the row it asks for is written after boot, where the process can reach the database.
+ */
+export const scribe: LifecycleSteps = {
+  wires: () => {
+    RealtimeTransports.use(new EventLogTransport());
+  },
+  starts: () => syncDeclaredChannels(),
+};
