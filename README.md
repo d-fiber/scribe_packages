@@ -78,7 +78,7 @@ That is also what the CI does, and what the sync does before it pushes.
 ## How this reaches the framework
 
 You never copy anything by hand. When a version lands on `main`, the `sync` workflow puts these
-packages into `scribe` at `host/pkg/packages/`, checks that the framework still type checks and
+packages into `scribe` at `host/packages/`, checks that the framework still type checks and
 passes its suite with them, and only then commits to its `dev`.
 
 What it leaves behind: this repository's own files. The licence, the four documents, `.github/`,

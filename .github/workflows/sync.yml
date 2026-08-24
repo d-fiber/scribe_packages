@@ -51,19 +51,19 @@ jobs:
           deno-version: ${{ env.DENO_VERSION }}
 
       - name: Copy what belongs in the framework
-        run: bash source/.github/sync/copy.sh "$GITHUB_WORKSPACE/scribe/host/pkg/packages"
+        run: bash source/.github/sync/copy.sh "$GITHUB_WORKSPACE/scribe/host/packages"
 
       - name: Leave if the framework already holds this
         id: state
         working-directory: scribe
         run: |
           set -eu
-          if git diff --quiet -- host/pkg/packages; then
+          if git diff --quiet -- host/packages; then
             echo "the framework already holds this state of the packages"
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
-            git status --short -- host/pkg/packages
+            git status --short -- host/packages
           fi
 
       - name: Check that the framework still type checks with it
@@ -81,7 +81,7 @@ jobs:
           set -eu
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add host/pkg/packages
+          git add host/packages
           git commit -m "[CHORE]: bring the packages up to ${GITHUB_SHA:0:7}"
           git pull --rebase origin dev
           git push origin HEAD:dev

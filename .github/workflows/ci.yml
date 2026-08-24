@@ -56,7 +56,7 @@ jobs:
           restore-keys: deno-${{ runner.os }}-
 
       - name: Put these packages in the framework
-        run: bash source/.github/sync/copy.sh "$GITHUB_WORKSPACE/scribe/host/pkg/packages"
+        run: bash source/.github/sync/copy.sh "$GITHUB_WORKSPACE/scribe/host/packages"
 
       - name: Type check, lint and run the suite with them
         working-directory: scribe/host
