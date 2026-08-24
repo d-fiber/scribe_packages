@@ -37,11 +37,11 @@
 import { Duration } from "@scribe/alchemy";
 import { Failure, okay } from "@scribe/alchemy";
 import type { RequestDevice } from "@scribe/core/contracts/device.ts";
-import { BanError } from "@scribe/auth/src/bans.ts";
-import { Account, SignInRefusal } from "@scribe/auth/src/declaration/account.ts";
-import { Channel } from "@scribe/auth/contracts/channel.ts";
-import { Optional, type ReadSelector, Required, type WriteSelector } from "@scribe/auth/src/declaration/columns.ts";
-import { installAuthMock } from "@scribe/auth/testing/mock.ts";
+import { BanError } from "@scribe/auth/lib/src/bans.ts";
+import { Account, SignInRefusal } from "@scribe/auth/lib/src/declaration/account.ts";
+import { Channel } from "@scribe/auth/lib/contracts/channel.ts";
+import { Optional, type ReadSelector, Required, type WriteSelector } from "@scribe/auth/lib/src/declaration/columns.ts";
+import { installAuthMock } from "@scribe/auth/tests/testing/mock.ts";
 import { assert, assertEquals, assertThrows } from "@std/assert";
 
 interface ProfileRow {

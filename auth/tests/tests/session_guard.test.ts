@@ -36,11 +36,11 @@
 
 import { fakeDevice, withRequest } from "@scribe/core/testing/runtime/device.ts";
 import { installTestSettings } from "@scribe/core/testing/settings.ts";
-import { Channel } from "@scribe/auth/contracts/channel.ts";
-import { Account } from "@scribe/auth/src/declaration/account.ts";
-import { session } from "@scribe/auth/src/session.ts";
-import { installAuthMock } from "@scribe/auth/testing/mock.ts";
-import { installGoTrueMock } from "@scribe/auth/testing/gotrue.ts";
+import { Channel } from "@scribe/auth/lib/contracts/channel.ts";
+import { Account } from "@scribe/auth/lib/src/declaration/account.ts";
+import { session } from "@scribe/auth/lib/src/session.ts";
+import { installAuthMock } from "@scribe/auth/tests/testing/mock.ts";
+import { installGoTrueMock } from "@scribe/auth/tests/testing/gotrue.ts";
 import { assert, assertEquals, assertFalse } from "@std/assert";
 
 installTestSettings();

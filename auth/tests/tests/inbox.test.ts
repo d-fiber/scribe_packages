@@ -34,33 +34,26 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { extensions, OptionalExtension } from "@scribe/core/runtime/support/extensions/mod.ts";
-import { Env } from "@scribe/host/env.ts";
-import { authSettings } from "./src/settings.ts";
-import { AUTH_EXTENSION } from "./src/declaration/registry.ts";
+import { AuthValidator } from "@scribe/auth/lib/src/validator.ts";
+import { assertEquals } from "@std/assert";
 
-/** The secrets and provider credentials this module reaches, from the process environment. */
-authSettings.use({
-  jwtSecret: Env.JWT_SECRET ?? "",
-  pendingTokenSecret: Env.PENDING_TOKEN_SECRET ?? "",
-  googleClientId: Env.GOOGLE_CLIENT_ID ?? "",
-  googleClientSecret: Env.GOOGLE_CLIENT_SECRET ?? "",
-  appleClientId: Env.APPLE_CLIENT_ID ?? "",
-  appleClientSecret: Env.APPLE_CLIENT_SECRET ?? "",
-  twilioAccountSid: Env.TWILIO_ACCOUNT_SID ?? "",
-  twilioAuthToken: Env.TWILIO_AUTH_TOKEN ?? "",
-  twilioMessageServiceSid: Env.TWILIO_MESSAGE_SERVICE_SID ?? "",
+Deno.test("inbox() strips the `+` tag: same mailbox, same key", () => {
+  assertEquals(AuthValidator.email.inbox("a+promo@example.com"), "a@example.com");
+  assertEquals(AuthValidator.email.inbox("a+1+2@example.com"), "a@example.com");
+  assertEquals(AuthValidator.email.inbox("a@example.com"), "a@example.com");
 });
 
-/**
- * Where the project's own role declarations are loaded from, on the first token that needs them.
- *
- * A declaration lives in the project, and a token can arrive in a process that never imported it.
- * Registering it here is what makes a role findable by name wherever the token lands.
- */
-extensions.register(
-  new OptionalExtension(
-    AUTH_EXTENSION,
-    () => import("@app/extensions/manifest/auth/auth.ts"),
-  ),
-);
+Deno.test("inbox() does not normalize dots (Gmail-specific)", () => {
+  assertEquals(AuthValidator.email.inbox("a.b@example.com"), "a.b@example.com");
+});
+
+Deno.test("inbox() does not confuse a `+` in the domain", () => {
+  assertEquals(
+    AuthValidator.email.inbox("a@sub+domain.example.com"),
+    "a@sub+domain.example.com",
+  );
+});
+
+Deno.test("inbox() lets an input without `@` through", () => {
+  assertEquals(AuthValidator.email.inbox("not-an-address"), "not-an-address");
+});

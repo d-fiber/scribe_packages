@@ -39,10 +39,10 @@
 // sides stay interchangeable, which is exactly what this file checks.
 
 import { installTestSettings } from "@scribe/core/testing/settings.ts";
-import { PendingToken, PendingTokenPurpose } from "@scribe/auth/src/pending_token.ts";
+import { PendingToken, PendingTokenPurpose } from "@scribe/auth/lib/src/pending_token.ts";
 import { sha256Hex } from "@scribe/core/runtime/support/crypto/hash.ts";
-import { installAuthMock } from "@scribe/auth/testing/mock.ts";
-import { forgeToken } from "@scribe/auth/testing/pending_token.ts";
+import { installAuthMock } from "@scribe/auth/tests/testing/mock.ts";
+import { forgeToken } from "@scribe/auth/tests/testing/pending_token.ts";
 import { assert, assertEquals, assertNotEquals } from "@std/assert";
 
 const IDENTIFIER = "u1@example.com";

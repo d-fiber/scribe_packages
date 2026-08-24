@@ -1,5 +1,5 @@
 import { requestDevice } from "@scribe/core/runtime/device/device.ts";
-import { SignUpError } from "@scribe/auth/mod.ts";
+import { SignUpError } from "@scribe/auth/lib/auth.ts";
 import { operator, user } from "./declaration.ts";
 
 /**

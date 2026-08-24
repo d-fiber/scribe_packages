@@ -34,26 +34,49 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { AuthValidator } from "@scribe/auth/src/validator.ts";
-import { assertEquals } from "@std/assert";
+import { installTestSettings } from "@scribe/core/testing/settings.ts";
+import { PendingToken } from "@scribe/auth/lib/src/pending_token.ts";
+import { assertEquals, assertNotEquals } from "@std/assert";
+import { forgeToken } from "@scribe/auth/tests/testing/pending_token.ts";
 
-Deno.test("inbox() strips the `+` tag: same mailbox, same key", () => {
-  assertEquals(AuthValidator.email.inbox("a+promo@example.com"), "a@example.com");
-  assertEquals(AuthValidator.email.inbox("a+1+2@example.com"), "a@example.com");
-  assertEquals(AuthValidator.email.inbox("a@example.com"), "a@example.com");
+const token = new PendingToken();
+
+installTestSettings();
+
+Deno.test("the pending token carries the device that triggered the challenge", async () => {
+  const raw = await forgeToken("a@example.com", "user", { deviceId: "device-1" });
+  const payload = await token.payload(raw);
+
+  assertEquals(payload?.identifier, "a@example.com");
+  assertEquals(payload?.role, "user");
+  assertEquals(payload?.deviceId, "device-1");
 });
 
-Deno.test("inbox() does not normalize dots (Gmail-specific)", () => {
-  assertEquals(AuthValidator.email.inbox("a.b@example.com"), "a.b@example.com");
+Deno.test("a challenge without a device explicitly carries null", async () => {
+  const raw = await forgeToken("a@example.com", "user");
+  assertEquals((await token.payload(raw))?.deviceId, null);
 });
 
-Deno.test("inbox() does not confuse a `+` in the domain", () => {
+Deno.test("the device is covered by the signature: altering it invalidates the token", async () => {
+  const raw = await forgeToken("a@example.com", "user", { deviceId: "device-1" });
+  const [payloadB64, signature] = raw.split(".");
+
+  const decoded = JSON.parse(atob(payloadB64)) as Record<string, unknown>;
+  decoded.deviceId = "device-de-lattaquant";
+  const forgedPayload = btoa(JSON.stringify(decoded));
+
+  assertNotEquals(forgedPayload, payloadB64);
+  assertEquals(await token.payload(`${forgedPayload}.${signature}`), null);
+});
+
+Deno.test("an expired token is refused", async () => {
+  const raw = await forgeToken("a@example.com", "user", { deviceId: "device-1" });
+  const [payloadB64, signature] = raw.split(".");
+  const decoded = JSON.parse(atob(payloadB64)) as Record<string, unknown>;
+  decoded.exp = Date.now() - 1;
+
   assertEquals(
-    AuthValidator.email.inbox("a@sub+domain.example.com"),
-    "a@sub+domain.example.com",
+    await token.payload(`${btoa(JSON.stringify(decoded))}.${signature}`),
+    null,
   );
-});
-
-Deno.test("inbox() lets an input without `@` through", () => {
-  assertEquals(AuthValidator.email.inbox("not-an-address"), "not-an-address");
 });

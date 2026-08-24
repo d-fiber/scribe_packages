@@ -1,6 +1,6 @@
 import { Failure, okay, type Result } from "@scribe/alchemy";
-import { Channel } from "@scribe/auth/contracts/channel.ts";
-import { Account, Optional, type ReadSelector, Required, type WriteSelector } from "@scribe/auth/mod.ts";
+import { Channel } from "@scribe/auth/lib/contracts/channel.ts";
+import { Account, Optional, type ReadSelector, Required, type WriteSelector } from "@scribe/auth/lib/auth.ts";
 
 /** A row of the project's own table, named because the package knows nothing of its schema. */
 interface ProfileRow {

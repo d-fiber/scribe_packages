@@ -36,10 +36,10 @@
 
 import "@scribe/core/testing/settings.ts";
 
-import { type PendingToken, PendingTokenPurpose } from "@scribe/auth/src/pending_token.ts";
+import { type PendingToken, PendingTokenPurpose } from "@scribe/auth/lib/src/pending_token.ts";
 import { toHex } from "@scribe/core/runtime/support/crypto/hash.ts";
-import type { AccountRole } from "@scribe/auth/contracts/role.ts";
-import { authSettings } from "@scribe/auth/src/settings.ts";
+import type { AccountRole } from "@scribe/auth/lib/contracts/role.ts";
+import { authSettings } from "@scribe/auth/lib/src/settings.ts";
 
 /** What a forged token carries beyond the identifier and the role it is minted for. */
 export interface ForgedTokenOptions {

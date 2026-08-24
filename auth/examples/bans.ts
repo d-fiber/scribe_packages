@@ -1,5 +1,5 @@
 import { Duration } from "@scribe/alchemy";
-import { BanError } from "@scribe/auth/mod.ts";
+import { BanError } from "@scribe/auth/lib/auth.ts";
 import { user } from "./declaration.ts";
 
 /**

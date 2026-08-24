@@ -1,4 +1,4 @@
-import { IdentifierError, PasswordError } from "@scribe/auth/mod.ts";
+import { IdentifierError, PasswordError } from "@scribe/auth/lib/auth.ts";
 import { user } from "./declaration.ts";
 
 /**

@@ -38,8 +38,8 @@ import { installTestSettings } from "@scribe/core/testing/settings.ts";
 import { assertEquals, assertNotEquals } from "@std/assert";
 import { FakeTime } from "@std/testing/time";
 import { Duration } from "@scribe/alchemy";
-import { PendingToken } from "@scribe/auth/src/pending_token.ts";
-import { forgeToken } from "@scribe/auth/testing/pending_token.ts";
+import { PendingToken } from "@scribe/auth/lib/src/pending_token.ts";
+import { forgeToken } from "@scribe/auth/tests/testing/pending_token.ts";
 
 const token = new PendingToken();
 
