@@ -38,7 +38,7 @@ import { installStorageTestSettings } from "@scribe/storage/tests/testing/settin
 
 installStorageTestSettings();
 import { assertEquals, assertThrows } from "@std/assert";
-import { Bytes, Storage, StoragePathError, StorageVisibility } from "@scribe/storage/lib/storage.ts";
+import { Bytes, Storage, StoragePathError, StorageVisibility } from "@scribe/storage";
 
 const SPEC = { extensions: ["png"], maxSize: Bytes.megabytes(1) };
 

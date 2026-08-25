@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { assertEquals } from "@std/assert";
-import { isValidTopic } from "@scribe/realtime/lib/realtime.ts";
+import { isValidTopic } from "@scribe/realtime";
 
 Deno.test("a topic accepts letters, digits, underscore and dash", () => {
   assertEquals(isValidTopic("seller"), true);

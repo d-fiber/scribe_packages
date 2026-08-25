@@ -40,7 +40,7 @@ import { fetchObject, report, requireStack, RUN_ID, STACK, useStack } from "./su
 await requireStack();
 await useStack();
 
-const { Bytes, Storage, StorageVisibility } = await import("@scribe/storage/lib/storage.ts");
+const { Bytes, Storage, StorageVisibility } = await import("@scribe/storage");
 
 const open = Storage.public(`e2e-open-${RUN_ID}/{ownerId}`);
 const openNote = open.file("note", { extensions: ["png"], maxSize: Bytes.megabytes(1) });

@@ -1,5 +1,5 @@
 import { Duration } from "@scribe/alchemy";
-import { Audience, audiencesOf } from "@scribe/audience/lib/audience.ts";
+import { Audience, audiencesOf } from "@scribe/audience";
 
 /**
  * A named set with one membership list for the whole process.

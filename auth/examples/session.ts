@@ -1,4 +1,4 @@
-import { SessionError } from "@scribe/auth/lib/auth.ts";
+import { SessionError } from "@scribe/auth/session";
 import { user } from "./declaration.ts";
 
 /**

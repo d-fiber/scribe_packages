@@ -1,6 +1,7 @@
 {
   "imports": {
     "@scribe/contracts/": "../../engine/contracts/",
+    "@scribe/foundation": "./lib/foundation.ts",
     "@scribe/foundation/": "./",
     "@scribe/foundation/cache": "./lib/cache.ts",
     "@scribe/foundation/cron": "./lib/cron.ts",

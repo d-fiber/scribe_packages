@@ -1,5 +1,6 @@
 {
   "imports": {
+    "@scribe/dynamic_links": "./lib/dynamic_links.ts",
     "@scribe/dynamic_links/": "./",
     "@scribe/dynamic_links/e2e": "./tests/e2e/support/stack.ts",
     "@scribe/dynamic_links/testing": "./tests/testing/testing.ts",

@@ -1,4 +1,4 @@
-import { ResetPasswordError } from "@scribe/auth/lib/auth.ts";
+import { ResetPasswordError } from "@scribe/auth/reset_password";
 import { user } from "./declaration.ts";
 
 /**

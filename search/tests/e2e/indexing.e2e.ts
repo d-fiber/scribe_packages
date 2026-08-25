@@ -51,7 +51,7 @@ await useStack();
 
 const { stores } = await import("./support/catalog.ts");
 const { insert, remove, resetIndex, update } = await import("./support/rows.ts");
-const { drainSearchOutbox, syncDeclaredIndices } = await import("@scribe/search/lib/search.ts");
+const { drainSearchOutbox, syncDeclaredIndices } = await import("@scribe/search");
 const { backlog } = await import("@scribe/search/lib/src/db/outbox.ts");
 const { searchIndices, searchOutbox, searchSources } = await import("@scribe/search/lib/src/db/tables.ts");
 

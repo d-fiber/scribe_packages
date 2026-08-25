@@ -1,7 +1,18 @@
 {
   "imports": {
+    "@scribe/auth": "./lib/auth.ts",
     "@scribe/auth/": "./",
+    "@scribe/auth/bans": "./lib/bans.ts",
+    "@scribe/auth/declaration": "./lib/declaration.ts",
+    "@scribe/auth/devices": "./lib/devices.ts",
     "@scribe/auth/e2e": "./tests/e2e/support/stack.ts",
+    "@scribe/auth/identifier": "./lib/identifier.ts",
+    "@scribe/auth/password": "./lib/password.ts",
+    "@scribe/auth/reset_password": "./lib/reset_password.ts",
+    "@scribe/auth/session": "./lib/session.ts",
+    "@scribe/auth/sign_in": "./lib/sign_in.ts",
+    "@scribe/auth/sign_up": "./lib/sign_up.ts",
+    "@scribe/auth/sms_intent": "./lib/sms_intent.ts",
     "@scribe/auth/testing": "./tests/testing/testing.ts",
     "@scribe/auth/testing/settings": "./tests/testing/settings.ts",
     "@scribe/contracts/": "../../engine/contracts/",

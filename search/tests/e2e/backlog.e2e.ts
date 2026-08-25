@@ -40,7 +40,7 @@ import { report, requireStack, useStack } from "./support/stack.ts";
 await requireStack();
 await useStack();
 
-const { drainSearchOutbox } = await import("@scribe/search/lib/search.ts");
+const { drainSearchOutbox } = await import("@scribe/search");
 const { backlog, enqueue } = await import("@scribe/search/lib/src/db/outbox.ts");
 const { searchOutbox } = await import("@scribe/search/lib/src/db/tables.ts");
 const { remove } = await import("./support/rows.ts");

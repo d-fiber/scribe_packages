@@ -39,7 +39,7 @@ import { installStorageTestSettings } from "@scribe/storage/tests/testing/settin
 installStorageTestSettings();
 import { assertEquals } from "@std/assert";
 import type { Failure } from "@scribe/alchemy";
-import { Bytes, Storage, StorageUploadError, StorageVisibility } from "@scribe/storage/lib/storage.ts";
+import { Bytes, Storage, StorageUploadError, StorageVisibility } from "@scribe/storage";
 import { installStorageMock } from "@scribe/storage/tests/testing/mock.ts";
 import { installDatabaseFake, installRefusingDatabase } from "./mocks/database.ts";
 

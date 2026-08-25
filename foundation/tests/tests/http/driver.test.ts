@@ -37,7 +37,7 @@ import { Caches, Crons, Databases, FileSystems, Hooks, Now, Queues, RateLimiters
 import { Clients } from "@scribe/alchemy/http";
 import { Loggers } from "@scribe/alchemy/observe";
 import { FetchClient, FetchClients } from "@scribe/foundation/lib/src/http/fetch_client.ts";
-import { scribe } from "@scribe/foundation/lib/foundation.ts";
+import { scribe } from "@scribe/foundation";
 import { assert, assertEquals, assertNotStrictEquals } from "@std/assert";
 
 Deno.test("the driver opens a client that goes on the network", () => {

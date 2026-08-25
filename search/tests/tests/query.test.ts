@@ -37,7 +37,7 @@
 import { assertEquals } from "@std/assert";
 import type { SearchParams } from "@scribe/search/lib/contracts/definition.ts";
 import { MultiMatchType, SortOrder } from "@scribe/search/lib/contracts/query.ts";
-import { Field, QueryBuilder, Search } from "@scribe/search/lib/search.ts";
+import { Field, QueryBuilder, Search } from "@scribe/search";
 
 interface StoreRow {
   store_id: string;

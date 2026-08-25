@@ -40,7 +40,7 @@ import { member, report, requireStack, RUN_ID, STACK, timed, useStack } from "./
 await requireStack(`${STACK.restUrl}/`);
 await useStack();
 
-const { Audience, audiencesOf, forgetMember } = await import("@scribe/audience/lib/audience.ts");
+const { Audience, audiencesOf, forgetMember } = await import("@scribe/audience");
 const { AudienceError } = await import("@scribe/audience/lib/contracts/audience.ts");
 const { audiences } = await import("@scribe/audience/lib/src/db/tables.ts");
 

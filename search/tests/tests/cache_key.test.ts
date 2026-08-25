@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { assertEquals, assertNotEquals } from "@std/assert";
-import { digest, roundCoord, stableKey, timeBucket } from "@scribe/search/lib/search.ts";
+import { digest, roundCoord, stableKey, timeBucket } from "@scribe/search";
 
 Deno.test("two objects meaning the same thing write the same key whatever their field order", () => {
   assertEquals(stableKey({ a: 1, b: 2 }), stableKey({ b: 2, a: 1 }));

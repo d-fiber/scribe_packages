@@ -40,7 +40,7 @@ import { readAsRole, requireStack, RUN_ID, STACK, useStack } from "./support/sta
 await requireStack(`${STACK.restUrl}/`);
 await useStack();
 
-const { Audience } = await import("@scribe/audience/lib/audience.ts");
+const { Audience } = await import("@scribe/audience");
 
 const banned = Audience.plain(`e2e-closed-${RUN_ID}`);
 

@@ -37,7 +37,7 @@ import "@scribe/foundation/tests/testing/settings.ts";
 import type { LockCommands } from "@scribe/foundation/lib/src/cache/lock/lock_commands.ts";
 import { type Kv, kv } from "@scribe/foundation/lib/src/redis/kv.ts";
 import { RateLimiters } from "@scribe/alchemy";
-import { scribe } from "@scribe/foundation/lib/foundation.ts";
+import { scribe } from "@scribe/foundation";
 import type { RateLimiter, RateLimiterDriver, RateLimitOptions, RateLimitOutcome } from "@scribe/alchemy";
 import { type InstalledMock, installMock } from "@scribe/foundation/tests/testing/install.ts";
 

@@ -40,7 +40,7 @@ import { fetchObject, report, requireStack, RUN_ID, STACK, useStack } from "./su
 await requireStack();
 await useStack();
 
-const { Bytes, Storage, StorageVisibility } = await import("@scribe/storage/lib/storage.ts");
+const { Bytes, Storage, StorageVisibility } = await import("@scribe/storage");
 const { storageObjects } = await import("@scribe/storage/lib/src/db/tables.ts");
 
 const notes = Storage.public(`e2e-${RUN_ID}/{ownerId}`);

@@ -1,5 +1,5 @@
 import { Duration } from "@scribe/alchemy";
-import { RemoteConfig } from "@scribe/remote_configs/lib/remote_configs.ts";
+import { RemoteConfig } from "@scribe/remote_configs";
 
 /** What the banner key holds. */
 interface Banner {

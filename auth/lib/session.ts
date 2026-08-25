@@ -34,33 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { assert, assertEquals } from "@std/assert";
-import { readAsRole, requireStack, RUN_ID, STACK, useStack } from "./support/stack.ts";
+/** The tokens a signed-in account carries, and what ends them. */
 
-await requireStack(`${STACK.restUrl}/`);
-await useStack();
-
-const { RemoteConfig } = await import("@scribe/remote_configs");
-
-const secret = RemoteConfig.of<string>(`e2e-closed-${RUN_ID}`);
-
-const PERMISSION_DENIED = "42501";
-
-Deno.test("remote configs e2e: the table answers the role the package talks as", async () => {
-  assert((await secret.set("open")).ok);
-
-  assertEquals(await readAsRole("service_role"), null);
-  assertEquals(await secret.get(), "open");
-});
-
-Deno.test("remote configs e2e: a signed-in caller reads nothing of the table", async () => {
-  assertEquals(
-    await readAsRole("authenticated"),
-    PERMISSION_DENIED,
-    "a session must not read the configs, since a ceiling nobody may see is in there",
-  );
-});
-
-Deno.test("remote configs e2e: an anonymous caller reads nothing of the table", async () => {
-  assertEquals(await readAsRole("anon"), PERMISSION_DENIED);
-});
+export type { SessionResult, SessionTokens } from "./src/session.ts";
+export { AccountSession, SessionError } from "./src/session.ts";

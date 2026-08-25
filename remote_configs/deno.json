@@ -15,6 +15,7 @@
     "@scribe/foundation/testing": "../foundation/tests/testing/testing.ts",
     "@scribe/foundation/testing/settings": "../foundation/tests/testing/settings.ts",
     "@scribe/foundation/trigger": "../foundation/lib/trigger.ts",
+    "@scribe/remote_configs": "./lib/remote_configs.ts",
     "@scribe/remote_configs/": "./",
     "@scribe/remote_configs/e2e": "./tests/e2e/support/stack.ts",
     "@scribe/remote_configs/testing": "./tests/testing/testing.ts",

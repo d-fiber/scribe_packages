@@ -41,9 +41,9 @@ await requireStack(`${STACK.restUrl}/`);
 await useStack();
 
 const { DestinationKind, DynamicLink, LinkError, LinkPlatform, resolveLink } = await import(
-  "@scribe/dynamic_links/lib/dynamic_links.ts"
+  "@scribe/dynamic_links"
 );
-type Visit = import("@scribe/dynamic_links/lib/dynamic_links.ts").Visit;
+type Visit = import("@scribe/dynamic_links").Visit;
 const { forgetLink } = await import("@scribe/dynamic_links/lib/src/runtime/cache.ts");
 const { dynamicLinks } = await import("@scribe/dynamic_links/lib/src/db/tables.ts");
 

@@ -1,5 +1,5 @@
 import { Duration } from "@scribe/alchemy";
-import { DynamicLink, Link, LinkPlatform } from "@scribe/dynamic_links/lib/dynamic_links.ts";
+import { DynamicLink, Link, LinkPlatform } from "@scribe/dynamic_links";
 
 /** What an invitation link carries to the application that opens it. */
 export interface Invite {

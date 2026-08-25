@@ -1,5 +1,6 @@
 {
   "imports": {
+    "@scribe/audience": "./lib/audience.ts",
     "@scribe/audience/": "./",
     "@scribe/audience/e2e": "./tests/e2e/support/stack.ts",
     "@scribe/audience/testing": "./tests/testing/testing.ts",

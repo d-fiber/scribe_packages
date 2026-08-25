@@ -41,7 +41,7 @@ import { requireStack, RUN_ID, STACK, useStack } from "./support/stack.ts";
 await requireStack(`${STACK.restUrl}/`);
 await useStack();
 
-const { Audience } = await import("@scribe/audience/lib/audience.ts");
+const { Audience } = await import("@scribe/audience");
 const { AudienceError } = await import("@scribe/audience/lib/contracts/audience.ts");
 const { audiences } = await import("@scribe/audience/lib/src/db/tables.ts");
 

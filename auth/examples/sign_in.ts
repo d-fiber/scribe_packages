@@ -1,4 +1,5 @@
-import { OtpError, SignInError, SignInRefusal } from "@scribe/auth/lib/auth.ts";
+import { SignInRefusal } from "@scribe/auth/declaration";
+import { OtpError, SignInError } from "@scribe/auth/sign_in";
 import { user, UserRefusal } from "./declaration.ts";
 
 /** What a route hands back once a sign-in has been decided. */

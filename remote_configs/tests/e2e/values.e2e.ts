@@ -40,7 +40,7 @@ import { report, requireStack, RUN_ID, STACK, timed, useStack } from "./support/
 await requireStack(`${STACK.restUrl}/`);
 await useStack();
 
-const { RemoteConfig } = await import("@scribe/remote_configs/lib/remote_configs.ts");
+const { RemoteConfig } = await import("@scribe/remote_configs");
 const { ConfigError } = await import("@scribe/remote_configs/lib/contracts/config.ts");
 const { remoteConfigs } = await import("@scribe/remote_configs/lib/src/db/tables.ts");
 

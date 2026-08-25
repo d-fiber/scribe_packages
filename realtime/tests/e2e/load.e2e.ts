@@ -41,7 +41,7 @@ await useStack();
 await requireStack();
 
 const { EventLogTransport, Realtime, RealtimeTransports, syncDeclaredChannels } = await import(
-  "@scribe/realtime/lib/realtime.ts"
+  "@scribe/realtime"
 );
 
 RealtimeTransports.use(new EventLogTransport());

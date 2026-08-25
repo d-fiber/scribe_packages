@@ -48,7 +48,7 @@ import {
 import { Clients } from "@scribe/alchemy/http";
 import { Loggers } from "@scribe/alchemy/observe";
 import type { Slot } from "@scribe/alchemy";
-import { scribe } from "@scribe/foundation/lib/foundation.ts";
+import { scribe } from "@scribe/foundation";
 import { cacheSettings } from "@scribe/foundation/lib/src/cache/cache_settings.ts";
 import { databaseSettings } from "@scribe/foundation/lib/src/database/database_settings.ts";
 import { queueSettings } from "@scribe/foundation/lib/src/queue/queue_settings.ts";

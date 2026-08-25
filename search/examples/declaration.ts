@@ -1,4 +1,4 @@
-import { Field, Search } from "@scribe/search/lib/search.ts";
+import { Field, Search } from "@scribe/search";
 import type { SearchParams } from "@scribe/search/lib/contracts/definition.ts";
 import { SortOrder } from "@scribe/search/lib/contracts/query.ts";
 import type { DocumentSelector } from "@scribe/search/lib/src/document/selector.ts";

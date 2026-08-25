@@ -38,7 +38,7 @@ import { assertEquals } from "@std/assert";
 import { compileDocument, readDocument } from "@scribe/search/lib/src/document/projection.ts";
 import type { DocumentSelector } from "@scribe/search/lib/src/document/selector.ts";
 import { documentSelector } from "@scribe/search/lib/src/document/selector.ts";
-import { DEFAULT_SETTINGS, Field, SORT_NORMALIZER } from "@scribe/search/lib/search.ts";
+import { DEFAULT_SETTINGS, Field, SORT_NORMALIZER } from "@scribe/search";
 
 interface StoreRow {
   store_id: string;

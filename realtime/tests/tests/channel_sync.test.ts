@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { assertEquals } from "@std/assert";
-import { Listen, Realtime, syncDeclaredChannels } from "@scribe/realtime/lib/realtime.ts";
+import { Listen, Realtime, syncDeclaredChannels } from "@scribe/realtime";
 import { realtimeChannels } from "@scribe/realtime/lib/src/db/tables.ts";
 import { installDatabaseFake } from "./mocks/database.ts";
 

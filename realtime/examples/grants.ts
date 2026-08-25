@@ -1,4 +1,4 @@
-import { isValidTopic } from "@scribe/realtime/lib/realtime.ts";
+import { isValidTopic } from "@scribe/realtime";
 import { orders } from "./channels.ts";
 
 /** Opens one topic of the channel to an account. */
