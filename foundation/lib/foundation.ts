@@ -32,6 +32,7 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
+// LICENSE file, the LICENSE file governs.
 
 /**
  * What "foundation" hands whoever mounts it.
@@ -88,9 +89,17 @@ export { ownerOf, registerTableOwners } from "./src/database/table_owners.ts";
 export { type DatabaseSchema, Table, type TableShape } from "./src/database/table.ts";
 export { from, type RpcBuilder, TablesBase } from "./src/database/tables_base.ts";
 export { PostgrestDatabases } from "./src/database/postgrest_databases.ts";
+export { PostgrestClients } from "./src/database/postgrest_clients.ts";
 export { wrote } from "./src/database/wrote.ts";
-export { ownerScope, READS_EVERY_ROW, type ScopeDecision } from "./src/database/query/owner_scope.ts";
-export { UnsafeFilterError } from "./src/database/query/filter_literal.ts";
+export { NOBODY, ownerScope, READS_EVERY_ROW, type ScopeDecision } from "./src/database/query/owner_scope.ts";
+export {
+  assertPlainColumn,
+  keywordLiteral,
+  quoteFilterList,
+  quoteFilterLiteral,
+  UnsafeFilterError,
+} from "./src/database/query/filter_literal.ts";
+export { AMBIGUITY_PROBE } from "./src/database/query/query_state.ts";
 export { DatabaseQueryError, TypedQueryBuilder } from "./src/database/query/typed_query_builder.ts";
 
 export { Hook, type HookDefinition } from "./src/hook/hook.ts";
@@ -108,7 +117,7 @@ export { KeyIndex } from "./src/redis/key_index.ts";
 export { LocalFiles, LocalFileSystems } from "./src/files/local_files.ts";
 export { SystemNow } from "./src/observe/system_now.ts";
 
-export { type BatchQueueDefinition, Queue, type QueueDefinition, type QueuePublisher } from "./src/queue/queue.ts";
+export { type BatchQueueDefinition, Queue, type QueueDefinition, QueuePublisher } from "./src/queue/queue.ts";
 export { queueSettings } from "./src/queue/queue_settings.ts";
 export { queueRegistry } from "./src/queue/queue_registry.ts";
 export { NatsQueues } from "./src/queue/nats_queues.ts";
