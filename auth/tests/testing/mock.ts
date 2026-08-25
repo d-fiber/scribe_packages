@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { PostgrestClients } from "@scribe/foundation";
+import { PostgrestClients } from "@scribe/foundation/database";
 import { FakePostgrestClient, type FakePostgrestSeed, type Row } from "@scribe/foundation/testing";
 import { installRateLimiterMock, installValkeryMock } from "@scribe/foundation/testing";
 import { type InstalledMock, installMock } from "@scribe/testing/install.ts";

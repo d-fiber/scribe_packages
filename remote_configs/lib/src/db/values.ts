@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { wrote } from "@scribe/foundation";
+import { wrote } from "@scribe/foundation/database";
 import { type RemoteConfigRow, remoteConfigs } from "./tables.ts";
 
 /** What storing one value puts in the table. */

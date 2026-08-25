@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Table } from "@scribe/foundation";
+import { Table } from "@scribe/foundation/database";
 
 /** One row of the log every emission writes, and the trigger reads to broadcast. */
 export interface RealtimeEventRow {

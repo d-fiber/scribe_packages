@@ -34,28 +34,14 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import "@scribe/testing/settings.ts";
-import { type InstalledMock, installMock } from "@scribe/testing/install.ts";
-import { PostgrestClients } from "@scribe/foundation/database";
-import { FakePostgrestClient, type FakePostgrestSeed } from "@scribe/foundation/testing";
-import type { PostgrestClient } from "@supabase/postgrest-js";
+/** Work a schedule runs, and what decides when it next runs. */
 
-/**
- * Answers every query of this package with in-memory rows, and hands back the restore handle.
- *
- * The service client is what a channel reaches, since a grant is written with the key that
- * bypasses row level security. Replacing it leaves the query builder, the table names and the
- * filters under test rather than replacing them with a second implementation.
- */
-export function installDatabaseFake(seed: FakePostgrestSeed = {}): InstalledMock {
-  const filled: FakePostgrestSeed = {
-    __realtime_events__: [],
-    __realtime_channels__: [],
-    __realtime_grants__: [],
-    ...seed,
-  };
-
-  const fake = new FakePostgrestClient(filled) as unknown as PostgrestClient;
-
-  return installMock(PostgrestClients, "service", () => fake);
-}
+export type { CronHandler, Schedule, Scheduled } from "./src/cron/schedule.ts";
+export { Cron, type CronDefinition } from "./src/cron/cron.ts";
+export { CronTimezone } from "./src/cron/cron_timezone.ts";
+export { ScheduledCrons } from "./src/cron/scheduled_crons.ts";
+export { at, type TimeOfDay } from "./src/cron/daily_schedule.ts";
+export { cronRegistry, type RegisteredCron } from "./src/cron/cron_registry.ts";
+export { cronRunner } from "./src/cron/cron_runner.ts";
+export { every } from "./src/cron/interval_schedule.ts";
+export { type CronExpression, cronExpression } from "./src/cron/cron_expression.ts";

@@ -34,28 +34,26 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import "@scribe/testing/settings.ts";
-import { type InstalledMock, installMock } from "@scribe/testing/install.ts";
-import { PostgrestClients } from "@scribe/foundation/database";
-import { FakePostgrestClient, type FakePostgrestSeed } from "@scribe/foundation/testing";
-import type { PostgrestClient } from "@supabase/postgrest-js";
+/** Work handed over to be done later, and what runs it. */
 
-/**
- * Answers every query of this package with in-memory rows, and hands back the restore handle.
- *
- * The service client is what a channel reaches, since a grant is written with the key that
- * bypasses row level security. Replacing it leaves the query builder, the table names and the
- * filters under test rather than replacing them with a second implementation.
- */
-export function installDatabaseFake(seed: FakePostgrestSeed = {}): InstalledMock {
-  const filled: FakePostgrestSeed = {
-    __realtime_events__: [],
-    __realtime_channels__: [],
-    __realtime_grants__: [],
-    ...seed,
-  };
-
-  const fake = new FakePostgrestClient(filled) as unknown as PostgrestClient;
-
-  return installMock(PostgrestClients, "service", () => fake);
-}
+export type {
+  BatchHandler,
+  DrainResult,
+  JobHandler,
+  PushOptions,
+  QueueMessage,
+  QueueOptions,
+} from "./src/queue/queue_options.ts";
+export {
+  QUEUE_DEFAULTS,
+  type QueueDefaults,
+  type QueueLimits,
+  type QueueMode,
+  type RegisteredQueue,
+} from "./src/queue/queue_declaration.ts";
+export { NatsQueues } from "./src/queue/nats_queues.ts";
+export { queueRegistry } from "./src/queue/queue_registry.ts";
+export { queueRunner } from "./src/queue/runner/queue_runner.ts";
+export { queueSettings } from "./src/queue/queue_settings.ts";
+export { type BatchQueueDefinition, Queue, type QueueDefinition, QueuePublisher } from "./src/queue/queue.ts";
+export { type QueueStatus, queueStatus } from "./src/queue/queue_status.ts";

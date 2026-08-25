@@ -34,28 +34,23 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import "@scribe/testing/settings.ts";
-import { type InstalledMock, installMock } from "@scribe/testing/install.ts";
-import { PostgrestClients } from "@scribe/foundation/database";
-import { FakePostgrestClient, type FakePostgrestSeed } from "@scribe/foundation/testing";
-import type { PostgrestClient } from "@supabase/postgrest-js";
+/** Tables, the queries built against them, and what a query is allowed to see. */
 
-/**
- * Answers every query of this package with in-memory rows, and hands back the restore handle.
- *
- * The service client is what a channel reaches, since a grant is written with the key that
- * bypasses row level security. Replacing it leaves the query builder, the table names and the
- * filters under test rather than replacing them with a second implementation.
- */
-export function installDatabaseFake(seed: FakePostgrestSeed = {}): InstalledMock {
-  const filled: FakePostgrestSeed = {
-    __realtime_events__: [],
-    __realtime_channels__: [],
-    __realtime_grants__: [],
-    ...seed,
-  };
-
-  const fake = new FakePostgrestClient(filled) as unknown as PostgrestClient;
-
-  return installMock(PostgrestClients, "service", () => fake);
-}
+export {
+  assertPlainColumn,
+  keywordLiteral,
+  quoteFilterList,
+  quoteFilterLiteral,
+  UnsafeFilterError,
+} from "./src/database/query/filter_literal.ts";
+export { AMBIGUITY_PROBE } from "./src/database/query/query_state.ts";
+export { DatabaseQueryError, TypedQueryBuilder } from "./src/database/query/typed_query_builder.ts";
+export { NOBODY, ownerScope, READS_EVERY_ROW, type ScopeDecision } from "./src/database/query/owner_scope.ts";
+export { PostgrestClients } from "./src/database/postgrest_clients.ts";
+export { PostgrestDatabases } from "./src/database/postgrest_databases.ts";
+export { database, DatabaseClient } from "./src/database/database_client.ts";
+export { databaseSettings } from "./src/database/database_settings.ts";
+export { from, type RpcBuilder, TablesBase } from "./src/database/tables_base.ts";
+export { ownerOf, registerTableOwners } from "./src/database/table_owners.ts";
+export { type DatabaseSchema, Table, type TableShape } from "./src/database/table.ts";
+export { wrote } from "./src/database/wrote.ts";

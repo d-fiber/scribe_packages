@@ -5,9 +5,20 @@
     "@scribe/dynamic_links/testing": "./tests/testing/testing.ts",
     "@scribe/dynamic_links/testing/settings": "./tests/testing/settings.ts",
     "@scribe/foundation": "../foundation/lib/foundation.ts",
+    "@scribe/foundation/cache": "../foundation/lib/cache.ts",
+    "@scribe/foundation/cron": "../foundation/lib/cron.ts",
+    "@scribe/foundation/database": "../foundation/lib/database.ts",
     "@scribe/foundation/e2e": "../foundation/tests/e2e/support/stack.ts",
+    "@scribe/foundation/files": "../foundation/lib/files.ts",
+    "@scribe/foundation/hook": "../foundation/lib/hook.ts",
+    "@scribe/foundation/http": "../foundation/lib/http.ts",
+    "@scribe/foundation/observe": "../foundation/lib/observe.ts",
+    "@scribe/foundation/queue": "../foundation/lib/queue.ts",
+    "@scribe/foundation/rate_limit": "../foundation/lib/rate_limit.ts",
+    "@scribe/foundation/redis": "../foundation/lib/redis.ts",
     "@scribe/foundation/testing": "../foundation/tests/testing/testing.ts",
     "@scribe/foundation/testing/settings": "../foundation/tests/testing/settings.ts",
+    "@scribe/foundation/trigger": "../foundation/lib/trigger.ts",
     "@scribe/testing/": "../../engine/testing/"
   }
 }

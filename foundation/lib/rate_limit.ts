@@ -34,28 +34,15 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import "@scribe/testing/settings.ts";
-import { type InstalledMock, installMock } from "@scribe/testing/install.ts";
-import { PostgrestClients } from "@scribe/foundation/database";
-import { FakePostgrestClient, type FakePostgrestSeed } from "@scribe/foundation/testing";
-import type { PostgrestClient } from "@supabase/postgrest-js";
+/** How often one caller may ask, and what happens when it asks more. */
 
-/**
- * Answers every query of this package with in-memory rows, and hands back the restore handle.
- *
- * The service client is what a channel reaches, since a grant is written with the key that
- * bypasses row level security. Replacing it leaves the query builder, the table names and the
- * filters under test rather than replacing them with a second implementation.
- */
-export function installDatabaseFake(seed: FakePostgrestSeed = {}): InstalledMock {
-  const filled: FakePostgrestSeed = {
-    __realtime_events__: [],
-    __realtime_channels__: [],
-    __realtime_grants__: [],
-    ...seed,
-  };
-
-  const fake = new FakePostgrestClient(filled) as unknown as PostgrestClient;
-
-  return installMock(PostgrestClients, "service", () => fake);
-}
+export {
+  DEFAULT_MAX_PENALTY,
+  DEFAULT_STRIKE_MEMORY,
+  RedisRateLimiter,
+  RedisRateLimiters,
+  SHARED_ADDRESS_MAX_PENALTY,
+  SHARED_ADDRESS_STRIKE_MEMORY,
+} from "./src/rate_limit/redis_rate_limiter.ts";
+export { RateLimitBucket } from "./src/rate_limit/rate_limit_bucket.ts";
+export { type RateLimitCommands, rateLimitCommands } from "./src/rate_limit/rate_limit_commands.ts";

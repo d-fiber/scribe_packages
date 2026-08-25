@@ -2,9 +2,20 @@
   "imports": {
     "@scribe/contracts/": "../../engine/contracts/",
     "@scribe/foundation/": "./",
+    "@scribe/foundation/cache": "./lib/cache.ts",
+    "@scribe/foundation/cron": "./lib/cron.ts",
+    "@scribe/foundation/database": "./lib/database.ts",
     "@scribe/foundation/e2e": "./tests/e2e/support/stack.ts",
+    "@scribe/foundation/files": "./lib/files.ts",
+    "@scribe/foundation/hook": "./lib/hook.ts",
+    "@scribe/foundation/http": "./lib/http.ts",
+    "@scribe/foundation/observe": "./lib/observe.ts",
+    "@scribe/foundation/queue": "./lib/queue.ts",
+    "@scribe/foundation/rate_limit": "./lib/rate_limit.ts",
+    "@scribe/foundation/redis": "./lib/redis.ts",
     "@scribe/foundation/testing": "./tests/testing/testing.ts",
     "@scribe/foundation/testing/settings": "./tests/testing/settings.ts",
+    "@scribe/foundation/trigger": "./lib/trigger.ts",
     "@scribe/runtime/": "../../engine/runtime/"
   }
 }

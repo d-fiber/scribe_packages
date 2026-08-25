@@ -44,7 +44,7 @@ const { DynamicLink, LinkOutcome, LinkPlatform, resolveLink } = await import(
   "@scribe/dynamic_links/lib/dynamic_links.ts"
 );
 const { dynamicLinks, dynamicLinkStatistics } = await import("@scribe/dynamic_links/lib/src/db/tables.ts");
-const { queueRunner } = await import("@scribe/foundation");
+const { queueRunner } = await import("@scribe/foundation/queue");
 
 const KEEPS_A_CONNECTION = { sanitizeOps: false, sanitizeResources: false } as const;
 

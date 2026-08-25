@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { PostgrestClients, Table, TablesBase } from "@scribe/foundation";
+import { PostgrestClients, Table, TablesBase } from "@scribe/foundation/database";
 
 /** Any table of the project, seen as a bag of columns because this package knows no schema. */
 type ProjectSchema = Record<string, { row: Record<string, unknown> }>;

@@ -34,28 +34,18 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import "@scribe/testing/settings.ts";
-import { type InstalledMock, installMock } from "@scribe/testing/install.ts";
-import { PostgrestClients } from "@scribe/foundation/database";
-import { FakePostgrestClient, type FakePostgrestSeed } from "@scribe/foundation/testing";
-import type { PostgrestClient } from "@supabase/postgrest-js";
+/** Values kept for a while, and the keys they hang under. */
 
-/**
- * Answers every query of this package with in-memory rows, and hands back the restore handle.
- *
- * The service client is what a channel reaches, since a grant is written with the key that
- * bypasses row level security. Replacing it leaves the query builder, the table names and the
- * filters under test rather than replacing them with a second implementation.
- */
-export function installDatabaseFake(seed: FakePostgrestSeed = {}): InstalledMock {
-  const filled: FakePostgrestSeed = {
-    __realtime_events__: [],
-    __realtime_channels__: [],
-    __realtime_grants__: [],
-    ...seed,
-  };
-
-  const fake = new FakePostgrestClient(filled) as unknown as PostgrestClient;
-
-  return installMock(PostgrestClients, "service", () => fake);
-}
+export {
+  DEFAULT_LOCK_HOLD,
+  DistributedLock,
+  type LockErrorReporter,
+  type LockOutcome,
+} from "./src/cache/lock/distributed_lock.ts";
+export { DEFAULT_BETA } from "./src/cache/early_expiry.ts";
+export { DEFAULT_TTL, RedisCache, refreshesSettled } from "./src/cache/redis_cache.ts";
+export { KeySpace } from "./src/cache/key_space.ts";
+export { RedisCaches } from "./src/cache/redis_caches.ts";
+export { cacheSettings } from "./src/cache/cache_settings.ts";
+export { type LockCommands, lockCommands } from "./src/cache/lock/lock_commands.ts";
+export { withJitter } from "./src/cache/ttl_jitter.ts";
