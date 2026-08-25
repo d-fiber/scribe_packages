@@ -34,9 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import { http } from "@scribe/alchemy/http";
 import { Duration } from "@scribe/alchemy";
 import type { StorageBucket } from "./transport.ts";
-import { currentClient } from "@scribe/foundation/lib/src/http/run_with_client.ts";
 import type { RequestBody } from "@scribe/alchemy/http";
 import type { HttpResponse } from "@scribe/alchemy/http";
 
@@ -95,7 +95,7 @@ export class Bucket implements StorageBucket {
     route: string,
     options: { headers: Record<string, string>; body: RequestBody },
   ): Promise<HttpResponse | null> {
-    const client = currentClient();
+    const client = http.open();
     const url = `${this.#url}/${route}`;
     const sent = {
       headers: {

@@ -34,9 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import { http } from "@scribe/alchemy/http";
 import { Duration } from "@scribe/alchemy";
 import { Failure, Ok, okay, type Result } from "@scribe/alchemy";
-import { currentClient } from "@scribe/foundation/lib/src/http/run_with_client.ts";
 import type { HttpResponse } from "@scribe/alchemy/http";
 import { identitySettings } from "@scribe/runtime/support/settings/identity.ts";
 
@@ -142,7 +142,7 @@ export async function sendAuth(
   url: string,
   init: AuthRequest,
 ): Promise<HttpResponse> {
-  const client = currentClient();
+  const client = http.open();
   const options = {
     headers: init.headers,
     body: init.body ?? null,
