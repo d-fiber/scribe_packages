@@ -55,7 +55,7 @@ export function installStorageTestSettings(): void {
   storageSettings.use({
     apiUrl: optional("SUPABASE_STORAGE_INTERNAL_URL", "http://localhost:5000"),
     serviceRoleKey: optional("SUPABASE_SERVICE_ROLE_KEY", "service"),
-    publicBaseUrl: optional("APP_URL", "http://localhost"),
-    privateBaseUrl: optional("ADMIN_URL", "http://localhost"),
+    publicBaseUrl: optional("APP_URL", "http://localhost:4000"),
+    privateBaseUrl: optional("ADMIN_URL", "http://localhost:4001"),
   });
 }
