@@ -3,7 +3,7 @@ description: The full text index, what it holds, and the way it is queried.
 version: 1.0.0
 
 environment:
-  scribe: "^11.0.0"
+  scribe: "^1.0.0"
 
 dependencies:
   foundation: ^1.0.0

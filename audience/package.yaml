@@ -3,7 +3,7 @@ description: The named set somebody belongs to, and the right that follows from 
 version: 1.0.0
 
 environment:
-  scribe: "^11.0.0"
+  scribe: "^1.0.0"
 
 dependencies:
   foundation: ^1.0.0

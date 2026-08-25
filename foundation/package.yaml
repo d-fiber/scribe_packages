@@ -3,7 +3,7 @@ description: The engine every other package reaches, from the rows and the cache
 version: 1.0.0
 
 environment:
-  scribe: "^11.0.0"
+  scribe: "^1.0.0"
 
 dependencies:
   "@nats-io/jetstream": any
