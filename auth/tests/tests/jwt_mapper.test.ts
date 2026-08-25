@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { AuthMapper } from "@scribe/auth/lib/src/gotrue/mappers.ts";
-import { installTestSettings } from "@scribe/testing/settings.ts";
+import { installAuthTestSettings } from "@scribe/auth/tests/testing/settings.ts";
 import { authSettings } from "@scribe/auth/lib/src/settings.ts";
 import { assertEquals } from "@std/assert";
 
@@ -72,7 +72,7 @@ async function jwt(
   return `${h}.${p}.${await sign(h, p)}`;
 }
 
-installTestSettings();
+installAuthTestSettings();
 
 Deno.test("a valid admin token resolves to the admin role", async () => {
   const token = await jwt({

@@ -34,7 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import "@scribe/testing/settings.ts";
+import { installSearchTestSettings } from "@scribe/search/tests/testing/settings.ts";
+
+installSearchTestSettings();
 import type { InstalledMock } from "@scribe/testing/install.ts";
 import type { IndexConfig } from "@scribe/search/lib/contracts/definition.ts";
 import type {

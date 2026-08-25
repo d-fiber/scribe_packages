@@ -35,7 +35,9 @@
 // LICENSE file, the LICENSE file governs.
 
 
-import "@scribe/testing/settings.ts";
+import { installStorageTestSettings } from "@scribe/storage/tests/testing/settings.ts";
+
+installStorageTestSettings();
 import { assertEquals } from "@std/assert";
 import { Bytes, Storage, StorageVisibility } from "@scribe/storage/lib/storage.ts";
 import type { FakePostgrestSeed } from "@scribe/foundation/tests/testing/database.ts";

@@ -34,14 +34,14 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installTestSettings } from "@scribe/testing/settings.ts";
+import { installAuthTestSettings } from "@scribe/auth/tests/testing/settings.ts";
 import { PendingToken } from "@scribe/auth/lib/src/pending_token.ts";
 import { assertEquals, assertNotEquals } from "@std/assert";
 import { forgeToken } from "@scribe/auth/tests/testing/pending_token.ts";
 
 const token = new PendingToken();
 
-installTestSettings();
+installAuthTestSettings();
 
 Deno.test("the pending token carries the device that triggered the challenge", async () => {
   const raw = await forgeToken("a@example.com", "user", { deviceId: "device-1" });

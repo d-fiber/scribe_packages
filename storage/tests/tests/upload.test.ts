@@ -35,7 +35,9 @@
 // LICENSE file, the LICENSE file governs.
 
 
-import "@scribe/testing/settings.ts";
+import { installStorageTestSettings } from "@scribe/storage/tests/testing/settings.ts";
+
+installStorageTestSettings();
 import { assertEquals } from "@std/assert";
 import type { Failure } from "@scribe/alchemy";
 import { Bytes, Storage, StorageUploadError, StorageVisibility } from "@scribe/storage/lib/storage.ts";

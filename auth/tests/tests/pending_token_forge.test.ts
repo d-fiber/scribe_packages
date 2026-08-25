@@ -38,7 +38,7 @@
 // before the database mock exists. That duplication is only safe as long as both
 // sides stay interchangeable, which is exactly what this file checks.
 
-import { installTestSettings } from "@scribe/testing/settings.ts";
+import { installAuthTestSettings } from "@scribe/auth/tests/testing/settings.ts";
 import { PendingToken, PendingTokenPurpose } from "@scribe/auth/lib/src/pending_token.ts";
 import { sha256Hex } from "@scribe/runtime/support/crypto/hash.ts";
 import { installAuthMock } from "@scribe/auth/tests/testing/mock.ts";
@@ -47,7 +47,7 @@ import { assert, assertEquals, assertNotEquals } from "@std/assert";
 
 const IDENTIFIER = "u1@example.com";
 
-installTestSettings();
+installAuthTestSettings();
 
 Deno.test("forge: a forged token is accepted by the production reader", async () => {
   for (const purpose of Object.values(PendingTokenPurpose)) {

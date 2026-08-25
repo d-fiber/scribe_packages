@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { PendingToken, PendingTokenPurpose } from "@scribe/auth/lib/src/pending_token.ts";
-import { installTestSettings } from "@scribe/testing/settings.ts";
+import { installAuthTestSettings } from "@scribe/auth/tests/testing/settings.ts";
 import { authSettings } from "@scribe/auth/lib/src/settings.ts";
 import { assertEquals, assertNotEquals } from "@std/assert";
 import { forgeToken, issueToken } from "@scribe/auth/tests/testing/pending_token.ts";
@@ -67,7 +67,7 @@ async function signPayload(claims: Record<string, unknown>): Promise<string> {
   return `${payloadB64}.${hex}`;
 }
 
-installTestSettings();
+installAuthTestSettings();
 
 Deno.test("purpose: a password-reset token is refused by a sign-in reader", async () => {
   const token = await forgeToken("+33612345678", "user", { purpose: PendingTokenPurpose.PasswordReset });

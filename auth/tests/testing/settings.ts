@@ -34,30 +34,36 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installSearchTestSettings } from "@scribe/search/tests/testing/settings.ts";
-
-installSearchTestSettings();
-import { type InstalledMock, installMock } from "@scribe/testing/install.ts";
-import { PostgrestClients } from "@scribe/foundation/lib/src/database/postgrest_clients.ts";
-import { FakePostgrestClient, type FakePostgrestSeed } from "@scribe/foundation/tests/testing/database.ts";
-import type { PostgrestClient } from "@supabase/postgrest-js";
+import { optional } from "@scribe/foundation/lib/foundation.ts";
+import { installTestSettings } from "@scribe/testing/settings.ts";
+import { authSettings } from "@scribe/auth/lib/src/settings.ts";
 
 /**
- * Answers every query of this package with in-memory rows, and hands back the restore handle.
+ * Fills what this package reads, on top of what the framework's harness fills.
  *
- * The service client is what an index reads through, since a document is built from everything
- * a row holds rather than from what the caller who triggered the rebuild may see. Replacing it
- * leaves the compiled select lists and the filters under test.
+ * @remarks
+ * The framework used to fill these too, which meant `engine/testing/` named auth,
+ * search and storage: three packages a project may never mount, in a layer every
+ * project carries. A package fills its own, so the framework can be tested without
+ * any of them being on disk.
+ *
+ * The values are fake and fixed. Nothing here reaches a provider: what the tests
+ * exercise is what the package does with a secret, not the secret.
  */
-export function installDatabaseFake(seed: FakePostgrestSeed = {}): InstalledMock {
-  const filled: FakePostgrestSeed = {
-    __search_indices__: [],
-    __search_sources__: [],
-    __search_outbox__: [],
-    ...seed,
-  };
+export function installAuthTestSettings(): void {
+  installTestSettings();
 
-  const fake = new FakePostgrestClient(filled) as unknown as PostgrestClient;
+  if (authSettings.configured) return;
 
-  return installMock(PostgrestClients, "service", () => fake);
+  authSettings.use({
+    jwtSecret: optional("JWT_SECRET", "test-jwt-secret"),
+    pendingTokenSecret: optional("PENDING_TOKEN_SECRET", "test-pending-token-secret"),
+    googleClientId: optional("GOOGLE_CLIENT_ID", ""),
+    googleClientSecret: optional("GOOGLE_CLIENT_SECRET", ""),
+    appleClientId: optional("APPLE_CLIENT_ID", ""),
+    appleClientSecret: optional("APPLE_CLIENT_SECRET", ""),
+    twilioAccountSid: optional("TWILIO_ACCOUNT_SID", ""),
+    twilioAuthToken: optional("TWILIO_AUTH_TOKEN", ""),
+    twilioMessageServiceSid: optional("TWILIO_MESSAGE_SERVICE_SID", ""),
+  });
 }

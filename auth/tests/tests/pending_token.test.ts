@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installTestSettings } from "@scribe/testing/settings.ts";
+import { installAuthTestSettings } from "@scribe/auth/tests/testing/settings.ts";
 import { assertEquals, assertNotEquals } from "@std/assert";
 import { FakeTime } from "@std/testing/time";
 import { Duration } from "@scribe/alchemy";
@@ -43,7 +43,7 @@ import { forgeToken } from "@scribe/auth/tests/testing/pending_token.ts";
 
 const token = new PendingToken();
 
-installTestSettings();
+installAuthTestSettings();
 
 Deno.test("pending token: the signed payload yields the identifier AND the role", async () => {
   const value = await forgeToken("u1@example.com", "user");

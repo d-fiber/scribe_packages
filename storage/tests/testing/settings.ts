@@ -34,30 +34,28 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installSearchTestSettings } from "@scribe/search/tests/testing/settings.ts";
-
-installSearchTestSettings();
-import { type InstalledMock, installMock } from "@scribe/testing/install.ts";
-import { PostgrestClients } from "@scribe/foundation/lib/src/database/postgrest_clients.ts";
-import { FakePostgrestClient, type FakePostgrestSeed } from "@scribe/foundation/tests/testing/database.ts";
-import type { PostgrestClient } from "@supabase/postgrest-js";
+import { optional } from "@scribe/foundation/lib/foundation.ts";
+import { installTestSettings } from "@scribe/testing/settings.ts";
+import { storageSettings } from "@scribe/storage/lib/src/settings.ts";
 
 /**
- * Answers every query of this package with in-memory rows, and hands back the restore handle.
+ * Fills what this package reads, on top of what the framework's harness fills.
  *
- * The service client is what an index reads through, since a document is built from everything
- * a row holds rather than from what the caller who triggered the rebuild may see. Replacing it
- * leaves the compiled select lists and the filters under test.
+ * @remarks
+ * The framework used to fill these too, which meant `engine/testing/` named auth,
+ * search and storage: three packages a project may never mount, in a layer every
+ * project carries. A package fills its own, so the framework can be tested without
+ * any of them being on disk.
  */
-export function installDatabaseFake(seed: FakePostgrestSeed = {}): InstalledMock {
-  const filled: FakePostgrestSeed = {
-    __search_indices__: [],
-    __search_sources__: [],
-    __search_outbox__: [],
-    ...seed,
-  };
+export function installStorageTestSettings(): void {
+  installTestSettings();
 
-  const fake = new FakePostgrestClient(filled) as unknown as PostgrestClient;
+  if (storageSettings.configured) return;
 
-  return installMock(PostgrestClients, "service", () => fake);
+  storageSettings.use({
+    apiUrl: optional("SUPABASE_STORAGE_INTERNAL_URL", "http://localhost:5000"),
+    serviceRoleKey: optional("SUPABASE_SERVICE_ROLE_KEY", "service"),
+    publicBaseUrl: optional("APP_URL", "http://localhost"),
+    privateBaseUrl: optional("ADMIN_URL", "http://localhost"),
+  });
 }

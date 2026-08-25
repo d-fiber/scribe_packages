@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { fakeDevice, withRequest } from "@scribe/testing/runtime/device.ts";
-import { installTestSettings } from "@scribe/testing/settings.ts";
+import { installAuthTestSettings } from "@scribe/auth/tests/testing/settings.ts";
 import { Channel } from "@scribe/auth/lib/contracts/channel.ts";
 import { Account } from "@scribe/auth/lib/src/declaration/account.ts";
 import { session } from "@scribe/auth/lib/src/session.ts";
@@ -43,7 +43,7 @@ import { installAuthMock } from "@scribe/auth/tests/testing/mock.ts";
 import { installGoTrueMock } from "@scribe/auth/tests/testing/gotrue.ts";
 import { assert, assertEquals, assertFalse } from "@std/assert";
 
-installTestSettings();
+installAuthTestSettings();
 
 const ACCOUNT = "11111111-1111-1111-1111-111111111111";
 const DEVICE = fakeDevice().device_id;

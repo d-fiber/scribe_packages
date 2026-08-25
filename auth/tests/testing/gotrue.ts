@@ -34,7 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import "@scribe/testing/settings.ts";
+import { installAuthTestSettings } from "@scribe/auth/tests/testing/settings.ts";
+
+installAuthTestSettings();
 import type { InstalledMock } from "@scribe/testing/install.ts";
 
 export interface GoTrueCall {
