@@ -47,6 +47,8 @@
  * one rather than by exporting nothing.
  */
 
+import { wireAuth } from "./src/capability/wire.ts";
+import { capabilities } from "@scribe/contracts/capability.ts";
 import type { LifecycleSteps } from "@scribe/alchemy";
 import { extensions, OptionalExtension, runDeclarations } from "@scribe/runtime/support/extensions/mod.ts";
 import { optional, required } from "@scribe/foundation";
@@ -83,6 +85,8 @@ export type { AuthSettings } from "./contracts/settings.ts";
  */
 export const scribe: LifecycleSteps = {
   wires: () => {
+    capabilities.register(wireAuth);
+
     authSettings.use({
       jwtSecret: optional("JWT_SECRET"),
       pendingTokenSecret: required("PENDING_TOKEN_SECRET"),

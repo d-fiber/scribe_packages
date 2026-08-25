@@ -46,6 +46,8 @@
  * one rather than by exporting nothing.
  */
 
+import { wireRealtime } from "./src/capability/wire.ts";
+import { capabilities } from "@scribe/contracts/capability.ts";
 import type { LifecycleSteps } from "@scribe/alchemy";
 import { syncDeclaredChannels } from "./src/db/channels.ts";
 import { EventLogTransport } from "./src/transport/event_log.ts";
@@ -74,6 +76,8 @@ export type { RealtimeChannelRow, RealtimeEventRow, RealtimeGrantRow } from "./s
  */
 export const scribe: LifecycleSteps = {
   wires: () => {
+    capabilities.register(wireRealtime);
+
     RealtimeTransports.use(new EventLogTransport());
   },
   starts: () => syncDeclaredChannels(),

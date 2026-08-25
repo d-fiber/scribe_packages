@@ -47,6 +47,8 @@
  * one rather than by exporting nothing.
  */
 
+import { wireStorage } from "./src/capability/wire.ts";
+import { capabilities } from "@scribe/contracts/capability.ts";
 import type { LifecycleSteps } from "@scribe/alchemy";
 import { required } from "@scribe/foundation";
 import { SupabaseStorageTransport } from "./src/bucket/supabase.ts";
@@ -95,6 +97,8 @@ export type { StorageBucket, StorageTransport } from "./src/bucket/transport.ts"
  */
 export const scribe: LifecycleSteps = {
   wires: () => {
+    capabilities.register(wireStorage);
+
     storageSettings.use({
       apiUrl: required("SUPABASE_STORAGE_INTERNAL_URL"),
       serviceRoleKey: required("SUPABASE_SERVICE_ROLE_KEY"),

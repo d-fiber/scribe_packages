@@ -15,6 +15,7 @@
     "@scribe/auth/sms_intent": "./lib/sms_intent.ts",
     "@scribe/auth/testing": "./tests/testing/testing.ts",
     "@scribe/auth/testing/settings": "./tests/testing/settings.ts",
+    "@scribe/contracts/capability.ts": "../../engine/contracts/capability.ts",
     "@scribe/contracts/device.ts": "../../engine/contracts/device.ts",
     "@scribe/contracts/enums.ts": "../../engine/contracts/enums.ts",
     "@scribe/contracts/extensions.ts": "../../engine/contracts/extensions.ts",
@@ -45,6 +46,8 @@
     "@scribe/runtime/support/crypto/hash.ts": "../../engine/runtime/support/crypto/hash.ts",
     "@scribe/runtime/support/extensions/mod.ts": "../../engine/runtime/support/extensions/mod.ts",
     "@scribe/runtime/support/settings/identity.ts": "../../engine/runtime/support/settings/identity.ts",
+    "@scribe/sdk": "../../sdk/js/mod.ts",
+    "@scribe/sdk/": "../../sdk/js/",
     "@scribe/testing/install.ts": "../../engine/testing/install.ts",
     "@scribe/testing/runtime/device.ts": "../../engine/testing/runtime/device.ts",
     "@scribe/testing/settings.ts": "../../engine/testing/settings.ts"

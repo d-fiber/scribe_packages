@@ -47,6 +47,8 @@
  * one rather than by exporting nothing.
  */
 
+import { wireSearch } from "./src/capability/wire.ts";
+import { capabilities } from "@scribe/contracts/capability.ts";
 import type { LifecycleSteps } from "@scribe/alchemy";
 import { extensions, OptionalExtension, runDeclarations } from "@scribe/runtime/support/extensions/mod.ts";
 import { required } from "@scribe/foundation";
@@ -108,6 +110,8 @@ export { drainSearchOutbox, searchDrain } from "./src/sync/drain.ts";
  */
 export const scribe: LifecycleSteps = {
   wires: () => {
+    capabilities.register(wireSearch);
+
     searchSettings.use({ clusterUrl: required("OPENSEARCH_URL") });
     SearchTransports.use(new OpenSearchTransport());
 

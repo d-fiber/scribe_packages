@@ -1,5 +1,6 @@
 {
   "imports": {
+    "@scribe/contracts/capability.ts": "../../engine/contracts/capability.ts",
     "@scribe/foundation": "../foundation/lib/foundation.ts",
     "@scribe/foundation/cache": "../foundation/lib/cache.ts",
     "@scribe/foundation/cron": "../foundation/lib/cron.ts",
@@ -26,6 +27,8 @@
     "@scribe/runtime/support/crypto/hash.ts": "../../engine/runtime/support/crypto/hash.ts",
     "@scribe/runtime/support/extensions/mod.ts": "../../engine/runtime/support/extensions/mod.ts",
     "@scribe/runtime/support/settings/identity.ts": "../../engine/runtime/support/settings/identity.ts",
+    "@scribe/sdk": "../../sdk/js/mod.ts",
+    "@scribe/sdk/": "../../sdk/js/",
     "@scribe/search": "./lib/search.ts",
     "@scribe/search/": "./",
     "@scribe/search/e2e": "./tests/e2e/support/stack.ts",
