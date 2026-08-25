@@ -140,7 +140,7 @@ export class Bans {
       .where((f) => f.account_id.eq(id))
       .deleteOne();
 
-    return lifted === null ? new Failure(BanError.NotFound) : okay;
+    return lifted.ok ? okay : new Failure(BanError.NotFound);
   }
 
   /** The ban standing over the account, or null when none stands or it holds another role. */

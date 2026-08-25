@@ -195,6 +195,6 @@ export class PendingToken {
       .unscoped()
       .where((f) => [f.token_hash.eq(hash), f.expires_at.gt(Date.now())])
       .deleteOne((s) => ({ token_hash: s.token_hash }));
-    return deleted !== null;
+    return deleted.ok;
   }
 }
