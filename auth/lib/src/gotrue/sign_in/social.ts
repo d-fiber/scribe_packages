@@ -35,7 +35,8 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { Result } from "@scribe/alchemy";
-import { requestIdTokenExchange, SocialProvider } from "../primitives.ts";
+import { SocialProvider } from "@scribe/contracts/enums.ts";
+import { requestIdTokenExchange } from "../primitives.ts";
 import type { AuthError, GoTrueSessionResponse } from "../transport.ts";
 
 class GoTrueSignInGoogle {
@@ -45,7 +46,7 @@ class GoTrueSignInGoogle {
     accessToken?: string,
   ): Promise<Result<GoTrueSessionResponse, AuthError>> {
     return requestIdTokenExchange(
-      SocialProvider.Google,
+      SocialProvider.GOOGLE,
       idToken,
       nonce,
       accessToken,
@@ -60,7 +61,7 @@ class GoTrueSignInApple {
     accessToken?: string,
   ): Promise<Result<GoTrueSessionResponse, AuthError>> {
     return requestIdTokenExchange(
-      SocialProvider.Apple,
+      SocialProvider.APPLE,
       idToken,
       nonce,
       accessToken,

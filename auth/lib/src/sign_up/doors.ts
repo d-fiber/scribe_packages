@@ -36,10 +36,10 @@
 
 import { Failure, Ok, type Result } from "@scribe/alchemy";
 import { sha256Hex } from "@scribe/runtime/support/crypto/hash.ts";
+import { SocialProvider } from "@scribe/contracts/enums.ts";
 import { Channel } from "../../contracts/channel.ts";
 import { isRateLimitCode } from "../gotrue/errors.ts";
 import { goTrue } from "../gotrue/gotrue_client.ts";
-import { SocialProvider } from "../gotrue/primitives.ts";
 import { AuthValidator, EmailCheckStatus, PasswordCheckStatus, PhoneCheckStatus } from "../validator.ts";
 import { SignUpError } from "./errors.ts";
 
@@ -209,7 +209,7 @@ export class SocialCredential<TInput extends SocialCredentials> implements SignU
 
   constructor(channel: Channel.Google | Channel.Apple) {
     this.channel = channel;
-    this.#provider = channel === Channel.Google ? SocialProvider.Google : SocialProvider.Apple;
+    this.#provider = channel === Channel.Google ? SocialProvider.GOOGLE : SocialProvider.APPLE;
   }
 
   read(input: TInput): Promise<Result<{ recipient: string | null }, SignUpError>> {
@@ -221,7 +221,7 @@ export class SocialCredential<TInput extends SocialCredentials> implements SignU
   }
 
   async issue(input: TInput): Promise<Result<IssuedIdentity, SignUpError>> {
-    const answer = this.#provider === SocialProvider.Google
+    const answer = this.#provider === SocialProvider.GOOGLE
       ? await goTrue.signUp.createUserWithGoogle(input.idToken, input.nonce, input.accessToken)
       : await goTrue.signUp.createUserWithApple(input.idToken, input.nonce, input.accessToken);
 

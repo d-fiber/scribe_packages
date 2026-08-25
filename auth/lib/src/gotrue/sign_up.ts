@@ -35,12 +35,8 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Failure, Ok, type Result } from "@scribe/alchemy";
-import {
-  isPhoneProviderConfigured,
-  phoneNotConfiguredError,
-  requestIdTokenExchange,
-  SocialProvider,
-} from "./primitives.ts";
+import { SocialProvider } from "@scribe/contracts/enums.ts";
+import { isPhoneProviderConfigured, phoneNotConfiguredError, requestIdTokenExchange } from "./primitives.ts";
 import {
   adminHeaders,
   anonHeaders,
@@ -99,7 +95,7 @@ export class GoTrueSignUp {
     accessToken?: string,
   ): Promise<Result<GoTrueSessionResponse, AuthError>> {
     return requestIdTokenExchange(
-      SocialProvider.Google,
+      SocialProvider.GOOGLE,
       idToken,
       nonce,
       accessToken,
@@ -112,7 +108,7 @@ export class GoTrueSignUp {
     accessToken?: string,
   ): Promise<Result<GoTrueSessionResponse, AuthError>> {
     return requestIdTokenExchange(
-      SocialProvider.Apple,
+      SocialProvider.APPLE,
       idToken,
       nonce,
       accessToken,

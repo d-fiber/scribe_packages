@@ -36,12 +36,12 @@
 
 import type { Session } from "@scribe/auth/lib/contracts/account.ts";
 import { Failure, Ok, type Result } from "@scribe/alchemy";
+import { SocialProvider } from "@scribe/contracts/enums.ts";
 import { Channel } from "../../contracts/channel.ts";
 import type { AccountRole } from "../../contracts/role.ts";
 import { isRateLimitCode } from "../gotrue/errors.ts";
 import { goTrue } from "../gotrue/gotrue_client.ts";
 import { AuthMapper } from "../gotrue/mappers.ts";
-import { SocialProvider } from "../gotrue/primitives.ts";
 import type { AuthError, GoTrueSessionResponse } from "../gotrue/transport.ts";
 import { AccountRoleResolver } from "../identity.ts";
 import { AuthValidator, EmailCheckStatus, PasswordPresenceStatus, PhoneCheckStatus } from "../validator.ts";
@@ -300,7 +300,7 @@ export class SocialCredential implements SignInCredential<SocialCredentials> {
 
   constructor(channel: Channel.Google | Channel.Apple) {
     this.channel = channel;
-    this.#provider = channel === Channel.Google ? SocialProvider.Google : SocialProvider.Apple;
+    this.#provider = channel === Channel.Google ? SocialProvider.GOOGLE : SocialProvider.APPLE;
   }
 
   read(
@@ -316,7 +316,7 @@ export class SocialCredential implements SignInCredential<SocialCredentials> {
   async authenticate(
     input: SocialCredentials,
   ): Promise<Result<Authenticated, SignInError>> {
-    const answer = this.#provider === SocialProvider.Google
+    const answer = this.#provider === SocialProvider.GOOGLE
       ? await goTrue.signIn.social.google.signIn(
         input.idToken,
         input.nonce,

@@ -160,7 +160,6 @@ const COMMON_BASES: ReadonlySet<string> = new Set([
   "pass",
   "passe",
   "password",
-  "poppin",
   "princess",
   "purple",
   "qazwsx",

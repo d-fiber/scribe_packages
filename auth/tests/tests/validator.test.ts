@@ -94,7 +94,7 @@ Deno.test("check() does apply the policy, and stays reserved for sign-up", () =>
     PasswordCheckStatus.Invalid,
   );
   assertEquals(
-    AuthValidator.password.check("Poppin2Alpha").status,
+    AuthValidator.password.check("Soleil2Alpha").status,
     PasswordCheckStatus.Ok,
   );
 });
@@ -123,7 +123,7 @@ Deno.test("check() rejects a common word dressed up to pass composition", () => 
 Deno.test("check() keeps a common word that is only a fragment", () => {
   for (
     const strong of [
-      "Poppin2Alpha",
+      "Soleil2Alpha",
       "Welcome7Harbour",
       "Qwerty4Meridian",
     ]

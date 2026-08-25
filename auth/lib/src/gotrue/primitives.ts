@@ -36,12 +36,8 @@
 
 import { authSettings } from "../settings.ts";
 import { Failure, type Result } from "@scribe/alchemy";
+import { SocialProvider } from "@scribe/contracts/enums.ts";
 import { anonHeaders, type AuthError, authUrl, type GoTrueSessionResponse, requestAuth } from "./transport.ts";
-
-export enum SocialProvider {
-  Google = "google",
-  Apple = "apple",
-}
 
 export function isPhoneProviderConfigured(): boolean {
   return Boolean(
@@ -53,9 +49,9 @@ export function isPhoneProviderConfigured(): boolean {
 
 export function isSocialProviderConfigured(provider: SocialProvider): boolean {
   switch (provider) {
-    case SocialProvider.Google:
+    case SocialProvider.GOOGLE:
       return Boolean(authSettings.get().googleClientId && authSettings.get().googleClientSecret);
-    case SocialProvider.Apple:
+    case SocialProvider.APPLE:
       return Boolean(authSettings.get().appleClientId && authSettings.get().appleClientSecret);
   }
 }

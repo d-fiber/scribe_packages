@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-export { SocialProvider } from "./primitives.ts";
+export { SocialProvider } from "@scribe/contracts/enums.ts";
 export { adminHeaders, anonHeaders, authUrl, parseError, userHeaders } from "./transport.ts";
 export type { AuthError, GoTrueSessionResponse, GoTrueUser } from "./transport.ts";
 
