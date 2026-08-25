@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Duration, cache } from "@scribe/alchemy";
-import { KeyIndex } from "@scribe/runtime/redis/key_index.ts";
+import { KeyIndex } from "@scribe/foundation/lib/src/redis/key_index.ts";
 import type { AccountRole } from "../contracts/role.ts";
 import { accounts } from "./tables.ts";
 
