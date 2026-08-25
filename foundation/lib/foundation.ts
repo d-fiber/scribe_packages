@@ -57,6 +57,8 @@ import { Clients } from "@scribe/alchemy/http";
 import { Loggers } from "@scribe/alchemy/observe";
 import { Now } from "@scribe/alchemy";
 import type { LifecycleSteps } from "@scribe/alchemy";
+import { EXTENSION_CRON, EXTENSION_QUEUE } from "@scribe/contracts/extensions.ts";
+import { extensions, OptionalExtension, runDeclarations } from "@scribe/runtime/support/extensions/mod.ts";
 import { FetchClients } from "./src/http/fetch_client.ts";
 import { RedisCaches } from "./src/cache/redis_caches.ts";
 import { RedisClaims } from "./src/redis/claim_once.ts";
@@ -201,6 +203,13 @@ export { type LockCommands, lockCommands } from "./src/cache/lock/lock_commands.
  */
 export const scribe: LifecycleSteps = {
   wires: () => {
+    if (!extensions.declares(EXTENSION_QUEUE)) {
+      extensions.register(new OptionalExtension(EXTENSION_QUEUE, () => runDeclarations("queues")));
+    }
+    if (!extensions.declares(EXTENSION_CRON)) {
+      extensions.register(new OptionalExtension(EXTENSION_CRON, () => runDeclarations("crons")));
+    }
+
     if (!Clients.configured) Clients.use(new FetchClients());
     if (!Loggers.configured) Loggers.use(new ConsoleLogger());
     if (!Now.configured) Now.use(new SystemNow());

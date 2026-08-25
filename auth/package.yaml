@@ -20,3 +20,5 @@ scribe:
   db:
     init: ./db/init/
   protocol: ./protocol/
+  declarations:
+    accounts: Account

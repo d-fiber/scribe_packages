@@ -26,3 +26,6 @@ scribe:
     - ./ops/database/
     - ./ops/queue/
     - ./ops/valkery/
+  declarations:
+    queues: Queue
+    crons: Cron

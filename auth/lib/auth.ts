@@ -149,11 +149,8 @@ export const scribe: LifecycleSteps = {
       twilioMessageServiceSid: optional("TWILIO_MESSAGE_SERVICE_SID"),
     });
 
-    extensions.register(
-      new OptionalExtension(
-        AUTH_EXTENSION,
-        () => runDeclarations("accounts"),
-      ),
-    );
+    if (!extensions.declares(AUTH_EXTENSION)) {
+      extensions.register(new OptionalExtension(AUTH_EXTENSION, () => runDeclarations("accounts")));
+    }
   },
 };

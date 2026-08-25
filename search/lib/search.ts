@@ -111,12 +111,9 @@ export const scribe: LifecycleSteps = {
     searchSettings.use({ clusterUrl: required("OPENSEARCH_URL") });
     SearchTransports.use(new OpenSearchTransport());
 
-    extensions.register(
-      new OptionalExtension(
-        SEARCH_EXTENSION,
-        () => runDeclarations("searchers"),
-      ),
-    );
+    if (!extensions.declares(SEARCH_EXTENSION)) {
+      extensions.register(new OptionalExtension(SEARCH_EXTENSION, () => runDeclarations("searchers")));
+    }
   },
   starts: () => syncDeclaredIndices(),
 };

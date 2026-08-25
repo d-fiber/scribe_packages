@@ -21,3 +21,5 @@ scribe:
   protocol: ./protocol/
   ops:
     - ./ops/
+  declarations:
+    searchers: Search
