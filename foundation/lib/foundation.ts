@@ -58,6 +58,9 @@ import { Loggers } from "@scribe/alchemy/observe";
 import { Now } from "@scribe/alchemy";
 import type { LifecycleSteps } from "@scribe/alchemy";
 import { EXTENSION_CRON, EXTENSION_QUEUE } from "@scribe/contracts/extensions.ts";
+import { cronRegistry, cronRunner } from "./cron.ts";
+import { queueRunner } from "./queue.ts";
+import { syncDeclaredSources, triggerRegistry, triggerRunner } from "./trigger.ts";
 import { extensions, OptionalExtension, runDeclarations } from "@scribe/runtime/support/extensions/mod.ts";
 import { FetchClients } from "./src/http/fetch_client.ts";
 import { RedisCaches } from "./src/cache/redis_caches.ts";
@@ -108,5 +111,26 @@ export const scribe: LifecycleSteps = {
     if (!Triggers.configured) Triggers.use(new OutboxTriggers());
     if (!Databases.configured) Databases.use(new PostgrestDatabases());
     if (!FileSystems.configured) FileSystems.use(new LocalFileSystems());
+  },
+
+  starts: async () => {
+    await extensions.load(EXTENSION_CRON);
+    console.info(cronRegistry.report());
+    cronRunner.start();
+
+    queueRunner.start();
+
+    console.info(triggerRegistry.report());
+    if (triggerRegistry.list().length > 0) {
+      const tables = await syncDeclaredSources();
+      console.info(`[trigger] ${tables} table(s) recorded as emitting`);
+    }
+    triggerRunner.start();
+  },
+
+  stops: () => {
+    cronRunner.stop();
+    queueRunner.stop();
+    triggerRunner.stop();
   },
 };
