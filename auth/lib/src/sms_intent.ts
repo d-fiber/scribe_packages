@@ -34,8 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Duration } from "@scribe/alchemy";
-import { Valkery } from "@scribe/foundation/lib/src/valkery/valkery.ts";
+import { Duration, cache } from "@scribe/alchemy";
 
 const INTENT_TTL = Duration.seconds(120);
 
@@ -56,7 +55,7 @@ export enum SmsIntent {
  * verification reads, and it is consumed on the way so a second verification cannot reuse it.
  */
 class SmsIntentStore {
-  readonly #cache = new Valkery<SmsIntent>({ key: "sms-intent", ttl: INTENT_TTL });
+  readonly #cache = cache<SmsIntent>({ key: "sms-intent", ttl: INTENT_TTL });
 
   /** Records what the code just sent to `phone` is for. */
   mark(phone: string, intent: SmsIntent): Promise<void> {

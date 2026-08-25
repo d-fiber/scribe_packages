@@ -34,8 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Duration } from "@scribe/alchemy";
-import { Valkery } from "@scribe/foundation/lib/src/valkery/valkery.ts";
+import { type Cache, Duration, cache } from "@scribe/alchemy";
 
 /** How long a result set and a preview are kept when a declaration asks for nothing else. */
 export const DEFAULT_TTL: Duration = Duration.minutes(5);
@@ -50,12 +49,12 @@ export const DEFAULT_TTL: Duration = Duration.minutes(5);
  * mean dropping every preview of the index each time any single row moved.
  */
 export class SearchCache<TPreview> {
-  readonly #pages: Valkery<unknown>;
-  readonly #previews: Valkery<TPreview>;
+  readonly #pages: Cache<unknown>;
+  readonly #previews: Cache<TPreview>;
 
   constructor(name: string, ttl: Duration = DEFAULT_TTL) {
-    this.#pages = new Valkery<unknown>({ key: `search:${name}:page`, ttl });
-    this.#previews = new Valkery<TPreview>({ key: `search:${name}:item`, ttl });
+    this.#pages = cache<unknown>({ key: `search:${name}:page`, ttl });
+    this.#previews = cache<TPreview>({ key: `search:${name}:item`, ttl });
   }
 
   /** What `key` holds, produced and kept when it holds nothing. */

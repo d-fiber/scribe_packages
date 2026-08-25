@@ -34,8 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Duration } from "@scribe/alchemy";
-import { Valkery } from "@scribe/foundation/lib/src/valkery/valkery.ts";
+import { Duration, cache } from "@scribe/alchemy";
 import type { DynamicLinkRow } from "../db/tables.ts";
 
 /** How long a resolved slug is kept, answered or not. */
@@ -53,14 +52,14 @@ interface CachedLink {
   readonly link: DynamicLinkRow | null;
 }
 
-const cache = new Valkery<CachedLink>({ key: "dynlink:slug", ttl: CACHE_TTL });
+const links = cache<CachedLink>({ key: "dynlink:slug", ttl: CACHE_TTL });
 
 /** The link `slug` resolves to, loading it through `load` when the cache does not hold it. */
 export async function cachedLink(
   slug: string,
   load: () => Promise<DynamicLinkRow | null>,
 ): Promise<DynamicLinkRow | null> {
-  const cached = await cache.upsert(slug, async () => ({ link: await load() }));
+  const cached = await links.upsert(slug, async () => ({ link: await load() }));
   return cached.link;
 }
 
@@ -71,5 +70,5 @@ export async function cachedLink(
  * absent for as long as ten minutes after it started answering.
  */
 export function forgetLink(slug: string): Promise<void> {
-  return cache.delete(slug);
+  return links.delete(slug);
 }

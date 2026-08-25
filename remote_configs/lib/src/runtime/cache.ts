@@ -34,8 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Duration } from "@scribe/alchemy";
-import { Valkery } from "@scribe/foundation/lib/src/valkery/valkery.ts";
+import { Duration, cache } from "@scribe/alchemy";
 import type { RemoteConfigRow } from "../db/tables.ts";
 
 /**
@@ -59,7 +58,7 @@ interface CachedValue {
   readonly row: RemoteConfigRow | null;
 }
 
-const cache = new Valkery<CachedValue>({ key: "config:name", ttl: CACHE_TTL });
+const values = cache<CachedValue>({ key: "config:name", ttl: CACHE_TTL });
 
 /**
  * The row held for `name`, loading it through `load` when the cache does not hold it.
@@ -72,11 +71,11 @@ export async function cachedValue(
   name: string,
   load: () => Promise<RemoteConfigRow | null>,
 ): Promise<RemoteConfigRow | null> {
-  const held = await cache.upsert(name, async () => ({ row: await load() }));
+  const held = await values.upsert(name, async () => ({ row: await load() }));
   return held.row;
 }
 
 /** Drops what the cache holds for `name`, so the next read goes to the table. */
 export function forgetValue(name: string): Promise<void> {
-  return cache.delete(name);
+  return values.delete(name);
 }

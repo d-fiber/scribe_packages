@@ -34,8 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Duration } from "@scribe/alchemy";
-import { Valkery } from "@scribe/foundation/lib/src/valkery/valkery.ts";
+import { Duration, cache } from "@scribe/alchemy";
 import type { AccountDevice } from "../../contracts/device.ts";
 
 const DEVICE_TTL = Duration.seconds(300);
@@ -51,9 +50,9 @@ function entryOf(accountId: string, deviceId: string): string {
  * its own entry wrong and the list wrong, while a device being added only makes the list wrong.
  */
 class DeviceCache {
-  readonly #list = new Valkery<AccountDevice[]>({ key: "account:devices", ttl: DEVICE_TTL });
-  readonly #one = new Valkery<AccountDevice>({ key: "account:device", ttl: DEVICE_TTL });
-  readonly #hardware = new Valkery<unknown>({ key: "device:hw", ttl: DEVICE_TTL });
+  readonly #list = cache<AccountDevice[]>({ key: "account:devices", ttl: DEVICE_TTL });
+  readonly #one = cache<AccountDevice>({ key: "account:device", ttl: DEVICE_TTL });
+  readonly #hardware = cache<unknown>({ key: "device:hw", ttl: DEVICE_TTL });
 
   /** Every device remembered for this account, or null when none were. */
   list(accountId: string): Promise<AccountDevice[] | null> {

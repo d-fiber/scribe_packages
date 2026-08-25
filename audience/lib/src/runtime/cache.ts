@@ -34,8 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Duration } from "@scribe/alchemy";
-import { Valkery } from "@scribe/foundation/lib/src/valkery/valkery.ts";
+import { Duration, cache } from "@scribe/alchemy";
 import type { AudienceRow } from "../db/tables.ts";
 
 /**
@@ -63,7 +62,7 @@ interface CachedMembership {
 
 const SEPARATOR = "|";
 
-const cache = new Valkery<CachedMembership>({ key: "audience:member", ttl: CACHE_TTL });
+const members = cache<CachedMembership>({ key: "audience:member", ttl: CACHE_TTL });
 
 /**
  * The row held for `member` in `audience`, loading it through `load` when the cache does not.
@@ -77,18 +76,18 @@ export async function cachedMembership(
   member: string,
   load: () => Promise<AudienceRow | null>,
 ): Promise<AudienceRow | null> {
-  const held = await cache.upsert(entryOf(audience, member), async () => ({ row: await load() }));
+  const held = await members.upsert(entryOf(audience, member), async () => ({ row: await load() }));
   return held.row;
 }
 
 /** Drops what the cache holds for `member` in `audience`, so the next read goes to the table. */
 export function forgetMembership(audience: string, member: string): Promise<void> {
-  return cache.delete(entryOf(audience, member));
+  return members.delete(entryOf(audience, member));
 }
 
 /** Drops what the cache holds for every member of `audience`. */
 export function forgetAudience(audience: string): Promise<void> {
-  return cache.clear(`${audience}${SEPARATOR}*`);
+  return members.clear(`${audience}${SEPARATOR}*`);
 }
 
 /**
@@ -100,7 +99,7 @@ export function forgetAudience(audience: string): Promise<void> {
 export function forgetMemberIn(audiences: readonly string[], member: string): Promise<void> {
   if (audiences.length === 0) return Promise.resolve();
 
-  return cache.deleteMany(...audiences.map((audience) => entryOf(audience, member)));
+  return members.deleteMany(...audiences.map((audience) => entryOf(audience, member)));
 }
 
 function entryOf(audience: string, member: string): string {

@@ -34,9 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Duration } from "@scribe/alchemy";
+import { Duration, cache } from "@scribe/alchemy";
 import { KeyIndex } from "@scribe/runtime/redis/key_index.ts";
-import { Valkery } from "@scribe/foundation/lib/src/valkery/valkery.ts";
 import type { AccountRole } from "../contracts/role.ts";
 import { accounts } from "./tables.ts";
 
@@ -52,9 +51,9 @@ const PHONE_ENTRY = "phone:";
  * drop them without knowing which of them the account was found by.
  */
 class RoleCache {
-  readonly #email = new Valkery<AccountRole>({ key: "email:role", ttl: ROLE_TTL });
-  readonly #phone = new Valkery<AccountRole>({ key: "phone:role", ttl: ROLE_TTL });
-  readonly #id = new Valkery<AccountRole>({ key: "account:role", ttl: ROLE_TTL });
+  readonly #email = cache<AccountRole>({ key: "email:role", ttl: ROLE_TTL });
+  readonly #phone = cache<AccountRole>({ key: "phone:role", ttl: ROLE_TTL });
+  readonly #id = cache<AccountRole>({ key: "account:role", ttl: ROLE_TTL });
   readonly #index = new KeyIndex(INDEX_KEY, ROLE_TTL.inSeconds, "auth-cache:role");
 
   /** The role remembered for this address, or null when none was. */

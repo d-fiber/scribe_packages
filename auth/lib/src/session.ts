@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { SignOutScope } from "@scribe/auth/lib/contracts/account.ts";
-import { Duration } from "@scribe/alchemy";
+import { Duration, cache } from "@scribe/alchemy";
 import { Failure, Ok, okay, type Result } from "@scribe/alchemy";
 import { requestDevice } from "@scribe/runtime/device/device.ts";
 import { currentIdentity } from "@scribe/runtime/http/accessors/identity.ts";
@@ -45,7 +45,6 @@ import { request } from "@scribe/runtime/http/request.ts";
 import { sha256Hex } from "@scribe/runtime/support/crypto/hash.ts";
 import { KeyIndex } from "@scribe/runtime/redis/key_index.ts";
 import { rateLimit } from "@scribe/alchemy";
-import { Valkery } from "@scribe/foundation/lib/src/valkery/valkery.ts";
 import type { AccountRole } from "../contracts/role.ts";
 import { standingBanOn } from "./bans.ts";
 import { DeviceCheck, devices } from "./devices/devices.ts";
@@ -66,11 +65,11 @@ const RECOVER_ENTRY = "recover:";
  * under it. Fifteen seconds is the window a retry lands in.
  */
 class SessionIdempotence {
-  readonly #refresh = new Valkery<unknown>({
+  readonly #refresh = cache<unknown>({
     key: "refresh-idem",
     ttl: IDEMPOTENCE_TTL,
   });
-  readonly #recover = new Valkery<unknown>({
+  readonly #recover = cache<unknown>({
     key: "recover-idem",
     ttl: IDEMPOTENCE_TTL,
   });
