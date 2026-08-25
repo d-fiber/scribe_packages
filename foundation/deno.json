@@ -1,5 +1,6 @@
 {
   "imports": {
+    "@scribe/contracts/": "../../engine/contracts/",
     "@scribe/foundation/": "./",
     "@scribe/runtime/": "../../engine/runtime/"
   }

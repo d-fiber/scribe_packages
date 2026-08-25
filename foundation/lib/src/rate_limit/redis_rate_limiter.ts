@@ -53,25 +53,7 @@ export const DEFAULT_MAX_PENALTY: Duration = Duration.days(1);
 /** How long a strike counts against the next penalty when a declaration does not say. */
 export const DEFAULT_STRIKE_MEMORY: Duration = Duration.hours(24);
 
-/**
- * The longest penalty a limit keyed on a network address should ever reach.
- *
- * A university, an office and a mobile carrier all put thousands of people behind one address, so
- * a bucket keyed on it punishes everyone for what one caller did. Fifteen minutes is long enough
- * to stop a script and short enough that a shared connection recovers on its own.
- *
- * It is a value to pass, not a rule this class applies: only the code that built the suffix knows
- * whether it named an account or an address.
- */
-export const SHARED_ADDRESS_MAX_PENALTY: Duration = Duration.minutes(15);
-
-/**
- * How long a limit keyed on a network address should remember its strikes.
- *
- * Kept short for the same reason as {@link SHARED_ADDRESS_MAX_PENALTY}: a strike count that
- * survives a day would make the second visitor of the day pay for the first.
- */
-export const SHARED_ADDRESS_STRIKE_MEMORY: Duration = Duration.hours(1);
+export { SHARED_ADDRESS_MAX_PENALTY, SHARED_ADDRESS_STRIKE_MEMORY } from "@scribe/contracts/rate_limit.ts";
 
 /**
  * One rate limit, declared once and asked at every call.
