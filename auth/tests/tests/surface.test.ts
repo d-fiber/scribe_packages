@@ -34,9 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Account } from "@scribe/auth/lib/src/declaration/account.ts";
-import { Channel } from "@scribe/auth/lib/contracts/channel.ts";
-import { Optional, type ReadSelector, Required, type WriteSelector } from "@scribe/auth/lib/src/declaration/columns.ts";
+import { Account } from "../../lib/src/declaration/account.ts";
+import { Channel } from "../../lib/contracts/channel.ts";
+import { Optional, type ReadSelector, Required, type WriteSelector } from "../../lib/src/declaration/columns.ts";
 import { assert, assertEquals, assertFalse } from "@std/assert";
 
 interface ProfileRow {

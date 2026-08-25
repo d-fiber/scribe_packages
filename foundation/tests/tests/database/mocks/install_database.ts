@@ -33,14 +33,14 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import "@scribe/foundation/tests/testing/settings.ts";
+import "../../../testing/settings.ts";
 
 import type { PostgrestClient } from "@supabase/postgrest-js";
-import type { InstalledMock } from "@scribe/foundation/tests/testing/install.ts";
-import { database } from "@scribe/foundation/lib/src/database/database_client.ts";
-import { TablesBase } from "@scribe/foundation/lib/src/database/tables_base.ts";
-import type { FakePostgrestSeed } from "@scribe/foundation/tests/testing/database.ts";
-import { createDatabaseMock, type DatabaseMock } from "@scribe/foundation/tests/tests/database/mocks/database.ts";
+import type { InstalledMock } from "../../../testing/install.ts";
+import { database } from "../../../../lib/src/database/database_client.ts";
+import { TablesBase } from "../../../../lib/src/database/tables_base.ts";
+import type { FakePostgrestSeed } from "../../../testing/database.ts";
+import { createDatabaseMock, type DatabaseMock } from "./database.ts";
 
 export function installDatabaseMock(seed: FakePostgrestSeed = {}): DatabaseMock & InstalledMock {
   const mock = createDatabaseMock(seed);

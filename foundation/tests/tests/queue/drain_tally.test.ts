@@ -33,9 +33,9 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import "@scribe/foundation/tests/testing/settings.ts";
+import "../../testing/settings.ts";
 
-import { DrainTally } from "@scribe/foundation/lib/src/queue/runner/drain_tally.ts";
+import { DrainTally } from "../../../lib/src/queue/runner/drain_tally.ts";
 import { TimeoutException, withDeadline } from "@scribe/alchemy";
 import { assertEquals, assertInstanceOf, assertRejects } from "@std/assert";
 import { Duration } from "@scribe/alchemy";

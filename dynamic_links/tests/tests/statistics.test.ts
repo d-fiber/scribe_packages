@@ -34,14 +34,14 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { LinkOutcome, LinkPlatform } from "@scribe/dynamic_links/lib/contracts/link.ts";
-import type { RecordedVisit } from "@scribe/dynamic_links/lib/src/db/statistics.ts";
-import { installDynamicLinksMock } from "@scribe/dynamic_links/tests/testing/mock.ts";
+import { LinkOutcome, LinkPlatform } from "../../lib/contracts/link.ts";
+import type { RecordedVisit } from "../../lib/src/db/statistics.ts";
+import { installDynamicLinksMock } from "../testing/mock.ts";
 import type { BatchHandler } from "@scribe/foundation/queue";
 import { queueRegistry } from "@scribe/foundation/queue";
 import { assert, assertEquals } from "@std/assert";
 
-import "@scribe/dynamic_links/lib/src/db/statistics.ts";
+import "../../lib/src/db/statistics.ts";
 
 const QUEUE_NAME = "dynamic-link-statistics";
 

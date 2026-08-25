@@ -35,8 +35,8 @@
 // LICENSE file, the LICENSE file governs.
 
 import { assertEquals } from "@std/assert";
-import { installSearchMock } from "@scribe/search/tests/testing/mock.ts";
-import { searchTransport } from "@scribe/search/lib/src/transport/registry.ts";
+import { installSearchMock } from "../testing/mock.ts";
+import { searchTransport } from "../../lib/src/transport/registry.ts";
 import { SearchTransports } from "@scribe/search";
 
 Deno.test("installing the mock replaces the transport, and restoring puts the previous one back", () => {

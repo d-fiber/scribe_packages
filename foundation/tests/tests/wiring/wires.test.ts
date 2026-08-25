@@ -49,10 +49,10 @@ import { Clients } from "@scribe/alchemy/http";
 import { Loggers } from "@scribe/alchemy/observe";
 import type { Slot } from "@scribe/alchemy";
 import { scribe } from "@scribe/foundation";
-import { cacheSettings } from "@scribe/foundation/lib/src/cache/cache_settings.ts";
-import { databaseSettings } from "@scribe/foundation/lib/src/database/database_settings.ts";
-import { queueSettings } from "@scribe/foundation/lib/src/queue/queue_settings.ts";
-import { installMock } from "@scribe/foundation/tests/testing/install.ts";
+import { cacheSettings } from "../../../lib/src/cache/cache_settings.ts";
+import { databaseSettings } from "../../../lib/src/database/database_settings.ts";
+import { queueSettings } from "../../../lib/src/queue/queue_settings.ts";
+import { installMock } from "../../testing/install.ts";
 import { assert, assertEquals, assertStrictEquals, assertThrows } from "@std/assert";
 
 const PORTS: readonly Slot<unknown>[] = [

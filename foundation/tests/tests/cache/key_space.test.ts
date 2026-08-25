@@ -33,10 +33,10 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import "@scribe/foundation/tests/testing/settings.ts";
+import "../../testing/settings.ts";
 
-import { withJitter } from "@scribe/foundation/lib/src/cache/ttl_jitter.ts";
-import { KeySpace } from "@scribe/foundation/lib/src/cache/key_space.ts";
+import { withJitter } from "../../../lib/src/cache/ttl_jitter.ts";
+import { KeySpace } from "../../../lib/src/cache/key_space.ts";
 import { Duration } from "@scribe/alchemy";
 import { assert, assertEquals } from "@std/assert";
 

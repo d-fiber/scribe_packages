@@ -35,9 +35,9 @@
 // LICENSE file, the LICENSE file governs.
 
 import { assertEquals } from "@std/assert";
-import { compilePreview } from "@scribe/search/lib/src/document/preview.ts";
-import type { PreviewSelector } from "@scribe/search/lib/src/document/selector.ts";
-import { previewSelector } from "@scribe/search/lib/src/document/selector.ts";
+import { compilePreview } from "../../lib/src/document/preview.ts";
+import type { PreviewSelector } from "../../lib/src/document/selector.ts";
+import { previewSelector } from "../../lib/src/document/selector.ts";
 
 interface StoreRow {
   store_id: string;

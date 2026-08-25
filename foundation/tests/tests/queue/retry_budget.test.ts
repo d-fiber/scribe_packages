@@ -34,9 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import type { MemoryLogger } from "@scribe/foundation/tests/testing/logger.ts";
-import { Queue } from "@scribe/foundation/lib/src/queue/queue.ts";
+import { installDrivers } from "../../testing/drivers.ts";
+import type { MemoryLogger } from "../../testing/logger.ts";
+import { Queue } from "../../../lib/src/queue/queue.ts";
 import { Duration } from "@scribe/alchemy";
 import { dispatchProbes, type Probe, probe } from "./probe.ts";
 import { assertEquals } from "@std/assert";

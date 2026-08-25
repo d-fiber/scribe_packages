@@ -35,7 +35,7 @@
 
 import { Bytes } from "@scribe/alchemy";
 import { BaseRequest, ByteStream, ClientException, HttpRequest } from "@scribe/alchemy/http";
-import { FetchClient, FetchClients } from "@scribe/foundation/lib/src/http/fetch_client.ts";
+import { FetchClient, FetchClients } from "../../../lib/src/http/fetch_client.ts";
 import { assert, assertEquals, assertNotStrictEquals, assertRejects, assertStrictEquals } from "@std/assert";
 
 const SOMEWHERE = "https://example.test/a";

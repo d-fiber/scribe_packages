@@ -40,7 +40,7 @@ import {
   PasswordCheckStatus,
   PasswordPresenceStatus,
   PhoneCheckStatus,
-} from "@scribe/auth/lib/src/validator.ts";
+} from "../../lib/src/validator.ts";
 import { assertEquals } from "@std/assert";
 
 Deno.test("presence() does not apply the policy: a weak password gets through", () => {

@@ -34,18 +34,18 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
+import { installDrivers } from "../../testing/drivers.ts";
 import { assertEquals } from "@std/assert";
 import type { Future } from "@scribe/alchemy";
-import { type InstalledMock, installMock } from "@scribe/foundation/tests/testing/install.ts";
-import { topology } from "@scribe/foundation/lib/src/queue/topology/topology.ts";
-import { Trigger } from "@scribe/foundation/lib/src/trigger/trigger.ts";
-import { TriggerRunner } from "@scribe/foundation/lib/src/trigger/trigger_runner.ts";
-import { triggerEvents } from "@scribe/foundation/lib/src/trigger/trigger_tables.ts";
-import type { TriggerEventRow } from "@scribe/foundation/lib/src/trigger/trigger_tables.ts";
-import { installDatabaseFake } from "@scribe/foundation/tests/tests/trigger/mocks/database.ts";
-import { PostgrestClients } from "@scribe/foundation/lib/src/database/postgrest_clients.ts";
-import { FakePostgrestClient } from "@scribe/foundation/tests/testing/database.ts";
+import { type InstalledMock, installMock } from "../../testing/install.ts";
+import { topology } from "../../../lib/src/queue/topology/topology.ts";
+import { Trigger } from "../../../lib/src/trigger/trigger.ts";
+import { TriggerRunner } from "../../../lib/src/trigger/trigger_runner.ts";
+import { triggerEvents } from "../../../lib/src/trigger/trigger_tables.ts";
+import type { TriggerEventRow } from "../../../lib/src/trigger/trigger_tables.ts";
+import { installDatabaseFake } from "./mocks/database.ts";
+import { PostgrestClients } from "../../../lib/src/database/postgrest_clients.ts";
+import { FakePostgrestClient } from "../../testing/database.ts";
 import type { PostgrestClient } from "@supabase/postgrest-js";
 
 interface OrderRow {

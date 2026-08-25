@@ -34,14 +34,14 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installAuthTestSettings } from "@scribe/auth/tests/testing/settings.ts";
+import { installAuthTestSettings } from "./settings.ts";
 
 installAuthTestSettings();
 
-import { type PendingToken, PendingTokenPurpose } from "@scribe/auth/lib/src/pending_token.ts";
+import { type PendingToken, PendingTokenPurpose } from "../../lib/src/pending_token.ts";
 import { toHex } from "@scribe/runtime/support/crypto/hash.ts";
-import type { AccountRole } from "@scribe/auth/lib/contracts/role.ts";
-import { authSettings } from "@scribe/auth/lib/src/settings.ts";
+import type { AccountRole } from "../../lib/contracts/role.ts";
+import { authSettings } from "../../lib/src/settings.ts";
 
 /** What a forged token carries beyond the identifier and the role it is minted for. */
 export interface ForgedTokenOptions {

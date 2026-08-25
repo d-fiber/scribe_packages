@@ -83,7 +83,7 @@ export async function useStack(): Promise<void> {
   Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", token);
   Deno.env.set("SUPABASE_ANON_KEY", token);
 
-  await import("@scribe/foundation/tests/testing/settings.ts");
+  await import("../../testing/settings.ts");
 }
 
 export async function requireStack(...urls: readonly string[]): Promise<void> {

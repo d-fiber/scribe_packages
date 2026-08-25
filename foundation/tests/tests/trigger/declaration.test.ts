@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 
 import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
-import { triggerRegistry } from "@scribe/foundation/lib/src/trigger/trigger_registry.ts";
-import { Trigger } from "@scribe/foundation/lib/src/trigger/trigger.ts";
+import { triggerRegistry } from "../../../lib/src/trigger/trigger_registry.ts";
+import { Trigger } from "../../../lib/src/trigger/trigger.ts";
 
 interface OrderRow {
   id: string;

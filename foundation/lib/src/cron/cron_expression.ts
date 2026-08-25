@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { CronTimezone } from "@scribe/foundation/lib/src/cron/cron_timezone.ts";
+import type { CronTimezone } from "./cron_timezone.ts";
 import { DeclarationError } from "@scribe/alchemy";
 import { Cron } from "croner";
 

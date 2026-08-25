@@ -33,13 +33,13 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import "@scribe/foundation/tests/testing/settings.ts";
+import "../../testing/settings.ts";
 
 import { assertEquals } from "@std/assert";
-import { matchesOf } from "@scribe/foundation/lib/src/trigger/trigger_match.ts";
-import type { RegisteredTrigger } from "@scribe/foundation/lib/src/trigger/trigger_registry.ts";
-import { eventFrom, type TriggerEvent } from "@scribe/foundation/lib/src/trigger/trigger_event.ts";
-import type { TriggerEventRow } from "@scribe/foundation/lib/src/trigger/trigger_tables.ts";
+import { matchesOf } from "../../../lib/src/trigger/trigger_match.ts";
+import type { RegisteredTrigger } from "../../../lib/src/trigger/trigger_registry.ts";
+import { eventFrom, type TriggerEvent } from "../../../lib/src/trigger/trigger_event.ts";
+import type { TriggerEventRow } from "../../../lib/src/trigger/trigger_tables.ts";
 
 const PAID = "2026-08-19T10:00:00Z";
 

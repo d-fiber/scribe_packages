@@ -33,10 +33,10 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import "@scribe/foundation/tests/testing/settings.ts";
-import { type InstalledMock, installMock } from "@scribe/foundation/tests/testing/install.ts";
-import { PostgrestClients } from "@scribe/foundation/lib/src/database/postgrest_clients.ts";
-import { FakePostgrestClient, type FakePostgrestSeed } from "@scribe/foundation/tests/testing/database.ts";
+import "../../../testing/settings.ts";
+import { type InstalledMock, installMock } from "../../../testing/install.ts";
+import { PostgrestClients } from "../../../../lib/src/database/postgrest_clients.ts";
+import { FakePostgrestClient, type FakePostgrestSeed } from "../../../testing/database.ts";
 import type { PostgrestClient } from "@supabase/postgrest-js";
 
 export function installDatabaseFake(seed: FakePostgrestSeed = {}): InstalledMock {

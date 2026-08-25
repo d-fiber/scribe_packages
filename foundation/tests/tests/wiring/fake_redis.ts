@@ -33,9 +33,9 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import type { LockCommands } from "@scribe/foundation/lib/src/cache/lock/lock_commands.ts";
-import { type Kv, kv } from "@scribe/foundation/lib/src/redis/kv.ts";
-import { type InstalledMock, installMock } from "@scribe/foundation/tests/testing/install.ts";
+import type { LockCommands } from "../../../lib/src/cache/lock/lock_commands.ts";
+import { type Kv, kv } from "../../../lib/src/redis/kv.ts";
+import { type InstalledMock, installMock } from "../../testing/install.ts";
 
 export interface FakeRedis extends InstalledMock {
   readonly calls: string[];

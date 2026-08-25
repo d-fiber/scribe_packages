@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 
 import { Duration, Future, type UnmodifiableList } from "@scribe/alchemy";
-import { Queue } from "@scribe/foundation/lib/src/queue/queue.ts";
-import type { QueueMessage } from "@scribe/foundation/lib/src/queue/queue_options.ts";
+import { Queue } from "../lib/src/queue/queue.ts";
+import type { QueueMessage } from "../lib/src/queue/queue_options.ts";
 
 /** What one welcome mail needs to be sent, carried whole because a handler reads no request. */
 interface EmailJob {

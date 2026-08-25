@@ -35,12 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { type Future, runPooled, type UnmodifiableList } from "@scribe/alchemy";
-import type {
-  BatchHandler,
-  JobHandler,
-  PushOptions,
-  QueueOptions,
-} from "@scribe/foundation/lib/src/queue/queue_options.ts";
+import type { BatchHandler, JobHandler, PushOptions, QueueOptions } from "./queue_options.ts";
 import { limitsFrom, type RegisteredQueue, subjectsOf } from "./queue_declaration.ts";
 import { delayedCounts } from "./delayed/delayed_counts.ts";
 import { pushDelayed } from "./delayed/delayed_schedule.ts";

@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 
 import { Duration } from "@scribe/alchemy";
-import { RateLimitBucket } from "@scribe/foundation/lib/src/rate_limit/rate_limit_bucket.ts";
-import { RedisRateLimiter } from "@scribe/foundation/lib/src/rate_limit/redis_rate_limiter.ts";
+import { RateLimitBucket } from "../../../lib/src/rate_limit/rate_limit_bucket.ts";
+import { RedisRateLimiter } from "../../../lib/src/rate_limit/redis_rate_limiter.ts";
 import { assertEquals, assertNotEquals } from "@std/assert";
 
 const POLICY = {

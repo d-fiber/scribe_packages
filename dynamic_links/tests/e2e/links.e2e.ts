@@ -44,8 +44,8 @@ const { DestinationKind, DynamicLink, LinkError, LinkPlatform, resolveLink } = a
   "@scribe/dynamic_links"
 );
 type Visit = import("@scribe/dynamic_links").Visit;
-const { forgetLink } = await import("@scribe/dynamic_links/lib/src/runtime/cache.ts");
-const { dynamicLinks } = await import("@scribe/dynamic_links/lib/src/db/tables.ts");
+const { forgetLink } = await import("../../lib/src/runtime/cache.ts");
+const { dynamicLinks } = await import("../../lib/src/db/tables.ts");
 
 interface Invite {
   code: string;

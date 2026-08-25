@@ -33,16 +33,16 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import "@scribe/foundation/tests/testing/settings.ts";
+import "../../testing/settings.ts";
 import { Duration, Now } from "@scribe/alchemy";
 import { checkCacheDriver, FixedNow, MemoryCaches } from "@scribe/alchemy/test";
-import { RedisCaches } from "@scribe/foundation/lib/src/cache/redis_caches.ts";
-import { encodeCacheEntry } from "@scribe/foundation/lib/src/cache/cache_entry.ts";
-import { type Kv, kv } from "@scribe/foundation/lib/src/redis/kv.ts";
-import { installMock } from "@scribe/foundation/tests/testing/install.ts";
-import { recordLog } from "@scribe/foundation/tests/testing/logger.ts";
+import { RedisCaches } from "../../../lib/src/cache/redis_caches.ts";
+import { encodeCacheEntry } from "../../../lib/src/cache/cache_entry.ts";
+import { type Kv, kv } from "../../../lib/src/redis/kv.ts";
+import { installMock } from "../../testing/install.ts";
+import { recordLog } from "../../testing/logger.ts";
 import { installFakeRedis } from "./fake_redis.ts";
-import { RedisCache } from "@scribe/foundation/lib/src/cache/redis_cache.ts";
+import { RedisCache } from "../../../lib/src/cache/redis_cache.ts";
 import { assert, assertEquals, assertLess, assertNotStrictEquals, assertStrictEquals } from "@std/assert";
 
 function withClock<T>(body: () => T): T {

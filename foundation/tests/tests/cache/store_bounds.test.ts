@@ -34,9 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 
 import { Duration } from "@scribe/alchemy";
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import { RedisCache } from "@scribe/foundation/lib/src/cache/redis_cache.ts";
-import { RedisCaches } from "@scribe/foundation/lib/src/cache/redis_caches.ts";
+import { installDrivers } from "../../testing/drivers.ts";
+import { RedisCache } from "../../../lib/src/cache/redis_cache.ts";
+import { RedisCaches } from "../../../lib/src/cache/redis_caches.ts";
 import { installFakeRedis } from "./support/redis.ts";
 import { assert, assertEquals } from "@std/assert";
 

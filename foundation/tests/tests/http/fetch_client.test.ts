@@ -35,7 +35,7 @@
 
 import { Duration } from "@scribe/alchemy";
 import { ClientException } from "@scribe/alchemy/http";
-import { FetchClient } from "@scribe/foundation/lib/src/http/fetch_client.ts";
+import { FetchClient } from "../../../lib/src/http/fetch_client.ts";
 import { HttpRequest } from "@scribe/alchemy/http";
 import { assert, assertEquals, assertRejects } from "@std/assert";
 

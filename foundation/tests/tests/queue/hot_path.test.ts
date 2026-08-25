@@ -34,13 +34,13 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import { Queue } from "@scribe/foundation/lib/src/queue/queue.ts";
-import { queueRegistry } from "@scribe/foundation/lib/src/queue/queue_registry.ts";
-import { queueStatus } from "@scribe/foundation/lib/src/queue/queue_status.ts";
-import { topology } from "@scribe/foundation/lib/src/queue/topology/topology.ts";
-import { type Kv, kv } from "@scribe/foundation/lib/src/redis/kv.ts";
-import { installMock } from "@scribe/foundation/tests/testing/install.ts";
+import { installDrivers } from "../../testing/drivers.ts";
+import { Queue } from "../../../lib/src/queue/queue.ts";
+import { queueRegistry } from "../../../lib/src/queue/queue_registry.ts";
+import { queueStatus } from "../../../lib/src/queue/queue_status.ts";
+import { topology } from "../../../lib/src/queue/topology/topology.ts";
+import { type Kv, kv } from "../../../lib/src/redis/kv.ts";
+import { installMock } from "../../testing/install.ts";
 import { dispatchProbes, probe } from "./probe.ts";
 import { assertEquals } from "@std/assert";
 

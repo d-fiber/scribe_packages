@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { Future } from "@scribe/alchemy";
-import { queueSettings } from "@scribe/foundation/lib/src/queue/queue_settings.ts";
+import { queueSettings } from "./queue_settings.ts";
 import { connect, type NatsConnection } from "@nats-io/transport-deno";
 import { jetstream, type JetStreamClient, type JetStreamManager, jetstreamManager } from "@nats-io/jetstream";
 

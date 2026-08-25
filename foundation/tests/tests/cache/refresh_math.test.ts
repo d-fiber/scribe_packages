@@ -35,12 +35,12 @@
 
 import { DateTime, Duration, Now } from "@scribe/alchemy";
 import { FixedNow } from "@scribe/alchemy/test";
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import { decodeCacheEntry, encodeCacheEntry } from "@scribe/foundation/lib/src/cache/cache_entry.ts";
-import type { CacheEntry } from "@scribe/foundation/lib/src/cache/cache_entry.ts";
-import { shouldRefreshEarly } from "@scribe/foundation/lib/src/cache/early_expiry.ts";
-import { RedisCache, refreshesSettled } from "@scribe/foundation/lib/src/cache/redis_cache.ts";
-import { withJitter } from "@scribe/foundation/lib/src/cache/ttl_jitter.ts";
+import { installDrivers } from "../../testing/drivers.ts";
+import { decodeCacheEntry, encodeCacheEntry } from "../../../lib/src/cache/cache_entry.ts";
+import type { CacheEntry } from "../../../lib/src/cache/cache_entry.ts";
+import { shouldRefreshEarly } from "../../../lib/src/cache/early_expiry.ts";
+import { RedisCache, refreshesSettled } from "../../../lib/src/cache/redis_cache.ts";
+import { withJitter } from "../../../lib/src/cache/ttl_jitter.ts";
 import { installFakeRedis } from "./support/redis.ts";
 import { assert, assertEquals } from "@std/assert";
 

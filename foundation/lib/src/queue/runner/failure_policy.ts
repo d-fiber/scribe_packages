@@ -35,10 +35,10 @@
 // LICENSE file, the LICENSE file governs.
 
 import { ExponentialBackoff, type Future } from "@scribe/alchemy";
-import type { RegisteredQueue } from "@scribe/foundation/lib/src/queue/queue_declaration.ts";
-import { encode, type WireMessage } from "@scribe/foundation/lib/src/queue/wire_message.ts";
+import type { RegisteredQueue } from "../queue_declaration.ts";
+import { encode, type WireMessage } from "../wire_message.ts";
 import { forgetHandBacks, handBacksFor } from "./hand_backs.ts";
-import { topology } from "@scribe/foundation/lib/src/queue/topology/topology.ts";
+import { topology } from "../topology/topology.ts";
 import type { JsMsg } from "@nats-io/jetstream";
 import type { JobOutcome } from "./drain_tally.ts";
 import { Duration } from "@scribe/alchemy";

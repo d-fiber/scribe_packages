@@ -34,22 +34,17 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import type { MemoryLogger } from "@scribe/foundation/tests/testing/logger.ts";
-import { TopologyProvisioner } from "@scribe/foundation/lib/src/queue/topology/topology_provisioner.ts";
-import { planFor, planSignature, type TopologyPlan } from "@scribe/foundation/lib/src/queue/topology/topology_plan.ts";
+import { installDrivers } from "../../testing/drivers.ts";
+import type { MemoryLogger } from "../../testing/logger.ts";
+import { TopologyProvisioner } from "../../../lib/src/queue/topology/topology_provisioner.ts";
+import { planFor, planSignature, type TopologyPlan } from "../../../lib/src/queue/topology/topology_plan.ts";
 import {
   limitsFrom,
   QUEUE_DEFAULTS,
   type RegisteredQueue,
   subjectsOf,
-} from "@scribe/foundation/lib/src/queue/queue_declaration.ts";
-import {
-  DEAD_STREAM,
-  DEDICATED_STREAM,
-  SHARED_CONSUMER,
-  SHARED_STREAM,
-} from "@scribe/foundation/lib/src/queue/queue_naming.ts";
+} from "../../../lib/src/queue/queue_declaration.ts";
+import { DEAD_STREAM, DEDICATED_STREAM, SHARED_CONSUMER, SHARED_STREAM } from "../../../lib/src/queue/queue_naming.ts";
 import type { JetStreamManager } from "@nats-io/jetstream";
 import { Duration } from "@scribe/alchemy";
 import { assertEquals, assertNotEquals } from "@std/assert";

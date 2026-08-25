@@ -36,7 +36,7 @@
 
 import { assertEquals, assertThrows } from "@std/assert";
 import { Realtime } from "@scribe/realtime";
-import { installRealtimeMock } from "@scribe/realtime/tests/testing/mock.ts";
+import { installRealtimeMock } from "../testing/mock.ts";
 
 interface Order {
   orderId: string;

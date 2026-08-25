@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { nextRun, nextRunAfterSlot } from "@scribe/foundation/lib/src/cron/next_run.ts";
-import type { CronHandler, Scheduled } from "@scribe/foundation/lib/src/cron/schedule.ts";
+import { nextRun, nextRunAfterSlot } from "./next_run.ts";
+import type { CronHandler, Scheduled } from "./schedule.ts";
 
 /**
  * One armed job: its body, when it next runs, and whether it is running now.

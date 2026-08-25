@@ -34,14 +34,14 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import { lingerFetch } from "@scribe/foundation/lib/src/queue/topology/linger_fetch.ts";
+import { installDrivers } from "../../testing/drivers.ts";
+import { lingerFetch } from "../../../lib/src/queue/topology/linger_fetch.ts";
 import type { Consumer, JsMsg } from "@nats-io/jetstream";
 import { Now, type NowSource } from "@scribe/alchemy";
-import { StreamSource } from "@scribe/foundation/lib/src/queue/runner/stream_source.ts";
-import { topology } from "@scribe/foundation/lib/src/queue/topology/topology.ts";
-import { installMock } from "@scribe/foundation/tests/testing/install.ts";
-import { Queue } from "@scribe/foundation/lib/src/queue/queue.ts";
+import { StreamSource } from "../../../lib/src/queue/runner/stream_source.ts";
+import { topology } from "../../../lib/src/queue/topology/topology.ts";
+import { installMock } from "../../testing/install.ts";
+import { Queue } from "../../../lib/src/queue/queue.ts";
 import { probe } from "./probe.ts";
 import { assertEquals } from "@std/assert";
 

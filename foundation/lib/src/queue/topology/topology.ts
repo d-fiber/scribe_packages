@@ -36,7 +36,7 @@
 
 import type { Future } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
-import { js, jsm } from "@scribe/foundation/lib/src/queue/nats_connection.ts";
+import { js, jsm } from "../nats_connection.ts";
 import type { JsMsg } from "@nats-io/jetstream";
 import { ConsumerCache } from "./consumer_cache.ts";
 import { type GraceResolver, lingerFetch } from "./linger_fetch.ts";

@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Duration, type Future } from "@scribe/alchemy";
-import { kv } from "@scribe/foundation/lib/src/redis/kv.ts";
+import { kv } from "../../redis/kv.ts";
 import { lockCommands } from "./lock_commands.ts";
 
 /**

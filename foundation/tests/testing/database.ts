@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 
 // deno-lint-ignore-file no-explicit-any
-import "@scribe/foundation/tests/testing/settings.ts";
+import "./settings.ts";
 
 export type Row = Record<string, unknown>;
 

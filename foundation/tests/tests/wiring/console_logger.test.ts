@@ -33,9 +33,9 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import { ConsoleLogger } from "@scribe/foundation/lib/src/observe/console_logger.ts";
+import { ConsoleLogger } from "../../../lib/src/observe/console_logger.ts";
 import type { LoggedLevel } from "@scribe/alchemy/observe";
-import { installMock } from "@scribe/foundation/tests/testing/install.ts";
+import { installMock } from "../../testing/install.ts";
 import { assert, assertEquals, assertNotEquals, assertStringIncludes } from "@std/assert";
 
 function actionOf(written: Written): string {

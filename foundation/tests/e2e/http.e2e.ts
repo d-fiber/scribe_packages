@@ -35,9 +35,9 @@
 
 import { Duration } from "@scribe/alchemy";
 import { ClientException, Clients, http } from "@scribe/alchemy/http";
-import { FetchClient, FetchClients } from "@scribe/foundation/lib/src/http/fetch_client.ts";
+import { FetchClient, FetchClients } from "../../lib/src/http/fetch_client.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
-import { report, requireStack, STACK, timed, useStack } from "@scribe/foundation/tests/e2e/support/stack.ts";
+import { report, requireStack, STACK, timed, useStack } from "./support/stack.ts";
 
 Clients.use(new FetchClients());
 

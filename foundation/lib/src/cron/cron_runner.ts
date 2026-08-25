@@ -45,7 +45,7 @@ import {
   withDeadline,
 } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
-import type { CronHandler, Scheduled } from "@scribe/foundation/lib/src/cron/schedule.ts";
+import type { CronHandler, Scheduled } from "./schedule.ts";
 import { ScheduledJob } from "./scheduled_job.ts";
 import { SlotLock } from "./slot_lock.ts";
 

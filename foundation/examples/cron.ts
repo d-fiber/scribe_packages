@@ -34,11 +34,11 @@
 // This header is a summary written for convenience. Where it differs from the
 
 import { Duration, Future } from "@scribe/alchemy";
-import { Cron } from "@scribe/foundation/lib/src/cron/cron.ts";
-import { at } from "@scribe/foundation/lib/src/cron/daily_schedule.ts";
-import { cronExpression } from "@scribe/foundation/lib/src/cron/cron_expression.ts";
-import { every } from "@scribe/foundation/lib/src/cron/interval_schedule.ts";
-import { CronTimezone } from "@scribe/foundation/lib/src/cron/cron_timezone.ts";
+import { Cron } from "../lib/src/cron/cron.ts";
+import { at } from "../lib/src/cron/daily_schedule.ts";
+import { cronExpression } from "../lib/src/cron/cron_expression.ts";
+import { every } from "../lib/src/cron/interval_schedule.ts";
+import { CronTimezone } from "../lib/src/cron/cron_timezone.ts";
 
 /**
  * A job that runs on a wall clock, in the timezone it names.

@@ -34,11 +34,11 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
+import { installDrivers } from "../../testing/drivers.ts";
 import { assertEquals } from "@std/assert";
 import type { Result } from "@scribe/alchemy";
 import type { PostgrestClient } from "@supabase/postgrest-js";
-import { from } from "@scribe/foundation/lib/src/database/tables_base.ts";
+import { from } from "../../../lib/src/database/tables_base.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;

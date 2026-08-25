@@ -35,10 +35,10 @@
 
 import { DateTime, Duration, Now } from "@scribe/alchemy";
 import { FixedNow } from "@scribe/alchemy/test";
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import { encodeCacheEntry } from "@scribe/foundation/lib/src/cache/cache_entry.ts";
-import { DistributedLock } from "@scribe/foundation/lib/src/cache/lock/distributed_lock.ts";
-import { RedisCache, refreshesSettled } from "@scribe/foundation/lib/src/cache/redis_cache.ts";
+import { installDrivers } from "../../testing/drivers.ts";
+import { encodeCacheEntry } from "../../../lib/src/cache/cache_entry.ts";
+import { DistributedLock } from "../../../lib/src/cache/lock/distributed_lock.ts";
+import { RedisCache, refreshesSettled } from "../../../lib/src/cache/redis_cache.ts";
 import { installFakeRedis } from "./support/redis.ts";
 import { assert, assertEquals } from "@std/assert";
 

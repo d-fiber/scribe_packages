@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { Future } from "@scribe/alchemy";
-import { kv } from "@scribe/foundation/lib/src/redis/kv.ts";
+import { kv } from "../../redis/kv.ts";
 
 /** The Redis client, once the release script has been registered on it. */
 export interface LockCommands {

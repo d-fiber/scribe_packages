@@ -37,7 +37,7 @@
 import { Duration, type Future, type UnmodifiableList } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
 import { noteHandBack } from "./hand_backs.ts";
-import { queueRegistry } from "@scribe/foundation/lib/src/queue/queue_registry.ts";
+import { queueRegistry } from "../queue_registry.ts";
 import type { JsMsg } from "@nats-io/jetstream";
 import type { DrainTally } from "./drain_tally.ts";
 import { processorFor } from "./processor_for.ts";

@@ -41,10 +41,10 @@ await requireStack();
 await useStack();
 
 const { drainSearchOutbox } = await import("@scribe/search");
-const { backlog, enqueue } = await import("@scribe/search/lib/src/db/outbox.ts");
-const { searchOutbox } = await import("@scribe/search/lib/src/db/tables.ts");
+const { backlog, enqueue } = await import("../../lib/src/db/outbox.ts");
+const { searchOutbox } = await import("../../lib/src/db/tables.ts");
 const { remove } = await import("./support/rows.ts");
-const { SearchOperation } = await import("@scribe/search/lib/contracts/definition.ts");
+const { SearchOperation } = await import("../../lib/contracts/definition.ts");
 
 const ORPHAN = "e2e_unclaimed";
 const MAX_ATTEMPTS = 5;

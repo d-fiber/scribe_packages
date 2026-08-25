@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Duration } from "@scribe/alchemy";
-import { wholeMinutes } from "@scribe/foundation/lib/src/cron/whole_minutes.ts";
+import { wholeMinutes } from "./whole_minutes.ts";
 
 /** A job that runs every so often, with no regard for the calendar. */
 export interface IntervalSchedule {

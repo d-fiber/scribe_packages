@@ -34,9 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Audience } from "@scribe/audience/lib/src/core/declaration.ts";
-import { audiencesOf, forgetMember } from "@scribe/audience/lib/src/core/member.ts";
-import { installAudienceMock } from "@scribe/audience/tests/testing/mock.ts";
+import { Audience } from "../../lib/src/core/declaration.ts";
+import { audiencesOf, forgetMember } from "../../lib/src/core/member.ts";
+import { installAudienceMock } from "../testing/mock.ts";
 import { assert, assertEquals, assertFalse } from "@std/assert";
 
 const banned = Audience.plain("member-banned");

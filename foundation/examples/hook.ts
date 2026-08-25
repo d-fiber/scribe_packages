@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 
 import { Failure, Future, okay, type Result } from "@scribe/alchemy";
-import { Hook } from "@scribe/foundation/lib/src/hook/hook.ts";
+import { Hook } from "../lib/src/hook/hook.ts";
 
 /** What a sign-up carries to whoever listens for it. */
 interface SignUp {

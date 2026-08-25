@@ -38,7 +38,7 @@ import { Duration } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
 import type { Future } from "@scribe/alchemy";
 import type { RateLimiter, RateLimiterDriver, RateLimitOptions, RateLimitOutcome } from "@scribe/alchemy";
-import { kv } from "@scribe/foundation/lib/src/redis/kv.ts";
+import { kv } from "../redis/kv.ts";
 import { RateLimitBucket } from "./rate_limit_bucket.ts";
 import { rateLimitCommands } from "./rate_limit_commands.ts";
 

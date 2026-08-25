@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { LinkTemplate, LinkTemplateError } from "@scribe/dynamic_links/lib/src/core/template.ts";
+import { LinkTemplate, LinkTemplateError } from "../../lib/src/core/template.ts";
 import { assertEquals, assertThrows } from "@std/assert";
 
 Deno.test("a template names its placeholders in the order it writes them", () => {

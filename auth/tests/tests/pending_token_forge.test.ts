@@ -38,11 +38,11 @@
 // before the database mock exists. That duplication is only safe as long as both
 // sides stay interchangeable, which is exactly what this file checks.
 
-import { installAuthTestSettings } from "@scribe/auth/tests/testing/settings.ts";
-import { PendingToken, PendingTokenPurpose } from "@scribe/auth/lib/src/pending_token.ts";
+import { installAuthTestSettings } from "../testing/settings.ts";
+import { PendingToken, PendingTokenPurpose } from "../../lib/src/pending_token.ts";
 import { sha256Hex } from "@scribe/runtime/support/crypto/hash.ts";
-import { installAuthMock } from "@scribe/auth/tests/testing/mock.ts";
-import { forgeToken } from "@scribe/auth/tests/testing/pending_token.ts";
+import { installAuthMock } from "../testing/mock.ts";
+import { forgeToken } from "../testing/pending_token.ts";
 import { assert, assertEquals, assertNotEquals } from "@std/assert";
 
 const IDENTIFIER = "u1@example.com";

@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { DatabaseSettings } from "@scribe/foundation/lib/src/settings.ts";
-import { databaseSettings } from "@scribe/foundation/lib/src/database/database_settings.ts";
+import type { DatabaseSettings } from "../settings.ts";
+import { databaseSettings } from "./database_settings.ts";
 import { PostgrestClient } from "@supabase/postgrest-js";
 
 /**

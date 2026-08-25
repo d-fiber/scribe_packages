@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { DateTime, Duration, type Future, type UnmodifiableList } from "@scribe/alchemy";
-import { kv } from "@scribe/foundation/lib/src/redis/kv.ts";
+import { kv } from "../redis/kv.ts";
 import { type CacheEntry, decodeCacheEntry, encodeCacheEntry } from "./cache_entry.ts";
 import type { KeySpace } from "./key_space.ts";
 

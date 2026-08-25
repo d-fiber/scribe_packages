@@ -32,14 +32,14 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-import { report, requireStack, RUN_ID, STACK, timed, useStack } from "@scribe/foundation/tests/e2e/support/stack.ts";
+import { report, requireStack, RUN_ID, STACK, timed, useStack } from "./support/stack.ts";
 import { assert, assertEquals } from "@std/assert";
 
 await requireStack(`${STACK.natsMonitorUrl}/healthz`);
 await useStack();
 
-const { Queue } = await import("@scribe/foundation/lib/src/queue/queue.ts");
-const { queueRunner } = await import("@scribe/foundation/lib/src/queue/runner/queue_runner.ts");
+const { Queue } = await import("../../lib/src/queue/queue.ts");
+const { queueRunner } = await import("../../lib/src/queue/runner/queue_runner.ts");
 
 const ISOLATED = { dedicated: true } as const;
 

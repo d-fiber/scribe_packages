@@ -34,16 +34,16 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import { type Kv, kv } from "@scribe/foundation/lib/src/redis/kv.ts";
-import { Queue } from "@scribe/foundation/lib/src/queue/queue.ts";
-import { pushDelayed } from "@scribe/foundation/lib/src/queue/delayed/delayed_schedule.ts";
-import { promoteDue } from "@scribe/foundation/lib/src/queue/delayed/delayed_promoter.ts";
-import { delayedCounts } from "@scribe/foundation/lib/src/queue/delayed/delayed_counts.ts";
-import { encodeMember } from "@scribe/foundation/lib/src/queue/delayed/delayed_member.ts";
-import { topology } from "@scribe/foundation/lib/src/queue/topology/topology.ts";
-import { ensureTopology } from "@scribe/foundation/lib/src/queue/topology/ensure_topology.ts";
-import { installMock } from "@scribe/foundation/tests/testing/install.ts";
+import { installDrivers } from "../../testing/drivers.ts";
+import { type Kv, kv } from "../../../lib/src/redis/kv.ts";
+import { Queue } from "../../../lib/src/queue/queue.ts";
+import { pushDelayed } from "../../../lib/src/queue/delayed/delayed_schedule.ts";
+import { promoteDue } from "../../../lib/src/queue/delayed/delayed_promoter.ts";
+import { delayedCounts } from "../../../lib/src/queue/delayed/delayed_counts.ts";
+import { encodeMember } from "../../../lib/src/queue/delayed/delayed_member.ts";
+import { topology } from "../../../lib/src/queue/topology/topology.ts";
+import { ensureTopology } from "../../../lib/src/queue/topology/ensure_topology.ts";
+import { installMock } from "../../testing/install.ts";
 import { Duration, Now } from "@scribe/alchemy";
 import { FixedNow } from "@scribe/alchemy/test";
 import { assertEquals } from "@std/assert";

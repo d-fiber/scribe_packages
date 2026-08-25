@@ -42,8 +42,8 @@ await requireStack(`${STACK.restUrl}/`);
 await useStack();
 
 const { Audience } = await import("@scribe/audience");
-const { AudienceError } = await import("@scribe/audience/lib/contracts/audience.ts");
-const { audiences } = await import("@scribe/audience/lib/src/db/tables.ts");
+const { AudienceError } = await import("../../lib/contracts/audience.ts");
+const { audiences } = await import("../../lib/src/db/tables.ts");
 
 const invited = Audience.keyed(`e2e-invited-${RUN_ID}`, { ttl: Duration.days(7) });
 

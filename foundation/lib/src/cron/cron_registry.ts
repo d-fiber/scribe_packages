@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { DuplicateDeclarationError, type UnmodifiableList } from "@scribe/alchemy";
-import type { Scheduled } from "@scribe/foundation/lib/src/cron/schedule.ts";
+import type { Scheduled } from "./schedule.ts";
 
 /** A declared job, and where its next occurrence falls. */
 export interface RegisteredCron {

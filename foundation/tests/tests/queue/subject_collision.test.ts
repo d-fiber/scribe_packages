@@ -34,10 +34,10 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import { Queue } from "@scribe/foundation/lib/src/queue/queue.ts";
-import { queueRegistry } from "@scribe/foundation/lib/src/queue/queue_registry.ts";
-import { deadSubjectOf, sanitize, subjectOf } from "@scribe/foundation/lib/src/queue/queue_naming.ts";
+import { installDrivers } from "../../testing/drivers.ts";
+import { Queue } from "../../../lib/src/queue/queue.ts";
+import { queueRegistry } from "../../../lib/src/queue/queue_registry.ts";
+import { deadSubjectOf, sanitize, subjectOf } from "../../../lib/src/queue/queue_naming.ts";
 import { dispatchProbes, probe } from "./probe.ts";
 import { DuplicateDeclarationError } from "@scribe/alchemy";
 import { assertEquals, assertNotEquals, assertThrows } from "@std/assert";

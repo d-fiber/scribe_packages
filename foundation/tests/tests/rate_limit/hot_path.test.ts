@@ -34,12 +34,12 @@
 // This header is a summary written for convenience. Where it differs from the
 
 import { Duration } from "@scribe/alchemy";
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import { kv } from "@scribe/foundation/lib/src/redis/kv.ts";
-import { RateLimitBucket } from "@scribe/foundation/lib/src/rate_limit/rate_limit_bucket.ts";
-import type { RateLimitCommands } from "@scribe/foundation/lib/src/rate_limit/rate_limit_commands.ts";
-import { RedisRateLimiter } from "@scribe/foundation/lib/src/rate_limit/redis_rate_limiter.ts";
-import { installMock } from "@scribe/foundation/tests/testing/install.ts";
+import { installDrivers } from "../../testing/drivers.ts";
+import { kv } from "../../../lib/src/redis/kv.ts";
+import { RateLimitBucket } from "../../../lib/src/rate_limit/rate_limit_bucket.ts";
+import type { RateLimitCommands } from "../../../lib/src/rate_limit/rate_limit_commands.ts";
+import { RedisRateLimiter } from "../../../lib/src/rate_limit/redis_rate_limiter.ts";
+import { installMock } from "../../testing/install.ts";
 import { assert, assertEquals } from "@std/assert";
 
 const POLICY = {

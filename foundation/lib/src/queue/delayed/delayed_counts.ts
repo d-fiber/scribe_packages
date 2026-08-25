@@ -36,7 +36,7 @@
 
 import type { Future } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
-import { kv } from "@scribe/foundation/lib/src/redis/kv.ts";
+import { kv } from "../../redis/kv.ts";
 import { decodeMember, DELAYED_KEY } from "./delayed_member.ts";
 
 const SCAN_PAGE = 500;

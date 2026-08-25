@@ -36,7 +36,7 @@
 
 import { assertEquals } from "@std/assert";
 import { Listen, Realtime, syncDeclaredChannels } from "@scribe/realtime";
-import { realtimeChannels } from "@scribe/realtime/lib/src/db/tables.ts";
+import { realtimeChannels } from "../../lib/src/db/tables.ts";
 import { installDatabaseFake } from "./mocks/database.ts";
 
 interface Item {

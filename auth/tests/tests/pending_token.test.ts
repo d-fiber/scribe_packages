@@ -34,12 +34,12 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installAuthTestSettings } from "@scribe/auth/tests/testing/settings.ts";
+import { installAuthTestSettings } from "../testing/settings.ts";
 import { assertEquals, assertNotEquals } from "@std/assert";
 import { FakeTime } from "@std/testing/time";
 import { Duration } from "@scribe/alchemy";
-import { PendingToken } from "@scribe/auth/lib/src/pending_token.ts";
-import { forgeToken } from "@scribe/auth/tests/testing/pending_token.ts";
+import { PendingToken } from "../../lib/src/pending_token.ts";
+import { forgeToken } from "../testing/pending_token.ts";
 
 const token = new PendingToken();
 

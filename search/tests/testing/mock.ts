@@ -34,18 +34,13 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installSearchTestSettings } from "@scribe/search/tests/testing/settings.ts";
+import { installSearchTestSettings } from "./settings.ts";
 
 installSearchTestSettings();
 import type { InstalledMock } from "@scribe/testing/install.ts";
-import type { IndexConfig } from "@scribe/search/lib/contracts/definition.ts";
-import type {
-  IndexedDocument,
-  SearchHits,
-  SearchRequest,
-  SearchTransport,
-} from "@scribe/search/lib/contracts/transport.ts";
-import { SearchTransports } from "@scribe/search/lib/src/transport/registry.ts";
+import type { IndexConfig } from "../../lib/contracts/definition.ts";
+import type { IndexedDocument, SearchHits, SearchRequest, SearchTransport } from "../../lib/contracts/transport.ts";
+import { SearchTransports } from "../../lib/src/transport/registry.ts";
 
 /** A transport that keeps every call instead of reaching a cluster, so a test can read them. */
 export class RecordingTransport implements SearchTransport {

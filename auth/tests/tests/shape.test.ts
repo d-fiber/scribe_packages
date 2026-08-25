@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { AccountRow } from "@scribe/auth/lib/contracts/account.ts";
+import type { AccountRow } from "../../lib/contracts/account.ts";
 import {
   compileRead,
   Optional,
@@ -45,7 +45,7 @@ import {
   type WriteOf,
   type WriteSelector,
   writeSelector,
-} from "@scribe/auth/lib/src/declaration/columns.ts";
+} from "../../lib/src/declaration/columns.ts";
 import { assertEquals } from "@std/assert";
 
 interface ProfileRow {

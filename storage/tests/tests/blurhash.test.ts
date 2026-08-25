@@ -34,16 +34,16 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installStorageTestSettings } from "@scribe/storage/tests/testing/settings.ts";
+import { installStorageTestSettings } from "../testing/settings.ts";
 
 installStorageTestSettings();
 import { assertEquals, assertNotEquals } from "@std/assert";
 import encodeWebp from "@jsquash/webp/encode";
 import { encode as encodePng } from "fast-png";
 import { encode as encodeJpeg } from "jpeg-js";
-import { blurhash } from "@scribe/storage/lib/src/media/blurhash.ts";
-import { decodeImage } from "@scribe/storage/lib/src/media/decode.ts";
-import { downsample } from "@scribe/storage/lib/src/media/rgba.ts";
+import { blurhash } from "../../lib/src/media/blurhash.ts";
+import { decodeImage } from "../../lib/src/media/decode.ts";
+import { downsample } from "../../lib/src/media/rgba.ts";
 
 function gradient(w: number, h: number): Uint8Array {
   const rgba = new Uint8Array(w * h * 4);

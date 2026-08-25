@@ -36,7 +36,7 @@
 import { Caches, Crons, Databases, FileSystems, Hooks, Now, Queues, RateLimiters, Triggers } from "@scribe/alchemy";
 import { Clients } from "@scribe/alchemy/http";
 import { Loggers } from "@scribe/alchemy/observe";
-import { FetchClient, FetchClients } from "@scribe/foundation/lib/src/http/fetch_client.ts";
+import { FetchClient, FetchClients } from "../../../lib/src/http/fetch_client.ts";
 import { scribe } from "@scribe/foundation";
 import { assert, assertEquals, assertNotStrictEquals } from "@std/assert";
 

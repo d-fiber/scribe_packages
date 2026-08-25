@@ -33,14 +33,11 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import "@scribe/foundation/tests/testing/settings.ts";
+import "../../testing/settings.ts";
 
 import { PostgrestClient } from "@supabase/postgrest-js";
-import {
-  DatabaseQueryError,
-  TypedQueryBuilder,
-} from "@scribe/foundation/lib/src/database/query/typed_query_builder.ts";
-import { AMBIGUITY_PROBE, atMostOneRow, DEFAULT_STATE } from "@scribe/foundation/lib/src/database/query/query_state.ts";
+import { DatabaseQueryError, TypedQueryBuilder } from "../../../lib/src/database/query/typed_query_builder.ts";
+import { AMBIGUITY_PROBE, atMostOneRow, DEFAULT_STATE } from "../../../lib/src/database/query/query_state.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
 
 interface Probe {

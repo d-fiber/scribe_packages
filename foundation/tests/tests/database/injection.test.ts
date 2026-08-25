@@ -34,16 +34,16 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import "@scribe/foundation/tests/testing/settings.ts";
+import { installDrivers } from "../../testing/drivers.ts";
+import "../../testing/settings.ts";
 
 import { PostgrestClient } from "@supabase/postgrest-js";
-import { TypedQueryBuilder } from "@scribe/foundation/lib/src/database/query/typed_query_builder.ts";
+import { TypedQueryBuilder } from "../../../lib/src/database/query/typed_query_builder.ts";
 import {
   quoteFilterList,
   quoteFilterLiteral,
   UnsafeFilterError,
-} from "@scribe/foundation/lib/src/database/query/filter_literal.ts";
+} from "../../../lib/src/database/query/filter_literal.ts";
 import { assert, assertEquals, assertNotEquals, assertThrows } from "@std/assert";
 
 // deno-lint-ignore no-explicit-any

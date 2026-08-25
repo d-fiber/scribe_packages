@@ -36,10 +36,10 @@
 
 import { type Future, type UnmodifiableList } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
-import { promoteDue } from "@scribe/foundation/lib/src/queue/delayed/delayed_promoter.ts";
-import { queueRegistry } from "@scribe/foundation/lib/src/queue/queue_registry.ts";
-import { ensureTopology } from "@scribe/foundation/lib/src/queue/topology/ensure_topology.ts";
-import type { DrainResult } from "@scribe/foundation/lib/src/queue/queue_options.ts";
+import { promoteDue } from "../delayed/delayed_promoter.ts";
+import { queueRegistry } from "../queue_registry.ts";
+import { ensureTopology } from "../topology/ensure_topology.ts";
+import type { DrainResult } from "../queue_options.ts";
 import { MessageDispatcher } from "./message_dispatcher.ts";
 import { DrainTally } from "./drain_tally.ts";
 import { StreamSource } from "./stream_source.ts";

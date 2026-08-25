@@ -33,9 +33,9 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import { Hook } from "@scribe/foundation/lib/src/hook/hook.ts";
-import { hookRegistry } from "@scribe/foundation/lib/src/hook/hook_registry.ts";
+import { installDrivers } from "../../testing/drivers.ts";
+import { Hook } from "../../../lib/src/hook/hook.ts";
+import { hookRegistry } from "../../../lib/src/hook/hook_registry.ts";
 import { Failure, okay, type Result } from "@scribe/alchemy";
 import { assertEquals, assertRejects, assertStrictEquals, assertThrows } from "@std/assert";
 

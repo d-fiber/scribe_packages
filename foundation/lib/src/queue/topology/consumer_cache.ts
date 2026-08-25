@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { Future } from "@scribe/alchemy";
-import { js } from "@scribe/foundation/lib/src/queue/nats_connection.ts";
+import { js } from "../nats_connection.ts";
 import type { Consumer } from "@nats-io/jetstream";
 
 /**

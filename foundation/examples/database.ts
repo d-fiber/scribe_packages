@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 
 import { type Future, type Result } from "@scribe/alchemy";
-import { Table } from "@scribe/foundation/lib/src/database/table.ts";
+import { Table } from "../lib/src/database/table.ts";
 
 /** One row of the orders table. */
 interface OrderRow {

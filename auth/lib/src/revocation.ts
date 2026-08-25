@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { SignOutScope } from "@scribe/auth/lib/contracts/account.ts";
+import { SignOutScope } from "../contracts/account.ts";
 import { IdentityRevocation } from "@scribe/foundation/redis";
 import { goTrue } from "./gotrue/gotrue_client.ts";
 import { deviceCache } from "./devices/cache.ts";

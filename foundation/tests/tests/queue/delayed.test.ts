@@ -33,18 +33,14 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import "@scribe/foundation/tests/testing/settings.ts";
-import { type Kv, kv } from "@scribe/foundation/lib/src/redis/kv.ts";
-import { delayedCounts } from "@scribe/foundation/lib/src/queue/delayed/delayed_counts.ts";
-import {
-  decodeMember,
-  type DelayedMember,
-  encodeMember,
-} from "@scribe/foundation/lib/src/queue/delayed/delayed_member.ts";
-import { promoteDue } from "@scribe/foundation/lib/src/queue/delayed/delayed_promoter.ts";
-import { topology } from "@scribe/foundation/lib/src/queue/topology/topology.ts";
-import { installMock } from "@scribe/foundation/tests/testing/install.ts";
+import { installDrivers } from "../../testing/drivers.ts";
+import "../../testing/settings.ts";
+import { type Kv, kv } from "../../../lib/src/redis/kv.ts";
+import { delayedCounts } from "../../../lib/src/queue/delayed/delayed_counts.ts";
+import { decodeMember, type DelayedMember, encodeMember } from "../../../lib/src/queue/delayed/delayed_member.ts";
+import { promoteDue } from "../../../lib/src/queue/delayed/delayed_promoter.ts";
+import { topology } from "../../../lib/src/queue/topology/topology.ts";
+import { installMock } from "../../testing/install.ts";
 import { assertEquals } from "@std/assert";
 
 function member(over: Partial<DelayedMember> = {}): string {

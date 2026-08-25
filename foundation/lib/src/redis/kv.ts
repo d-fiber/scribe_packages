@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { cacheSettings } from "@scribe/foundation/lib/src/cache/cache_settings.ts";
+import { cacheSettings } from "../cache/cache_settings.ts";
 import { Redis } from "ioredis";
 
 /**

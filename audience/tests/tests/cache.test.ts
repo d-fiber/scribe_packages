@@ -34,9 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Audience } from "@scribe/audience/lib/src/core/declaration.ts";
-import { forgetMembership } from "@scribe/audience/lib/src/runtime/cache.ts";
-import { installAudienceMock } from "@scribe/audience/tests/testing/mock.ts";
+import { Audience } from "../../lib/src/core/declaration.ts";
+import { forgetMembership } from "../../lib/src/runtime/cache.ts";
+import { installAudienceMock } from "../testing/mock.ts";
 import { assert, assertFalse } from "@std/assert";
 
 const editors = Audience.keyed("cache-editors");

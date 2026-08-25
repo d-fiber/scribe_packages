@@ -36,14 +36,7 @@
 
 import type { Future } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
-import {
-  DEAD_STREAM,
-  DEDICATED_STREAM,
-  sanitize,
-  SHARED_CONSUMER,
-  SHARED_STREAM,
-  subjectOf,
-} from "@scribe/foundation/lib/src/queue/queue_naming.ts";
+import { DEAD_STREAM, DEDICATED_STREAM, sanitize, SHARED_CONSUMER, SHARED_STREAM, subjectOf } from "../queue_naming.ts";
 import { AckPolicy, type JetStreamManager, RetentionPolicy, StorageType } from "@nats-io/jetstream";
 import type { TopologyPlan } from "./topology_plan.ts";
 

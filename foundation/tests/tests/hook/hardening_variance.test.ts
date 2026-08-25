@@ -34,10 +34,10 @@
 // This header is a summary written for convenience. Where it differs from the
 
 import { assertEquals } from "@std/assert";
-import type { Hook, HookDefinition } from "@scribe/foundation/lib/src/hook/hook.ts";
-import type { BackgroundHookHandler, HookHandler } from "@scribe/foundation/lib/src/hook/hook_handler.ts";
-import type { InlineChain } from "@scribe/foundation/lib/src/hook/inline_chain.ts";
-import type { BackgroundChannel } from "@scribe/foundation/lib/src/hook/background_channel.ts";
+import type { Hook, HookDefinition } from "../../../lib/src/hook/hook.ts";
+import type { BackgroundHookHandler, HookHandler } from "../../../lib/src/hook/hook_handler.ts";
+import type { InlineChain } from "../../../lib/src/hook/inline_chain.ts";
+import type { BackgroundChannel } from "../../../lib/src/hook/background_channel.ts";
 
 interface Event {
   readonly id: string;

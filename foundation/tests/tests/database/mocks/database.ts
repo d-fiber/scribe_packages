@@ -33,15 +33,10 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import "@scribe/foundation/tests/testing/settings.ts";
-import { TablesBase } from "@scribe/foundation/lib/src/database/tables_base.ts";
+import "../../../testing/settings.ts";
+import { TablesBase } from "../../../../lib/src/database/tables_base.ts";
 import type { PostgrestClient } from "@supabase/postgrest-js";
-import {
-  FakePostgrestClient,
-  type FakePostgrestSeed,
-  type Row,
-  type RpcHandler,
-} from "@scribe/foundation/tests/testing/database.ts";
+import { FakePostgrestClient, type FakePostgrestSeed, type Row, type RpcHandler } from "../../../testing/database.ts";
 
 export class DatabaseMock {
   readonly db: FakePostgrestClient;

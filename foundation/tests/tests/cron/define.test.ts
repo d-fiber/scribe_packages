@@ -33,12 +33,12 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
+import { installDrivers } from "../../testing/drivers.ts";
 import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
 import { Duration } from "@scribe/alchemy";
-import { Cron } from "@scribe/foundation/lib/src/cron/cron.ts";
-import { cronRegistry } from "@scribe/foundation/lib/src/cron/cron_registry.ts";
-import { every } from "@scribe/foundation/lib/src/cron/interval_schedule.ts";
+import { Cron } from "../../../lib/src/cron/cron.ts";
+import { cronRegistry } from "../../../lib/src/cron/cron_registry.ts";
+import { every } from "../../../lib/src/cron/interval_schedule.ts";
 
 const noop = () => Promise.resolve();
 

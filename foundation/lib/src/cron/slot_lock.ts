@@ -36,9 +36,9 @@
 
 import { Duration, type Future } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
-import { kv } from "@scribe/foundation/lib/src/redis/kv.ts";
-import { nextRunAfterSlot } from "@scribe/foundation/lib/src/cron/next_run.ts";
-import type { Scheduled } from "@scribe/foundation/lib/src/cron/schedule.ts";
+import { kv } from "../redis/kv.ts";
+import { nextRunAfterSlot } from "./next_run.ts";
+import type { Scheduled } from "./schedule.ts";
 
 /**
  * Claims one occurrence of one job, for the whole fleet.

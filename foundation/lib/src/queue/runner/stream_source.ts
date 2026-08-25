@@ -35,14 +35,9 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { Future } from "@scribe/alchemy";
-import {
-  DEDICATED_STREAM,
-  sanitize,
-  SHARED_CONSUMER,
-  SHARED_STREAM,
-} from "@scribe/foundation/lib/src/queue/queue_naming.ts";
-import { topology } from "@scribe/foundation/lib/src/queue/topology/topology.ts";
-import type { RegisteredQueue } from "@scribe/foundation/lib/src/queue/queue_declaration.ts";
+import { DEDICATED_STREAM, sanitize, SHARED_CONSUMER, SHARED_STREAM } from "../queue_naming.ts";
+import { topology } from "../topology/topology.ts";
+import type { RegisteredQueue } from "../queue_declaration.ts";
 import type { JsMsg } from "@nats-io/jetstream";
 import { graceFor, longestGrace } from "./grace_period.ts";
 

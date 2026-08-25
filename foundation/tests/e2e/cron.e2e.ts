@@ -34,16 +34,16 @@
 // This header is a summary written for convenience. Where it differs from the
 
 import { assert, assertEquals } from "@std/assert";
-import { report, requireStack, RUN_ID, STACK, timed, useStack } from "@scribe/foundation/tests/e2e/support/stack.ts";
+import { report, requireStack, RUN_ID, STACK, timed, useStack } from "./support/stack.ts";
 
 await requireStack(`${STACK.natsMonitorUrl}/healthz`);
 await useStack();
 
-const { Cron } = await import("@scribe/foundation/lib/src/cron/cron.ts");
-const { cronExpression } = await import("@scribe/foundation/lib/src/cron/cron_expression.ts");
-const { every } = await import("@scribe/foundation/lib/src/cron/interval_schedule.ts");
-const { CronTimezone } = await import("@scribe/foundation/lib/src/cron/cron_timezone.ts");
-const { SlotLock } = await import("@scribe/foundation/lib/src/cron/slot_lock.ts");
+const { Cron } = await import("../../lib/src/cron/cron.ts");
+const { cronExpression } = await import("../../lib/src/cron/cron_expression.ts");
+const { every } = await import("../../lib/src/cron/interval_schedule.ts");
+const { CronTimezone } = await import("../../lib/src/cron/cron_timezone.ts");
+const { SlotLock } = await import("../../lib/src/cron/slot_lock.ts");
 const { Duration } = await import("@scribe/alchemy");
 
 function minuteSlot(offsetMinutes = 0): Date {

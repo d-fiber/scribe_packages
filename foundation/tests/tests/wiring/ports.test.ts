@@ -33,22 +33,22 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import "@scribe/foundation/tests/testing/settings.ts";
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
+import "../../testing/settings.ts";
+import { installDrivers } from "../../testing/drivers.ts";
 import { DateTime, DeclarationError, Duration } from "@scribe/alchemy";
-import type { CronHandler, Scheduled } from "@scribe/foundation/lib/src/cron/schedule.ts";
+import type { CronHandler, Scheduled } from "../../../lib/src/cron/schedule.ts";
 import type { QueueMessage as PortMessage } from "@scribe/alchemy";
-import { NatsQueues } from "@scribe/foundation/lib/src/queue/nats_queues.ts";
-import { InlineHooks } from "@scribe/foundation/lib/src/hook/inline_hooks.ts";
-import { ScheduledCrons } from "@scribe/foundation/lib/src/cron/scheduled_crons.ts";
-import { OutboxTriggers } from "@scribe/foundation/lib/src/trigger/outbox_triggers.ts";
-import { PostgrestDatabases } from "@scribe/foundation/lib/src/database/postgrest_databases.ts";
-import { RedisRateLimiters } from "@scribe/foundation/lib/src/rate_limit/redis_rate_limiter.ts";
-import { queueRegistry } from "@scribe/foundation/lib/src/queue/queue_registry.ts";
-import { triggerRegistry } from "@scribe/foundation/lib/src/trigger/trigger_registry.ts";
-import { cronRunner } from "@scribe/foundation/lib/src/cron/cron_runner.ts";
-import { installMock } from "@scribe/foundation/tests/testing/install.ts";
-import { recordLog } from "@scribe/foundation/tests/testing/logger.ts";
+import { NatsQueues } from "../../../lib/src/queue/nats_queues.ts";
+import { InlineHooks } from "../../../lib/src/hook/inline_hooks.ts";
+import { ScheduledCrons } from "../../../lib/src/cron/scheduled_crons.ts";
+import { OutboxTriggers } from "../../../lib/src/trigger/outbox_triggers.ts";
+import { PostgrestDatabases } from "../../../lib/src/database/postgrest_databases.ts";
+import { RedisRateLimiters } from "../../../lib/src/rate_limit/redis_rate_limiter.ts";
+import { queueRegistry } from "../../../lib/src/queue/queue_registry.ts";
+import { triggerRegistry } from "../../../lib/src/trigger/trigger_registry.ts";
+import { cronRunner } from "../../../lib/src/cron/cron_runner.ts";
+import { installMock } from "../../testing/install.ts";
+import { recordLog } from "../../testing/logger.ts";
 import {
   assert,
   assertEquals,

@@ -33,15 +33,15 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import { report, requireStack, STACK, timed, useStack } from "@scribe/foundation/tests/e2e/support/stack.ts";
+import { report, requireStack, STACK, timed, useStack } from "./support/stack.ts";
 import { assert, assertEquals } from "@std/assert";
 
 await requireStack(STACK.natsMonitorUrl, `${STACK.restUrl}/`);
 await useStack();
 
 const { Duration, rateLimit, RateLimiters } = await import("@scribe/alchemy");
-const { kv } = await import("@scribe/foundation/lib/src/redis/kv.ts");
-const { RedisRateLimiters } = await import("@scribe/foundation/lib/src/rate_limit/redis_rate_limiter.ts");
+const { kv } = await import("../../lib/src/redis/kv.ts");
+const { RedisRateLimiters } = await import("../../lib/src/rate_limit/redis_rate_limiter.ts");
 
 RateLimiters.use(new RedisRateLimiters());
 

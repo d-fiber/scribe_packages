@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 
 import { Future } from "@scribe/alchemy";
-import { Trigger } from "@scribe/foundation/lib/src/trigger/trigger.ts";
+import { Trigger } from "../lib/src/trigger/trigger.ts";
 
 /** One row of the orders table, as the bodies below read it. */
 interface OrderRow {

@@ -36,7 +36,7 @@
 
 import type { Future } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
-import { Queue } from "@scribe/foundation/lib/src/queue/queue.ts";
+import { Queue } from "../queue/queue.ts";
 import type { BackgroundHookHandler } from "./hook_handler.ts";
 
 /**

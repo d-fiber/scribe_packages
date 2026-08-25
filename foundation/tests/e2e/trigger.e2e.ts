@@ -33,25 +33,17 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import {
-  E2E_TABLE,
-  type E2eItem,
-  report,
-  requireStack,
-  STACK,
-  timed,
-  useStack,
-} from "@scribe/foundation/tests/e2e/support/stack.ts";
+import { E2E_TABLE, type E2eItem, report, requireStack, STACK, timed, useStack } from "./support/stack.ts";
 import { assert, assertEquals } from "@std/assert";
 
 await requireStack(`${STACK.restUrl}/`);
 await useStack();
 
-const { PostgrestClients } = await import("@scribe/foundation/lib/src/database/postgrest_clients.ts");
-const { from } = await import("@scribe/foundation/lib/src/database/tables_base.ts");
-const { Trigger } = await import("@scribe/foundation/lib/src/trigger/trigger.ts");
-const { syncDeclaredSources } = await import("@scribe/foundation/lib/src/trigger/trigger_sources.ts");
-const { triggerEvents, triggerSources } = await import("@scribe/foundation/lib/src/trigger/trigger_tables.ts");
+const { PostgrestClients } = await import("../../lib/src/database/postgrest_clients.ts");
+const { from } = await import("../../lib/src/database/tables_base.ts");
+const { Trigger } = await import("../../lib/src/trigger/trigger.ts");
+const { syncDeclaredSources } = await import("../../lib/src/trigger/trigger_sources.ts");
+const { triggerEvents, triggerSources } = await import("../../lib/src/trigger/trigger_tables.ts");
 
 const items = Trigger.of<E2eItem>();
 

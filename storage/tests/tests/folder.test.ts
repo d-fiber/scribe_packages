@@ -34,13 +34,13 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installStorageTestSettings } from "@scribe/storage/tests/testing/settings.ts";
+import { installStorageTestSettings } from "../testing/settings.ts";
 
 installStorageTestSettings();
 import { assertEquals } from "@std/assert";
 import { Bytes, Storage, StorageVisibility } from "@scribe/storage";
 import type { FakePostgrestSeed } from "@scribe/foundation/testing";
-import { installStorageMock } from "@scribe/storage/tests/testing/mock.ts";
+import { installStorageMock } from "../testing/mock.ts";
 import { installDatabaseFake } from "./mocks/database.ts";
 
 const shelves = Storage.public("shelves/{shelfId}");

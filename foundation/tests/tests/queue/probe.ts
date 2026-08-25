@@ -35,13 +35,13 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { JsMsg } from "@nats-io/jetstream";
-import { topology } from "@scribe/foundation/lib/src/queue/topology/topology.ts";
-import "@scribe/foundation/tests/testing/hand_backs.ts";
-import { safeDecode } from "@scribe/foundation/lib/src/queue/wire_message.ts";
-import { DrainTally } from "@scribe/foundation/lib/src/queue/runner/drain_tally.ts";
-import { MessageDispatcher } from "@scribe/foundation/lib/src/queue/runner/message_dispatcher.ts";
-import type { DrainResult } from "@scribe/foundation/lib/src/queue/queue_options.ts";
-import { installMock } from "@scribe/foundation/tests/testing/install.ts";
+import { topology } from "../../../lib/src/queue/topology/topology.ts";
+import "../../testing/hand_backs.ts";
+import { safeDecode } from "../../../lib/src/queue/wire_message.ts";
+import { DrainTally } from "../../../lib/src/queue/runner/drain_tally.ts";
+import { MessageDispatcher } from "../../../lib/src/queue/runner/message_dispatcher.ts";
+import type { DrainResult } from "../../../lib/src/queue/queue_options.ts";
+import { installMock } from "../../testing/install.ts";
 
 const encoder = new TextEncoder();
 

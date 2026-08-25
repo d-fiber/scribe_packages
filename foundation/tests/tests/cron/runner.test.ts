@@ -33,14 +33,14 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import "@scribe/foundation/tests/testing/settings.ts";
+import { installDrivers } from "../../testing/drivers.ts";
+import "../../testing/settings.ts";
 
 import { assertEquals, assertThrows } from "@std/assert";
 import { FakeTime } from "@std/testing/time";
-import type { Scheduled } from "@scribe/foundation/lib/src/cron/schedule.ts";
-import { CronRunner } from "@scribe/foundation/lib/src/cron/cron_runner.ts";
-import { kv } from "@scribe/foundation/lib/src/redis/kv.ts";
+import type { Scheduled } from "../../../lib/src/cron/schedule.ts";
+import { CronRunner } from "../../../lib/src/cron/cron_runner.ts";
+import { kv } from "../../../lib/src/redis/kv.ts";
 import { Duration } from "@scribe/alchemy";
 
 function shadowOccurrenceClaim(): { restore(): void } {

@@ -35,11 +35,11 @@
 // LICENSE file, the LICENSE file governs.
 
 import { DateTime, Duration } from "@scribe/alchemy";
-import { wholeMinutes } from "@scribe/foundation/lib/src/cron/whole_minutes.ts";
-import { nextRun } from "@scribe/foundation/lib/src/cron/next_run.ts";
-import { cronRegistry } from "@scribe/foundation/lib/src/cron/cron_registry.ts";
-import { cronRunner } from "@scribe/foundation/lib/src/cron/cron_runner.ts";
-import type { CronHandler, Schedule, Scheduled } from "@scribe/foundation/lib/src/cron/schedule.ts";
+import { wholeMinutes } from "./whole_minutes.ts";
+import { nextRun } from "./next_run.ts";
+import { cronRegistry } from "./cron_registry.ts";
+import { cronRunner } from "./cron_runner.ts";
+import type { CronHandler, Schedule, Scheduled } from "./schedule.ts";
 
 const _DEFAULT_TIMEOUT = Duration.minutes(10);
 

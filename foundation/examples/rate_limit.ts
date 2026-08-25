@@ -34,10 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 
 import { Duration, type Future, rateLimit } from "@scribe/alchemy";
-import {
-  SHARED_ADDRESS_MAX_PENALTY,
-  SHARED_ADDRESS_STRIKE_MEMORY,
-} from "@scribe/foundation/lib/src/rate_limit/redis_rate_limiter.ts";
+import { SHARED_ADDRESS_MAX_PENALTY, SHARED_ADDRESS_STRIKE_MEMORY } from "../lib/src/rate_limit/redis_rate_limiter.ts";
 
 /**
  * A limit that guards a credential, so an unmeasured caller is refused.

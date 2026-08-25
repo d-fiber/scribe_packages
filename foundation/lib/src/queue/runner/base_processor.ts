@@ -34,9 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { RegisteredQueue } from "@scribe/foundation/lib/src/queue/queue_declaration.ts";
-import type { WireMessage } from "@scribe/foundation/lib/src/queue/wire_message.ts";
-import { topology } from "@scribe/foundation/lib/src/queue/topology/topology.ts";
+import type { RegisteredQueue } from "../queue_declaration.ts";
+import type { WireMessage } from "../wire_message.ts";
+import { topology } from "../topology/topology.ts";
 import { type Future, type UnmodifiableList, withDeadline } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
 import type { JsMsg } from "@nats-io/jetstream";

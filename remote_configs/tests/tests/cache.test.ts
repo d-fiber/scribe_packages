@@ -35,9 +35,9 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Duration } from "@scribe/alchemy";
-import { RemoteConfig } from "@scribe/remote_configs/lib/src/core/declaration.ts";
-import { forgetValue } from "@scribe/remote_configs/lib/src/runtime/cache.ts";
-import { installRemoteConfigsMock } from "@scribe/remote_configs/tests/testing/mock.ts";
+import { RemoteConfig } from "../../lib/src/core/declaration.ts";
+import { forgetValue } from "../../lib/src/runtime/cache.ts";
+import { installRemoteConfigsMock } from "../testing/mock.ts";
 import { assertEquals } from "@std/assert";
 
 const motd = RemoteConfig.of<string>("cache-motd", { default: "quiet" });

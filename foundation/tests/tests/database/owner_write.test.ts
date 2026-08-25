@@ -34,15 +34,15 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
+import { installDrivers } from "../../testing/drivers.ts";
 import { assertEquals, assertRejects } from "@std/assert";
 import type { RequestUser } from "@scribe/alchemy/route";
 import { RequestIdentityCache } from "@scribe/runtime/http/accessors/identity.ts";
 import { RequestScope } from "@scribe/runtime/scope.ts";
-import { from } from "@scribe/foundation/lib/src/database/tables_base.ts";
-import { registerTableOwners } from "@scribe/foundation/lib/src/database/table_owners.ts";
-import { READS_EVERY_ROW, UnprovenCallerError } from "@scribe/foundation/lib/src/database/query/owner_scope.ts";
-import { clientOf, installDatabaseMock } from "@scribe/foundation/tests/tests/database/mocks/install_database.ts";
+import { from } from "../../../lib/src/database/tables_base.ts";
+import { registerTableOwners } from "../../../lib/src/database/table_owners.ts";
+import { READS_EVERY_ROW, UnprovenCallerError } from "../../../lib/src/database/query/owner_scope.ts";
+import { clientOf, installDatabaseMock } from "./mocks/install_database.ts";
 
 interface Secret {
   readonly id: string;

@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { storageSettings } from "@scribe/storage/lib/src/settings.ts";
+import { storageSettings } from "../settings.ts";
 
 /**
  * Which bucket an object lives in, and therefore how its URL is served.

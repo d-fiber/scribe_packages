@@ -35,8 +35,8 @@
 // LICENSE file, the LICENSE file governs.
 
 import "./settings.ts";
-import { kv } from "@scribe/foundation/lib/src/redis/kv.ts";
-import type { Kv } from "@scribe/foundation/lib/src/redis/kv.ts";
+import { kv } from "../../lib/src/redis/kv.ts";
+import type { Kv } from "../../lib/src/redis/kv.ts";
 import { installMock } from "./install.ts";
 
 const counted = new Map<string, number>();

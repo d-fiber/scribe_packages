@@ -41,8 +41,8 @@ await requireStack(`${STACK.restUrl}/`);
 await useStack();
 
 const { Audience } = await import("@scribe/audience");
-const { forgetMembership } = await import("@scribe/audience/lib/src/runtime/cache.ts");
-const { audiences } = await import("@scribe/audience/lib/src/db/tables.ts");
+const { forgetMembership } = await import("../../lib/src/runtime/cache.ts");
+const { audiences } = await import("../../lib/src/db/tables.ts");
 
 const editors = Audience.keyed(`e2e-cached-${RUN_ID}`);
 

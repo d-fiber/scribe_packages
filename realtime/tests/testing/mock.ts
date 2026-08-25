@@ -36,8 +36,8 @@
 
 import "@scribe/testing/settings.ts";
 import type { InstalledMock } from "@scribe/testing/install.ts";
-import { RealtimeTransports } from "@scribe/realtime/lib/src/transport/registry.ts";
-import type { RealtimeRow, RealtimeTransport } from "@scribe/realtime/lib/src/transport/transport.ts";
+import { RealtimeTransports } from "../../lib/src/transport/registry.ts";
+import type { RealtimeRow, RealtimeTransport } from "../../lib/src/transport/transport.ts";
 
 /** A transport that keeps every row instead of sending it, so a test can read what was emitted. */
 export class RecordingTransport implements RealtimeTransport {

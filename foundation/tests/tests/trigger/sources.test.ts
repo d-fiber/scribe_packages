@@ -33,13 +33,13 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import "@scribe/foundation/tests/testing/settings.ts";
+import "../../testing/settings.ts";
 
 import { assertEquals } from "@std/assert";
-import { Trigger } from "@scribe/foundation/lib/src/trigger/trigger.ts";
-import { syncDeclaredSources } from "@scribe/foundation/lib/src/trigger/trigger_sources.ts";
-import { triggerSources } from "@scribe/foundation/lib/src/trigger/trigger_tables.ts";
-import { installDatabaseFake } from "@scribe/foundation/tests/tests/trigger/mocks/database.ts";
+import { Trigger } from "../../../lib/src/trigger/trigger.ts";
+import { syncDeclaredSources } from "../../../lib/src/trigger/trigger_sources.ts";
+import { triggerSources } from "../../../lib/src/trigger/trigger_tables.ts";
+import { installDatabaseFake } from "./mocks/database.ts";
 
 interface OrderRow {
   id: string;

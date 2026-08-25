@@ -33,14 +33,14 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import "@scribe/foundation/tests/testing/settings.ts";
+import "../../testing/settings.ts";
 
 import { Duration } from "@scribe/alchemy";
 import { assert, assertEquals, assertNotEquals, assertThrows } from "@std/assert";
-import { at, cronExpression, every } from "@scribe/foundation/lib/src/cron/schedule.ts";
-import type { TimeOfDay } from "@scribe/foundation/lib/src/cron/daily_schedule.ts";
-import { CronTimezone } from "@scribe/foundation/lib/src/cron/cron_timezone.ts";
-import { nextRun, nextRunAfterSlot } from "@scribe/foundation/lib/src/cron/next_run.ts";
+import { at, cronExpression, every } from "../../../lib/src/cron/schedule.ts";
+import type { TimeOfDay } from "../../../lib/src/cron/daily_schedule.ts";
+import { CronTimezone } from "../../../lib/src/cron/cron_timezone.ts";
+import { nextRun, nextRunAfterSlot } from "../../../lib/src/cron/next_run.ts";
 
 const REFUSED_TIMES: TimeOfDay[] = [
   "24:00",

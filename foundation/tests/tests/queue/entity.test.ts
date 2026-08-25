@@ -33,11 +33,11 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
+import { installDrivers } from "../../testing/drivers.ts";
 import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
-import { Queue } from "@scribe/foundation/lib/src/queue/queue.ts";
-import { queueRegistry } from "@scribe/foundation/lib/src/queue/queue_registry.ts";
-import { queueRunner } from "@scribe/foundation/lib/src/queue/runner/queue_runner.ts";
+import { Queue } from "../../../lib/src/queue/queue.ts";
+import { queueRegistry } from "../../../lib/src/queue/queue_registry.ts";
+import { queueRunner } from "../../../lib/src/queue/runner/queue_runner.ts";
 
 installDrivers();
 

@@ -33,12 +33,12 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import "@scribe/foundation/tests/testing/hand_backs.ts";
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
+import "../../testing/hand_backs.ts";
+import { installDrivers } from "../../testing/drivers.ts";
 import { assertEquals } from "@std/assert";
-import { Queue } from "@scribe/foundation/lib/src/queue/queue.ts";
-import { MessageDispatcher } from "@scribe/foundation/lib/src/queue/runner/message_dispatcher.ts";
-import { DrainTally } from "@scribe/foundation/lib/src/queue/runner/drain_tally.ts";
+import { Queue } from "../../../lib/src/queue/queue.ts";
+import { MessageDispatcher } from "../../../lib/src/queue/runner/message_dispatcher.ts";
+import { DrainTally } from "../../../lib/src/queue/runner/drain_tally.ts";
 
 import type { JsMsg } from "@nats-io/jetstream";
 

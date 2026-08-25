@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 
 import { Duration, type Future, type UnmodifiableList } from "@scribe/alchemy";
-import { RedisCache } from "@scribe/foundation/lib/src/cache/redis_cache.ts";
+import { RedisCache } from "../lib/src/cache/redis_cache.ts";
 
 /** What one entry of the session namespace holds. */
 interface Session {

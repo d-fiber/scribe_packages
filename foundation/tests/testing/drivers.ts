@@ -33,11 +33,11 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import "@scribe/foundation/tests/testing/settings.ts";
+import "./settings.ts";
 
 import { Now } from "@scribe/alchemy";
-import { SystemNow } from "@scribe/foundation/lib/src/observe/system_now.ts";
-import { type MemoryLogger, recordLog } from "@scribe/foundation/tests/testing/logger.ts";
+import { SystemNow } from "../../lib/src/observe/system_now.ts";
+import { type MemoryLogger, recordLog } from "./logger.ts";
 
 export function installDrivers(): MemoryLogger {
   Now.use(new SystemNow());

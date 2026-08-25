@@ -34,10 +34,10 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { LinkError, LinkKind, LinkPlatform } from "@scribe/dynamic_links/lib/contracts/link.ts";
-import { DynamicLink } from "@scribe/dynamic_links/lib/src/core/declaration.ts";
-import { DestinationKind, Link, type Visit } from "@scribe/dynamic_links/lib/src/core/destination.ts";
-import { installDynamicLinksMock } from "@scribe/dynamic_links/tests/testing/mock.ts";
+import { LinkError, LinkKind, LinkPlatform } from "../../lib/contracts/link.ts";
+import { DynamicLink } from "../../lib/src/core/declaration.ts";
+import { DestinationKind, Link, type Visit } from "../../lib/src/core/destination.ts";
+import { installDynamicLinksMock } from "../testing/mock.ts";
 import { assert, assertEquals, assertThrows } from "@std/assert";
 
 interface Invite {

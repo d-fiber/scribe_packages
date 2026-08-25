@@ -35,9 +35,9 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Duration } from "@scribe/alchemy";
-import { ConfigError } from "@scribe/remote_configs/lib/contracts/config.ts";
-import { RemoteConfig } from "@scribe/remote_configs/lib/src/core/declaration.ts";
-import { installRemoteConfigsMock } from "@scribe/remote_configs/tests/testing/mock.ts";
+import { ConfigError } from "../../lib/contracts/config.ts";
+import { RemoteConfig } from "../../lib/src/core/declaration.ts";
+import { installRemoteConfigsMock } from "../testing/mock.ts";
 import { assert, assertEquals, assertThrows } from "@std/assert";
 
 interface Example {

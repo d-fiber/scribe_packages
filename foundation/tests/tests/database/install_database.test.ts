@@ -33,10 +33,10 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import { database } from "@scribe/foundation/lib/src/database/database_client.ts";
+import { database } from "../../../lib/src/database/database_client.ts";
 import { assertEquals } from "@std/assert";
-import { clientOf, installDatabaseMock } from "@scribe/foundation/tests/tests/database/mocks/install_database.ts";
-import { from } from "@scribe/foundation/lib/src/database/tables_base.ts";
+import { clientOf, installDatabaseMock } from "./mocks/install_database.ts";
+import { from } from "../../../lib/src/database/tables_base.ts";
 
 Deno.test("installDatabaseMock: a query written against the fake reads the rows it was given", async () => {
   const mock = installDatabaseMock({ t_roles: [{ role: "owner" }] });

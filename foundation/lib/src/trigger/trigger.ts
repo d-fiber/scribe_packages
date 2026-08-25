@@ -35,8 +35,8 @@
 // LICENSE file, the LICENSE file governs.
 
 import { DateTime, DeclarationError, type UnmodifiableList } from "@scribe/alchemy";
-import type { QueueOptions } from "@scribe/foundation/lib/src/queue/queue_options.ts";
-import { Queue } from "@scribe/foundation/lib/src/queue/queue.ts";
+import type { QueueOptions } from "../queue/queue_options.ts";
+import { Queue } from "../queue/queue.ts";
 import type {
   ChangeHandler,
   DeleteChange,

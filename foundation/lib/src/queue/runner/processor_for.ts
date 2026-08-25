@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { RegisteredQueue } from "@scribe/foundation/lib/src/queue/queue_declaration.ts";
+import type { RegisteredQueue } from "../queue_declaration.ts";
 import { BatchProcessor } from "./batch_processor.ts";
 import { JobProcessor } from "./job_processor.ts";
 import type { MessageProcessor } from "./base_processor.ts";

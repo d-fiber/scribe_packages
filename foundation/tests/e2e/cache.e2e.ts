@@ -33,13 +33,13 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import { report, requireStack, STACK, timed, useStack } from "@scribe/foundation/tests/e2e/support/stack.ts";
+import { report, requireStack, STACK, timed, useStack } from "./support/stack.ts";
 import { assert, assertEquals } from "@std/assert";
 
 await requireStack(STACK.natsMonitorUrl, `${STACK.restUrl}/`);
 await useStack();
 
-const { RedisCache } = await import("@scribe/foundation/lib/src/cache/redis_cache.ts");
+const { RedisCache } = await import("../../lib/src/cache/redis_cache.ts");
 const { Duration } = await import("@scribe/alchemy");
 
 function cache() {

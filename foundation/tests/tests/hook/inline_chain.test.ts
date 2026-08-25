@@ -33,9 +33,9 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import { InlineChain } from "@scribe/foundation/lib/src/hook/inline_chain.ts";
-import { isRefusal } from "@scribe/foundation/lib/src/hook/is_refusal.ts";
+import { installDrivers } from "../../testing/drivers.ts";
+import { InlineChain } from "../../../lib/src/hook/inline_chain.ts";
+import { isRefusal } from "../../../lib/src/hook/is_refusal.ts";
 import { assert, assertEquals, assertFalse, assertRejects } from "@std/assert";
 
 installDrivers();

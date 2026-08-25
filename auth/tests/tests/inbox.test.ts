@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { AuthValidator } from "@scribe/auth/lib/src/validator.ts";
+import { AuthValidator } from "../../lib/src/validator.ts";
 import { assertEquals } from "@std/assert";
 
 Deno.test("inbox() strips the `+` tag: same mailbox, same key", () => {

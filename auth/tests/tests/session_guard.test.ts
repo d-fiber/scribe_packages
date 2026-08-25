@@ -35,12 +35,12 @@
 // LICENSE file, the LICENSE file governs.
 
 import { fakeDevice, withRequest } from "@scribe/testing/runtime/device.ts";
-import { installAuthTestSettings } from "@scribe/auth/tests/testing/settings.ts";
-import { Channel } from "@scribe/auth/lib/contracts/channel.ts";
-import { Account } from "@scribe/auth/lib/src/declaration/account.ts";
-import { session } from "@scribe/auth/lib/src/session.ts";
-import { installAuthMock } from "@scribe/auth/tests/testing/mock.ts";
-import { installGoTrueMock } from "@scribe/auth/tests/testing/gotrue.ts";
+import { installAuthTestSettings } from "../testing/settings.ts";
+import { Channel } from "../../lib/contracts/channel.ts";
+import { Account } from "../../lib/src/declaration/account.ts";
+import { session } from "../../lib/src/session.ts";
+import { installAuthMock } from "../testing/mock.ts";
+import { installGoTrueMock } from "../testing/gotrue.ts";
 import { assert, assertEquals, assertFalse } from "@std/assert";
 
 installAuthTestSettings();

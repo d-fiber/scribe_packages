@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { queueRegistry } from "@scribe/foundation/lib/src/queue/queue_registry.ts";
+import { queueRegistry } from "../queue_registry.ts";
 
 /**
  * How long a queue that does not group waits for company.

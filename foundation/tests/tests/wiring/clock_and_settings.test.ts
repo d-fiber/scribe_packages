@@ -33,14 +33,14 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import "@scribe/foundation/tests/testing/settings.ts";
+import "../../testing/settings.ts";
 import { DateTime, Duration, Now } from "@scribe/alchemy";
 import { FixedNow } from "@scribe/alchemy/test";
-import { SystemNow } from "@scribe/foundation/lib/src/observe/system_now.ts";
-import { cacheSettings } from "@scribe/foundation/lib/src/cache/cache_settings.ts";
-import { databaseSettings } from "@scribe/foundation/lib/src/database/database_settings.ts";
-import { queueSettings } from "@scribe/foundation/lib/src/queue/queue_settings.ts";
-import { PostgrestClients } from "@scribe/foundation/lib/src/database/postgrest_clients.ts";
+import { SystemNow } from "../../../lib/src/observe/system_now.ts";
+import { cacheSettings } from "../../../lib/src/cache/cache_settings.ts";
+import { databaseSettings } from "../../../lib/src/database/database_settings.ts";
+import { queueSettings } from "../../../lib/src/queue/queue_settings.ts";
+import { PostgrestClients } from "../../../lib/src/database/postgrest_clients.ts";
 import { assert, assertEquals, assertNotStrictEquals, assertStrictEquals, assertThrows } from "@std/assert";
 
 function withNow<T>(source: { millisecondsSinceEpoch(): number }, body: () => T): T {

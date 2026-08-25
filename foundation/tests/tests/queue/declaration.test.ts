@@ -33,16 +33,16 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
+import { installDrivers } from "../../testing/drivers.ts";
 import {
   limitsFrom,
   QUEUE_DEFAULTS,
   type RegisteredQueue,
   subjectsOf,
-} from "@scribe/foundation/lib/src/queue/queue_declaration.ts";
-import { planFor, planSignature } from "@scribe/foundation/lib/src/queue/topology/topology_plan.ts";
-import { Queue } from "@scribe/foundation/lib/src/queue/queue.ts";
-import { graceFor, IMMEDIATE_GRACE_MS } from "@scribe/foundation/lib/src/queue/runner/grace_period.ts";
+} from "../../../lib/src/queue/queue_declaration.ts";
+import { planFor, planSignature } from "../../../lib/src/queue/topology/topology_plan.ts";
+import { Queue } from "../../../lib/src/queue/queue.ts";
+import { graceFor, IMMEDIATE_GRACE_MS } from "../../../lib/src/queue/runner/grace_period.ts";
 import { Duration } from "@scribe/alchemy";
 import { assertEquals, assertNotEquals } from "@std/assert";
 

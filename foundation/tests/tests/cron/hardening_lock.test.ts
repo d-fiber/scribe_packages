@@ -33,18 +33,18 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import "@scribe/foundation/tests/testing/settings.ts";
+import "../../testing/settings.ts";
 
 import { Duration } from "@scribe/alchemy";
 import { assertEquals, assertNotEquals } from "@std/assert";
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import { nextRun } from "@scribe/foundation/lib/src/cron/next_run.ts";
-import { SlotLock } from "@scribe/foundation/lib/src/cron/slot_lock.ts";
-import { at } from "@scribe/foundation/lib/src/cron/daily_schedule.ts";
-import { CronTimezone } from "@scribe/foundation/lib/src/cron/cron_timezone.ts";
-import type { Scheduled } from "@scribe/foundation/lib/src/cron/schedule.ts";
-import { kv } from "@scribe/foundation/lib/src/redis/kv.ts";
-import { recordLog } from "@scribe/foundation/tests/testing/logger.ts";
+import { installDrivers } from "../../testing/drivers.ts";
+import { nextRun } from "../../../lib/src/cron/next_run.ts";
+import { SlotLock } from "../../../lib/src/cron/slot_lock.ts";
+import { at } from "../../../lib/src/cron/daily_schedule.ts";
+import { CronTimezone } from "../../../lib/src/cron/cron_timezone.ts";
+import type { Scheduled } from "../../../lib/src/cron/schedule.ts";
+import { kv } from "../../../lib/src/redis/kv.ts";
+import { recordLog } from "../../testing/logger.ts";
 
 function everyMinutes(name: string, minutes: number, timeout = Duration.minutes(10)): Scheduled {
   return { name, schedule: { kind: "interval", every: Duration.minutes(minutes) }, timeout };

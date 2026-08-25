@@ -41,7 +41,7 @@ await requireStack();
 await useStack();
 
 const { Bytes, Storage, StorageVisibility } = await import("@scribe/storage");
-const { storageObjects } = await import("@scribe/storage/lib/src/db/tables.ts");
+const { storageObjects } = await import("../../lib/src/db/tables.ts");
 
 const notes = Storage.public(`e2e-${RUN_ID}/{ownerId}`);
 const note = notes.file("note", { extensions: ["png"], maxSize: Bytes.megabytes(1) });

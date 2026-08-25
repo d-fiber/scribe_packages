@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import { Queue } from "@scribe/foundation/lib/src/queue/queue.ts";
+import { installDrivers } from "../../testing/drivers.ts";
+import { Queue } from "../../../lib/src/queue/queue.ts";
 import { dispatchProbes, probe, unanswered } from "./probe.ts";
 import { assertEquals, assertNotEquals } from "@std/assert";
 

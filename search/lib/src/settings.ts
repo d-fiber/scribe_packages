@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Slot } from "@scribe/alchemy";
-import type { SearchSettings } from "@scribe/search/lib/contracts/settings.ts";
+import type { SearchSettings } from "../contracts/settings.ts";
 
 /** Where this package reaches the cluster, handed over by whoever mounts it. */
 export const searchSettings: Slot<SearchSettings> = new Slot<SearchSettings>("search");

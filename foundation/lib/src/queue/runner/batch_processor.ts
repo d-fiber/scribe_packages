@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { BatchHandler } from "@scribe/foundation/lib/src/queue/queue_options.ts";
-import { safeDecode, type WireMessage } from "@scribe/foundation/lib/src/queue/wire_message.ts";
+import type { BatchHandler } from "../queue_options.ts";
+import { safeDecode, type WireMessage } from "../wire_message.ts";
 import { type Future, runPooled, type UnmodifiableList } from "@scribe/alchemy";
 import type { JsMsg } from "@nats-io/jetstream";
 import type { DrainTally } from "./drain_tally.ts";

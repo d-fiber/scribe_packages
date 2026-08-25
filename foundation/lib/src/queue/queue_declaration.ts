@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Duration } from "@scribe/alchemy";
-import type { BatchHandler, JobHandler, QueueOptions } from "@scribe/foundation/lib/src/queue/queue_options.ts";
+import type { BatchHandler, JobHandler, QueueOptions } from "./queue_options.ts";
 import { deadSubjectOf, subjectOf } from "./queue_naming.ts";
 
 /** The options a queue gets when its declaration leaves them out. */

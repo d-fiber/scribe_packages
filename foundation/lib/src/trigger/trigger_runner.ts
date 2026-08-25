@@ -34,10 +34,10 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { queueRegistry } from "@scribe/foundation/lib/src/queue/queue_registry.ts";
-import { ensureTopology } from "@scribe/foundation/lib/src/queue/topology/ensure_topology.ts";
-import { topology } from "@scribe/foundation/lib/src/queue/topology/topology.ts";
-import { encode } from "@scribe/foundation/lib/src/queue/wire_message.ts";
+import { queueRegistry } from "../queue/queue_registry.ts";
+import { ensureTopology } from "../queue/topology/ensure_topology.ts";
+import { topology } from "../queue/topology/topology.ts";
+import { encode } from "../queue/wire_message.ts";
 import { forgetEvents, pendingEvents } from "./trigger_claim.ts";
 import { matchesOf, type TriggerMatch } from "./trigger_match.ts";
 import { queueNameOf } from "./trigger.ts";

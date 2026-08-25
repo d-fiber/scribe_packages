@@ -34,12 +34,12 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import { Queue } from "@scribe/foundation/lib/src/queue/queue.ts";
-import { processorFor } from "@scribe/foundation/lib/src/queue/runner/processor_for.ts";
-import { queueRegistry } from "@scribe/foundation/lib/src/queue/queue_registry.ts";
-import { DrainTally } from "@scribe/foundation/lib/src/queue/runner/drain_tally.ts";
-import { graceFor, IMMEDIATE_GRACE_MS } from "@scribe/foundation/lib/src/queue/runner/grace_period.ts";
+import { installDrivers } from "../../testing/drivers.ts";
+import { Queue } from "../../../lib/src/queue/queue.ts";
+import { processorFor } from "../../../lib/src/queue/runner/processor_for.ts";
+import { queueRegistry } from "../../../lib/src/queue/queue_registry.ts";
+import { DrainTally } from "../../../lib/src/queue/runner/drain_tally.ts";
+import { graceFor, IMMEDIATE_GRACE_MS } from "../../../lib/src/queue/runner/grace_period.ts";
 import type { JsMsg } from "@nats-io/jetstream";
 import { dispatchProbes, type Probe, probe } from "./probe.ts";
 import { assertEquals } from "@std/assert";

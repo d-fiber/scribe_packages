@@ -36,7 +36,7 @@
 
 import { optional } from "@scribe/foundation";
 import { installTestSettings } from "@scribe/testing/settings.ts";
-import { storageSettings } from "@scribe/storage/lib/src/settings.ts";
+import { storageSettings } from "../../lib/src/settings.ts";
 
 /**
  * Fills what this package reads, on top of what the framework's harness fills.

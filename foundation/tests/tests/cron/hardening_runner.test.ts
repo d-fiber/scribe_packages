@@ -33,23 +33,23 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import "@scribe/foundation/tests/testing/settings.ts";
+import { installDrivers } from "../../testing/drivers.ts";
+import "../../testing/settings.ts";
 
 import { Duration, Now, type NowSource } from "@scribe/alchemy";
 import { assertEquals, assertNotEquals, assertThrows } from "@std/assert";
 import { FakeTime } from "@std/testing/time";
-import { Cron } from "@scribe/foundation/lib/src/cron/cron.ts";
-import { CronRunner, cronRunner } from "@scribe/foundation/lib/src/cron/cron_runner.ts";
-import { cronRegistry } from "@scribe/foundation/lib/src/cron/cron_registry.ts";
-import { cronExpression } from "@scribe/foundation/lib/src/cron/cron_expression.ts";
-import { CronTimezone } from "@scribe/foundation/lib/src/cron/cron_timezone.ts";
-import { ScheduledCrons } from "@scribe/foundation/lib/src/cron/scheduled_crons.ts";
-import { ScheduledJob } from "@scribe/foundation/lib/src/cron/scheduled_job.ts";
-import { every } from "@scribe/foundation/lib/src/cron/interval_schedule.ts";
-import type { Scheduled } from "@scribe/foundation/lib/src/cron/schedule.ts";
-import { kv } from "@scribe/foundation/lib/src/redis/kv.ts";
-import { SystemNow } from "@scribe/foundation/lib/src/observe/system_now.ts";
+import { Cron } from "../../../lib/src/cron/cron.ts";
+import { CronRunner, cronRunner } from "../../../lib/src/cron/cron_runner.ts";
+import { cronRegistry } from "../../../lib/src/cron/cron_registry.ts";
+import { cronExpression } from "../../../lib/src/cron/cron_expression.ts";
+import { CronTimezone } from "../../../lib/src/cron/cron_timezone.ts";
+import { ScheduledCrons } from "../../../lib/src/cron/scheduled_crons.ts";
+import { ScheduledJob } from "../../../lib/src/cron/scheduled_job.ts";
+import { every } from "../../../lib/src/cron/interval_schedule.ts";
+import type { Scheduled } from "../../../lib/src/cron/schedule.ts";
+import { kv } from "../../../lib/src/redis/kv.ts";
+import { SystemNow } from "../../../lib/src/observe/system_now.ts";
 
 class MovableNow implements NowSource {
   at: number;

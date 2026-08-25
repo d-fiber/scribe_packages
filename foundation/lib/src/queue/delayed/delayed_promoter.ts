@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { kv } from "@scribe/foundation/lib/src/redis/kv.ts";
+import { kv } from "../../redis/kv.ts";
 import { DateTime, type Future, runPooled } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
 import { topology } from "../topology/topology.ts";

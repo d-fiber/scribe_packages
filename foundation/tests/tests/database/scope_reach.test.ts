@@ -34,18 +34,18 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
+import { installDrivers } from "../../testing/drivers.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import type { RequestUser } from "@scribe/alchemy/route";
 import { RequestIdentityCache } from "@scribe/runtime/http/accessors/identity.ts";
 import { RequestScope } from "@scribe/runtime/scope.ts";
 import { PostgrestClient } from "@supabase/postgrest-js";
-import { TypedQueryBuilder } from "@scribe/foundation/lib/src/database/query/typed_query_builder.ts";
-import { registerTableOwners } from "@scribe/foundation/lib/src/database/table_owners.ts";
-import { UnprovenCallerError } from "@scribe/foundation/lib/src/database/query/owner_scope.ts";
-import { PostgrestDatabases } from "@scribe/foundation/lib/src/database/postgrest_databases.ts";
-import { installDatabaseFake } from "@scribe/foundation/tests/tests/trigger/mocks/database.ts";
-import { clientOf, installDatabaseMock } from "@scribe/foundation/tests/tests/database/mocks/install_database.ts";
+import { TypedQueryBuilder } from "../../../lib/src/database/query/typed_query_builder.ts";
+import { registerTableOwners } from "../../../lib/src/database/table_owners.ts";
+import { UnprovenCallerError } from "../../../lib/src/database/query/owner_scope.ts";
+import { PostgrestDatabases } from "../../../lib/src/database/postgrest_databases.ts";
+import { installDatabaseFake } from "../trigger/mocks/database.ts";
+import { clientOf, installDatabaseMock } from "./mocks/install_database.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;

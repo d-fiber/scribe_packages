@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { QueueSettings } from "@scribe/foundation/lib/src/settings.ts";
+import type { QueueSettings } from "../settings.ts";
 import { Slot } from "@scribe/alchemy";
 
 export const queueSettings: Slot<QueueSettings> = new Slot<QueueSettings>(

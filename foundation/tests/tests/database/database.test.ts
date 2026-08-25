@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 
 import { assertEquals } from "@std/assert";
-import { createDatabaseMock } from "@scribe/foundation/tests/tests/database/mocks/database.ts";
-import { from } from "@scribe/foundation/lib/src/database/tables_base.ts";
+import { createDatabaseMock } from "./mocks/database.ts";
+import { from } from "../../../lib/src/database/tables_base.ts";
 import type { PostgrestClient } from "@supabase/postgrest-js";
 
 Deno.test("FakePostgrestClient: select applies where/order/range", async () => {

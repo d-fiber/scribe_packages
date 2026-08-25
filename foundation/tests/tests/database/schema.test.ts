@@ -33,9 +33,9 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import "@scribe/foundation/tests/testing/settings.ts";
+import "../../testing/settings.ts";
 
-import { ownerOf, registerTableOwners } from "@scribe/foundation/lib/src/database/table_owners.ts";
+import { ownerOf, registerTableOwners } from "../../../lib/src/database/table_owners.ts";
 import { assertEquals } from "@std/assert";
 
 Deno.test("a table nobody registered has no owner column", () => {

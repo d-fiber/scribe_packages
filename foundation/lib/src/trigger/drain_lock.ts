@@ -36,7 +36,7 @@
 
 import type { Duration, Future } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
-import { kv } from "@scribe/foundation/lib/src/redis/kv.ts";
+import { kv } from "../redis/kv.ts";
 
 /** The key one pass is claimed under, shared by every replica. */
 const KEY = "trigger:drain";

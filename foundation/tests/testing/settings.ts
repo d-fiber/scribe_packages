@@ -33,10 +33,10 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import { cacheSettings } from "@scribe/foundation/lib/src/cache/cache_settings.ts";
-import { databaseSettings } from "@scribe/foundation/lib/src/database/database_settings.ts";
-import { optional } from "@scribe/foundation/lib/src/environment.ts";
-import { queueSettings } from "@scribe/foundation/lib/src/queue/queue_settings.ts";
+import { cacheSettings } from "../../lib/src/cache/cache_settings.ts";
+import { databaseSettings } from "../../lib/src/database/database_settings.ts";
+import { optional } from "../../lib/src/environment.ts";
+import { queueSettings } from "../../lib/src/queue/queue_settings.ts";
 
 export function installTestSettings(): void {
   if (cacheSettings.configured) return;

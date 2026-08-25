@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { kv } from "@scribe/foundation/lib/src/redis/kv.ts";
+import { kv } from "../../redis/kv.ts";
 import type { Future } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
 import type { JsMsg } from "@nats-io/jetstream";

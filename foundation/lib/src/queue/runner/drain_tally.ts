@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { DrainResult } from "@scribe/foundation/lib/src/queue/queue_options.ts";
+import type { DrainResult } from "../queue_options.ts";
 
 /** What became of one message. */
 export type JobOutcome = "done" | "retried" | "dead";

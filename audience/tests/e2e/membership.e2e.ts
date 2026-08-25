@@ -41,8 +41,8 @@ await requireStack(`${STACK.restUrl}/`);
 await useStack();
 
 const { Audience, audiencesOf, forgetMember } = await import("@scribe/audience");
-const { AudienceError } = await import("@scribe/audience/lib/contracts/audience.ts");
-const { audiences } = await import("@scribe/audience/lib/src/db/tables.ts");
+const { AudienceError } = await import("../../lib/contracts/audience.ts");
+const { audiences } = await import("../../lib/src/db/tables.ts");
 
 const banned = Audience.plain(`e2e-banned-${RUN_ID}`);
 const editors = Audience.keyed(`e2e-editors-${RUN_ID}`);

@@ -44,7 +44,7 @@ import type {
   UpdateChange as PortUpdate,
 } from "@scribe/alchemy";
 import type { Future, QueueOptions as PortQueueOptions } from "@scribe/alchemy";
-import type { QueueOptions } from "@scribe/foundation/lib/src/queue/queue_options.ts";
+import type { QueueOptions } from "../queue/queue_options.ts";
 import { Trigger } from "./trigger.ts";
 
 /** The column a table is keyed on when a declaration does not say. */

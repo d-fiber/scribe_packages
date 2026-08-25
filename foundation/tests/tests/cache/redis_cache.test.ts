@@ -33,14 +33,14 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import "@scribe/foundation/tests/testing/settings.ts";
+import { installDrivers } from "../../testing/drivers.ts";
+import "../../testing/settings.ts";
 
 import { Duration } from "@scribe/alchemy";
-import { kv } from "@scribe/foundation/lib/src/redis/kv.ts";
-import { installValkeryMock } from "@scribe/foundation/tests/testing/cache.ts";
-import { encodeCacheEntry } from "@scribe/foundation/lib/src/cache/cache_entry.ts";
-import { RedisCache, refreshesSettled } from "@scribe/foundation/lib/src/cache/redis_cache.ts";
+import { kv } from "../../../lib/src/redis/kv.ts";
+import { installValkeryMock } from "../../testing/cache.ts";
+import { encodeCacheEntry } from "../../../lib/src/cache/cache_entry.ts";
+import { RedisCache, refreshesSettled } from "../../../lib/src/cache/redis_cache.ts";
 import { assert, assertEquals } from "@std/assert";
 import { spy, stub } from "@std/testing/mock";
 

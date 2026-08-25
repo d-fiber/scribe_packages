@@ -33,7 +33,7 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import "@scribe/foundation/tests/testing/settings.ts";
+import "../../testing/settings.ts";
 
 import {
   assertPlainColumn,
@@ -42,7 +42,7 @@ import {
   quoteFilterList,
   quoteFilterLiteral,
   UnsafeFilterError,
-} from "@scribe/foundation/lib/src/database/query/filter_literal.ts";
+} from "../../../lib/src/database/query/filter_literal.ts";
 import { assert, assertEquals, assertThrows } from "@std/assert";
 
 const RESERVED = [",", ".", ":", "*", "(", ")"];

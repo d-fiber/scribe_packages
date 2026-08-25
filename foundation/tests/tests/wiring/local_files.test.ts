@@ -36,7 +36,7 @@
 import { FileSystems } from "@scribe/alchemy";
 import type { FileSystem } from "@scribe/alchemy";
 import { MemoryFileSystem } from "@scribe/alchemy/test";
-import { LocalFiles, LocalFileSystems } from "@scribe/foundation/lib/src/files/local_files.ts";
+import { LocalFiles, LocalFileSystems } from "../../../lib/src/files/local_files.ts";
 import { assert, assertEquals, assertNotEquals, assertRejects, assertStrictEquals } from "@std/assert";
 
 async function inADirectory(body: (disk: LocalFiles, root: string) => Promise<void>): Promise<void> {

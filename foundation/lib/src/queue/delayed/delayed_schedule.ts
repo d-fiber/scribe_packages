@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { DateTime, type Future } from "@scribe/alchemy";
-import { kv } from "@scribe/foundation/lib/src/redis/kv.ts";
+import { kv } from "../../redis/kv.ts";
 import { DELAYED_KEY, encodeMember } from "./delayed_member.ts";
 
 /**

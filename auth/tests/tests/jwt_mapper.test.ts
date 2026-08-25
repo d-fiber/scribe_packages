@@ -34,9 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { AuthMapper } from "@scribe/auth/lib/src/gotrue/mappers.ts";
-import { installAuthTestSettings } from "@scribe/auth/tests/testing/settings.ts";
-import { authSettings } from "@scribe/auth/lib/src/settings.ts";
+import { AuthMapper } from "../../lib/src/gotrue/mappers.ts";
+import { installAuthTestSettings } from "../testing/settings.ts";
+import { authSettings } from "../../lib/src/settings.ts";
 import { assertEquals } from "@std/assert";
 
 function base64Url(value: string): string {

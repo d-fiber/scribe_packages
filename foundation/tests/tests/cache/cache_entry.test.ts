@@ -33,8 +33,8 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import { decodeCacheEntry, encodeCacheEntry } from "@scribe/foundation/lib/src/cache/cache_entry.ts";
+import { installDrivers } from "../../testing/drivers.ts";
+import { decodeCacheEntry, encodeCacheEntry } from "../../../lib/src/cache/cache_entry.ts";
 import { assert, assertEquals } from "@std/assert";
 
 const NOT_YET = Date.now() + 30_000;

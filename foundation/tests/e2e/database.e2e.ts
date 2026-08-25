@@ -33,22 +33,14 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import {
-  E2E_TABLE,
-  type E2eItem,
-  report,
-  requireStack,
-  STACK,
-  timed,
-  useStack,
-} from "@scribe/foundation/tests/e2e/support/stack.ts";
+import { E2E_TABLE, type E2eItem, report, requireStack, STACK, timed, useStack } from "./support/stack.ts";
 import { assert, assertEquals } from "@std/assert";
 
 await requireStack(`${STACK.restUrl}/`);
 await useStack();
 
-const { PostgrestClients } = await import("@scribe/foundation/lib/src/database/postgrest_clients.ts");
-const { from } = await import("@scribe/foundation/lib/src/database/tables_base.ts");
+const { PostgrestClients } = await import("../../lib/src/database/postgrest_clients.ts");
+const { from } = await import("../../lib/src/database/tables_base.ts");
 
 function items() {
   return from<E2eItem>(PostgrestClients.service(), E2E_TABLE);

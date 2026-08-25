@@ -33,10 +33,10 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import "@scribe/foundation/tests/testing/settings.ts";
+import "../../testing/settings.ts";
 
 import { assertEquals, assertThrows } from "@std/assert";
-import { parsePath } from "@scribe/foundation/lib/src/trigger/trigger_path.ts";
+import { parsePath } from "../../../lib/src/trigger/trigger_path.ts";
 
 Deno.test("a path names its table and the parameter its key is handed under", () => {
   assertEquals(parsePath("orders/{orderId}"), {

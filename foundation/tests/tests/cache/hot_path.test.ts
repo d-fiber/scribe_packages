@@ -34,10 +34,10 @@
 // This header is a summary written for convenience. Where it differs from the
 
 import { DateTime, Duration } from "@scribe/alchemy";
-import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import { decodeCacheEntry, encodeCacheEntry } from "@scribe/foundation/lib/src/cache/cache_entry.ts";
-import { KeySpace } from "@scribe/foundation/lib/src/cache/key_space.ts";
-import { RedisCache } from "@scribe/foundation/lib/src/cache/redis_cache.ts";
+import { installDrivers } from "../../testing/drivers.ts";
+import { decodeCacheEntry, encodeCacheEntry } from "../../../lib/src/cache/cache_entry.ts";
+import { KeySpace } from "../../../lib/src/cache/key_space.ts";
+import { RedisCache } from "../../../lib/src/cache/redis_cache.ts";
 import { installFakeRedis } from "./support/redis.ts";
 import { assert, assertEquals } from "@std/assert";
 

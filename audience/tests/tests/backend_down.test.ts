@@ -34,10 +34,10 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { AudienceError } from "@scribe/audience/lib/contracts/audience.ts";
-import { Audience } from "@scribe/audience/lib/src/core/declaration.ts";
-import { audiencesOf } from "@scribe/audience/lib/src/core/member.ts";
-import { installAudienceMock } from "@scribe/audience/tests/testing/mock.ts";
+import { AudienceError } from "../../lib/contracts/audience.ts";
+import { Audience } from "../../lib/src/core/declaration.ts";
+import { audiencesOf } from "../../lib/src/core/member.ts";
+import { installAudienceMock } from "../testing/mock.ts";
 import { PostgrestClients } from "@scribe/foundation/database";
 import { type InstalledMock, installMock } from "@scribe/testing/install.ts";
 import type { PostgrestClient } from "@supabase/postgrest-js";

@@ -34,13 +34,13 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installStorageTestSettings } from "@scribe/storage/tests/testing/settings.ts";
+import { installStorageTestSettings } from "./settings.ts";
 
 installStorageTestSettings();
 import type { InstalledMock } from "@scribe/testing/install.ts";
-import { StorageTransports } from "@scribe/storage/lib/src/bucket/registry.ts";
-import type { StorageBucket, StorageTransport } from "@scribe/storage/lib/src/bucket/transport.ts";
-import { bucketNameOf, type StorageVisibility } from "@scribe/storage/lib/src/core/visibility.ts";
+import { StorageTransports } from "../../lib/src/bucket/registry.ts";
+import type { StorageBucket, StorageTransport } from "../../lib/src/bucket/transport.ts";
+import { bucketNameOf, type StorageVisibility } from "../../lib/src/core/visibility.ts";
 
 /** One upload a recording transport kept instead of sending it. */
 export interface RecordedUpload {

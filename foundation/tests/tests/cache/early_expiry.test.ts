@@ -33,10 +33,10 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import "@scribe/foundation/tests/testing/settings.ts";
+import "../../testing/settings.ts";
 
-import { shouldRefreshEarly } from "@scribe/foundation/lib/src/cache/early_expiry.ts";
-import type { CacheEntry } from "@scribe/foundation/lib/src/cache/cache_entry.ts";
+import { shouldRefreshEarly } from "../../../lib/src/cache/early_expiry.ts";
+import type { CacheEntry } from "../../../lib/src/cache/cache_entry.ts";
 import { assert, assertEquals } from "@std/assert";
 
 function entry(computeMs: number, expiresInMs: number, now: number): CacheEntry<string> {

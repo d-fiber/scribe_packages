@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Session } from "@scribe/auth/lib/contracts/account.ts";
+import type { Session } from "../../contracts/account.ts";
 import { Duration } from "@scribe/alchemy";
 import type { IpLocation } from "@scribe/alchemy/route";
 import type { RequestDevice } from "@scribe/contracts/device.ts";

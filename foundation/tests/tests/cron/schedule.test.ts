@@ -33,11 +33,11 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import "@scribe/foundation/tests/testing/settings.ts";
+import "../../testing/settings.ts";
 
 import { Duration } from "@scribe/alchemy";
-import { at, cronExpression, every } from "@scribe/foundation/lib/src/cron/schedule.ts";
-import { CronTimezone } from "@scribe/foundation/lib/src/cron/cron_timezone.ts";
+import { at, cronExpression, every } from "../../../lib/src/cron/schedule.ts";
+import { CronTimezone } from "../../../lib/src/cron/cron_timezone.ts";
 import { assertEquals, assertThrows } from "@std/assert";
 
 Deno.test("Duration.minutes/hours/days convert to the right ms", () => {

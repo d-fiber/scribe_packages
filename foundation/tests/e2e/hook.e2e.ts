@@ -33,9 +33,9 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import { Hook } from "@scribe/foundation/lib/src/hook/hook.ts";
+import { Hook } from "../../lib/src/hook/hook.ts";
 import { assert, assertEquals } from "@std/assert";
-import { report, timed } from "@scribe/foundation/tests/e2e/support/stack.ts";
+import { report, timed } from "./support/stack.ts";
 
 Deno.test("hook: with nobody listening, the fallback comes back", async () => {
   const hook = new Hook<{ v: number }, string>({

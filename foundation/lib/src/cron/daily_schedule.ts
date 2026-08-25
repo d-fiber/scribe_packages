@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { DeclarationError, type UnmodifiableList } from "@scribe/alchemy";
-import type { CronTimezone } from "@scribe/foundation/lib/src/cron/cron_timezone.ts";
+import type { CronTimezone } from "./cron_timezone.ts";
 import { Cron } from "croner";
 
 /** A 24-hour time of day, as `HH:MM`. */

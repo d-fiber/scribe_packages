@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { DeclarationError } from "@scribe/alchemy";
-import type { Schedule } from "@scribe/foundation/lib/src/cron/schedule.ts";
+import type { Schedule } from "./schedule.ts";
 
 /**
  * When the schedule next fires after `after`.

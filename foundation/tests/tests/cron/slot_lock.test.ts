@@ -33,10 +33,10 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import "@scribe/foundation/tests/testing/settings.ts";
+import "../../testing/settings.ts";
 
-import { SlotLock } from "@scribe/foundation/lib/src/cron/slot_lock.ts";
-import type { Scheduled } from "@scribe/foundation/lib/src/cron/schedule.ts";
+import { SlotLock } from "../../../lib/src/cron/slot_lock.ts";
+import type { Scheduled } from "../../../lib/src/cron/schedule.ts";
 import { Duration } from "@scribe/alchemy";
 import { assertEquals, assertNotEquals } from "@std/assert";
 

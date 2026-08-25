@@ -34,16 +34,16 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import "@scribe/foundation/tests/testing/settings.ts";
+import "../../testing/settings.ts";
 
 import { assertEquals, assertThrows } from "@std/assert";
-import { matchesOf } from "@scribe/foundation/lib/src/trigger/trigger_match.ts";
-import type { RegisteredTrigger } from "@scribe/foundation/lib/src/trigger/trigger_registry.ts";
-import { TriggerRegistry } from "@scribe/foundation/lib/src/trigger/trigger_registry.ts";
-import type { TriggerEvent } from "@scribe/foundation/lib/src/trigger/trigger_event.ts";
-import { eventFrom } from "@scribe/foundation/lib/src/trigger/trigger_event.ts";
-import { parsePath } from "@scribe/foundation/lib/src/trigger/trigger_path.ts";
-import { Trigger } from "@scribe/foundation/lib/src/trigger/trigger.ts";
+import { matchesOf } from "../../../lib/src/trigger/trigger_match.ts";
+import type { RegisteredTrigger } from "../../../lib/src/trigger/trigger_registry.ts";
+import { TriggerRegistry } from "../../../lib/src/trigger/trigger_registry.ts";
+import type { TriggerEvent } from "../../../lib/src/trigger/trigger_event.ts";
+import { eventFrom } from "../../../lib/src/trigger/trigger_event.ts";
+import { parsePath } from "../../../lib/src/trigger/trigger_path.ts";
+import { Trigger } from "../../../lib/src/trigger/trigger.ts";
 
 interface OrderRow {
   id: string;

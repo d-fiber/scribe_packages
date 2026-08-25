@@ -35,10 +35,10 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Duration } from "@scribe/alchemy";
-import { AudienceError } from "@scribe/audience/lib/contracts/audience.ts";
-import { Audience } from "@scribe/audience/lib/src/core/declaration.ts";
-import { AudienceKeyError } from "@scribe/audience/lib/src/core/key.ts";
-import { installAudienceMock } from "@scribe/audience/tests/testing/mock.ts";
+import { AudienceError } from "../../lib/contracts/audience.ts";
+import { Audience } from "../../lib/src/core/declaration.ts";
+import { AudienceKeyError } from "../../lib/src/core/key.ts";
+import { installAudienceMock } from "../testing/mock.ts";
 import { assert, assertEquals, assertFalse, assertThrows } from "@std/assert";
 
 const banned = Audience.plain("declaration-banned");

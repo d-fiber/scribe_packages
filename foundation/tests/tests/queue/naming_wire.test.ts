@@ -33,7 +33,7 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import "@scribe/foundation/tests/testing/settings.ts";
+import "../../testing/settings.ts";
 
 import {
   DEAD_STREAM,
@@ -43,8 +43,8 @@ import {
   SHARED_CONSUMER,
   SHARED_STREAM,
   subjectOf,
-} from "@scribe/foundation/lib/src/queue/queue_naming.ts";
-import { decode, encode } from "@scribe/foundation/lib/src/queue/wire_message.ts";
+} from "../../../lib/src/queue/queue_naming.ts";
+import { decode, encode } from "../../../lib/src/queue/wire_message.ts";
 import { assertEquals, assertNotEquals } from "@std/assert";
 
 Deno.test("sanitize keeps what NATS accepts and folds the rest", () => {
