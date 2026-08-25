@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { SignOutScope } from "@scribe/auth/lib/contracts/account.ts";
-import { IdentityRevocation } from "@scribe/foundation/lib/src/redis/identity_revocation.ts";
+import { IdentityRevocation } from "@scribe/foundation";
 import { goTrue } from "./gotrue/gotrue_client.ts";
 import { deviceCache } from "./devices/cache.ts";
 import { sessionIdempotence } from "./session.ts";

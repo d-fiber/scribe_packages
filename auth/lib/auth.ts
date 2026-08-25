@@ -49,7 +49,7 @@
 
 import type { LifecycleSteps } from "@scribe/alchemy";
 import { extensions, OptionalExtension } from "@scribe/runtime/support/extensions/mod.ts";
-import { optional, required } from "@scribe/foundation/lib/foundation.ts";
+import { optional, required } from "@scribe/foundation";
 import { AUTH_EXTENSION } from "./src/declaration/registry.ts";
 import { authSettings } from "./src/settings.ts";
 

@@ -37,7 +37,7 @@
 import type { IpLocation } from "@scribe/alchemy/route";
 import type { RequestDevice } from "@scribe/contracts/device.ts";
 import { Failure, okay, type Result } from "@scribe/alchemy";
-import { Table } from "@scribe/foundation/lib/src/database/table.ts";
+import { Table } from "@scribe/foundation";
 import type { AccountIdentity, AccountRow, SignInContext } from "../../contracts/account.ts";
 import type { Channel } from "../../contracts/channel.ts";
 import type { AccountDevice } from "../../contracts/device.ts";

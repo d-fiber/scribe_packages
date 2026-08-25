@@ -37,8 +37,8 @@
 import { LinkOutcome, LinkPlatform } from "@scribe/dynamic_links/lib/contracts/link.ts";
 import type { RecordedVisit } from "@scribe/dynamic_links/lib/src/db/statistics.ts";
 import { installDynamicLinksMock } from "@scribe/dynamic_links/tests/testing/mock.ts";
-import type { BatchHandler } from "@scribe/foundation/lib/src/queue/queue_options.ts";
-import { queueRegistry } from "@scribe/foundation/lib/src/queue/queue_registry.ts";
+import type { BatchHandler } from "@scribe/foundation";
+import { queueRegistry } from "@scribe/foundation";
 import { assert, assertEquals } from "@std/assert";
 
 import "@scribe/dynamic_links/lib/src/db/statistics.ts";

@@ -36,8 +36,7 @@
 
 import { Duration } from "@scribe/alchemy";
 import { extensions } from "@scribe/runtime/support/extensions/mod.ts";
-import { Cron } from "@scribe/foundation/lib/src/cron/cron.ts";
-import { every } from "@scribe/foundation/lib/src/cron/interval_schedule.ts";
+import { Cron, every } from "@scribe/foundation";
 import { SearchOperation } from "../../contracts/definition.ts";
 import { SEARCH_EXTENSION } from "../core/extension.ts";
 import type { AnySearchIndex } from "../core/registry.ts";

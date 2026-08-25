@@ -34,9 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { PostgrestClients } from "@scribe/foundation/lib/src/database/postgrest_clients.ts";
-import { FakePostgrestClient, type FakePostgrestSeed, type Row } from "@scribe/foundation/tests/testing/database.ts";
-import { installValkeryMock } from "@scribe/foundation/tests/testing/cache.ts";
+import { PostgrestClients } from "@scribe/foundation";
+import { FakePostgrestClient, type FakePostgrestSeed, type Row } from "@scribe/foundation/testing";
+import { installValkeryMock } from "@scribe/foundation/testing";
 import { type InstalledMock, installMock } from "@scribe/testing/install.ts";
 import type { PostgrestClient } from "@supabase/postgrest-js";
 

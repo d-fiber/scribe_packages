@@ -1,7 +1,13 @@
 {
   "imports": {
     "@scribe/dynamic_links/": "./",
-    "@scribe/foundation/": "../foundation/",
+    "@scribe/dynamic_links/e2e": "./tests/e2e/support/stack.ts",
+    "@scribe/dynamic_links/testing": "./tests/testing/testing.ts",
+    "@scribe/dynamic_links/testing/settings": "./tests/testing/settings.ts",
+    "@scribe/foundation": "../foundation/lib/foundation.ts",
+    "@scribe/foundation/e2e": "../foundation/tests/e2e/support/stack.ts",
+    "@scribe/foundation/testing": "../foundation/tests/testing/testing.ts",
+    "@scribe/foundation/testing/settings": "../foundation/tests/testing/settings.ts",
     "@scribe/testing/": "../../engine/testing/"
   }
 }

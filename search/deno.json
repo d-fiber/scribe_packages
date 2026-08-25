@@ -1,8 +1,14 @@
 {
   "imports": {
-    "@scribe/foundation/": "../foundation/",
+    "@scribe/foundation": "../foundation/lib/foundation.ts",
+    "@scribe/foundation/e2e": "../foundation/tests/e2e/support/stack.ts",
+    "@scribe/foundation/testing": "../foundation/tests/testing/testing.ts",
+    "@scribe/foundation/testing/settings": "../foundation/tests/testing/settings.ts",
     "@scribe/runtime/": "../../engine/runtime/",
     "@scribe/search/": "./",
+    "@scribe/search/e2e": "./tests/e2e/support/stack.ts",
+    "@scribe/search/testing": "./tests/testing/testing.ts",
+    "@scribe/search/testing/settings": "./tests/testing/settings.ts",
     "@scribe/testing/": "../../engine/testing/"
   }
 }

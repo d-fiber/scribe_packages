@@ -2,6 +2,9 @@
   "imports": {
     "@scribe/contracts/": "../../engine/contracts/",
     "@scribe/foundation/": "./",
+    "@scribe/foundation/e2e": "./tests/e2e/support/stack.ts",
+    "@scribe/foundation/testing": "./tests/testing/testing.ts",
+    "@scribe/foundation/testing/settings": "./tests/testing/settings.ts",
     "@scribe/runtime/": "../../engine/runtime/"
   }
 }

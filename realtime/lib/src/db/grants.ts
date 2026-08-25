@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { wrote } from "@scribe/foundation/lib/foundation.ts";
+import { wrote } from "@scribe/foundation";
 import { realtimeGrants } from "./tables.ts";
 
 /**

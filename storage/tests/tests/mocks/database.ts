@@ -38,8 +38,8 @@ import { installStorageTestSettings } from "@scribe/storage/tests/testing/settin
 
 installStorageTestSettings();
 import { type InstalledMock, installMock } from "@scribe/testing/install.ts";
-import { PostgrestClients } from "@scribe/foundation/lib/src/database/postgrest_clients.ts";
-import { FakePostgrestClient, type FakePostgrestSeed } from "@scribe/foundation/tests/testing/database.ts";
+import { PostgrestClients } from "@scribe/foundation";
+import { FakePostgrestClient, type FakePostgrestSeed } from "@scribe/foundation/testing";
 import type { PostgrestClient } from "@supabase/postgrest-js";
 
 /** A database fake, plus the handle that puts the real client back. */

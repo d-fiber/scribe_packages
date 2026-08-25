@@ -1,7 +1,13 @@
 {
   "imports": {
     "@scribe/audience/": "./",
-    "@scribe/foundation/": "../foundation/",
+    "@scribe/audience/e2e": "./tests/e2e/support/stack.ts",
+    "@scribe/audience/testing": "./tests/testing/testing.ts",
+    "@scribe/audience/testing/settings": "./tests/testing/settings.ts",
+    "@scribe/foundation": "../foundation/lib/foundation.ts",
+    "@scribe/foundation/e2e": "../foundation/tests/e2e/support/stack.ts",
+    "@scribe/foundation/testing": "../foundation/tests/testing/testing.ts",
+    "@scribe/foundation/testing/settings": "../foundation/tests/testing/settings.ts",
     "@scribe/testing/": "../../engine/testing/"
   }
 }

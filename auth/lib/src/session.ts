@@ -43,7 +43,7 @@ import { currentLocation } from "@scribe/runtime/http/accessors/location.ts";
 import { checkCaller } from "@scribe/runtime/http/caller.ts";
 import { request } from "@scribe/runtime/http/request.ts";
 import { sha256Hex } from "@scribe/runtime/support/crypto/hash.ts";
-import { KeyIndex } from "@scribe/foundation/lib/src/redis/key_index.ts";
+import { KeyIndex } from "@scribe/foundation";
 import { rateLimit } from "@scribe/alchemy";
 import type { AccountRole } from "../contracts/role.ts";
 import { standingBanOn } from "./bans.ts";

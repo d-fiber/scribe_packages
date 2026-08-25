@@ -49,7 +49,7 @@
 
 import type { LifecycleSteps } from "@scribe/alchemy";
 import { extensions, OptionalExtension } from "@scribe/runtime/support/extensions/mod.ts";
-import { required } from "@scribe/foundation/lib/foundation.ts";
+import { required } from "@scribe/foundation";
 import { SEARCH_EXTENSION } from "./src/core/extension.ts";
 import { syncDeclaredIndices } from "./src/db/indices.ts";
 import { searchSettings } from "./src/settings.ts";

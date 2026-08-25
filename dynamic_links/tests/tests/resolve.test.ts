@@ -42,7 +42,7 @@ import { dynamicLinkStatisticsQueue, type RecordedVisit } from "@scribe/dynamic_
 import { resolveLink } from "@scribe/dynamic_links/lib/src/runtime/resolve.ts";
 import { installDynamicLinksMock } from "@scribe/dynamic_links/tests/testing/mock.ts";
 import { installMock } from "@scribe/testing/install.ts";
-import type { Row } from "@scribe/foundation/tests/testing/database.ts";
+import type { Row } from "@scribe/foundation/testing";
 import { assert, assertEquals } from "@std/assert";
 
 interface Party {

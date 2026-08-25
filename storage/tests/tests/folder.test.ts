@@ -39,7 +39,7 @@ import { installStorageTestSettings } from "@scribe/storage/tests/testing/settin
 installStorageTestSettings();
 import { assertEquals } from "@std/assert";
 import { Bytes, Storage, StorageVisibility } from "@scribe/storage/lib/storage.ts";
-import type { FakePostgrestSeed } from "@scribe/foundation/tests/testing/database.ts";
+import type { FakePostgrestSeed } from "@scribe/foundation/testing";
 import { installStorageMock } from "@scribe/storage/tests/testing/mock.ts";
 import { installDatabaseFake } from "./mocks/database.ts";
 

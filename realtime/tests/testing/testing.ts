@@ -34,30 +34,13 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installSearchTestSettings } from "@scribe/search/tests/testing/settings.ts";
-
-installSearchTestSettings();
-import { type InstalledMock, installMock } from "@scribe/testing/install.ts";
-import { PostgrestClients } from "@scribe/foundation";
-import { FakePostgrestClient, type FakePostgrestSeed } from "@scribe/foundation/testing";
-import type { PostgrestClient } from "@supabase/postgrest-js";
-
 /**
- * Answers every query of this package with in-memory rows, and hands back the restore handle.
+ * What a test outside realtime may stand this package up with.
  *
- * The service client is what an index reads through, since a document is built from everything
- * a row holds rather than from what the caller who triggered the rebuild may see. Replacing it
- * leaves the compiled select lists and the filters under test.
+ * @remarks
+ * The harness under `tests/testing/` is written to be thrown away and rewritten, so nothing
+ * outside this package reaches into it directly. What this file names is the part other
+ * suites depend on, and changing anything it does not name breaks nobody.
  */
-export function installDatabaseFake(seed: FakePostgrestSeed = {}): InstalledMock {
-  const filled: FakePostgrestSeed = {
-    __search_indices__: [],
-    __search_sources__: [],
-    __search_outbox__: [],
-    ...seed,
-  };
 
-  const fake = new FakePostgrestClient(filled) as unknown as PostgrestClient;
-
-  return installMock(PostgrestClients, "service", () => fake);
-}
+export { installRealtimeMock } from "./mock.ts";
