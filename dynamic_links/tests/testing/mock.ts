@@ -37,8 +37,8 @@
 import { PostgrestClients } from "@scribe/foundation/lib/src/database/client.ts";
 import { FakePostgrestClient, type FakePostgrestSeed, type Row } from "@scribe/foundation/tests/testing/database.ts";
 import { installValkeryMock } from "@scribe/foundation/tests/testing/valkery.ts";
-import type { InstalledMock } from "@scribe/core/testing/install.ts";
-import { installMock } from "@scribe/core/testing/install.ts";
+import type { InstalledMock } from "@scribe/testing/install.ts";
+import { installMock } from "@scribe/testing/install.ts";
 import type { PostgrestClient } from "@supabase/postgrest-js";
 
 /** The two tables of this package, standing in for Postgres, and what a test reads back. */

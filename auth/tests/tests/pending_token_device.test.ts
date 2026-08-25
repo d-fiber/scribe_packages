@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installTestSettings } from "@scribe/core/testing/settings.ts";
+import { installTestSettings } from "@scribe/testing/settings.ts";
 import { PendingToken } from "@scribe/auth/lib/src/pending_token.ts";
 import { assertEquals, assertNotEquals } from "@std/assert";
 import { forgeToken } from "@scribe/auth/tests/testing/pending_token.ts";

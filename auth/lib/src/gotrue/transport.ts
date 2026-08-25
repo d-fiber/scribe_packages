@@ -38,7 +38,7 @@ import { Duration } from "@scribe/alchemy";
 import { Failure, Ok, okay, type Result } from "@scribe/alchemy";
 import { currentClient } from "@scribe/foundation/lib/src/http/run_with_client.ts";
 import type { HttpResponse } from "@scribe/alchemy/http";
-import { identitySettings } from "@scribe/core/runtime/support/settings/identity.ts";
+import { identitySettings } from "@scribe/runtime/support/settings/identity.ts";
 
 export type AuthError = { code: string; message: string };
 

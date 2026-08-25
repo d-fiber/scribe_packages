@@ -81,7 +81,7 @@ export async function useStack(): Promise<void> {
   Deno.env.set("APP_URL", STACK.appUrl);
   Deno.env.set("ADMIN_URL", STACK.adminUrl);
 
-  await import("@scribe/core/testing/settings.ts");
+  await import("@scribe/testing/settings.ts");
 
   const { StorageTransports } = await import("@scribe/storage/lib/src/bucket/registry.ts");
   const { SupabaseStorageTransport } = await import("@scribe/storage/lib/src/bucket/supabase.ts");

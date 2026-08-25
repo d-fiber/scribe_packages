@@ -36,8 +36,8 @@
 import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
 import { assertEquals, assertRejects } from "@std/assert";
 import type { RequestUser } from "@scribe/alchemy/route";
-import { RequestIdentityCache } from "@scribe/core/runtime/http/accessors/identity.ts";
-import { RequestScope } from "@scribe/core/runtime/scope.ts";
+import { RequestIdentityCache } from "@scribe/runtime/http/accessors/identity.ts";
+import { RequestScope } from "@scribe/runtime/scope.ts";
 import { from } from "@scribe/foundation/lib/src/database/tables_base.ts";
 import { registerTableOwners } from "@scribe/foundation/lib/src/database/table_owners.ts";
 import { READS_EVERY_ROW, UnprovenCallerError } from "@scribe/foundation/lib/src/database/query/owner_scope.ts";

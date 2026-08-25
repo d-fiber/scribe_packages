@@ -41,7 +41,7 @@ import { onLinkPreview } from "@scribe/dynamic_links/lib/src/core/preview.ts";
 import { dynamicLinkStatisticsQueue, type RecordedVisit } from "@scribe/dynamic_links/lib/src/db/statistics.ts";
 import { resolveLink } from "@scribe/dynamic_links/lib/src/runtime/resolve.ts";
 import { installDynamicLinksMock } from "@scribe/dynamic_links/tests/testing/mock.ts";
-import { installMock } from "@scribe/core/testing/install.ts";
+import { installMock } from "@scribe/testing/install.ts";
 import type { Row } from "@scribe/foundation/tests/testing/database.ts";
 import { assert, assertEquals } from "@std/assert";
 

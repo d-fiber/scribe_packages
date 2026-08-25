@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { LatLng } from "@scribe/alchemy";
-import type { ClientType, DeviceCategory, DeviceOs } from "@scribe/core/contracts/enums.ts";
+import type { ClientType, DeviceCategory, DeviceOs } from "@scribe/contracts/enums.ts";
 
 /** When a row was written and when it was last touched. */
 export interface Metadata {

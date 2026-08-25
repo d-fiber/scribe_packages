@@ -36,7 +36,7 @@
 
 import { Duration } from "@scribe/alchemy";
 import { Failure, okay } from "@scribe/alchemy";
-import type { RequestDevice } from "@scribe/core/contracts/device.ts";
+import type { RequestDevice } from "@scribe/contracts/device.ts";
 import { BanError } from "@scribe/auth/lib/src/bans.ts";
 import { Account, SignInRefusal } from "@scribe/auth/lib/src/declaration/account.ts";
 import { Channel } from "@scribe/auth/lib/contracts/channel.ts";

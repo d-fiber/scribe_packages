@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { installTestSettings } from "@scribe/core/testing/settings.ts";
+import { installTestSettings } from "@scribe/testing/settings.ts";
 import { assertEquals, assertNotEquals } from "@std/assert";
 import { FakeTime } from "@std/testing/time";
 import { Duration } from "@scribe/alchemy";

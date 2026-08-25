@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { IpLocation } from "@scribe/alchemy/route";
-import type { RequestDevice } from "@scribe/core/contracts/device.ts";
+import type { RequestDevice } from "@scribe/contracts/device.ts";
 import { Failure, okay, type Result } from "@scribe/alchemy";
 import { Table } from "@scribe/foundation/lib/src/database/table.ts";
 import type { AccountIdentity, AccountRow, SignInContext } from "../../contracts/account.ts";

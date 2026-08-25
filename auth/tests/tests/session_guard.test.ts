@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { fakeDevice, withRequest } from "@scribe/core/testing/runtime/device.ts";
-import { installTestSettings } from "@scribe/core/testing/settings.ts";
+import { fakeDevice, withRequest } from "@scribe/testing/runtime/device.ts";
+import { installTestSettings } from "@scribe/testing/settings.ts";
 import { Channel } from "@scribe/auth/lib/contracts/channel.ts";
 import { Account } from "@scribe/auth/lib/src/declaration/account.ts";
 import { session } from "@scribe/auth/lib/src/session.ts";

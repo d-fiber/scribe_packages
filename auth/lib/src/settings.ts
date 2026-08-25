@@ -38,9 +38,11 @@ import { Slot } from "@scribe/alchemy";
 import type { AuthSettings } from "../contracts/settings.ts";
 
 /**
- * Where this package's secrets live, filled by `register.ts` when the module is mounted.
+ * Where this package's secrets live, filled when the module is mounted.
  *
- * They do not come from `@scribe/engine/env.ts` because a package cannot read the host's
- * environment: it would tie a package to the one process that declares those names.
+ * Nothing outside the package fills them, and no host hands them over: they are read in
+ * `auth.ts`, one variable at a time, by the names this package alone asks for. A package
+ * handed the whole environment of a process would carry names it does not read and could
+ * not be moved to a process that spells them otherwise.
  */
 export const authSettings: Slot<AuthSettings> = new Slot<AuthSettings>("auth");

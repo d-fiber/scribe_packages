@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { currentPrincipal } from "@scribe/core/runtime/http/accessors/identity.ts";
+import { currentPrincipal } from "@scribe/runtime/http/accessors/identity.ts";
 import { ScribeError } from "@scribe/alchemy";
 import { ownerOf } from "../table_owners.ts";
 import type { FilterSpec } from "./filter_builder.ts";

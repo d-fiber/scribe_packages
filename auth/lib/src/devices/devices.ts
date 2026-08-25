@@ -35,10 +35,10 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Duration } from "@scribe/alchemy";
-import { requestDevice } from "@scribe/core/runtime/device/device.ts";
-import { request } from "@scribe/core/runtime/http/request.ts";
-import { constantTimeEqual } from "@scribe/core/runtime/support/crypto/constant_time.ts";
-import { sha256Hex } from "@scribe/core/runtime/support/crypto/hash.ts";
+import { requestDevice } from "@scribe/runtime/device/device.ts";
+import { request } from "@scribe/runtime/http/request.ts";
+import { constantTimeEqual } from "@scribe/runtime/support/crypto/constant_time.ts";
+import { sha256Hex } from "@scribe/runtime/support/crypto/hash.ts";
 import type { AccountDevice } from "../../contracts/device.ts";
 import { AccountRevocation } from "../revocation.ts";
 import { deviceCache } from "./cache.ts";

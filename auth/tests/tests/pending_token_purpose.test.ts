@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { PendingToken, PendingTokenPurpose } from "@scribe/auth/lib/src/pending_token.ts";
-import { installTestSettings } from "@scribe/core/testing/settings.ts";
+import { installTestSettings } from "@scribe/testing/settings.ts";
 import { authSettings } from "@scribe/auth/lib/src/settings.ts";
 import { assertEquals, assertNotEquals } from "@std/assert";
 import { forgeToken, issueToken } from "@scribe/auth/tests/testing/pending_token.ts";

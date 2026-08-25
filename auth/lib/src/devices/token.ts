@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { sha256Hex, toHex } from "@scribe/core/runtime/support/crypto/hash.ts";
+import { sha256Hex, toHex } from "@scribe/runtime/support/crypto/hash.ts";
 
 const RANDOM_BYTES = 64;
 

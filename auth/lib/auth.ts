@@ -48,8 +48,8 @@
  */
 
 import type { LifecycleSteps } from "@scribe/alchemy";
-import { extensions, OptionalExtension } from "@scribe/core/runtime/support/extensions/mod.ts";
-import { Env } from "@scribe/engine/env.ts";
+import { extensions, OptionalExtension } from "@scribe/runtime/support/extensions/mod.ts";
+import { optional, required } from "@scribe/foundation/lib/foundation.ts";
 import { AUTH_EXTENSION } from "./src/declaration/registry.ts";
 import { authSettings } from "./src/settings.ts";
 
@@ -138,15 +138,15 @@ export { SmsIntent } from "./src/sms_intent.ts";
 export const scribe: LifecycleSteps = {
   wires: () => {
     authSettings.use({
-      jwtSecret: Env.JWT_SECRET ?? "",
-      pendingTokenSecret: Env.PENDING_TOKEN_SECRET ?? "",
-      googleClientId: Env.GOOGLE_CLIENT_ID ?? "",
-      googleClientSecret: Env.GOOGLE_CLIENT_SECRET ?? "",
-      appleClientId: Env.APPLE_CLIENT_ID ?? "",
-      appleClientSecret: Env.APPLE_CLIENT_SECRET ?? "",
-      twilioAccountSid: Env.TWILIO_ACCOUNT_SID ?? "",
-      twilioAuthToken: Env.TWILIO_AUTH_TOKEN ?? "",
-      twilioMessageServiceSid: Env.TWILIO_MESSAGE_SERVICE_SID ?? "",
+      jwtSecret: optional("JWT_SECRET"),
+      pendingTokenSecret: required("PENDING_TOKEN_SECRET"),
+      googleClientId: optional("GOOGLE_CLIENT_ID"),
+      googleClientSecret: optional("GOOGLE_CLIENT_SECRET"),
+      appleClientId: optional("APPLE_CLIENT_ID"),
+      appleClientSecret: optional("APPLE_CLIENT_SECRET"),
+      twilioAccountSid: optional("TWILIO_ACCOUNT_SID"),
+      twilioAuthToken: optional("TWILIO_AUTH_TOKEN"),
+      twilioMessageServiceSid: optional("TWILIO_MESSAGE_SERVICE_SID"),
     });
 
     extensions.register(

@@ -63,8 +63,8 @@ bash .github/headers/check.sh
 say "checking the version"
 bash .github/version/check.sh
 
-say "copying the packages into $SCRIBE/engine/packages"
-bash .github/sync/copy.sh "$SCRIBE/engine/packages"
+say "copying the packages into $SCRIBE/packages"
+bash .github/sync/copy.sh "$SCRIBE/packages"
 
 cd "$SCRIBE/engine"
 

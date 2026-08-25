@@ -3,10 +3,18 @@ description: "What an account is, from the sign up to a device it trusts: the do
 version: 1.0.0
 
 environment:
-  scribe: "^9.0.0"
+  scribe: "^11.0.0"
 
 dependencies:
   foundation: ^1.0.0
+  "@scribe/contracts/": any
+  "@scribe/runtime/": any
+  "libphonenumber-js": any
+
+dev_dependencies:
+  "@scribe/testing/": any
+  "@std/testing/time": any
+  "@supabase/postgrest-js": any
 
 scribe:
   db:

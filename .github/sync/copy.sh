@@ -50,7 +50,7 @@ fail() {
   exit 1
 }
 
-[ -n "$TARGET" ] || fail "Name the directory to copy into, as in .../scribe/engine/packages"
+[ -n "$TARGET" ] || fail "Name the directory to copy into, as in .../scribe/packages"
 [ -d "$(dirname "$TARGET")" ] || fail "$(dirname "$TARGET") does not exist, so $TARGET is not where you think"
 
 mkdir -p "$TARGET"

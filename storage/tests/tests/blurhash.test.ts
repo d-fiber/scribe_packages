@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import "@scribe/core/testing/settings.ts";
+import "@scribe/testing/settings.ts";
 import { assertEquals, assertNotEquals } from "@std/assert";
 import encodeWebp from "@jsquash/webp/encode";
 import { encode as encodePng } from "fast-png";

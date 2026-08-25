@@ -34,10 +34,10 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import "@scribe/core/testing/settings.ts";
+import "@scribe/testing/settings.ts";
 
 import { type PendingToken, PendingTokenPurpose } from "@scribe/auth/lib/src/pending_token.ts";
-import { toHex } from "@scribe/core/runtime/support/crypto/hash.ts";
+import { toHex } from "@scribe/runtime/support/crypto/hash.ts";
 import type { AccountRole } from "@scribe/auth/lib/contracts/role.ts";
 import { authSettings } from "@scribe/auth/lib/src/settings.ts";
 

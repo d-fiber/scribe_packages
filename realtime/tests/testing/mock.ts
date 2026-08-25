@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import "@scribe/core/testing/settings.ts";
-import type { InstalledMock } from "@scribe/core/testing/install.ts";
+import "@scribe/testing/settings.ts";
+import type { InstalledMock } from "@scribe/testing/install.ts";
 import { RealtimeTransports } from "@scribe/realtime/lib/src/transport/registry.ts";
 import type { RealtimeRow, RealtimeTransport } from "@scribe/realtime/lib/src/transport/transport.ts";
 

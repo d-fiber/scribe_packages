@@ -34,11 +34,11 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { RequestDevice } from "@scribe/core/contracts/device.ts";
-import type { DeviceCategory, DeviceOs } from "@scribe/core/contracts/enums.ts";
-import { requestDevice } from "@scribe/core/runtime/device/device.ts";
-import { currentLocation } from "@scribe/core/runtime/http/accessors/location.ts";
-import { request } from "@scribe/core/runtime/http/request.ts";
+import type { RequestDevice } from "@scribe/contracts/device.ts";
+import type { DeviceCategory, DeviceOs } from "@scribe/contracts/enums.ts";
+import { requestDevice } from "@scribe/runtime/device/device.ts";
+import { currentLocation } from "@scribe/runtime/http/accessors/location.ts";
+import { request } from "@scribe/runtime/http/request.ts";
 import type { AccountDevice } from "../../contracts/device.ts";
 import { accountDevices } from "../tables.ts";
 import { DeviceToken } from "./token.ts";

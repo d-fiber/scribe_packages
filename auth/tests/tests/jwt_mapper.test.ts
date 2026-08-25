@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { AuthMapper } from "@scribe/auth/lib/src/gotrue/mappers.ts";
-import { installTestSettings } from "@scribe/core/testing/settings.ts";
+import { installTestSettings } from "@scribe/testing/settings.ts";
 import { authSettings } from "@scribe/auth/lib/src/settings.ts";
 import { assertEquals } from "@std/assert";
 

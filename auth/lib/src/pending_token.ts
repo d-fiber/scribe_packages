@@ -37,7 +37,7 @@
 import { authSettings } from "./settings.ts";
 import { pendingTokens } from "./tables.ts";
 import type { AccountRole } from "../contracts/role.ts";
-import { fromHex, sha256Hex, toHex } from "@scribe/core/runtime/support/crypto/hash.ts";
+import { fromHex, sha256Hex, toHex } from "@scribe/runtime/support/crypto/hash.ts";
 
 export enum PendingTokenPurpose {
   SignIn = "sign-in",

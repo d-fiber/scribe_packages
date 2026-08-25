@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 
-import "@scribe/core/testing/settings.ts";
+import "@scribe/testing/settings.ts";
 import { assertEquals, assertThrows } from "@std/assert";
 import { Bytes, Storage, StoragePathError, StorageVisibility } from "@scribe/storage/lib/storage.ts";
 

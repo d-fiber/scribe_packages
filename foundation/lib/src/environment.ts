@@ -32,22 +32,43 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
+// LICENSE file, the LICENSE file governs.
 
-import { cacheSettings } from "@scribe/foundation/lib/src/cache/cache_settings.ts";
-import { databaseSettings } from "@scribe/foundation/lib/src/database/database_settings.ts";
-import { optional } from "@scribe/foundation/lib/src/environment.ts";
-import { queueSettings } from "@scribe/foundation/lib/src/queue/queue_settings.ts";
+/**
+ * The value `name` holds in the process environment, refusing an absent or empty one.
+ *
+ * @remarks
+ * A package reads what it needs while it wires itself, not at the first call that needs
+ * it: a deployment missing a variable then stops on a line that names the variable,
+ * instead of failing later in a stack that names the caller and never the setting.
+ *
+ * Nothing here holds a list of names. The names belong to the deployment, and a package
+ * asks only for the ones it reads, which is what keeps a package from carrying the
+ * environment of a process it cannot see.
+ *
+ * @param name - The variable to read, as the deployment spells it.
+ * @returns What the environment holds under `name`.
+ * @throws {Error} When the variable is absent, or holds nothing but an empty string.
+ */
+export function required(name: string): string {
+  const value = Deno.env.get(name);
+  if (!value) throw new Error(`Missing required environment variable: ${name}`);
 
-export function installTestSettings(): void {
-  if (cacheSettings.configured) return;
-
-  cacheSettings.use({ redisUrl: optional("REDIS_URL", "redis://localhost:6379") });
-  queueSettings.use({ natsUrl: optional("NATS_URL", "nats://localhost:4222") });
-  databaseSettings.use({
-    restUrl: optional("SUPABASE_REST_INTERNAL_URL", "http://localhost:3000"),
-    anonKey: optional("SUPABASE_ANON_KEY", "anon"),
-    serviceRoleKey: optional("SUPABASE_SERVICE_ROLE_KEY", "service"),
-  });
+  return value;
 }
 
-installTestSettings();
+/**
+ * The value `name` holds in the process environment, or `fallback` when it holds none.
+ *
+ * @remarks
+ * This is for a setting a deployment may legitimately leave out, a provider it does not
+ * use being the usual one. A variable that is set to an empty string is taken as set, so
+ * a deployment that means to disable something clears it rather than emptying it.
+ *
+ * @param name - The variable to read, as the deployment spells it.
+ * @param fallback - What the caller works with when the deployment names nothing.
+ * @returns What the environment holds under `name`, or `fallback`.
+ */
+export function optional(name: string, fallback = ""): string {
+  return Deno.env.get(name) ?? fallback;
+}

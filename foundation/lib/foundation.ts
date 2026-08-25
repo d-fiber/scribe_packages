@@ -78,6 +78,7 @@ import { ConsoleLogger } from "./src/observe/console_logger.ts";
 import { SystemNow } from "./src/observe/system_now.ts";
 
 export type { CacheSettings, DatabaseSettings, QueueSettings } from "./src/settings.ts";
+export { optional, required } from "./src/environment.ts";
 
 export { Cron, type CronDefinition } from "./src/cron/cron.ts";
 export { cronRegistry, type RegisteredCron } from "./src/cron/cron_registry.ts";

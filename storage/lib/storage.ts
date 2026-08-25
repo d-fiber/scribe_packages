@@ -48,7 +48,7 @@
  */
 
 import type { LifecycleSteps } from "@scribe/alchemy";
-import { Env } from "@scribe/engine/env.ts";
+import { required } from "@scribe/foundation/lib/foundation.ts";
 import { SupabaseStorageTransport } from "./src/bucket/supabase.ts";
 import { StorageTransports } from "./src/bucket/registry.ts";
 import { storageSettings } from "./src/settings.ts";
@@ -96,10 +96,10 @@ export type { StorageBucket, StorageTransport } from "./src/bucket/transport.ts"
 export const scribe: LifecycleSteps = {
   wires: () => {
     storageSettings.use({
-      apiUrl: Env.SUPABASE_STORAGE_INTERNAL_URL,
-      serviceRoleKey: Env.SUPABASE_SERVICE_ROLE_KEY,
-      publicBaseUrl: Env.APP_URL,
-      privateBaseUrl: Env.ADMIN_URL,
+      apiUrl: required("SUPABASE_STORAGE_INTERNAL_URL"),
+      serviceRoleKey: required("SUPABASE_SERVICE_ROLE_KEY"),
+      publicBaseUrl: required("APP_URL"),
+      privateBaseUrl: required("ADMIN_URL"),
     });
 
     StorageTransports.use(new SupabaseStorageTransport());

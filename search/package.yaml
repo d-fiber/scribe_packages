@@ -3,10 +3,17 @@ description: The full text index, what it holds, and the way it is queried.
 version: 1.0.0
 
 environment:
-  scribe: "^9.0.0"
+  scribe: "^11.0.0"
 
 dependencies:
   foundation: ^1.0.0
+  "@opensearch-project/opensearch": any
+  "@opensearch-project/opensearch/": any
+  "@scribe/runtime/": any
+
+dev_dependencies:
+  "@scribe/testing/": any
+  "@supabase/postgrest-js": any
 
 scribe:
   db:

@@ -37,8 +37,8 @@
 import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import type { RequestUser } from "@scribe/alchemy/route";
-import { RequestIdentityCache } from "@scribe/core/runtime/http/accessors/identity.ts";
-import { RequestScope } from "@scribe/core/runtime/scope.ts";
+import { RequestIdentityCache } from "@scribe/runtime/http/accessors/identity.ts";
+import { RequestScope } from "@scribe/runtime/scope.ts";
 import { PostgrestClient } from "@supabase/postgrest-js";
 import { TypedQueryBuilder } from "@scribe/foundation/lib/src/database/query/typed_query_builder.ts";
 import { registerTableOwners } from "@scribe/foundation/lib/src/database/table_owners.ts";

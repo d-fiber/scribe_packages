@@ -98,7 +98,7 @@ export async function useStack(): Promise<void> {
   Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", token);
   Deno.env.set("SUPABASE_ANON_KEY", STACK.anonKey);
 
-  await import("@scribe/core/testing/settings.ts");
+  await import("@scribe/testing/settings.ts");
 }
 
 /** Refuses to run when the stack is not up, with the command that starts it. */

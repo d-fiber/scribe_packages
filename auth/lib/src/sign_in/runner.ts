@@ -37,12 +37,12 @@
 import type { Session } from "@scribe/auth/lib/contracts/account.ts";
 import { Duration } from "@scribe/alchemy";
 import type { IpLocation } from "@scribe/alchemy/route";
-import type { RequestDevice } from "@scribe/core/contracts/device.ts";
+import type { RequestDevice } from "@scribe/contracts/device.ts";
 import { Failure, Ok, type Result } from "@scribe/alchemy";
-import { requestDevice } from "@scribe/core/runtime/device/device.ts";
-import { currentLocation } from "@scribe/core/runtime/http/accessors/location.ts";
-import { callerBlocked, checkCaller } from "@scribe/core/runtime/http/caller.ts";
-import { sha256Hex } from "@scribe/core/runtime/support/crypto/hash.ts";
+import { requestDevice } from "@scribe/runtime/device/device.ts";
+import { currentLocation } from "@scribe/runtime/http/accessors/location.ts";
+import { callerBlocked, checkCaller } from "@scribe/runtime/http/caller.ts";
+import { sha256Hex } from "@scribe/runtime/support/crypto/hash.ts";
 import { rateLimit } from "@scribe/alchemy";
 import type { RateLimiter } from "@scribe/alchemy";
 import type { Channel } from "../../contracts/channel.ts";
