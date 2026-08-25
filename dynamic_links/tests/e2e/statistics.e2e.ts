@@ -42,7 +42,7 @@ await useStack();
 
 const { DynamicLink, LinkOutcome, LinkPlatform, resolveLink } = await import("@scribe/dynamic_links/lib/dynamic_links.ts");
 const { dynamicLinks, dynamicLinkStatistics } = await import("@scribe/dynamic_links/lib/src/db/tables.ts");
-const { queueRunner } = await import("@scribe/foundation/lib/src/queue/mod.ts");
+const { queueRunner } = await import("@scribe/foundation/lib/src/queue/runner/queue_runner.ts");
 
 const KEEPS_A_CONNECTION = { sanitizeOps: false, sanitizeResources: false } as const;
 
@@ -140,7 +140,7 @@ Deno.test({
 
     const written = await dynamicLinkStatistics().insert([{ link_id: party.id, outcome: "teleported" }]);
 
-    assertEquals(written, false, "the check constraint is what keeps the column readable by an aggregate");
+    assertEquals(written.ok, false, "the check constraint is what keeps the column readable by an aggregate");
     assertEquals(await visitsOf(party.id), []);
   },
 });

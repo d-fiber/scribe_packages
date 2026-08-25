@@ -35,6 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 
+import { wrote } from "@scribe/foundation/lib/foundation.ts";
 import type { StorageVisibility } from "../core/visibility.ts";
 import { type StorageObjectRow, storageObjects } from "./tables.ts";
 
@@ -94,14 +95,14 @@ export async function recordObject(object: RecordedObject): Promise<RecordedWrit
     : null;
 
   if (stored === null) {
-    return { stored: await storageObjects().insert({ path: object.path, ...row }), displaced };
+    return { stored: wrote(await storageObjects().insert({ path: object.path, ...row })), displaced };
   }
 
   const written = await storageObjects()
     .where((f) => f.path.eq(object.path))
     .update(row);
 
-  return { stored: written, displaced };
+  return { stored: wrote(written), displaced };
 }
 
 /** What the index holds about `path`, or null when it holds nothing. */
@@ -115,9 +116,9 @@ export function storedObject(path: string): Promise<StorageObjectRow | null> {
 export async function forgetObjects(paths: readonly string[]): Promise<boolean> {
   if (paths.length === 0) return true;
 
-  return await storageObjects()
+  return wrote(await storageObjects()
     .where((f) => f.path.in([...paths]))
-    .delete();
+    .delete());
 }
 
 /** One page of the index, read under a prefix. */

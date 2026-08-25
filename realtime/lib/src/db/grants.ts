@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import { wrote } from "@scribe/foundation/lib/foundation.ts";
 import { realtimeGrants } from "./tables.ts";
 
 /**
@@ -48,16 +49,16 @@ const MAX_LISTENERS = 1_000;
 export async function grantChannel(channel: string, accountId: string): Promise<boolean> {
   if (await isGranted(channel, accountId)) return true;
 
-  return await realtimeGrants().insert({ channel, account_id: accountId });
+  return wrote(await realtimeGrants().insert({ channel, account_id: accountId }));
 }
 
 /** Stops `accountId` from listening to `channel`, and answers whether a grant was removed. */
 export async function revokeChannel(channel: string, accountId: string): Promise<boolean> {
   if (!(await isGranted(channel, accountId))) return false;
 
-  return await realtimeGrants()
+  return wrote(await realtimeGrants()
     .where((f) => [f.channel.eq(channel), f.account_id.eq(accountId)])
-    .delete();
+    .delete());
 }
 
 /**
@@ -69,7 +70,7 @@ export async function revokeChannel(channel: string, accountId: string): Promise
 export function revokeChannelEntirely(channel: string): Promise<boolean> {
   return realtimeGrants()
     .where((f) => f.channel.eq(channel))
-    .delete();
+    .delete().then(wrote);
 }
 
 /** Whether `accountId` may listen to `channel`. */

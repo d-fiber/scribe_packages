@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import { wrote } from "@scribe/foundation/lib/foundation.ts";
 import { type AudienceRow, audiences } from "./tables.ts";
 
 /**
@@ -76,12 +77,12 @@ export async function writeMembership(
   const held = await membershipOf(audience, member);
 
   if (held === null) {
-    return await audiences().insert({ audience, member, expires_at: expiresAt });
+    return wrote(await audiences().insert({ audience, member, expires_at: expiresAt }));
   }
 
-  return await audiences()
+  return wrote(await audiences()
     .where((f) => [f.audience.eq(audience), f.member.eq(member)])
-    .update({ expires_at: expiresAt });
+    .update({ expires_at: expiresAt }));
 }
 
 /**
@@ -98,9 +99,9 @@ export async function retimeMembership(
   const held = await membershipOf(audience, member);
   if (held === null || hasExpired(held)) return false;
 
-  return await audiences()
+  return wrote(await audiences()
     .where((f) => [f.audience.eq(audience), f.member.eq(member)])
-    .update({ expires_at: expiresAt });
+    .update({ expires_at: expiresAt }));
 }
 
 /** Takes `member` out of `audience`, and answers whether a row was removed. */
@@ -109,21 +110,21 @@ export async function dropMembership(audience: string, member: string): Promise<
     .where((f) => [f.audience.eq(audience), f.member.eq(member)])
     .deleteOne((s) => ({ member: s.member }));
 
-  return removed !== null;
+  return removed.ok;
 }
 
 /** Empties `audience`, and answers whether the wipe went through. */
 export function dropAudience(audience: string): Promise<boolean> {
   return audiences()
     .where((f) => f.audience.eq(audience))
-    .delete();
+    .delete().then(wrote);
 }
 
 /** Takes `member` out of every audience, and answers whether the wipe went through. */
 export function dropMember(member: string): Promise<boolean> {
   return audiences()
     .where((f) => f.member.eq(member))
-    .delete();
+    .delete().then(wrote);
 }
 
 /**

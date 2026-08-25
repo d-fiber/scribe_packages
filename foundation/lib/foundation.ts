@@ -96,6 +96,7 @@ export { ownerOf, registerTableOwners } from "./src/database/table_owners.ts";
 export { type DatabaseSchema, Table, type TableShape } from "./src/database/table.ts";
 export { from, type RpcBuilder, TablesBase } from "./src/database/tables_base.ts";
 export { PostgrestDatabases } from "./src/database/postgrest_databases.ts";
+export { wrote } from "./src/database/wrote.ts";
 export { ownerScope, READS_EVERY_ROW, type ScopeDecision } from "./src/database/query/owner_scope.ts";
 export { UnsafeFilterError } from "./src/database/query/filter_literal.ts";
 export { DatabaseQueryError, TypedQueryBuilder } from "./src/database/query/typed_query_builder.ts";

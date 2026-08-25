@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import { wrote } from "@scribe/foundation/lib/foundation.ts";
 import { type RemoteConfigRow, remoteConfigs } from "./tables.ts";
 
 /** What storing one value puts in the table. */
@@ -68,16 +69,16 @@ export async function writeValue(stored: StoredValue): Promise<boolean> {
   const held = await valueOf(stored.name);
 
   if (held === null) {
-    return await remoteConfigs().insert({
+    return wrote(await remoteConfigs().insert({
       name: stored.name,
       value: stored.value,
       expires_at: stored.expiresAt,
-    });
+    }));
   }
 
-  return await remoteConfigs()
+  return wrote(await remoteConfigs()
     .where((f) => f.name.eq(stored.name))
-    .update({ value: stored.value, expires_at: stored.expiresAt });
+    .update({ value: stored.value, expires_at: stored.expiresAt }));
 }
 
 /**
@@ -90,9 +91,9 @@ export async function retimeValue(name: string, expiresAt: number | null): Promi
   const held = await valueOf(name);
   if (held === null) return false;
 
-  return await remoteConfigs()
+  return wrote(await remoteConfigs()
     .where((f) => f.name.eq(name))
-    .update({ expires_at: expiresAt });
+    .update({ expires_at: expiresAt }));
 }
 
 /** Removes what is stored under `name`, and answers whether a row was removed. */

@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import { wrote } from "@scribe/foundation/lib/foundation.ts";
 import type { RequestDevice } from "@scribe/contracts/device.ts";
 import type { DeviceCategory, DeviceOs } from "@scribe/contracts/enums.ts";
 import { requestDevice } from "@scribe/runtime/device/device.ts";
@@ -159,7 +160,7 @@ export class DeviceRepository {
         city: origin.city,
         country: origin.country,
         app_version: origin.appVersion ?? null,
-      });
+      }).then(wrote);
   }
 
   /** Removes the device, which is what a kick does once the hook has been told. */
@@ -167,7 +168,7 @@ export class DeviceRepository {
     return accountDevices()
       .unscoped()
       .where((f) => [f.account_id.eq(accountId), f.device_id.eq(deviceId)])
-      .delete();
+      .delete().then(wrote);
   }
 
   /** What the client reported about this device's hardware, or null when it is unknown. */

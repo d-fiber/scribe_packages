@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import { wrote } from "@scribe/foundation/lib/foundation.ts";
 import { realtimeEvents } from "../db/tables.ts";
 import type { RealtimeRow, RealtimeTransport } from "./transport.ts";
 
@@ -122,7 +123,7 @@ export class EventLogTransport implements RealtimeTransport {
     realtimeEvents()
       .insert(batch.map((one) => one.row))
       .then((sent) => {
-        for (const one of batch) one.settle(sent);
+        for (const one of batch) one.settle(wrote(sent));
       })
       .catch((error: unknown) => {
         console.error("[realtime] the event log refused a batch of emissions.", error);

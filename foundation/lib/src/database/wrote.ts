@@ -34,54 +34,23 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { wrote } from "@scribe/foundation/lib/foundation.ts";
-import { type DynamicLinkRow, dynamicLinks, type StoredPayload } from "./tables.ts";
-
-/** What creating one link writes into the table. */
-export interface NewLink {
-  /** The slug drawn for this link. */
-  readonly slug: string;
-
-  /** The declaration and its parameters. */
-  readonly payload: StoredPayload;
-
-  /** When the link stops resolving, in milliseconds, null for a link that never expires. */
-  readonly expiresAt: number | null;
-
-  /** The account creating the link, null for a link no account owns. */
-  readonly userId: string | null;
-}
-
-/** The link answering to `slug`, or null when the table holds none. */
-export function linkBySlug(slug: string): Promise<DynamicLinkRow | null> {
-  return dynamicLinks()
-    .where((f) => f.slug.eq(slug))
-    .getOne();
-}
+import type { Result } from "@scribe/alchemy";
 
 /**
- * Writes `link` and answers the row, or null when the table refused it.
+ * Whether a write went through and touched at least one row.
  *
- * A refusal is almost always the unique index on the slug, which is the one the caller retries
- * on. Nothing else in the row can collide.
- */
-export function insertLink(link: NewLink): Promise<DynamicLinkRow | null> {
-  return dynamicLinks().insertOne({
-    slug: link.slug,
-    payload: link.payload,
-    expires_at: link.expiresAt,
-    user_id: link.userId,
-  }).then((written) => (written.ok ? written.data : null));
-}
-
-/**
- * Removes the link answering to `slug`, and answers whether a row was removed.
+ * @remarks
+ * The query builder answers a write with `Result<number>`, the count of rows it wrote, because
+ * that is what the store reports. Most callers do not want the count, they want to know whether
+ * the thing they asked for is now true, and reading a `Result` as a boolean is always truthy: a
+ * refusal and a write that matched nothing both read as success.
  *
- * The slug rather than the identifier because it is unique too, and because it is what every
- * caller already holds: a link is asked for by the only part of it an address carries.
+ * A refusal answers false rather than raising, which is what a caller racing another writer
+ * wants: the row is in place, put there by whoever won, and the loser has nothing to report.
+ *
+ * @param result - What `insert`, `update` or `delete` answered.
+ * @returns Whether at least one row was written.
  */
-export async function deleteLink(slug: string): Promise<boolean> {
-  return wrote(await dynamicLinks()
-    .where((f) => f.slug.eq(slug))
-    .delete());
+export function wrote(result: Result<number>): boolean {
+  return result.ok && result.data > 0;
 }

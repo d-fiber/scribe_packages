@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import { wrote } from "@scribe/foundation/lib/foundation.ts";
 import type { SearchOperation } from "../../contracts/definition.ts";
 import { call } from "./source.ts";
 import { searchOutbox, type SearchOutboxRow } from "./tables.ts";
@@ -103,9 +104,9 @@ export function claim(limit: number = BATCH_SIZE): Promise<SearchOutboxRow[]> {
 export async function settle(index: string, ids: readonly string[]): Promise<boolean> {
   if (ids.length === 0) return true;
 
-  return await searchOutbox()
+  return wrote(await searchOutbox()
     .where((f) => [f.index.eq(index), f.entity_id.in([...ids])])
-    .delete();
+    .delete());
 }
 
 /**
