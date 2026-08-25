@@ -210,7 +210,7 @@ Deno.test({
       cache.upsert("k", hangs);
       await answering(60, "")();
 
-      let tick = 0;
+      let tick: ReturnType<typeof setTimeout> | 0 = 0;
       const answer = await Promise.race([
         cache.upsert("k", () => Promise.resolve("recovered")),
         new Promise<string>((done) => {

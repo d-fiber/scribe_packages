@@ -175,7 +175,7 @@ Deno.test({
     );
     chain.add(() => ({ then: () => {} }));
 
-    let tick = 0;
+    let tick: ReturnType<typeof setTimeout> | 0 = 0;
     const answered = await Promise.race([
       chain.run("x").then(() => "answered"),
       new Promise((resolve) => {
