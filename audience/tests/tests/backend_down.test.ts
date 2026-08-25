@@ -38,7 +38,7 @@ import { AudienceError } from "@scribe/audience/lib/contracts/audience.ts";
 import { Audience } from "@scribe/audience/lib/src/core/declaration.ts";
 import { audiencesOf } from "@scribe/audience/lib/src/core/member.ts";
 import { installAudienceMock } from "@scribe/audience/tests/testing/mock.ts";
-import { PostgrestClients } from "@scribe/foundation/lib/src/database/client.ts";
+import { PostgrestClients } from "@scribe/foundation/lib/src/database/postgrest_clients.ts";
 import { type InstalledMock, installMock } from "@scribe/testing/install.ts";
 import type { PostgrestClient } from "@supabase/postgrest-js";
 import { assertEquals, assertFalse } from "@std/assert";

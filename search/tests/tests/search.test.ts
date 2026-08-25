@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { assertEquals } from "@std/assert";
-import { installValkeryMock } from "@scribe/foundation/tests/testing/valkery.ts";
+import { installValkeryMock } from "@scribe/foundation/tests/testing/cache.ts";
 import type { SearchParams } from "@scribe/search/lib/contracts/definition.ts";
 import { installSearchMock } from "@scribe/search/tests/testing/mock.ts";
 import { Field, Search } from "@scribe/search/lib/search.ts";
