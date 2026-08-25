@@ -37,6 +37,7 @@ import "@scribe/foundation/tests/testing/settings.ts";
 import type { LockCommands } from "@scribe/foundation/lib/src/cache/lock/lock_commands.ts";
 import { type Kv, kv } from "@scribe/foundation/lib/src/redis/kv.ts";
 import { RateLimiters } from "@scribe/alchemy";
+import { scribe } from "@scribe/foundation/lib/foundation.ts";
 import type {
   RateLimiter,
   RateLimiterDriver,
@@ -49,6 +50,8 @@ import {
 } from "@scribe/foundation/tests/testing/install.ts";
 
 export function installValkeryMock(): InstalledMock {
+  scribe.wires?.();
+
   const store = new Map<string, string>();
   const sets = new Map<string, Set<string>>();
 
