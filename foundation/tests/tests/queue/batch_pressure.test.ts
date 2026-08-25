@@ -41,7 +41,7 @@ import { queueRegistry } from "@scribe/foundation/lib/src/queue/queue_registry.t
 import { DrainTally } from "@scribe/foundation/lib/src/queue/runner/drain_tally.ts";
 import { graceFor, IMMEDIATE_GRACE_MS } from "@scribe/foundation/lib/src/queue/runner/grace_period.ts";
 import type { JsMsg } from "@nats-io/jetstream";
-import { dispatchProbes, probe, type Probe } from "./probe.ts";
+import { dispatchProbes, type Probe, probe } from "./probe.ts";
 import { assertEquals } from "@std/assert";
 
 installDrivers();
@@ -119,8 +119,8 @@ Deno.test("a group that failed runs again in full, refusing member included", as
   assertEquals(
     groups,
     [6, 6],
-    "the group succeeds or fails whole, so the five members that had nothing wrong with them "
-      + "are handed to the body a second time and the body has to stand that",
+    "the group succeeds or fails whole, so the five members that had nothing wrong with them " +
+      "are handed to the body a second time and the body has to stand that",
   );
 });
 
@@ -154,8 +154,8 @@ Deno.test("a linger of zero declares a batch queue that never waits for company"
   assertEquals(
     graceFor("q.test_lot_instant"),
     0,
-    "zero is kept rather than read as absent, so the fetch closes on its first message and "
-      + "the body is called once per message while still acknowledging all or nothing",
+    "zero is kept rather than read as absent, so the fetch closes on its first message and " +
+      "the body is called once per message while still acknowledging all or nothing",
   );
   assertEquals(graceFor("q.test_lot_group"), 40);
   assertEquals(graceFor("q.test_lot_patient"), 30_000);
@@ -167,9 +167,9 @@ Deno.test("the shortest linger in a mixed fetch is the one every subject waits u
   assertEquals(
     Math.min(...present.map(graceFor)),
     IMMEDIATE_GRACE_MS,
-    "a queue that groups must never hold back one that does not, so the batch closes on the "
-      + "shortest window present and a patient queue gets no grouping at all when it travels "
-      + "beside an impatient one",
+    "a queue that groups must never hold back one that does not, so the batch closes on the " +
+      "shortest window present and a patient queue gets no grouping at all when it travels " +
+      "beside an impatient one",
   );
 });
 

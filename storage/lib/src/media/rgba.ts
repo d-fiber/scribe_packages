@@ -58,11 +58,7 @@ export function toRgba(
     out[to] = source[from] >> shift;
     out[to + 1] = (grey ? source[from] : source[from + 1]) >> shift;
     out[to + 2] = (grey ? source[from] : source[from + 2]) >> shift;
-    out[to + 3] = channels === 2
-      ? source[from + 1] >> shift
-      : channels === 4
-      ? source[from + 3] >> shift
-      : 255;
+    out[to + 3] = channels === 2 ? source[from + 1] >> shift : channels === 4 ? source[from + 3] >> shift : 255;
   }
 
   return out;

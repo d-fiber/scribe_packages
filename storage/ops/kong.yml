@@ -10,69 +10,69 @@ services:
     plugins:
       - name: cors
         config:
-          {{storage_cors_origins}}
+          { { storage_cors_origins } }
       - name: pre-function
         config:
           access:
             - |
-              -- Read only, so no write may come through the gateway.
-              -- A 404 rather than a 405, so as not to reveal that the route exists.
-              local method = kong.request.get_method()
-              if method ~= "GET" and method ~= "HEAD" then
-                return kong.response.exit(404, '{"message":"Not found"}', {["Content-Type"] = "application/json"})
-              end
+                -- Read only, so no write may come through the gateway.
+                -- A 404 rather than a 405, so as not to reveal that the route exists.
+                local method = kong.request.get_method()
+                if method ~= "GET" and method ~= "HEAD" then
+                  return kong.response.exit(404, '{"message":"Not found"}', {["Content-Type"] = "application/json"})
+                end
 
-              -- Public objects are readable with no condition at all, token
-              -- included. That is what makes the URL usable from an <img>, an
-              -- email or a CDN. public_bucket is public on the storage side, and
-              -- the RLS does not apply to this path.
-              local path = kong.request.get_path()
-              if path:find("/object/public/", 1, true) then
-                return
-              end
+                -- Public objects are readable with no condition at all, token
+                -- included. That is what makes the URL usable from an <img>, an
+                -- email or a CDN. public_bucket is public on the storage side, and
+                -- the RLS does not apply to this path.
+                local path = kong.request.get_path()
+                if path:find("/object/public/", 1, true) then
+                  return
+                end
 
-              -- Everything else aims at the private bucket, so a token is required.
-              local auth = kong.request.get_header("authorization")
-              local token = auth and auth:match("^[Bb]earer%s+(.+)$")
+                -- Everything else aims at the private bucket, so a token is required.
+                local auth = kong.request.get_header("authorization")
+                local token = auth and auth:match("^[Bb]earer%s+(.+)$")
 
-              if not token then
-                return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
-              end
+                if not token then
+                  return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
+                end
 
-              local payload_b64 = token:match("^[^.]+%.([^.]+)%.")
-              if not payload_b64 then
-                return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
-              end
+                local payload_b64 = token:match("^[^.]+%.([^.]+)%.")
+                if not payload_b64 then
+                  return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
+                end
 
-              local b64 = payload_b64:gsub('%-', '+'):gsub('_', '/')
-              local pad = (4 - #b64 % 4) % 4
-              b64 = b64 .. string.rep('=', pad)
-              local decoded = ngx.decode_base64(b64)
+                local b64 = payload_b64:gsub('%-', '+'):gsub('_', '/')
+                local pad = (4 - #b64 % 4) % 4
+                b64 = b64 .. string.rep('=', pad)
+                local decoded = ngx.decode_base64(b64)
 
-              if not decoded then
-                return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
-              end
+                if not decoded then
+                  return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
+                end
 
-              -- Extract role and sub via pattern matching (cjson not allowed in sandbox)
-              local role = decoded:match('"role"%s*:%s*"([^"]*)"')
-              local sub  = decoded:match('"sub"%s*:%s*"([^"]*)"')
+                -- Extract role and sub via pattern matching (cjson not allowed in sandbox)
+                local role = decoded:match('"role"%s*:%s*"([^"]*)"')
+                local sub  = decoded:match('"sub"%s*:%s*"([^"]*)"')
 
-              -- service_role bypasses all restrictions (Studio / internal calls)
-              if role == "service_role" then
-                return
-              end
+                -- service_role bypasses all restrictions (Studio / internal calls)
+                if role == "service_role" then
+                  return
+                end
 
-              if not sub or sub == '' then
-                return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
-              end
+                if not sub or sub == '' then
+                  return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
+                end
 
-              -- Private means admin only. The RLS checks it again in the
-              -- database, in storage_select_private_bucket, and Caddy imposes the
-              -- VPN upstream. Three independent barriers, and none of them is
-              -- enough on its own.
-              if role ~= "admin" then
-                return kong.response.exit(404, '{"message":"Not found"}', {["Content-Type"] = "application/json"})
-              end
+                -- Private means admin only. The RLS checks it again in the
+                -- database, in storage_select_private_bucket, and Caddy imposes the
+                -- VPN upstream. Three independent barriers, and none of them is
+                -- enough on its own.
+                if role ~= "admin" then
+                  return kong.response.exit(404, '{"message":"Not found"}', {["Content-Type"] = "application/json"})
+                end
       - name: request-transformer
         config:
           add:

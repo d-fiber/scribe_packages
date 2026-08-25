@@ -55,7 +55,12 @@ function counting(ids: string[]): { list: string[]; passes: number } {
     },
     configurable: true,
   });
-  return { list, get passes() { return counted.passes; } };
+  return {
+    list,
+    get passes() {
+      return counted.passes;
+    },
+  };
 }
 
 function nanosecondsPer(rounds: number, body: () => void): number {
@@ -152,8 +157,8 @@ Deno.test({
       assertEquals(
         counted.passes,
         1,
-        "the fallback a failure would have needed is built on every call, so a page of two hundred ids "
-          + "allocates two hundred nulls that are thrown away",
+        "the fallback a failure would have needed is built on every call, so a page of two hundred ids " +
+          "allocates two hundred nulls that are thrown away",
       );
     } finally {
       redis.restore();

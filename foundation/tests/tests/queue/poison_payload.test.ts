@@ -71,14 +71,14 @@ Deno.test({
     assertEquals(
       rejected,
       null,
-      "a payload nobody can read must not throw out of the pass: the exception escapes "
-        + "runPooled, the dispatcher and the drain, and the whole pass is lost",
+      "a payload nobody can read must not throw out of the pass: the exception escapes " +
+        "runPooled, the dispatcher and the drain, and the whole pass is lost",
     );
     assertEquals(
       unanswered(second) || unanswered(third),
       false,
-      "the messages queued behind the unreadable one were never acknowledged, retried or "
-        + "terminated, so they hold their consumer slot until ack_wait expires",
+      "the messages queued behind the unreadable one were never acknowledged, retried or " +
+        "terminated, so they hold their consumer slot until ack_wait expires",
     );
   },
 });
@@ -97,8 +97,8 @@ Deno.test({
     assertEquals(
       published.map((one) => one.subject),
       ["dead.test_poison_serial"],
-      "a payload that cannot be decoded can never succeed, so it belongs on the dead letter "
-        + "on its first delivery rather than being redelivered until the server gives up",
+      "a payload that cannot be decoded can never succeed, so it belongs on the dead letter " +
+        "on its first delivery rather than being redelivered until the server gives up",
     );
   },
 });

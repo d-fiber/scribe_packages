@@ -104,9 +104,11 @@ export function claim(limit: number = BATCH_SIZE): Promise<SearchOutboxRow[]> {
 export async function settle(index: string, ids: readonly string[]): Promise<boolean> {
   if (ids.length === 0) return true;
 
-  return wrote(await searchOutbox()
-    .where((f) => [f.index.eq(index), f.entity_id.in([...ids])])
-    .delete());
+  return wrote(
+    await searchOutbox()
+      .where((f) => [f.index.eq(index), f.entity_id.in([...ids])])
+      .delete(),
+  );
 }
 
 /**

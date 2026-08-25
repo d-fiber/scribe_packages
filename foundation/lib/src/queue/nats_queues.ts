@@ -61,8 +61,7 @@ export class NatsQueues implements QueueDriver {
 
     return {
       push: (data: T): Future<void> => declared.push(data).then(() => undefined),
-      pushMany: (batch: UnmodifiableList<T>): Future<void> =>
-        declared.pushMany(batch).then(() => undefined),
+      pushMany: (batch: UnmodifiableList<T>): Future<void> => declared.pushMany(batch).then(() => undefined),
     };
   }
 

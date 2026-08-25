@@ -108,15 +108,11 @@ export class Bucket implements StorageBucket {
     };
 
     try {
-      const res = method === "POST"
-        ? await client.post(url, sent)
-        : await client.delete(url, sent);
+      const res = method === "POST" ? await client.post(url, sent) : await client.delete(url, sent);
       if (res.ok) return res;
 
       console.error(
-        `[storage] ${method} ${route} failed (${res.statusCode}): ${
-          _reason(res)
-        }`,
+        `[storage] ${method} ${route} failed (${res.statusCode}): ${_reason(res)}`,
       );
       return null;
     } catch (e) {

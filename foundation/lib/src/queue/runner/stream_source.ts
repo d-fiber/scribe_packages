@@ -46,7 +46,6 @@ import type { RegisteredQueue } from "@scribe/foundation/lib/src/queue/queue_dec
 import type { JsMsg } from "@nats-io/jetstream";
 import { graceFor, longestGrace } from "./grace_period.ts";
 
-
 /**
  * Where one loop reads from: the shared consumer, or a queue's own.
  *
@@ -87,9 +86,7 @@ export class StreamSource {
   }
 
   static forQueue(queue: RegisteredQueue): StreamSource {
-    return queue.dedicated
-      ? StreamSource.dedicated(queue)
-      : StreamSource.shared();
+    return queue.dedicated ? StreamSource.dedicated(queue) : StreamSource.shared();
   }
 
   /**

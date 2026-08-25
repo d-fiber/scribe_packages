@@ -65,8 +65,8 @@ export class CronRegistry {
     const name = entry.job.name;
     if (this.#jobs.has(name)) {
       throw new DuplicateDeclarationError(
-        `new Cron("${name}"): this name is already declared. A cron name identifies a `
-          + `Redis-locked occurrence, it must be unique.`,
+        `new Cron("${name}"): this name is already declared. A cron name identifies a ` +
+          `Redis-locked occurrence, it must be unique.`,
       );
     }
     this.#jobs.set(name, entry);

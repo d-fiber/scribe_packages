@@ -39,11 +39,7 @@ import { wholeMinutes } from "@scribe/foundation/lib/src/cron/whole_minutes.ts";
 import { nextRun } from "@scribe/foundation/lib/src/cron/next_run.ts";
 import { cronRegistry } from "@scribe/foundation/lib/src/cron/cron_registry.ts";
 import { cronRunner } from "@scribe/foundation/lib/src/cron/cron_runner.ts";
-import type {
-  CronHandler,
-  Schedule,
-  Scheduled,
-} from "@scribe/foundation/lib/src/cron/schedule.ts";
+import type { CronHandler, Schedule, Scheduled } from "@scribe/foundation/lib/src/cron/schedule.ts";
 
 const _DEFAULT_TIMEOUT = Duration.minutes(10);
 
@@ -90,9 +86,9 @@ export class Cron implements Scheduled {
     this.schedule = definition.schedule;
     this.timeout = definition.timeout
       ? wholeMinutes(
-          `new Cron("${definition.name}") timeout`,
-          definition.timeout,
-        )
+        `new Cron("${definition.name}") timeout`,
+        definition.timeout,
+      )
       : _DEFAULT_TIMEOUT;
 
     cronRegistry.add({ job: this, nextRun: () => this.nextRun() });

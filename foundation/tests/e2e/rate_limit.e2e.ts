@@ -33,13 +33,7 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import {
-  report,
-  requireStack,
-  STACK,
-  timed,
-  useStack,
-} from "@scribe/foundation/tests/e2e/support/stack.ts";
+import { report, requireStack, STACK, timed, useStack } from "@scribe/foundation/tests/e2e/support/stack.ts";
 import { assert, assertEquals } from "@std/assert";
 
 await requireStack(STACK.natsMonitorUrl, `${STACK.restUrl}/`);

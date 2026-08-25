@@ -94,8 +94,8 @@ Deno.test("the registry returns a compact report, without listing names", () => 
   assertEquals(
     report.includes("test:define:immediate"),
     false,
-    "the report counts the queues instead of naming them, which a project with thousands "
-      + "of them could not read",
+    "the report counts the queues instead of naming them, which a project with thousands " +
+      "of them could not read",
   );
 });
 

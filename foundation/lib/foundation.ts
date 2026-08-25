@@ -51,17 +51,7 @@
  * needs to happen at import or after boot.
  */
 
-import {
-  Caches,
-  Claims,
-  Crons,
-  Databases,
-  FileSystems,
-  Hooks,
-  Queues,
-  RateLimiters,
-  Triggers,
-} from "@scribe/alchemy";
+import { Caches, Claims, Crons, Databases, FileSystems, Hooks, Queues, RateLimiters, Triggers } from "@scribe/alchemy";
 import { Clients } from "@scribe/alchemy/http";
 import { Loggers } from "@scribe/alchemy/observe";
 import { Now } from "@scribe/alchemy";
@@ -118,12 +108,7 @@ export { KeyIndex } from "./src/redis/key_index.ts";
 export { LocalFiles, LocalFileSystems } from "./src/files/local_files.ts";
 export { SystemNow } from "./src/observe/system_now.ts";
 
-export {
-  type BatchQueueDefinition,
-  Queue,
-  type QueueDefinition,
-  type QueuePublisher,
-} from "./src/queue/queue.ts";
+export { type BatchQueueDefinition, Queue, type QueueDefinition, type QueuePublisher } from "./src/queue/queue.ts";
 export { queueSettings } from "./src/queue/queue_settings.ts";
 export { queueRegistry } from "./src/queue/queue_registry.ts";
 export { NatsQueues } from "./src/queue/nats_queues.ts";
@@ -186,8 +171,8 @@ export { KeySpace } from "./src/cache/key_space.ts";
 export { withJitter } from "./src/cache/ttl_jitter.ts";
 export { DEFAULT_BETA } from "./src/cache/early_expiry.ts";
 export {
-  DistributedLock,
   DEFAULT_LOCK_HOLD,
+  DistributedLock,
   type LockErrorReporter,
   type LockOutcome,
 } from "./src/cache/lock/distributed_lock.ts";

@@ -37,12 +37,7 @@
 import { Duration } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
 import type { Future } from "@scribe/alchemy";
-import type {
-  RateLimiter,
-  RateLimiterDriver,
-  RateLimitOptions,
-  RateLimitOutcome,
-} from "@scribe/alchemy";
+import type { RateLimiter, RateLimiterDriver, RateLimitOptions, RateLimitOutcome } from "@scribe/alchemy";
 import { kv } from "@scribe/foundation/lib/src/redis/kv.ts";
 import { RateLimitBucket } from "./rate_limit_bucket.ts";
 import { rateLimitCommands } from "./rate_limit_commands.ts";
@@ -138,17 +133,16 @@ export class RedisRateLimiter implements RateLimiter {
     const bucket = new RateLimitBucket(prefix, this.key, suffix);
 
     try {
-      const [allowed, remaining, retryAfter, strikes] =
-        await rateLimitCommands().rateLimitCheck(
-          bucket.blockedKey,
-          bucket.arrivalKey,
-          bucket.strikesKey,
-          this.limit,
-          this.window.inSeconds,
-          this.penalty.inSeconds,
-          this.#maxPenalty.inSeconds,
-          this.#strikeMemory.inSeconds,
-        );
+      const [allowed, remaining, retryAfter, strikes] = await rateLimitCommands().rateLimitCheck(
+        bucket.blockedKey,
+        bucket.arrivalKey,
+        bucket.strikesKey,
+        this.limit,
+        this.window.inSeconds,
+        this.penalty.inSeconds,
+        this.#maxPenalty.inSeconds,
+        this.#strikeMemory.inSeconds,
+      );
 
       return _counted(allowed, 0) === 1
         ? { ok: true, remaining: _counted(remaining, this.limit) }

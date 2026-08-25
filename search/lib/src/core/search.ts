@@ -39,7 +39,14 @@ import type { IndexSettings, QueryPlan, Search as SearchHandle, SearchParams } f
 import type { SearchSort } from "../../contracts/query.ts";
 import { compilePreview } from "../document/preview.ts";
 import { compileDocument } from "../document/projection.ts";
-import { documentSelector, previewSelector, type DocumentSelector, type PreviewOf, type PreviewSelector, type PreviewShape } from "../document/selector.ts";
+import {
+  type DocumentSelector,
+  documentSelector,
+  type PreviewOf,
+  type PreviewSelector,
+  previewSelector,
+  type PreviewShape,
+} from "../document/selector.ts";
 import { DEFAULT_SETTINGS, type DocumentShape, type EmbeddedField, type MappedField } from "../fields/mapping.ts";
 import { type DocumentProperties, type QueryFields, queryFields } from "../fields/projection.ts";
 import { QueryBuilder } from "../fields/query.ts";

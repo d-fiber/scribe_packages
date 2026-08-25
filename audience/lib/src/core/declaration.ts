@@ -37,7 +37,15 @@
 import type { Duration } from "@scribe/alchemy";
 import { Failure, okay, type Result } from "@scribe/alchemy";
 import { AudienceError, type AudienceOptions, type JoinOptions } from "../../contracts/audience.ts";
-import { dropAudience, dropMembership, hasExpired, membersOf, membershipOf, retimeMembership, writeMembership } from "../db/members.ts";
+import {
+  dropAudience,
+  dropMembership,
+  hasExpired,
+  membershipOf,
+  membersOf,
+  retimeMembership,
+  writeMembership,
+} from "../db/members.ts";
 import type { AudienceRow } from "../db/tables.ts";
 import { cachedMembership, forgetAudience, forgetMembership } from "../runtime/cache.ts";
 import { guarded } from "./guard.ts";

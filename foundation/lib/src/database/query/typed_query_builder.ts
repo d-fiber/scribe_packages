@@ -63,9 +63,7 @@ function describeCause(cause: unknown): string {
     text = String(cause);
   }
 
-  return text.length > MAX_CAUSE_CHARS
-    ? `${text.slice(0, MAX_CAUSE_CHARS)}...`
-    : text;
+  return text.length > MAX_CAUSE_CHARS ? `${text.slice(0, MAX_CAUSE_CHARS)}...` : text;
 }
 
 export class DatabaseQueryError extends Error {
@@ -116,9 +114,7 @@ export class TypedQueryBuilder<
    * the boot filled the settings still works.
    */
   get #db(): any {
-    return (this.#client ??= typeof this.#source === "function"
-      ? this.#source()
-      : this.#source);
+    return (this.#client ??= typeof this.#source === "function" ? this.#source() : this.#source);
   }
 
   #constrainsOwner(): boolean {
@@ -454,9 +450,7 @@ export class TypedQueryBuilder<
     if (this.#refusesUnboundedWrite("deleteOne", scoped)) return new Failure(_UNBOUNDED);
 
     let qb = buildWrite(this.#db, this.#table, scoped.state, "delete");
-    qb = builder
-      ? qb.select(columnsOf(builder(selector<Row, Rels>())))
-      : qb.select("*");
+    qb = builder ? qb.select(columnsOf(builder(selector<Row, Rels>()))) : qb.select("*");
     const { data, error } = await qb.maybeSingle();
 
     if (this.#failed("deleteOne", error)) return new Failure(_refusalOf(error));

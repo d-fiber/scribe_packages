@@ -51,7 +51,21 @@ import { type AccountSession, session } from "../session.ts";
 import { type SignInSurface, signInSurface } from "../sign_in/surface.ts";
 import { type SignUpSurface, signUpSurface } from "../sign_up/surface.ts";
 import { accounts } from "../tables.ts";
-import { compileRead, isFilled, isWritten, readSelector, type OptionalValue, type ReadOf, type ReadSelector, type ReadShape, type RequiredValue, type WriteOf, type WriteSelector, type WriteShape, writeSelector } from "./columns.ts";
+import {
+  compileRead,
+  isFilled,
+  isWritten,
+  type OptionalValue,
+  type ReadOf,
+  type ReadSelector,
+  readSelector,
+  type ReadShape,
+  type RequiredValue,
+  type WriteOf,
+  type WriteSelector,
+  writeSelector,
+  type WriteShape,
+} from "./columns.ts";
 import { declareAccount } from "./registry.ts";
 
 /**

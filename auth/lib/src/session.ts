@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { SignOutScope } from "@scribe/auth/lib/contracts/account.ts";
-import { Duration, cache } from "@scribe/alchemy";
+import { cache, Duration } from "@scribe/alchemy";
 import { Failure, Ok, okay, type Result } from "@scribe/alchemy";
 import { requestDevice } from "@scribe/runtime/device/device.ts";
 import { currentIdentity } from "@scribe/runtime/http/accessors/identity.ts";

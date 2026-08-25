@@ -76,8 +76,8 @@ Deno.test(
 
     assertThrows(
       () => cronExpression(fiveTokensAllOutOfRange, CronTimezone.Utc),
-      "the CronExpression type only counts the tokens, so croner's parser is what has to "
-        + "refuse the values inside them",
+      "the CronExpression type only counts the tokens, so croner's parser is what has to " +
+        "refuse the values inside them",
     );
   },
 );

@@ -120,13 +120,12 @@ Deno.test("cronExpression() refuses an expression croner cannot parse", () => {
 });
 
 Deno.test({
-  name:
-    "cronExpression() takes five valid fields that name no date and only fails when something asks",
+  name: "cronExpression() takes five valid fields that name no date and only fails when something asks",
   fn: () => {
     assertThrows(
       () => cronExpression("0 0 30 2 *", CronTimezone.Utc),
-      "the 30th of February parses, so the refusal lands on the first nextRun() instead of on "
-        + "the line that declared it",
+      "the 30th of February parses, so the refusal lands on the first nextRun() instead of on " +
+        "the line that declared it",
     );
   },
 });
@@ -136,8 +135,8 @@ Deno.test({
   fn: () => {
     assertThrows(
       () => cronExpression("*/5 * * * * *", CronTimezone.Utc),
-      "the type says five fields and croner reads six, so a five-second schedule is declarable "
-        + "while the loop floors nothing below a minute",
+      "the type says five fields and croner reads six, so a five-second schedule is declarable " +
+        "while the loop floors nothing below a minute",
     );
   },
 });
@@ -153,8 +152,8 @@ Deno.test("nextRunAfterSlot() lands on the same instant whether it steps or coun
 
   for (const elapsed of [-5_000, 0, 1, 59_999, 60_000, 60_001, 599_999, 86_400_000]) {
     const now = new Date(slot.getTime() + elapsed);
-    const counted = slot.getTime()
-      + (elapsed < 0 ? 1 : Math.floor(elapsed / step) + 1) * step;
+    const counted = slot.getTime() +
+      (elapsed < 0 ? 1 : Math.floor(elapsed / step) + 1) * step;
 
     assertEquals(
       nextRunAfterSlot(schedule, slot, now).getTime(),
@@ -184,8 +183,8 @@ Deno.test("nextRun() on a calendar schedule follows a clock that went backwards"
   assertEquals(
     nextRunAfterSlot(schedule, slot, rewound).toISOString(),
     "2026-01-01T12:00:00.000Z",
-    "the occurrence just taken is handed out again, and only the cross-replica marker keeps "
-      + "it from being run twice",
+    "the occurrence just taken is handed out again, and only the cross-replica marker keeps " +
+      "it from being run twice",
   );
 });
 

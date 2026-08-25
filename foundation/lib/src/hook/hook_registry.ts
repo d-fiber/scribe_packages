@@ -72,8 +72,8 @@ export class HookRegistry {
     const existing = this.#hooks.get(hook.name);
     if (existing && existing !== hook) {
       throw new DuplicateDeclarationError(
-        `new Hook("${hook.name}"): this name is already declared. `
-          + `A hook name identifies an extension point, it must be unique.`,
+        `new Hook("${hook.name}"): this name is already declared. ` +
+          `A hook name identifies an extension point, it must be unique.`,
       );
     }
     this.#hooks.set(hook.name, hook);

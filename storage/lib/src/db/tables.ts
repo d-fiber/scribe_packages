@@ -34,7 +34,6 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-
 import { Table } from "@scribe/foundation/lib/src/database/table.ts";
 
 /** One row of the index this package keeps of the objects it has stored. */

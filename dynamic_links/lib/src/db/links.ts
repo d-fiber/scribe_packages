@@ -81,7 +81,9 @@ export function insertLink(link: NewLink): Promise<DynamicLinkRow | null> {
  * caller already holds: a link is asked for by the only part of it an address carries.
  */
 export async function deleteLink(slug: string): Promise<boolean> {
-  return wrote(await dynamicLinks()
-    .where((f) => f.slug.eq(slug))
-    .delete());
+  return wrote(
+    await dynamicLinks()
+      .where((f) => f.slug.eq(slug))
+      .delete(),
+  );
 }

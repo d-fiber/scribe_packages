@@ -38,7 +38,7 @@ import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
 import type { MemoryLogger } from "@scribe/foundation/tests/testing/logger.ts";
 import { Queue } from "@scribe/foundation/lib/src/queue/queue.ts";
 import { Duration } from "@scribe/alchemy";
-import { dispatchProbes, probe, type Probe } from "./probe.ts";
+import { dispatchProbes, type Probe, probe } from "./probe.ts";
 import { assertEquals } from "@std/assert";
 
 const logger: MemoryLogger = installDrivers();
@@ -121,8 +121,8 @@ Deno.test("a body that never agrees is refused up to its ceiling and then termin
   assertEquals(
     dead,
     3,
-    "term() is what stops the redelivery, so every delivery from maxRetries onwards writes "
-      + "the payload to the dead letter again: a term the server never received duplicates it",
+    "term() is what stops the redelivery, so every delivery from maxRetries onwards writes " +
+      "the payload to the dead letter again: a term the server never received duplicates it",
   );
 });
 
@@ -148,9 +148,9 @@ Deno.test("a server that restarts the count at zero makes the job immortal", asy
   assertEquals(
     answers.every((one) => one > 0),
     true,
-    "the policy reads the count the server sends and has no memory of its own, so a count "
-      + "stuck at zero never reaches the dead letter: max_deliver on the consumer is the only "
-      + "thing that ever stops it",
+    "the policy reads the count the server sends and has no memory of its own, so a count " +
+      "stuck at zero never reaches the dead letter: max_deliver on the consumer is the only " +
+      "thing that ever stops it",
   );
 });
 
@@ -173,8 +173,8 @@ Deno.test("a body that writes before it refuses is asked to write again", async 
   assertEquals(
     writes,
     2,
-    "delivery is at least once and a refusal does not undo what the body already did, which "
-      + "is the whole reason a body has to be idempotent",
+    "delivery is at least once and a refusal does not undo what the body already did, which " +
+      "is the whole reason a body has to be idempotent",
   );
 });
 
@@ -213,8 +213,8 @@ Deno.test({
     assertEquals(
       result.retried,
       2,
-      "a drain that refused everything it was handed answers the same four zeros as a drain "
-        + "that was handed nothing, so nothing an operator watches can tell the two apart",
+      "a drain that refused everything it was handed answers the same four zeros as a drain " +
+        "that was handed nothing, so nothing an operator watches can tell the two apart",
     );
   },
 });
@@ -249,17 +249,16 @@ Deno.test({
     assertEquals(
       result.dead,
       0,
-      "the deliveries a replica spent refusing a subject it does not declare are read by the "
-        + "replica that does declare it as attempts its body already made, so a job entitled "
-        + `to ${RETRIES} tries is buried after one`,
+      "the deliveries a replica spent refusing a subject it does not declare are read by the " +
+        "replica that does declare it as attempts its body already made, so a job entitled " +
+        `to ${RETRIES} tries is buried after one`,
     );
     assertEquals(arriving.termed, false);
   },
 });
 
 Deno.test("the same message delivered twice inside one fetch is answered twice", async () => {
-  const twin = () =>
-    probe({ subject: "q.test_budget_always", data: { id: "a" }, deliveryCount: RETRIES, seq: 7 });
+  const twin = () => probe({ subject: "q.test_budget_always", data: { id: "a" }, deliveryCount: RETRIES, seq: 7 });
   const first = twin();
   const second = twin();
 
@@ -269,8 +268,8 @@ Deno.test("the same message delivered twice inside one fetch is answered twice",
   assertEquals(
     published.length,
     2,
-    "one job reaches the dead letter twice, which is the price of at-least-once delivery and "
-      + "the reason a dead-letter reader has to key on the payload rather than count rows",
+    "one job reaches the dead letter twice, which is the price of at-least-once delivery and " +
+      "the reason a dead-letter reader has to key on the payload rather than count rows",
   );
 });
 

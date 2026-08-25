@@ -35,10 +35,7 @@
 
 import { assertEquals } from "@std/assert";
 import type { Hook, HookDefinition } from "@scribe/foundation/lib/src/hook/hook.ts";
-import type {
-  BackgroundHookHandler,
-  HookHandler,
-} from "@scribe/foundation/lib/src/hook/hook_handler.ts";
+import type { BackgroundHookHandler, HookHandler } from "@scribe/foundation/lib/src/hook/hook_handler.ts";
 import type { InlineChain } from "@scribe/foundation/lib/src/hook/inline_chain.ts";
 import type { BackgroundChannel } from "@scribe/foundation/lib/src/hook/background_channel.ts";
 
@@ -52,8 +49,7 @@ interface RicherEvent extends Event {
 
 type Holds<From, To> = [From] extends [To] ? true : false;
 
-const handlerTakesAWiderPayload: Holds<HookHandler<Event, Event>, HookHandler<RicherEvent, Event>> =
-  true;
+const handlerTakesAWiderPayload: Holds<HookHandler<Event, Event>, HookHandler<RicherEvent, Event>> = true;
 const handlerRefusesANarrowerPayload: Holds<
   HookHandler<RicherEvent, Event>,
   HookHandler<Event, Event>
@@ -76,10 +72,8 @@ const deferredRefusesANarrowerPayload: Holds<
   BackgroundHookHandler<Event>
 > = false;
 
-const definitionCarriesARicherFallback: Holds<HookDefinition<RicherEvent>, HookDefinition<Event>> =
-  true;
-const definitionRefusesAWiderFallback: Holds<HookDefinition<Event>, HookDefinition<RicherEvent>> =
-  false;
+const definitionCarriesARicherFallback: Holds<HookDefinition<RicherEvent>, HookDefinition<Event>> = true;
+const definitionRefusesAWiderFallback: Holds<HookDefinition<Event>, HookDefinition<RicherEvent>> = false;
 
 const hookRefusesARicherPayload: Holds<Hook<RicherEvent, Event>, Hook<Event, Event>> = false;
 const hookRefusesAWiderPayload: Holds<Hook<Event, Event>, Hook<RicherEvent, Event>> = false;
@@ -95,10 +89,8 @@ const chainAnswersARicherDecision: Holds<
   InlineChain<Event, Event>
 > = true;
 
-const channelRefusesARicherPayload: Holds<BackgroundChannel<RicherEvent>, BackgroundChannel<Event>> =
-  false;
-const channelRefusesAWiderPayload: Holds<BackgroundChannel<Event>, BackgroundChannel<RicherEvent>> =
-  false;
+const channelRefusesARicherPayload: Holds<BackgroundChannel<RicherEvent>, BackgroundChannel<Event>> = false;
+const channelRefusesAWiderPayload: Holds<BackgroundChannel<Event>, BackgroundChannel<RicherEvent>> = false;
 
 Deno.test("HookHandler takes a payload contravariantly and answers a decision covariantly", () => {
   assertEquals(handlerTakesAWiderPayload, true, "HookHandler declares in T");

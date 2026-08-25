@@ -310,8 +310,8 @@ Deno.test("CronRunner: two instances started out of sync on an interval share th
     assertEquals(
       calls,
       1,
-      "t=90s: the second instance reached its own interval, and the shared quantum sent it "
-        + "at the key the first one already took",
+      "t=90s: the second instance reached its own interval, and the shared quantum sent it " +
+        "at the key the first one already took",
     );
 
     first.stop();

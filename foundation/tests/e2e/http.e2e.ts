@@ -37,13 +37,7 @@ import { Duration } from "@scribe/alchemy";
 import { ClientException, Clients, http } from "@scribe/alchemy/http";
 import { FetchClient, FetchClients } from "@scribe/foundation/lib/src/http/fetch_client.ts";
 import { assert, assertEquals, assertRejects } from "@std/assert";
-import {
-  report,
-  requireStack,
-  STACK,
-  timed,
-  useStack,
-} from "@scribe/foundation/tests/e2e/support/stack.ts";
+import { report, requireStack, STACK, timed, useStack } from "@scribe/foundation/tests/e2e/support/stack.ts";
 
 Clients.use(new FetchClients());
 
@@ -56,9 +50,7 @@ const CLOSED = "http://localhost:51999/nothing";
 Deno.test(
   "http: a live endpoint answers, and its body reads as JSON",
   async () => {
-    const [answer, ms] = await timed(() =>
-      http.get(HEALTH, { timeout: Duration.seconds(5) })
-    );
+    const [answer, ms] = await timed(() => http.get(HEALTH, { timeout: Duration.seconds(5) }));
 
     report("one GET against NATS monitoring", `${ms.toFixed(2)} ms`);
     assertEquals(answer.statusCode, 200);
@@ -146,15 +138,11 @@ Deno.test(
 
     report(
       `${count} calls on a kept client`,
-      `${(keptMs / count).toFixed(3)} ms each, or ${
-        Math.round((count / keptMs) * 1000)
-      } a second`,
+      `${(keptMs / count).toFixed(3)} ms each, or ${Math.round((count / keptMs) * 1000)} a second`,
     );
     report(
       `${count} one-off calls`,
-      `${(oneOffMs / count).toFixed(3)} ms each, or ${
-        Math.round((count / oneOffMs) * 1000)
-      } a second`,
+      `${(oneOffMs / count).toFixed(3)} ms each, or ${Math.round((count / oneOffMs) * 1000)} a second`,
     );
   },
 );

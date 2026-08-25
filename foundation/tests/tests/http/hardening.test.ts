@@ -132,9 +132,10 @@ Deno.test("a client closed while an exchange is in flight still answers that exc
   let settle: ((answer: globalThis.Response) => void) | null = null;
 
   await withFetch(
-    () => new Promise<globalThis.Response>((resolve) => {
-      settle = resolve;
-    }),
+    () =>
+      new Promise<globalThis.Response>((resolve) => {
+        settle = resolve;
+      }),
     async () => {
       const client = new FetchClient();
       const flight = client.send(new HttpRequest("GET", SOMEWHERE));
@@ -323,7 +324,8 @@ Deno.test({
 });
 
 Deno.test({
-  name: "a length the server wrote as something other than a number is read as unknown, not as a number that is not one",
+  name:
+    "a length the server wrote as something other than a number is read as unknown, not as a number that is not one",
   async fn() {
     await withFetch(
       () => new globalThis.Response("hello", { status: 200, headers: { "content-length": "not a number" } }),

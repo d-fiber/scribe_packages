@@ -34,7 +34,6 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-
 /**
  * What the containers of the rendered fragments answer on, and how a test reaches them.
  *
@@ -128,9 +127,7 @@ export async function fetchObject(
 ): Promise<Fetched> {
   const route = options.open ? `object/public/${bucket}/${path}` : `object/${bucket}/${path}`;
   const answered = await fetch(`${STACK.storageUrl}/${route}`, {
-    headers: options.token
-      ? { apikey: options.token, Authorization: `Bearer ${options.token}` }
-      : {},
+    headers: options.token ? { apikey: options.token, Authorization: `Bearer ${options.token}` } : {},
     signal: AbortSignal.timeout(10_000),
   });
 

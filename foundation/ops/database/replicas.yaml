@@ -1,4 +1,4 @@
 services:
   rest:
     deploy:
-      replicas: {{rest_replicas}}
+      replicas: { { rest_replicas } }

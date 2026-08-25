@@ -34,7 +34,6 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-
 import type { StorageVisibility } from "./visibility.ts";
 
 const declarations = new Map<string, StorageVisibility>();

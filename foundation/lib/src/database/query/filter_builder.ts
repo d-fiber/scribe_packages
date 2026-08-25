@@ -36,12 +36,7 @@
 
 // deno-lint-ignore-file no-explicit-any
 
-import {
-  assertPlainColumn,
-  keywordLiteral,
-  quoteFilterList,
-  quoteFilterLiteral,
-} from "./filter_literal.ts";
+import { assertPlainColumn, keywordLiteral, quoteFilterList, quoteFilterLiteral } from "./filter_literal.ts";
 
 /** One condition of a `where`, kept as the column it names and the call that applies it. */
 export interface FilterSpec {

@@ -44,20 +44,15 @@ import {
   SocialCredential,
   type SocialCredentials,
 } from "./doors.ts";
-import type {
-  EmailSignUpError,
-  PhoneSignUpError,
-  SocialSignUpError,
-} from "./errors.ts";
+import type { EmailSignUpError, PhoneSignUpError, SocialSignUpError } from "./errors.ts";
 import { SignUpDoor, type SignUpResult, type SignUpTarget } from "./runner.ts";
 
 type Door<TCredentials, TSignUp extends WriteShape, TError> = (
   input: TCredentials & WriteOf<TSignUp>,
 ) => Promise<SignUpResult<TError>>;
 
-type Opens<TChannels extends readonly Channel[], C extends Channel, T> =
-  C extends TChannels[number] ? T
-    : Record<never, never>;
+type Opens<TChannels extends readonly Channel[], C extends Channel, T> = C extends TChannels[number] ? T
+  : Record<never, never>;
 
 /**
  * The doors a sign-up offers, which are exactly the ones the declaration named.

@@ -102,8 +102,8 @@ Deno.test("upsert collapses concurrent callers before it touches Redis", async (
     assertEquals(
       get.calls.length,
       1,
-      "four callers of one key must cost one read: the distributed lock alone would have "
-        + "collapsed them too, but only after a read and a poll each",
+      "four callers of one key must cost one read: the distributed lock alone would have " +
+        "collapsed them too, but only after a read and a poll each",
     );
   } finally {
     get.restore();

@@ -56,8 +56,8 @@ Deno.test({
 
       assert(
         Number.isInteger(Number(written?.args[1])),
-        `SETEX was handed ${written?.args[1]} seconds, and Redis answers "value is not an integer or out of `
-          + 'range" to anything that is not a whole number',
+        `SETEX was handed ${written?.args[1]} seconds, and Redis answers "value is not an integer or out of ` +
+          'range" to anything that is not a whole number',
       );
     } finally {
       redis.restore();
@@ -83,8 +83,8 @@ Deno.test({
       assertEquals(
         computed,
         1,
-        `three calls to one key ran ${computed} computations and cost ${redis.roundTrips} round trips, because `
-          + "nothing is ever written and every call is a cold one",
+        `three calls to one key ran ${computed} computations and cost ${redis.roundTrips} round trips, because ` +
+          "nothing is ever written and every call is a cold one",
       );
     } finally {
       redis.restore();
@@ -167,8 +167,8 @@ Deno.test({
       assertEquals(
         await outer.get("device:d1"),
         "a session",
-        "two declarations that never heard of each other landed on one key, because a namespace and an "
-          + "identifier are joined by the same colon and neither is escaped",
+        "two declarations that never heard of each other landed on one key, because a namespace and an " +
+          "identifier are joined by the same colon and neither is escaped",
       );
     } finally {
       redis.restore();
@@ -192,8 +192,8 @@ Deno.test({
       assertEquals(
         await inner.get("d1"),
         "a device",
-        "clearing one namespace took another namespace with it, because the sweep is a prefix glob and "
-          + "nothing keeps two declared names from nesting",
+        "clearing one namespace took another namespace with it, because the sweep is a prefix glob and " +
+          "nothing keeps two declared names from nesting",
       );
     } finally {
       redis.restore();

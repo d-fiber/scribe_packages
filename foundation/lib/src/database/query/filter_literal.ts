@@ -59,9 +59,7 @@ export function quoteFilterLiteral(value: unknown): string {
   if (typeof value === "bigint") return String(value);
   if (typeof value === "number" && Number.isFinite(value)) return String(value);
 
-  const text = typeof value === "string" || typeof value === "number"
-    ? String(value)
-    : JSON.stringify(value);
+  const text = typeof value === "string" || typeof value === "number" ? String(value) : JSON.stringify(value);
 
   return `"${text.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
 }

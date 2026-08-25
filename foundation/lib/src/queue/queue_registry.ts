@@ -53,17 +53,17 @@ export class QueueRegistry {
   add(queue: RegisteredQueue): void {
     if (this.#byName.has(queue.name)) {
       throw new DuplicateDeclarationError(
-        `new Queue("${queue.name}"): this name is already declared. A queue name identifies a `
-          + `NATS subject, it must be unique.`,
+        `new Queue("${queue.name}"): this name is already declared. A queue name identifies a ` +
+          `NATS subject, it must be unique.`,
       );
     }
 
     const taken = this.#bySubject.get(queue.subject);
     if (taken !== undefined) {
       throw new DuplicateDeclarationError(
-        `new Queue("${queue.name}"): this name reduces to the subject "${queue.subject}", which `
-          + `"${taken.name}" already publishes to. Two names that differ only in a character a `
-          + "subject token cannot carry are one queue, and the second would take the first's work.",
+        `new Queue("${queue.name}"): this name reduces to the subject "${queue.subject}", which ` +
+          `"${taken.name}" already publishes to. Two names that differ only in a character a ` +
+          "subject token cannot carry are one queue, and the second would take the first's work.",
       );
     }
 

@@ -38,11 +38,7 @@ import { installStorageTestSettings } from "@scribe/storage/tests/testing/settin
 
 installStorageTestSettings();
 import { assertEquals } from "@std/assert";
-import {
-  extractPosterFrame,
-  FRAME_SIZE,
-  pickPosterFrame,
-} from "@scribe/storage/lib/src/media/video_frame.ts";
+import { extractPosterFrame, FRAME_SIZE, pickPosterFrame } from "@scribe/storage/lib/src/media/video_frame.ts";
 
 const FRAME_BYTES = FRAME_SIZE * FRAME_SIZE * 4;
 

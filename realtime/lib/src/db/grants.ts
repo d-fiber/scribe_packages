@@ -56,9 +56,11 @@ export async function grantChannel(channel: string, accountId: string): Promise<
 export async function revokeChannel(channel: string, accountId: string): Promise<boolean> {
   if (!(await isGranted(channel, accountId))) return false;
 
-  return wrote(await realtimeGrants()
-    .where((f) => [f.channel.eq(channel), f.account_id.eq(accountId)])
-    .delete());
+  return wrote(
+    await realtimeGrants()
+      .where((f) => [f.channel.eq(channel), f.account_id.eq(accountId)])
+      .delete(),
+  );
 }
 
 /**

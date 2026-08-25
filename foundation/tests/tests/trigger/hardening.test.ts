@@ -236,6 +236,10 @@ Deno.test("a declaration under a name of its own does not take the derived one",
 Deno.test("watching several columns and watching one of them are two declarations, not one", () => {
   const several = orders.onFieldsChange({ path: "carts/{cartId}", observe: ["status", "meta"] }, noop);
 
-  assertEquals(several.name, "carts:meta+status", "the derived name is the sorted list, so the order of observe is not it");
+  assertEquals(
+    several.name,
+    "carts:meta+status",
+    "the derived name is the sorted list, so the order of observe is not it",
+  );
   assertEquals(several.fields, ["status", "meta"], "the order the caller wrote is the order the deliveries come in");
 });

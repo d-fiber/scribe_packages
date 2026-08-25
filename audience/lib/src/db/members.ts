@@ -80,9 +80,11 @@ export async function writeMembership(
     return wrote(await audiences().insert({ audience, member, expires_at: expiresAt }));
   }
 
-  return wrote(await audiences()
-    .where((f) => [f.audience.eq(audience), f.member.eq(member)])
-    .update({ expires_at: expiresAt }));
+  return wrote(
+    await audiences()
+      .where((f) => [f.audience.eq(audience), f.member.eq(member)])
+      .update({ expires_at: expiresAt }),
+  );
 }
 
 /**
@@ -99,9 +101,11 @@ export async function retimeMembership(
   const held = await membershipOf(audience, member);
   if (held === null || hasExpired(held)) return false;
 
-  return wrote(await audiences()
-    .where((f) => [f.audience.eq(audience), f.member.eq(member)])
-    .update({ expires_at: expiresAt }));
+  return wrote(
+    await audiences()
+      .where((f) => [f.audience.eq(audience), f.member.eq(member)])
+      .update({ expires_at: expiresAt }),
+  );
 }
 
 /** Takes `member` out of `audience`, and answers whether a row was removed. */

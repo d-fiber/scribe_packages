@@ -110,8 +110,8 @@ Deno.test({
     assertEquals(
       reads.count,
       1,
-      "fail() decodes the payload a second time to hand it to the policy, which only reads it "
-        + "on the dead-letter path: on a retry the whole parse is work nobody uses",
+      "fail() decodes the payload a second time to hand it to the policy, which only reads it " +
+        "on the dead-letter path: on a retry the whole parse is work nobody uses",
     );
   },
 });
@@ -122,8 +122,7 @@ Deno.test({
     const reads = { count: 0 };
     const messages = Array.from(
       { length: 50 },
-      (_, at) =>
-        probe({ subject: "q.test_hot_group", data: { id: `j${at}` }, seq: at + 1, reads }),
+      (_, at) => probe({ subject: "q.test_hot_group", data: { id: `j${at}` }, seq: at + 1, reads }),
     );
 
     await dispatchProbes(messages);
@@ -131,8 +130,8 @@ Deno.test({
     assertEquals(
       reads.count,
       50,
-      "the group is decoded once to be handed over and once more per member on the way out, "
-        + "so a group of fifty that fails pays a hundred parses for fifty payloads",
+      "the group is decoded once to be handed over and once more per member on the way out, " +
+        "so a group of fifty that fails pays a hundred parses for fifty payloads",
     );
   },
 });
@@ -148,8 +147,8 @@ Deno.test("a message on the dead-letter path is decoded once and re-serialised o
   assertEquals(
     reads.count,
     1,
-    "the decoded message travels from where it was read to where it is republished, so the "
-      + "payload is parsed once for the whole path rather than once per step",
+    "the decoded message travels from where it was read to where it is republished, so the " +
+      "payload is parsed once for the whole path rather than once per step",
   );
 });
 
@@ -198,9 +197,9 @@ Deno.test({
       assertEquals(
         probeCalls.calls.filter((one) => one === "zscan").length,
         1,
-        "a dashboard that asks each queue for its standing walks the whole delayed set again "
-          + "each time, and the set is shared by every queue of the process: at the scan cap "
-          + "that is a hundred round trips per queue for a number all() reads once",
+        "a dashboard that asks each queue for its standing walks the whole delayed set again " +
+          "each time, and the set is shared by every queue of the process: at the scan cap " +
+          "that is a hundred round trips per queue for a number all() reads once",
       );
     } finally {
       probeCalls.restore();
@@ -255,9 +254,9 @@ Deno.test({
       assertEquals(
         peak <= 100,
         true,
-        `${peak} publications were in flight at once: pushMany hands the whole list to `
-          + "Promise.all with no pool, so the producer's memory and the server's inbox both "
-          + "grow with the size of the list rather than with a limit the package chose",
+        `${peak} publications were in flight at once: pushMany hands the whole list to ` +
+          "Promise.all with no pool, so the producer's memory and the server's inbox both " +
+          "grow with the size of the list rather than with a limit the package chose",
       );
     } finally {
       publishing.restore();
@@ -305,8 +304,8 @@ Deno.test("a pass over a mixed batch asks the registry once per message and no m
     assertEquals(
       lookups.length,
       2,
-      "the batch is grouped by subject before anything is looked up, so the registry is asked "
-        + "once per subject present and not once per message",
+      "the batch is grouped by subject before anything is looked up, so the registry is asked " +
+        "once per subject present and not once per message",
     );
   } finally {
     mock.restore();

@@ -137,7 +137,5 @@ function _whoBy(input: LogInput): string | null {
  * wrote, which is how a journal is forged from the outside.
  */
 function _onOneLine(text: string): string {
-  return text.includes("\n") || text.includes("\r")
-    ? text.replaceAll("\r", "\\r").replaceAll("\n", "\\n")
-    : text;
+  return text.includes("\n") || text.includes("\r") ? text.replaceAll("\r", "\\r").replaceAll("\n", "\\n") : text;
 }

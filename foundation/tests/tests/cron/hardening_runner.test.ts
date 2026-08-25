@@ -40,7 +40,7 @@ import { Duration, Now, type NowSource } from "@scribe/alchemy";
 import { assertEquals, assertNotEquals, assertThrows } from "@std/assert";
 import { FakeTime } from "@std/testing/time";
 import { Cron } from "@scribe/foundation/lib/src/cron/cron.ts";
-import { cronRunner, CronRunner } from "@scribe/foundation/lib/src/cron/cron_runner.ts";
+import { CronRunner, cronRunner } from "@scribe/foundation/lib/src/cron/cron_runner.ts";
 import { cronRegistry } from "@scribe/foundation/lib/src/cron/cron_registry.ts";
 import { cronExpression } from "@scribe/foundation/lib/src/cron/cron_expression.ts";
 import { CronTimezone } from "@scribe/foundation/lib/src/cron/cron_timezone.ts";
@@ -107,9 +107,9 @@ Deno.test({
     assertEquals(
       cronRegistry.list().some((entry) => entry.job.name === "hardening:no-future-run"),
       false,
-      "the name was taken before the schedule was checked, so the registry now holds a job the "
-        + "runner never accepted, report() throws for every other job too, and the name can "
-        + "never be declared again",
+      "the name was taken before the schedule was checked, so the registry now holds a job the " +
+        "runner never accepted, report() throws for every other job too, and the name can " +
+        "never be declared again",
     );
   },
 });
@@ -131,8 +131,8 @@ Deno.test({
       assertEquals(
         job.nextRun().getTime(),
         announced,
-        "four of the five minutes went by and the answer moved with them, so what the registry "
-          + "reports and what the loop holds are two different instants",
+        "four of the five minutes went by and the answer moved with them, so what the registry " +
+          "reports and what the loop holds are two different instants",
       );
     } finally {
       Now.use(new SystemNow());
@@ -152,8 +152,8 @@ Deno.test("the loop and the registry hold two different answers for the same int
     assertNotEquals(
       held.nextRunAt.getTime(),
       clock.at + Duration.minutes(5).inMilliseconds,
-      "the loop keeps the grid point it computed at registration while a fresh nextRun() "
-        + "answers five minutes from whenever it is asked",
+      "the loop keeps the grid point it computed at registration while a fresh nextRun() " +
+        "answers five minutes from whenever it is asked",
     );
   } finally {
     Now.use(new SystemNow());
@@ -336,8 +336,8 @@ Deno.test("restarting the loop cannot double the cap, because every in-flight jo
       assertEquals(
         peak,
         2,
-        "start() built a second semaphore while two bodies held a place on the first, and the "
-          + "run token of each job is what kept a third body from taking one",
+        "start() built a second semaphore while two bodies held a place on the first, and the " +
+          "run token of each job is what kept a third body from taking one",
       );
 
       for (const release of releases) release();

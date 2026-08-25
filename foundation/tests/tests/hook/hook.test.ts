@@ -157,8 +157,8 @@ Deno.test("background() does not run the handler within the request", async () =
   assertEquals(
     backgroundRan,
     false,
-    "the background handler was pushed rather than called, and the push failing on the "
-      + "absent NATS did not hold run() back",
+    "the background handler was pushed rather than called, and the push failing on the " +
+      "absent NATS did not hold run() back",
   );
 });
 

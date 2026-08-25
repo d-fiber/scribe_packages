@@ -155,8 +155,8 @@ Deno.test("a delay in the past is published now instead of being parked", async 
     assertEquals(
       store.parked,
       [],
-      "a negative delay must never reach the sorted set, where its score would sit before "
-        + "every honest one and be promoted ahead of jobs that were pushed first",
+      "a negative delay must never reach the sorted set, where its score would sit before " +
+        "every honest one and be promoted ahead of jobs that were pushed first",
     );
     assertEquals(published, ["q.test_delayed_past"]);
   } finally {
@@ -208,8 +208,8 @@ Deno.test("a clock that walks back between the push and the pass holds the job t
     assertEquals(
       await promoteDue(),
       1,
-      "the score is an absolute instant, so a clock that walks back postpones every parked "
-        + "job by exactly what it lost, and nothing about the delay itself says so",
+      "the score is an absolute instant, so a clock that walks back postpones every parked " +
+        "job by exactly what it lost, and nothing about the delay itself says so",
     );
   } finally {
     publishing.restore();
@@ -280,9 +280,9 @@ Deno.test({
       assertEquals(
         first + second,
         1,
-        "one parked job was promoted, and two passes each claimed it: DrainResult.promoted is "
-          + "what a status screen reads, and it counts the passes rather than the jobs. ZREM "
-          + "answers how many it actually removed, which is the claim nobody reads",
+        "one parked job was promoted, and two passes each claimed it: DrainResult.promoted is " +
+          "what a status screen reads, and it counts the passes rather than the jobs. ZREM " +
+          "answers how many it actually removed, which is the claim nobody reads",
       );
       assertEquals(published.length, 2);
     } finally {
@@ -312,8 +312,8 @@ Deno.test({
       assertEquals(
         pages <= 200,
         true,
-        `the scan walked ${pages} pages: the cap counts readable members only, so a set full `
-          + "of members nothing can read is scanned end to end whatever its size",
+        `the scan walked ${pages} pages: the cap counts readable members only, so a set full ` +
+          "of members nothing can read is scanned end to end whatever its size",
       );
     } finally {
       mock.restore();

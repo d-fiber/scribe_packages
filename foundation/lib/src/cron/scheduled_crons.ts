@@ -121,8 +121,8 @@ function _zoneNamed(timezone?: string): CronTimezone {
   if (_read.has(timezone)) return timezone as CronTimezone;
 
   throw new DeclarationError(
-    `"${timezone}" is not a zone this package reads. Name one of the zones CronTimezone lists, or `
-      + "leave it out and the run is read in UTC.",
+    `"${timezone}" is not a zone this package reads. Name one of the zones CronTimezone lists, or ` +
+      "leave it out and the run is read in UTC.",
   );
 }
 

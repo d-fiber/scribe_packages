@@ -34,7 +34,6 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-
 /** Where the storage service lives, and how its objects are addressed. */
 export interface StorageSettings {
   /** The base URL of the storage API, reached from inside the stack. */

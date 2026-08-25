@@ -46,11 +46,7 @@ import { goTrue } from "./gotrue/gotrue_client.ts";
 import type { AuthError } from "./gotrue/transport.ts";
 import { AccountRevocation } from "./revocation.ts";
 import { SmsIntent, smsIntent } from "./sms_intent.ts";
-import {
-  AuthValidator,
-  EmailCheckStatus,
-  PhoneCheckStatus,
-} from "./validator.ts";
+import { AuthValidator, EmailCheckStatus, PhoneCheckStatus } from "./validator.ts";
 
 /** Why the address or the number an account signs in with could not be changed. */
 export enum IdentifierError {

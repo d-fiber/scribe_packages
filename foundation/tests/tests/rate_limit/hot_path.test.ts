@@ -106,8 +106,12 @@ Deno.test("a peek costs one round trip and never the script", async () => {
     for (let round = 0; round < 1_000; round++) await guard.isBlocked("api", "1.2.3.4");
 
     assertEquals(peeked, 1_000);
-    assertEquals(scripted, 0, "a peek that recorded a hit would make telling someone they are blocked "
-      + "extend the block");
+    assertEquals(
+      scripted,
+      0,
+      "a peek that recorded a hit would make telling someone they are blocked " +
+        "extend the block",
+    );
   } finally {
     script.restore();
     pttl.restore();

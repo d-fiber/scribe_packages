@@ -37,7 +37,7 @@
 import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
 import { lingerFetch } from "@scribe/foundation/lib/src/queue/topology/linger_fetch.ts";
 import type { Consumer, JsMsg } from "@nats-io/jetstream";
-import { type NowSource, Now } from "@scribe/alchemy";
+import { Now, type NowSource } from "@scribe/alchemy";
 import { StreamSource } from "@scribe/foundation/lib/src/queue/runner/stream_source.ts";
 import { topology } from "@scribe/foundation/lib/src/queue/topology/topology.ts";
 import { installMock } from "@scribe/foundation/tests/testing/install.ts";
@@ -149,9 +149,9 @@ Deno.test("a clock reading the epoch loses the stamp of the first message of the
   assertEquals(
     fromEpoch.length - fromLater.length,
     1,
-    "firstAt is held in a number whose empty value is zero, so a clock reading zero does not "
-      + "look stamped and the second message restamps the window: the slip is one message and "
-      + "no more, because the second stamp is not zero",
+    "firstAt is held in a number whose empty value is zero, so a clock reading zero does not " +
+      "look stamped and the second message restamps the window: the slip is one message and " +
+      "no more, because the second stamp is not zero",
   );
 });
 
@@ -179,10 +179,10 @@ Deno.test({
       assertEquals(
         asked[0] >= 30_000,
         true,
-        `the fetch window is a constant ${asked[0]}ms while the linger comes from the `
-          + "declaration, so a queue that asked to group over 30000ms has its iterator closed "
-          + "first and is handed its group early, without anything saying the number it "
-          + "declared was not the one applied",
+        `the fetch window is a constant ${asked[0]}ms while the linger comes from the ` +
+          "declaration, so a queue that asked to group over 30000ms has its iterator closed " +
+          "first and is handed its group early, without anything saying the number it " +
+          "declared was not the one applied",
       );
     } finally {
       mock.restore();
@@ -223,8 +223,8 @@ Deno.test("every message of the fetch costs one grace lookup and one timer", asy
     assertEquals(
       lookups,
       50,
-      "the deadline is firstAt plus the smallest grace seen, and it only ever moves earlier, "
-        + "so re-arming a timer on every message is work the window does not need",
+      "the deadline is firstAt plus the smallest grace seen, and it only ever moves earlier, " +
+        "so re-arming a timer on every message is work the window does not need",
     );
   } finally {
     installDrivers();

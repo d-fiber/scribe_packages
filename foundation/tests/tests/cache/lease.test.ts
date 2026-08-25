@@ -61,8 +61,8 @@ Deno.test({
 
       assert(
         leasesOf(redis.commands)[0] >= 1_000,
-        `the key was leased for ${leasesOf(redis.commands)[0]} ms, which is shorter than any computation `
-          + "worth caching, so a second replica takes the key while the first is still working",
+        `the key was leased for ${leasesOf(redis.commands)[0]} ms, which is shorter than any computation ` +
+          "worth caching, so a second replica takes the key while the first is still working",
       );
     } finally {
       redis.restore();

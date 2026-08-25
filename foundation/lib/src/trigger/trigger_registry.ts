@@ -83,8 +83,8 @@ export class TriggerRegistry {
 
     if (existing !== undefined) {
       throw new DuplicateDeclarationError(
-        `Trigger("${trigger.table}"): "${trigger.name}" is already declared. Pass `
-          + `{ path: "...", name: "..." } to tell the two apart.`,
+        `Trigger("${trigger.table}"): "${trigger.name}" is already declared. Pass ` +
+          `{ path: "...", name: "..." } to tell the two apart.`,
       );
     }
 

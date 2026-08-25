@@ -85,7 +85,5 @@ export function safeDecode<T>(payload: Uint8Array): WireMessage<T> | null {
     return null;
   }
 
-  return typeof parsed === "object" && parsed !== null && "data" in parsed
-    ? (parsed as WireMessage<T>)
-    : null;
+  return typeof parsed === "object" && parsed !== null && "data" in parsed ? (parsed as WireMessage<T>) : null;
 }

@@ -196,8 +196,7 @@ Deno.test("the port narrows to the caller the same way the builder does", async 
   try {
     const rows = await withIdentity(
       CALLER,
-      () =>
-        new TypedQueryBuilder<{ id: string; buyer_id: string }>(clientOf(mock), ORDERS).get(),
+      () => new TypedQueryBuilder<{ id: string; buyer_id: string }>(clientOf(mock), ORDERS).get(),
     );
 
     assertEquals(rows.map((row) => row.id), ["o1"]);

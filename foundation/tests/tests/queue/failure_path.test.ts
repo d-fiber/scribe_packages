@@ -77,14 +77,14 @@ Deno.test({
     assertEquals(
       rejected,
       null,
-      "the failure path has no failure path: the rejected publish escapes fail(), runPooled "
-        + "and the dispatcher, and the whole pass is thrown away with its tally",
+      "the failure path has no failure path: the rejected publish escapes fail(), runPooled " +
+        "and the dispatcher, and the whole pass is thrown away with its tally",
     );
     assertEquals(
       messages.filter(unanswered).length,
       0,
-      "the messages the pool never reached hold their consumer slot until ack_wait expires, "
-        + "which on the default settings is ten minutes of doing nothing",
+      "the messages the pool never reached hold their consumer slot until ack_wait expires, " +
+        "which on the default settings is ten minutes of doing nothing",
     );
   },
 });
@@ -99,8 +99,8 @@ Deno.test({
     assertEquals(
       message.nakedAfter !== null || message.termed,
       true,
-      "when the dead letter cannot be written the message must still be answered, and coming "
-        + "back later is the only answer that loses nothing",
+      "when the dead letter cannot be written the message must still be answered, and coming " +
+        "back later is the only answer that loses nothing",
     );
   },
 });
@@ -143,8 +143,8 @@ Deno.test({
     assertEquals(
       result.done,
       1,
-      "the neighbouring group ran and acknowledged its message, but the exception raised by "
-        + "the other group threw the whole tally away, so a drain reports nothing done",
+      "the neighbouring group ran and acknowledged its message, but the exception raised by " +
+        "the other group threw the whole tally away, so a drain reports nothing done",
     );
   },
 });
@@ -176,9 +176,9 @@ Deno.test({
     assertEquals(
       [first.acked && first.nakedAfter === null, second.acked && second.nakedAfter === null],
       [true, true],
-      "the group acknowledges its members one at a time inside the guarded try, so an ack "
-        + "that throws sends the whole group down the failure path and the members already "
-        + "acknowledged are refused on top of their acknowledgement",
+      "the group acknowledges its members one at a time inside the guarded try, so an ack " +
+        "that throws sends the whole group down the failure path and the members already " +
+        "acknowledged are refused on top of their acknowledgement",
     );
     assertEquals(result.done, 2);
   },
@@ -211,9 +211,9 @@ Deno.test({
     assertEquals(
       published.map((one) => one.data),
       [{ id: "b" }],
-      "the member whose body agreed and whose acknowledgement went through is written to the "
-        + "dead letter anyway, so a job that succeeded is filed as a failure and whatever "
-        + "reads the dead letter runs it a second time",
+      "the member whose body agreed and whose acknowledgement went through is written to the " +
+        "dead letter anyway, so a job that succeeded is filed as a failure and whatever " +
+        "reads the dead letter runs it a second time",
     );
     assertEquals(done.acked, true);
   },
@@ -237,7 +237,7 @@ Deno.test("a body that refuses does not reach the dead letter at all", async () 
   assertEquals(
     published,
     [],
-    "a retry costs one local refusal and nothing is written anywhere, which is what keeps a "
-      + "failing queue from doubling the traffic of a healthy one",
+    "a retry costs one local refusal and nothing is written anywhere, which is what keeps a " +
+      "failing queue from doubling the traffic of a healthy one",
   );
 });

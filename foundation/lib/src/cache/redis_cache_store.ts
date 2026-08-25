@@ -36,7 +36,7 @@
 
 import { DateTime, Duration, type Future, type UnmodifiableList } from "@scribe/alchemy";
 import { kv } from "@scribe/foundation/lib/src/redis/kv.ts";
-import { decodeCacheEntry, encodeCacheEntry, type CacheEntry } from "./cache_entry.ts";
+import { type CacheEntry, decodeCacheEntry, encodeCacheEntry } from "./cache_entry.ts";
 import type { KeySpace } from "./key_space.ts";
 
 /** How many keys one `SCAN` pass asks Redis to look at. */

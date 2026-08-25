@@ -88,9 +88,9 @@ Deno.test({
     assertEquals(
       nextRun({ kind: "interval", every }, new Date(boundary - 1)),
       nextRun({ kind: "interval", every }, new Date(boundary - 60_000)),
-      "an interval counted from whenever a replica registered gives every replica a series of "
-        + "its own, so a process started one millisecond earlier claims occurrences no other "
-        + "replica ever computes",
+      "an interval counted from whenever a replica registered gives every replica a series of " +
+        "its own, so a process started one millisecond earlier claims occurrences no other " +
+        "replica ever computes",
     );
   },
 });
@@ -141,8 +141,8 @@ Deno.test("a timeout longer than the interval does not stop a replica taking the
   assertEquals(
     lock.leaseFor(job, slot).inMilliseconds > nextSlot.getTime() - slot.getTime(),
     true,
-    "the marker of one occurrence outlives that occurrence, and the next one is a free key: "
-      + "ten replicas can be inside the same body, on ten consecutive minutes",
+    "the marker of one occurrence outlives that occurrence, and the next one is a free key: " +
+      "ten replicas can be inside the same body, on ten consecutive minutes",
   );
 });
 
@@ -184,8 +184,8 @@ Deno.test({
       assertEquals(
         logs.lines.length > 0,
         true,
-        "every occurrence of every job is skipped for as long as the store answers this, and "
-          + "nothing is written down",
+        "every occurrence of every job is skipped for as long as the store answers this, and " +
+          "nothing is written down",
       );
     } finally {
       shadow.restore();

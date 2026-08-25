@@ -44,12 +44,7 @@ import {
   SHARED_STREAM,
   subjectOf,
 } from "@scribe/foundation/lib/src/queue/queue_naming.ts";
-import {
-  AckPolicy,
-  type JetStreamManager,
-  RetentionPolicy,
-  StorageType,
-} from "@nats-io/jetstream";
+import { AckPolicy, type JetStreamManager, RetentionPolicy, StorageType } from "@nats-io/jetstream";
 import type { TopologyPlan } from "./topology_plan.ts";
 
 /**

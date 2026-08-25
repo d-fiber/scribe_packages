@@ -40,12 +40,18 @@ import { bucketOf } from "../bucket/registry.ts";
 import { forgetObjects, objectsUnder } from "../db/objects.ts";
 import type { StorageObjectRow } from "../db/tables.ts";
 import { pathSegment, StoragePathError } from "../path/segment.ts";
-import { parseTemplate, renderTemplate, type PathArgs, type TemplateSegment } from "../path/template.ts";
+import { parseTemplate, type PathArgs, renderTemplate, type TemplateSegment } from "../path/template.ts";
 import { FileResource } from "../resources/file.ts";
 import { ImageResource } from "../resources/image.ts";
 import { VideoResource } from "../resources/video.ts";
 import type { StorageResourceConfig } from "../runtime/config.ts";
-import { StorageListError, StorageRemoveError, type StorageListResult, type StorageObject, type StorageRemoveResult } from "../runtime/result.ts";
+import {
+  StorageListError,
+  type StorageListResult,
+  type StorageObject,
+  StorageRemoveError,
+  type StorageRemoveResult,
+} from "../runtime/result.ts";
 import { declareStorage } from "./registry.ts";
 import { objectUrl, StorageVisibility } from "./visibility.ts";
 
@@ -267,8 +273,7 @@ export class Storage<P extends string> {
       visibility: this.visibility,
       extensions: spec.extensions,
       maxSize: spec.maxSize,
-      path: (...args: PathArgs<P>) =>
-        `${renderTemplate(segments, args)}/${leaf}`,
+      path: (...args: PathArgs<P>) => `${renderTemplate(segments, args)}/${leaf}`,
     };
   }
 

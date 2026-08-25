@@ -33,7 +33,15 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import { E2E_TABLE, type E2eItem, report, requireStack, STACK, timed, useStack } from "@scribe/foundation/tests/e2e/support/stack.ts";
+import {
+  E2E_TABLE,
+  type E2eItem,
+  report,
+  requireStack,
+  STACK,
+  timed,
+  useStack,
+} from "@scribe/foundation/tests/e2e/support/stack.ts";
 import { assert, assertEquals } from "@std/assert";
 
 await requireStack(`${STACK.restUrl}/`);

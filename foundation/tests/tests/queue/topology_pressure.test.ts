@@ -38,8 +38,18 @@ import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
 import type { MemoryLogger } from "@scribe/foundation/tests/testing/logger.ts";
 import { TopologyProvisioner } from "@scribe/foundation/lib/src/queue/topology/topology_provisioner.ts";
 import { planFor, planSignature, type TopologyPlan } from "@scribe/foundation/lib/src/queue/topology/topology_plan.ts";
-import { limitsFrom, QUEUE_DEFAULTS, type RegisteredQueue, subjectsOf } from "@scribe/foundation/lib/src/queue/queue_declaration.ts";
-import { DEAD_STREAM, DEDICATED_STREAM, SHARED_CONSUMER, SHARED_STREAM } from "@scribe/foundation/lib/src/queue/queue_naming.ts";
+import {
+  limitsFrom,
+  QUEUE_DEFAULTS,
+  type RegisteredQueue,
+  subjectsOf,
+} from "@scribe/foundation/lib/src/queue/queue_declaration.ts";
+import {
+  DEAD_STREAM,
+  DEDICATED_STREAM,
+  SHARED_CONSUMER,
+  SHARED_STREAM,
+} from "@scribe/foundation/lib/src/queue/queue_naming.ts";
 import type { JetStreamManager } from "@nats-io/jetstream";
 import { Duration } from "@scribe/alchemy";
 import { assertEquals, assertNotEquals } from "@std/assert";
@@ -96,11 +106,9 @@ function manager(state: Server): JetStreamManager {
     consumers: {
       info: (stream: string, durable: string) => {
         const held = state.consumers.get(`${stream}/${durable}`);
-        return held === undefined
-          ? Promise.reject(new Error("consumer not found"))
-          : Promise.resolve({
-            config: { ack_wait: held.ackWaitNs, max_deliver: held.maxDeliver },
-          });
+        return held === undefined ? Promise.reject(new Error("consumer not found")) : Promise.resolve({
+          config: { ack_wait: held.ackWaitNs, max_deliver: held.maxDeliver },
+        });
       },
       add: (
         stream: string,
@@ -256,9 +264,9 @@ Deno.test({
     assertEquals(
       state.streams.get(SHARED_STREAM),
       900_000,
-      "a stream is left entirely alone once it exists, so maxLen is read on the day the "
-        + "stream is first created and never again: every declaration after that names a "
-        + "ceiling the server will not honour, and nothing says so",
+      "a stream is left entirely alone once it exists, so maxLen is read on the day the " +
+        "stream is first created and never again: every declaration after that names a " +
+        "ceiling the server will not honour, and nothing says so",
     );
   },
 });
@@ -273,8 +281,8 @@ Deno.test({
     assertEquals(
       state.streams.get(DEAD_STREAM),
       400_000,
-      "the dead letter of a project that raised its ceiling still drops its oldest failures "
-        + "at whatever the first deployment asked for",
+      "the dead letter of a project that raised its ceiling still drops its oldest failures " +
+        "at whatever the first deployment asked for",
     );
   },
 });
@@ -304,7 +312,7 @@ Deno.test("a processing timeout of a year keeps an ack_wait a number can still h
   assertEquals(
     Number.isSafeInteger(ackWaitNs),
     false,
-    "the plan multiplies milliseconds by a million to reach nanoseconds, and a timeout past "
-      + "about a hundred days leaves the range an integer is exact in",
+    "the plan multiplies milliseconds by a million to reach nanoseconds, and a timeout past " +
+      "about a hundred days leaves the range an integer is exact in",
   );
 });

@@ -33,13 +33,7 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import type {
-  FileSystem,
-  FileSystemDriver,
-  FileSystemEntity,
-  Future,
-  List,
-} from "@scribe/alchemy";
+import type { FileSystem, FileSystemDriver, FileSystemEntity, Future, List } from "@scribe/alchemy";
 import { Bytes } from "@scribe/alchemy";
 
 /**

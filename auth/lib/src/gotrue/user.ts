@@ -36,7 +36,15 @@
 
 import type { AccountRole } from "../../contracts/role.ts";
 import { Failure, okay, type Result } from "@scribe/alchemy";
-import { adminHeaders, authUrl, parseError, requestAuth, sendAuth, type AuthError, type GoTrueUser as GoTrueUserRecord } from "./transport.ts";
+import {
+  adminHeaders,
+  type AuthError,
+  authUrl,
+  type GoTrueUser as GoTrueUserRecord,
+  parseError,
+  requestAuth,
+  sendAuth,
+} from "./transport.ts";
 
 function userUrl(userId: string): string {
   return `${authUrl()}/admin/users/${encodeURIComponent(userId)}`;

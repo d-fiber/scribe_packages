@@ -34,7 +34,12 @@
 // This header is a summary written for convenience. Where it differs from the
 
 import { installDrivers } from "@scribe/foundation/tests/testing/drivers.ts";
-import { QUEUE_DEFAULTS, limitsFrom, subjectsOf, type RegisteredQueue } from "@scribe/foundation/lib/src/queue/queue_declaration.ts";
+import {
+  limitsFrom,
+  QUEUE_DEFAULTS,
+  type RegisteredQueue,
+  subjectsOf,
+} from "@scribe/foundation/lib/src/queue/queue_declaration.ts";
 import { planFor, planSignature } from "@scribe/foundation/lib/src/queue/topology/topology_plan.ts";
 import { Queue } from "@scribe/foundation/lib/src/queue/queue.ts";
 import { graceFor, IMMEDIATE_GRACE_MS } from "@scribe/foundation/lib/src/queue/runner/grace_period.ts";
@@ -121,8 +126,8 @@ Deno.test("planFor lets the server deliver for as long as the policy retries", (
   assertEquals(
     plan.maxDeliver > 20,
     true,
-    `the server gives up after ${plan.maxDeliver} deliveries, before the longest policy has `
-      + "finished retrying, so that message dies on an advisory and never reaches the dead letter",
+    `the server gives up after ${plan.maxDeliver} deliveries, before the longest policy has ` +
+      "finished retrying, so that message dies on an advisory and never reaches the dead letter",
   );
 });
 

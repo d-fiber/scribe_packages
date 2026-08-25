@@ -67,8 +67,8 @@ Deno.test({
 
     assert(
       typeof id === "string" && id.length > 0,
-      "a push answers the id JetStream gave it, which takes both the credentials compose.yaml "
-        + "requires and a running JetStream to create the stream",
+      "a push answers the id JetStream gave it, which takes both the credentials compose.yaml " +
+        "requires and a running JetStream to create the stream",
     );
     assertEquals(await drain(`e2e-auth-${RUN_ID}`, 1), 1, "and the message comes back out");
   },
@@ -125,9 +125,9 @@ Deno.test({
     assertEquals(result?.done, 0);
     assert(
       ms > 4_000,
-      "the window is five seconds, so an empty pull cannot come back sooner: a fetch holds "
-        + "the request open until a message lands, and a loop that drains speculatively pays "
-        + "that wait every turn",
+      "the window is five seconds, so an empty pull cannot come back sooner: a fetch holds " +
+        "the request open until a message lands, and a loop that drains speculatively pays " +
+        "that wait every turn",
     );
   },
 });

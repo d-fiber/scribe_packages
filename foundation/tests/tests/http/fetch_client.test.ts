@@ -104,8 +104,7 @@ Deno.test("every way of never reaching the server arrives as one exception", asy
 
 Deno.test("a failure that is not an Error is still described", async () => {
   const original = globalThis.fetch;
-  globalThis.fetch =
-    (() => Promise.reject("gave up")) as typeof globalThis.fetch;
+  globalThis.fetch = (() => Promise.reject("gave up")) as typeof globalThis.fetch;
 
   try {
     await assertRejects(
@@ -277,14 +276,13 @@ Deno.test("a timeout reaches fetch as a signal", async () => {
 
 Deno.test("an exchange that runs out of time names the limit it reached", async () => {
   const original = globalThis.fetch;
-  globalThis.fetch =
-    ((_input: URL | RequestInfo, init: RequestInit = {}) =>
-      new Promise((_resolve, reject) => {
-        init.signal?.addEventListener(
-          "abort",
-          () => reject(init.signal?.reason),
-        );
-      })) as typeof globalThis.fetch;
+  globalThis.fetch = ((_input: URL | RequestInfo, init: RequestInit = {}) =>
+    new Promise((_resolve, reject) => {
+      init.signal?.addEventListener(
+        "abort",
+        () => reject(init.signal?.reason),
+      );
+    })) as typeof globalThis.fetch;
 
   try {
     const raised = await assertRejects(

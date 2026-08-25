@@ -92,9 +92,9 @@ function _refuseWhatTheTypeDoesNotDeclare(expression: string): void {
   if (fields.length === 5) return;
 
   throw new DeclarationError(
-    `cronExpression("${expression}"): a cron expression here is five fields, minute to weekday. `
-      + `This one holds ${fields.length}. A sixth field is read as seconds, and nothing under a `
-      + "minute is scheduled.",
+    `cronExpression("${expression}"): a cron expression here is five fields, minute to weekday. ` +
+      `This one holds ${fields.length}. A sixth field is read as seconds, and nothing under a ` +
+      "minute is scheduled.",
   );
 }
 

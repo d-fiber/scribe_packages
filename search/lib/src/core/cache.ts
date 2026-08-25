@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { type Cache, Duration, cache } from "@scribe/alchemy";
+import { type Cache, cache, Duration } from "@scribe/alchemy";
 
 /** How long a result set and a preview are kept when a declaration asks for nothing else. */
 export const DEFAULT_TTL: Duration = Duration.minutes(5);

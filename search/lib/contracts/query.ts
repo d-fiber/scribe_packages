@@ -267,15 +267,15 @@ export interface MatchQuery {
     string,
     | string
     | {
-        /** What the caller typed. */
-        query: string;
+      /** What the caller typed. */
+      query: string;
 
-        /** How the terms combine. One term is enough when absent. */
-        operator?: Operator;
+      /** How the terms combine. One term is enough when absent. */
+      operator?: Operator;
 
-        /** How many character edits a term may be away from what was typed. */
-        fuzziness?: Fuzziness;
-      }
+      /** How many character edits a term may be away from what was typed. */
+      fuzziness?: Fuzziness;
+    }
   >;
 }
 

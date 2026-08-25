@@ -80,8 +80,8 @@ Deno.test("a chain a handler grows on every emission grows without bound", async
   assertEquals(
     chain.size >= 4,
     true,
-    "nothing takes a handler back off, so a subscriber added per request stays for the life of "
-      + "the process",
+    "nothing takes a handler back off, so a subscriber added per request stays for the life of " +
+      "the process",
   );
 });
 
@@ -94,8 +94,8 @@ Deno.test("no subscriber can be taken back off, on either side of a hook", () =>
   assertEquals(
     hook.on(() => {}) !== null,
     true,
-    "on() answers the handler back so a caller can keep a reference, and there is nothing to "
-      + "hand it to",
+    "on() answers the handler back so a caller can keep a reference, and there is nothing to " +
+      "hand it to",
   );
 });
 
@@ -159,8 +159,8 @@ Deno.test({
     assertEquals(
       secondRan,
       false,
-      "isRefusal() tests typeof === object, so a refusal that is also callable reads as an "
-        + "acceptance, the chain keeps going and the background work is queued",
+      "isRefusal() tests typeof === object, so a refusal that is also callable reads as an " +
+        "acceptance, the chain keeps going and the background work is queued",
     );
   },
 });
@@ -187,8 +187,8 @@ Deno.test({
     assertEquals(
       answered,
       "answered",
-      "the chain awaits anything carrying a then, and nothing puts a deadline on it, so the "
-        + "request holding this emission is held for as long as the process lives",
+      "the chain awaits anything carrying a then, and nothing puts a deadline on it, so the " +
+        "request holding this emission is held for as long as the process lives",
     );
   },
 });
@@ -248,8 +248,8 @@ Deno.test({
     assertEquals(
       depth,
       1,
-      "nothing marks a hook as being emitted, so a handler that emits the hook it is on nests "
-        + "one emission inside the last until the counter it happens to carry stops it",
+      "nothing marks a hook as being emitted, so a handler that emits the hook it is on nests " +
+        "one emission inside the last until the counter it happens to carry stops it",
     );
   },
 });

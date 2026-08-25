@@ -69,16 +69,20 @@ export async function writeValue(stored: StoredValue): Promise<boolean> {
   const held = await valueOf(stored.name);
 
   if (held === null) {
-    return wrote(await remoteConfigs().insert({
-      name: stored.name,
-      value: stored.value,
-      expires_at: stored.expiresAt,
-    }));
+    return wrote(
+      await remoteConfigs().insert({
+        name: stored.name,
+        value: stored.value,
+        expires_at: stored.expiresAt,
+      }),
+    );
   }
 
-  return wrote(await remoteConfigs()
-    .where((f) => f.name.eq(stored.name))
-    .update({ value: stored.value, expires_at: stored.expiresAt }));
+  return wrote(
+    await remoteConfigs()
+      .where((f) => f.name.eq(stored.name))
+      .update({ value: stored.value, expires_at: stored.expiresAt }),
+  );
 }
 
 /**
@@ -91,9 +95,11 @@ export async function retimeValue(name: string, expiresAt: number | null): Promi
   const held = await valueOf(name);
   if (held === null) return false;
 
-  return wrote(await remoteConfigs()
-    .where((f) => f.name.eq(name))
-    .update({ expires_at: expiresAt }));
+  return wrote(
+    await remoteConfigs()
+      .where((f) => f.name.eq(name))
+      .update({ expires_at: expiresAt }),
+  );
 }
 
 /** Removes what is stored under `name`, and answers whether a row was removed. */

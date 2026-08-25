@@ -34,7 +34,6 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-
 import { wrote } from "@scribe/foundation/lib/foundation.ts";
 import type { StorageVisibility } from "../core/visibility.ts";
 import { type StorageObjectRow, storageObjects } from "./tables.ts";
@@ -116,9 +115,11 @@ export function storedObject(path: string): Promise<StorageObjectRow | null> {
 export async function forgetObjects(paths: readonly string[]): Promise<boolean> {
   if (paths.length === 0) return true;
 
-  return wrote(await storageObjects()
-    .where((f) => f.path.in([...paths]))
-    .delete());
+  return wrote(
+    await storageObjects()
+      .where((f) => f.path.in([...paths]))
+      .delete(),
+  );
 }
 
 /** One page of the index, read under a prefix. */

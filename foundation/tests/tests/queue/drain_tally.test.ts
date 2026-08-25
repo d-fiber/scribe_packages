@@ -97,9 +97,7 @@ Deno.test("withDeadline rejects with TimeoutException past the deadline", async 
 Deno.test("withDeadline propagates the handler's own failure untouched", async () => {
   const boom = new TypeError("handler exploded");
 
-  const error = await assertRejects(() =>
-    withDeadline("broken", Duration.milliseconds(50), Promise.reject(boom))
-  );
+  const error = await assertRejects(() => withDeadline("broken", Duration.milliseconds(50), Promise.reject(boom)));
 
   assertEquals(error, boom);
 });

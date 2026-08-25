@@ -49,7 +49,14 @@ import { triggerRegistry } from "@scribe/foundation/lib/src/trigger/trigger_regi
 import { cronRunner } from "@scribe/foundation/lib/src/cron/cron_runner.ts";
 import { installMock } from "@scribe/foundation/tests/testing/install.ts";
 import { recordLog } from "@scribe/foundation/tests/testing/logger.ts";
-import { assert, assertEquals, assertNotStrictEquals, assertRejects, assertStrictEquals, assertThrows } from "@std/assert";
+import {
+  assert,
+  assertEquals,
+  assertNotStrictEquals,
+  assertRejects,
+  assertStrictEquals,
+  assertThrows,
+} from "@std/assert";
 
 installDrivers();
 
@@ -227,7 +234,8 @@ Deno.test("a time of day whose hour is out of range is refused where it is writt
 
   try {
     assertThrows(
-      () => new ScheduledCrons().schedule({ key: unique("ports:bad-hour"), schedule: { at: { hour: 99 } }, run: () => {} }),
+      () =>
+        new ScheduledCrons().schedule({ key: unique("ports:bad-hour"), schedule: { at: { hour: 99 } }, run: () => {} }),
       Error,
       "99",
     );
@@ -408,7 +416,9 @@ Deno.test({
 Deno.test("a query on a table answers every member the port declares", () => {
   const query = new PostgrestDatabases().table<{ orders: { row: { id: string } } }, "orders">("orders");
 
-  for (const member of ["where", "limit", "range", "get", "getOne", "insert", "insertOne", "update", "delete", "deleteOne"]) {
+  for (
+    const member of ["where", "limit", "range", "get", "getOne", "insert", "insertOne", "update", "delete", "deleteOne"]
+  ) {
     assertEquals(
       typeof (query as unknown as Record<string, unknown>)[member],
       "function",

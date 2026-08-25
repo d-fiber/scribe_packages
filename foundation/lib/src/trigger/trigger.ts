@@ -318,9 +318,9 @@ function _refuseAStandingTransition(path: string, when: FieldTransition | null):
   if (when.from !== when.to) return;
 
   throw new DeclarationError(
-    `Trigger.onFieldChange("${path}"): this transition cannot fire. It waits for the column to `
-      + `reach ${JSON.stringify(when.to)} while leaving the same value, and a column that moved `
-      + "holds something else than it held.",
+    `Trigger.onFieldChange("${path}"): this transition cannot fire. It waits for the column to ` +
+      `reach ${JSON.stringify(when.to)} while leaving the same value, and a column that moved ` +
+      "holds something else than it held.",
   );
 }
 

@@ -34,7 +34,6 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-
 import { Failure, Ok, okay } from "@scribe/alchemy";
 import { bucketOf } from "../bucket/registry.ts";
 import { objectUrl } from "../core/visibility.ts";
@@ -44,7 +43,12 @@ import { mimeTypeOf } from "../media/mime.ts";
 import { mediaError } from "../media/validation.ts";
 import { StoragePathError } from "../path/segment.ts";
 import type { StorageResourceConfig } from "./config.ts";
-import { StorageRemoveError, StorageUploadError, type StorageRemoveResult, type StorageUploadResult } from "./result.ts";
+import {
+  StorageRemoveError,
+  type StorageRemoveResult,
+  StorageUploadError,
+  type StorageUploadResult,
+} from "./result.ts";
 
 /**
  * One object of a storage tree: where it goes, what it accepts, and what an upload answers.

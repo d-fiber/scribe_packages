@@ -103,8 +103,8 @@ export function ownerScope(table: string): ScopeDecision {
 
   if (principal.kind === "unproven") {
     throw new UnprovenCallerError(
-      `refusing to read "${table}" from a path with no caller. Call unscoped() when the `
-        + `authorisation was decided upstream, which is what a worker, a cron and a hook do.`,
+      `refusing to read "${table}" from a path with no caller. Call unscoped() when the ` +
+        `authorisation was decided upstream, which is what a worker, a cron and a hook do.`,
     );
   }
 

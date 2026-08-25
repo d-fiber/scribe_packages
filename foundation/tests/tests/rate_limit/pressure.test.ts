@@ -85,8 +85,8 @@ Deno.test({
       assertEquals(
         await guard.check("", "1.2.3.4"),
         guard.unmeasured(),
-        "the declaration said refuse what you cannot measure, the class decided it could not measure, "
-          + "and it answered allow, having never reached Redis",
+        "the declaration said refuse what you cannot measure, the class decided it could not measure, " +
+          "and it answered allow, having never reached Redis",
       );
       assertEquals(script.calls.length, 0);
     } finally {
@@ -142,8 +142,8 @@ Deno.test({
 
       assert(
         !answer.ok || Number.isFinite(answer.remaining),
-        `a store that answered ${JSON.stringify([1])} produced ${JSON.stringify(answer)}, and only a reply `
-          + "that is not a list at all ever reaches the catch",
+        `a store that answered ${JSON.stringify([1])} produced ${JSON.stringify(answer)}, and only a reply ` +
+          "that is not a list at all ever reaches the catch",
       );
     } finally {
       script.restore();
@@ -162,8 +162,8 @@ Deno.test({
 
       assert(
         answer.ok || Number.isFinite(answer.retryAfter),
-        `the caller was refused and told to come back after ${JSON.stringify(answer)}, which sends it round `
-          + "again at once",
+        `the caller was refused and told to come back after ${JSON.stringify(answer)}, which sends it round ` +
+          "again at once",
       );
     } finally {
       script.restore();
@@ -181,8 +181,8 @@ Deno.test({
       assertEquals(
         (await guard.check()).ok,
         true,
-        "the comparison is strict, so a reply carrying the right numbers as text refuses every caller and "
-          + "tells each of them to come back after zero seconds",
+        "the comparison is strict, so a reply carrying the right numbers as text refuses every caller and " +
+          "tells each of them to come back after zero seconds",
       );
     } finally {
       script.restore();
@@ -239,8 +239,8 @@ Deno.test({
 
       assert(
         penalty <= ceiling,
-        `the declaration asked for ${penalty} seconds and the script will grant ${ceiling}, and nothing `
-          + "between the two says so",
+        `the declaration asked for ${penalty} seconds and the script will grant ${ceiling}, and nothing ` +
+          "between the two says so",
       );
     } finally {
       script.restore();
@@ -265,8 +265,8 @@ Deno.test({
 
       assert(
         penalty < memory,
-        `a block of ${penalty} seconds outlives a strike count kept for ${memory}, so the count is gone by `
-          + "the time the block lifts and the next penalty starts over at the first",
+        `a block of ${penalty} seconds outlives a strike count kept for ${memory}, so the count is gone by ` +
+          "the time the block lifts and the next penalty starts over at the first",
       );
     } finally {
       script.restore();
@@ -282,8 +282,8 @@ Deno.test({
 
     assert(
       mounted.blockedKey !== declared.blockedKey,
-      `both name ${mounted.blockedKey}, so one declaration's penalty blocks the other's callers, and a `
-        + "suffix a caller controls decides which bucket it spends",
+      `both name ${mounted.blockedKey}, so one declaration's penalty blocks the other's callers, and a ` +
+        "suffix a caller controls decides which bucket it spends",
     );
   },
 });
@@ -353,8 +353,8 @@ Deno.test({
       assertEquals(
         asked,
         0,
-        "check decides this limit measures nothing and never leaves the process, and the peek beside it "
-          + "goes to Redis anyway",
+        "check decides this limit measures nothing and never leaves the process, and the peek beside it " +
+          "goes to Redis anyway",
       );
     } finally {
       mock.restore();

@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Duration, cache } from "@scribe/alchemy";
+import { cache, Duration } from "@scribe/alchemy";
 
 const INTENT_TTL = Duration.seconds(120);
 

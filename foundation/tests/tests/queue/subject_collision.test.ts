@@ -70,8 +70,8 @@ Deno.test({
         }),
       DuplicateDeclarationError,
       "subject",
-      "the second declaration takes a subject the first already publishes to, which the "
-        + "duplicate guard does not see because it only indexes by name",
+      "the second declaration takes a subject the first already publishes to, which the " +
+        "duplicate guard does not see because it only indexes by name",
     );
   },
 });
@@ -98,8 +98,8 @@ Deno.test({
     assertEquals(
       first,
       ["x"],
-      "the registry answers the last declaration, so every message of the first queue runs "
-        + "under a body that was never meant to see it",
+      "the registry answers the last declaration, so every message of the first queue runs " +
+        "under a body that was never meant to see it",
     );
     assertEquals(second, []);
   },
@@ -112,8 +112,8 @@ Deno.test({
       () => new Queue<{ id: string }>({ name: "" }, () => Promise.resolve()),
       Error,
       "",
-      'sanitize("") answers the empty string, so the subject is "q." and its second token is '
-        + "empty, which the server rejects at publish time rather than at declaration time",
+      'sanitize("") answers the empty string, so the subject is "q." and its second token is ' +
+        "empty, which the server rejects at publish time rather than at declaration time",
     );
   },
 });

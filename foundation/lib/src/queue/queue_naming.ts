@@ -71,8 +71,8 @@ export function sanitize(name: string): string {
   const token = name.replace(/[^A-Za-z0-9_-]+/g, "_");
   if (token === "" || /^_+$/.test(token)) {
     throw new DeclarationError(
-      `new Queue("${name}"): a queue name has to hold a letter, a digit or a dash. What this one `
-        + "reduces to is not a subject token NATS accepts.",
+      `new Queue("${name}"): a queue name has to hold a letter, a digit or a dash. What this one ` +
+        "reduces to is not a subject token NATS accepts.",
     );
   }
   return token;

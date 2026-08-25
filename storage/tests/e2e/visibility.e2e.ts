@@ -34,7 +34,6 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-
 import { assert, assertEquals } from "@std/assert";
 import { fetchObject, report, requireStack, RUN_ID, STACK, useStack } from "./support/stack.ts";
 

@@ -34,7 +34,6 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-
 import { blurhash } from "../media/blurhash.ts";
 import { StorageResource } from "../runtime/resource.ts";
 import type { StorageImage } from "../runtime/result.ts";

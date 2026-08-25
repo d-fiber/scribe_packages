@@ -46,20 +46,32 @@ export function forgetHandBackCounters(): void {
   counted.clear();
 }
 
-installMock(kv(), "incr", ((key: string) => {
-  const next = (counted.get(key) ?? 0) + 1;
-  counted.set(key, next);
-  return Promise.resolve(next);
-}) as unknown as Kv["incr"]);
+installMock(
+  kv(),
+  "incr",
+  ((key: string) => {
+    const next = (counted.get(key) ?? 0) + 1;
+    counted.set(key, next);
+    return Promise.resolve(next);
+  }) as unknown as Kv["incr"],
+);
 
 installMock(kv(), "expire", (() => Promise.resolve(1)) as unknown as Kv["expire"]);
 
-installMock(kv(), "get", ((key: string) => {
-  const held = counted.get(key);
-  return Promise.resolve(held === undefined ? null : String(held));
-}) as unknown as Kv["get"]);
+installMock(
+  kv(),
+  "get",
+  ((key: string) => {
+    const held = counted.get(key);
+    return Promise.resolve(held === undefined ? null : String(held));
+  }) as unknown as Kv["get"],
+);
 
-installMock(kv(), "del", ((key: string) => {
-  counted.delete(key);
-  return Promise.resolve(1);
-}) as unknown as Kv["del"]);
+installMock(
+  kv(),
+  "del",
+  ((key: string) => {
+    counted.delete(key);
+    return Promise.resolve(1);
+  }) as unknown as Kv["del"],
+);

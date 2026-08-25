@@ -133,8 +133,8 @@ Deno.test({
       assertEquals(
         redis.countOf("set"),
         1,
-        `fifty replicas reading one key took ${redis.countOf("set")} locks to let one of them refresh, so a `
-          + "read that hits doubles in cost the moment the draw opens",
+        `fifty replicas reading one key took ${redis.countOf("set")} locks to let one of them refresh, so a ` +
+          "read that hits doubles in cost the moment the draw opens",
       );
     } finally {
       redis.restore();
@@ -156,8 +156,8 @@ Deno.test({
 
     assert(
       volunteered > 0,
-      "a reader ten seconds behind the writer sees eleven seconds of life on a one second ttl, and an "
-        + "absolute instant read as it comes turns refresh-ahead off for exactly that replica",
+      "a reader ten seconds behind the writer sees eleven seconds of life on a one second ttl, and an " +
+        "absolute instant read as it comes turns refresh-ahead off for exactly that replica",
     );
   },
 });
@@ -170,9 +170,9 @@ Deno.test({
 
     assert(
       Number.isFinite(corrupt.expiresAt) && Number.isFinite(corrupt.computeMs),
-      `the marker alone let this through, so expiresAt came back as ${typeof corrupt.expiresAt} and `
-        + `computeMs as ${typeof corrupt.computeMs}, and shouldRefreshEarly answers `
-        + `${shouldRefreshEarly(corrupt, 1, NOW)} for ever`,
+      `the marker alone let this through, so expiresAt came back as ${typeof corrupt.expiresAt} and ` +
+        `computeMs as ${typeof corrupt.computeMs}, and shouldRefreshEarly answers ` +
+        `${shouldRefreshEarly(corrupt, 1, NOW)} for ever`,
     );
   },
 });
@@ -198,8 +198,8 @@ Deno.test({
       assertEquals(
         answer,
         "still good",
-        `the reader that drew the refresh waited ${waited} ms for a value it already had, so the rule that `
-          + "exists so nobody waits on an expiry makes two readers in five wait the whole computation",
+        `the reader that drew the refresh waited ${waited} ms for a value it already had, so the rule that ` +
+          "exists so nobody waits on an expiry makes two readers in five wait the whole computation",
       );
     } finally {
       redis.restore();

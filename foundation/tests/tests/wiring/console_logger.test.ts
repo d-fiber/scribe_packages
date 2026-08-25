@@ -51,9 +51,13 @@ interface Written {
 function writing(body: (written: Written[]) => void): void {
   const written: Written[] = [];
   const taken = (["debug", "info", "warn", "error"] as const).map((level) =>
-    installMock(console, level, ((...args: unknown[]) => {
-      written.push({ level, args });
-    }) as typeof console.log)
+    installMock(
+      console,
+      level,
+      ((...args: unknown[]) => {
+        written.push({ level, args });
+      }) as typeof console.log,
+    )
   );
 
   try {

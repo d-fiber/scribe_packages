@@ -100,7 +100,9 @@ Deno.test("a clock moved backwards is read backwards, since nothing here assumes
 });
 
 Deno.test("each settings slot refuses a read before anything fills it, and names itself in the refusal", () => {
-  for (const [slot, name] of [[cacheSettings, "cache"], [queueSettings, "queue"], [databaseSettings, "database"]] as const) {
+  for (
+    const [slot, name] of [[cacheSettings, "cache"], [queueSettings, "queue"], [databaseSettings, "database"]] as const
+  ) {
     const held = slot.configured ? slot.get() : null;
     slot.clear();
 
@@ -115,7 +117,8 @@ Deno.test("the service client is one client for the whole process", () => {
 });
 
 Deno.test({
-  name: "clearing the database settings makes the next service client read them again, where today it answers the old one",
+  name:
+    "clearing the database settings makes the next service client read them again, where today it answers the old one",
   fn() {
     const first = PostgrestClients.service();
     const held = databaseSettings.get();

@@ -122,8 +122,7 @@ Deno.test("two replicas of one key share one computation when the lease covers i
 });
 
 Deno.test({
-  name:
-    "two replicas of one key answer two different values when the computation outlives the lease",
+  name: "two replicas of one key answer two different values when the computation outlives the lease",
   async fn() {
     const redis = installFakeRedis();
 
@@ -280,8 +279,8 @@ Deno.test("a loser pays two round trips for every fifty milliseconds it waits", 
     );
     assert(
       redis.roundTrips >= 9 && redis.roundTrips <= 16,
-      `waiting a quarter of a second cost ${redis.roundTrips} round trips, one lock attempt and one read `
-        + "back every fifty milliseconds",
+      `waiting a quarter of a second cost ${redis.roundTrips} round trips, one lock attempt and one read ` +
+        "back every fifty milliseconds",
     );
   } finally {
     redis.restore();
@@ -330,8 +329,8 @@ Deno.test({
 
       assert(
         lock.acquired <= 7,
-        `a two hundred and fifty millisecond budget bought ${lock.acquired} lock attempts, because the loop `
-          + "asks a wall clock whether time has passed",
+        `a two hundred and fifty millisecond budget bought ${lock.acquired} lock attempts, because the loop ` +
+          "asks a wall clock whether time has passed",
       );
     } finally {
       Now.use(held);
