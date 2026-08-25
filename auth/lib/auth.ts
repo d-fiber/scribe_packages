@@ -48,7 +48,7 @@
  */
 
 import type { LifecycleSteps } from "@scribe/alchemy";
-import { extensions, OptionalExtension } from "@scribe/runtime/support/extensions/mod.ts";
+import { extensions, OptionalExtension, runDeclarations } from "@scribe/runtime/support/extensions/mod.ts";
 import { optional, required } from "@scribe/foundation";
 import { AUTH_EXTENSION } from "./src/declaration/registry.ts";
 import { authSettings } from "./src/settings.ts";
@@ -152,7 +152,7 @@ export const scribe: LifecycleSteps = {
     extensions.register(
       new OptionalExtension(
         AUTH_EXTENSION,
-        () => import("@app/extensions/auth/auth.ts"),
+        () => runDeclarations("accounts"),
       ),
     );
   },
