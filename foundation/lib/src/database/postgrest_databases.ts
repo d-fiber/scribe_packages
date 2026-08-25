@@ -33,7 +33,7 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import type { DatabaseDriver, DatabaseSchema, Query } from "@scribe/alchemy";
+import type { DatabaseDriver, DeclaredDatabaseSchema as PortDatabaseSchema, Query } from "@scribe/alchemy";
 import { PostgrestClients } from "./postgrest_clients.ts";
 import { from } from "./tables_base.ts";
 
@@ -56,7 +56,7 @@ import { from } from "./tables_base.ts";
  */
 export class PostgrestDatabases implements DatabaseDriver {
   /** A query on `name`, scoped to the caller the way every other read of this package is. */
-  table<S extends DatabaseSchema, K extends keyof S & string>(name: K): Query<S[K]["row"] & object> {
+  table<S extends PortDatabaseSchema, K extends keyof S & string>(name: K): Query<S[K]["row"] & object> {
     return from<S[K]["row"] & object>(PostgrestClients.service(), name) as unknown as Query<
       S[K]["row"] & object
     >;

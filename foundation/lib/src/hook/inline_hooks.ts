@@ -33,7 +33,7 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import type { Future, Hook as PortHook, HookDriver, HookOptions } from "@scribe/alchemy";
+import type { DeclaredHook as PortHook, Future, HookDriver, HookOptions } from "@scribe/alchemy";
 import { Hook } from "./hook.ts";
 
 /**

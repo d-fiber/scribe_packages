@@ -34,11 +34,11 @@
 // This header is a summary written for convenience. Where it differs from the
 
 import type {
-  Cron as PortCron,
   CronDriver,
   CronOptions,
-  Schedule as PortSchedule,
-  TimeOfDay as PortTimeOfDay,
+  DeclaredCron as PortCron,
+  DeclaredSchedule as PortSchedule,
+  DeclaredTimeOfDay as PortTimeOfDay,
 } from "@scribe/alchemy";
 import { DeclarationError, Duration } from "@scribe/alchemy";
 import { Cron } from "./cron.ts";

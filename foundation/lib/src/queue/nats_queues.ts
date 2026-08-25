@@ -33,7 +33,13 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import type { Future, Queue as PortQueue, QueueDriver, QueueMessage, QueueOptions } from "@scribe/alchemy";
+import type {
+  DeclaredQueue as PortQueue,
+  DeclaredQueueOptions as PortQueueOptions,
+  Future,
+  QueueDriver,
+  QueueMessage,
+} from "@scribe/alchemy";
 import type { UnmodifiableList } from "@scribe/alchemy";
 import { Queue } from "./queue.ts";
 import type { JobHandler } from "./queue_options.ts";
@@ -56,7 +62,7 @@ import type { JobHandler } from "./queue_options.ts";
  */
 export class NatsQueues implements QueueDriver {
   /** The queue `options` names, declared on the first ask and kept from then on. */
-  open<T>(options: QueueOptions): PortQueue<T> {
+  open<T>(options: PortQueueOptions): PortQueue<T> {
     const declared = this.#declared<T>(options);
 
     return {
@@ -72,11 +78,11 @@ export class NatsQueues implements QueueDriver {
    * Declaring the queue is what arms it: the registry a runner reads is filled by the
    * declaration, so there is nothing to start here beyond making sure the declaration exists.
    */
-  consume<T>(options: QueueOptions): void {
+  consume<T>(options: PortQueueOptions): void {
     this.#declared<T>(options);
   }
 
-  #declared<T>(options: QueueOptions): Queue<T> {
+  #declared<T>(options: PortQueueOptions): Queue<T> {
     const held = _opened.get(options.key);
     if (held !== undefined) return held as unknown as Queue<T>;
 

@@ -34,16 +34,16 @@
 // This header is a summary written for convenience. Where it differs from the
 
 import type {
-  DeleteChange as PortDelete,
-  FieldChange as PortField,
-  InsertChange as PortInsert,
-  Transition,
-  Trigger as PortTrigger,
+  DeclaredDeleteChange as PortDelete,
+  DeclaredFieldChange as PortField,
+  DeclaredInsertChange as PortInsert,
+  DeclaredTransition as PortTransition,
+  DeclaredTrigger as PortTrigger,
+  DeclaredTriggerOptions as PortOptions,
+  DeclaredUpdateChange as PortUpdate,
   TriggerDriver,
-  TriggerOptions as PortOptions,
-  UpdateChange as PortUpdate,
 } from "@scribe/alchemy";
-import type { Future, QueueOptions as PortQueueOptions } from "@scribe/alchemy";
+import type { DeclaredQueueOptions as PortQueueOptions, Future } from "@scribe/alchemy";
 import type { QueueOptions } from "../queue/queue_options.ts";
 import { Trigger } from "./trigger.ts";
 
@@ -96,7 +96,7 @@ export class OutboxTriggers implements TriggerDriver {
       onField<F extends keyof TRow>(
         field: F,
         handle: (change: PortField<TRow, F>) => void | Future<void>,
-        moving?: Transition<TRow[F]>,
+        moving?: PortTransition<TRow[F]>,
       ): PortTrigger<TRow> {
         methods.onFieldChange(
           { ...said, path: `${path}/${String(field)}`, when: moving } as never,
