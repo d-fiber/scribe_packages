@@ -1,4 +1,4 @@
 services:
   db:
     volumes:
-      - "{{sdk_root}}/engine/packages/audience/db/init:/docker-entrypoint-init-sql/modules/audience:ro"
+      - "{{sdk_root}}/packages/audience/db/init:/docker-entrypoint-init-sql/modules/audience:ro"

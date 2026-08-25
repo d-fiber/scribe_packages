@@ -1,7 +1,7 @@
 services:
   rest:
     build:
-      context: "{{sdk_root}}/engine/packages/foundation/ops/database"
+      context: "{{sdk_root}}/packages/foundation/ops/database"
       dockerfile: "Dockerfile.rest"
     restart: "unless-stopped"
     environment:
@@ -29,17 +29,17 @@ services:
     container_name: "supabase-db"
     build:
       context: "{{sdk_root}}"
-      dockerfile: "engine/packages/foundation/ops/database/Dockerfile"
+      dockerfile: "packages/foundation/ops/database/Dockerfile"
     restart: "unless-stopped"
     volumes:
-      - "{{sdk_root}}/engine/packages/foundation/db/provisioning/_supabase.sql:/docker-entrypoint-initdb.d/init-scripts/97-_supabase.sql:Z"
+      - "{{sdk_root}}/packages/foundation/db/provisioning/_supabase.sql:/docker-entrypoint-initdb.d/init-scripts/97-_supabase.sql:Z"
       - "{{sdk_root}}/db/provisioning/webhooks.sql:/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql:Z"
       - "{{sdk_root}}/db/provisioning/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:Z"
       - "{{sdk_root}}/db/provisioning/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:Z"
-      - "{{sdk_root}}/engine/packages/foundation/db/init:/docker-entrypoint-init-sql/foundation:ro"
+      - "{{sdk_root}}/packages/foundation/db/init:/docker-entrypoint-init-sql/foundation:ro"
       - "{{sdk_root}}/db/init:/docker-entrypoint-init-sql/framework:ro"
       - "${PROJECT_DB_INIT:-./lib/db/init}:/docker-entrypoint-init-sql/project:ro"
-      - "{{sdk_root}}/engine/packages/foundation/ops/database/run-init-scripts.sh:/docker-entrypoint-initdb.d/zz-run-init-scripts.sh:Z"
+      - "{{sdk_root}}/packages/foundation/ops/database/run-init-scripts.sh:/docker-entrypoint-initdb.d/zz-run-init-scripts.sh:Z"
       - "{{sdk_root}}/postgres:/var/lib/postgresql/data:Z"
       - "db-config:/etc/postgresql-custom"
     environment:
@@ -109,7 +109,7 @@ services:
     volumes:
       - "{{sdk_root}}/db/migrations:/db/migrations/default:ro"
       - "${PROJECT_DB_MIGRATIONS:-./lib/db/migrations}:/db/migrations/project:ro"
-      - "{{sdk_root}}/engine/packages/foundation/ops/database/run-migrations.sh:/run-migrations.sh:ro"
+      - "{{sdk_root}}/packages/foundation/ops/database/run-migrations.sh:/run-migrations.sh:ro"
     entrypoint: ["/bin/sh", "/run-migrations.sh"]
     depends_on:
       db:

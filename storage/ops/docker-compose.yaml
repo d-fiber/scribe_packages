@@ -1,7 +1,7 @@
 services:
   storage:
     build:
-      context: "{{sdk_root}}/engine/packages/storage/ops"
+      context: "{{sdk_root}}/packages/storage/ops"
       dockerfile: "Dockerfile.storage"
     restart: "unless-stopped"
     volumes:
@@ -59,7 +59,7 @@ services:
     environment:
       PGPASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - "{{sdk_root}}/engine/packages/storage/db/init/storage.sql:/storage-init.sql:ro,Z"
+      - "{{sdk_root}}/packages/storage/db/init/storage.sql:/storage-init.sql:ro,Z"
     command:
       [
         "psql",
