@@ -1,0 +1,15 @@
+{
+  "workspace": [
+    "./audience",
+    "./auth",
+    "./dynamic_links",
+    "./foundation",
+    "./realtime",
+    "./remote_configs",
+    "./search",
+    "./storage"
+  ],
+  "fmt": {
+    "lineWidth": 120
+  }
+}
