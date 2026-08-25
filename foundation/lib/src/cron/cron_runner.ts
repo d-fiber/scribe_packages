@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import { Now } from "@scribe/alchemy";
 import {
   DateTime,
   DuplicateDeclarationError,
@@ -85,7 +86,9 @@ export class CronRunner {
         `CronRunner.register(): "${job.name}" is already registered`,
       );
     }
-    this.#jobs.set(job.name, new ScheduledJob(job, handler, _now()));
+    const scheduled = new ScheduledJob(job, handler, _now);
+    if (Now.configured) void scheduled.nextRunAt;
+    this.#jobs.set(job.name, scheduled);
   }
 
   /** The jobs armed so far. */

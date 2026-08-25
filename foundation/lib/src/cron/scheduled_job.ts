@@ -49,13 +49,26 @@ export class ScheduledJob {
   readonly job: Scheduled;
   readonly handler: CronHandler;
 
-  #nextRun: Date;
+  #nextRun: Date | null = null;
   #runToken = 0;
+  readonly #from: () => Date;
 
-  constructor(job: Scheduled, handler: CronHandler, from: Date) {
+  /**
+   * Arms `job`, without reading the clock.
+   *
+   * @remarks
+   * `from` is a thunk rather than a date because a package declares its crons at module scope,
+   * where the host has not filled the clock yet. Reading it here would make importing a package
+   * before the host is up raise, which is the thing a declaration is not allowed to do.
+   *
+   * The anchor is still the moment of registration whenever the clock is there: `CronRunner`
+   * forces this the instant it registers a job against a filled slot. Only a job declared before
+   * the host exists waits, and it anchors on the first occurrence the runner asks for.
+   */
+  constructor(job: Scheduled, handler: CronHandler, from: () => Date) {
     this.job = job;
     this.handler = handler;
-    this.#nextRun = nextRun(job.schedule, from);
+    this.#from = from;
   }
 
   /** The job's name. */
@@ -63,9 +76,9 @@ export class ScheduledJob {
     return this.job.name;
   }
 
-  /** When this job next runs. */
+  /** When this job next runs, computed against the clock the first time it is asked. */
   get nextRunAt(): Date {
-    return this.#nextRun;
+    return this.#nextRun ??= nextRun(this.job.schedule, this.#from());
   }
 
   /** Whether an occurrence of this job is in flight. */
@@ -75,7 +88,7 @@ export class ScheduledJob {
 
   /** Whether its next occurrence has arrived. */
   isDue(now: Date): boolean {
-    return now >= this.#nextRun;
+    return now >= this.nextRunAt;
   }
 
   /**
@@ -85,7 +98,7 @@ export class ScheduledJob {
    * occurrence twice impossible.
    */
   takeSlot(now: Date): Date {
-    const slot = this.#nextRun;
+    const slot = this.nextRunAt;
     this.#nextRun = nextRunAfterSlot(this.job.schedule, slot, now);
     return slot;
   }

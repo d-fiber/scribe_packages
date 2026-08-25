@@ -145,7 +145,7 @@ Deno.test("the loop and the registry hold two different answers for the same int
   Now.use(clock);
   try {
     const job = intervalJob("hardening:two-answers", 5);
-    const held = new ScheduledJob(job, noop, new Date(clock.at));
+    const held = new ScheduledJob(job, noop, () => new Date(clock.at));
 
     clock.at += 240_000;
 
