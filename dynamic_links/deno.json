@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "@scribe/dynamic_links/": "./",
+    "@scribe/foundation/": "../foundation/",
+    "@scribe/testing/": "../../engine/testing/"
+  }
+}

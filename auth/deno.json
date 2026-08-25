@@ -1,0 +1,9 @@
+{
+  "imports": {
+    "@scribe/auth/": "./",
+    "@scribe/contracts/": "../../engine/contracts/",
+    "@scribe/foundation/": "../foundation/",
+    "@scribe/runtime/": "../../engine/runtime/",
+    "@scribe/testing/": "../../engine/testing/"
+  }
+}

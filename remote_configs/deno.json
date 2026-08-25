@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "@scribe/foundation/": "../foundation/",
+    "@scribe/remote_configs/": "./",
+    "@scribe/testing/": "../../engine/testing/"
+  }
+}

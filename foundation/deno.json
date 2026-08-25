@@ -1,0 +1,6 @@
+{
+  "imports": {
+    "@scribe/foundation/": "./",
+    "@scribe/runtime/": "../../engine/runtime/"
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "@scribe/audience/": "./",
+    "@scribe/foundation/": "../foundation/",
+    "@scribe/testing/": "../../engine/testing/"
+  }
+}
