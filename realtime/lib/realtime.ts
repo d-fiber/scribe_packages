@@ -57,7 +57,7 @@ export { Listen } from "./src/core/listen.ts";
 export { AccountDestination, Destination, GrantedDestination } from "./src/core/destination.ts";
 export { isValidTopic } from "./src/core/name.ts";
 
-export { RealtimeTransports } from "./src/transport/registry.ts";
+export { emit as broadcast, RealtimeTransports } from "./src/transport/registry.ts";
 export { EventLogTransport } from "./src/transport/event_log.ts";
 export type { RealtimeRow, RealtimeTransport } from "./src/transport/transport.ts";
 

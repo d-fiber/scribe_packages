@@ -48,7 +48,7 @@ message BroadcastRequest {
 }
 
 message BroadcastResult {
-  uint32 delivered = 1;
+  bool sent = 1;
   scribe.v1.Failure error = 2;
 }
 
