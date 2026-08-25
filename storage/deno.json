@@ -20,6 +20,8 @@
     "@scribe/storage/e2e": "./tests/e2e/support/stack.ts",
     "@scribe/storage/testing": "./tests/testing/testing.ts",
     "@scribe/storage/testing/settings": "./tests/testing/settings.ts",
-    "@scribe/testing/": "../../engine/testing/"
+    "@scribe/testing/install.ts": "../../engine/testing/install.ts",
+    "@scribe/testing/runtime/device.ts": "../../engine/testing/runtime/device.ts",
+    "@scribe/testing/settings.ts": "../../engine/testing/settings.ts"
   }
 }

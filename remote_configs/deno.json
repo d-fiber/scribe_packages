@@ -20,6 +20,8 @@
     "@scribe/remote_configs/e2e": "./tests/e2e/support/stack.ts",
     "@scribe/remote_configs/testing": "./tests/testing/testing.ts",
     "@scribe/remote_configs/testing/settings": "./tests/testing/settings.ts",
-    "@scribe/testing/": "../../engine/testing/"
+    "@scribe/testing/install.ts": "../../engine/testing/install.ts",
+    "@scribe/testing/runtime/device.ts": "../../engine/testing/runtime/device.ts",
+    "@scribe/testing/settings.ts": "../../engine/testing/settings.ts"
   }
 }

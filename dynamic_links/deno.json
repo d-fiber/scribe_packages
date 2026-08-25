@@ -20,6 +20,8 @@
     "@scribe/foundation/testing": "../foundation/tests/testing/testing.ts",
     "@scribe/foundation/testing/settings": "../foundation/tests/testing/settings.ts",
     "@scribe/foundation/trigger": "../foundation/lib/trigger.ts",
-    "@scribe/testing/": "../../engine/testing/"
+    "@scribe/testing/install.ts": "../../engine/testing/install.ts",
+    "@scribe/testing/runtime/device.ts": "../../engine/testing/runtime/device.ts",
+    "@scribe/testing/settings.ts": "../../engine/testing/settings.ts"
   }
 }

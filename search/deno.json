@@ -15,12 +15,24 @@
     "@scribe/foundation/testing": "../foundation/tests/testing/testing.ts",
     "@scribe/foundation/testing/settings": "../foundation/tests/testing/settings.ts",
     "@scribe/foundation/trigger": "../foundation/lib/trigger.ts",
-    "@scribe/runtime/": "../../engine/runtime/",
+    "@scribe/runtime/device/device.ts": "../../engine/runtime/device/device.ts",
+    "@scribe/runtime/http/accessors/identity.ts": "../../engine/runtime/http/accessors/identity.ts",
+    "@scribe/runtime/http/accessors/location.ts": "../../engine/runtime/http/accessors/location.ts",
+    "@scribe/runtime/http/caller.ts": "../../engine/runtime/http/caller.ts",
+    "@scribe/runtime/http/request.ts": "../../engine/runtime/http/request.ts",
+    "@scribe/runtime/scope.ts": "../../engine/runtime/scope.ts",
+    "@scribe/runtime/support/crypto/base64.ts": "../../engine/runtime/support/crypto/base64.ts",
+    "@scribe/runtime/support/crypto/constant_time.ts": "../../engine/runtime/support/crypto/constant_time.ts",
+    "@scribe/runtime/support/crypto/hash.ts": "../../engine/runtime/support/crypto/hash.ts",
+    "@scribe/runtime/support/extensions/mod.ts": "../../engine/runtime/support/extensions/mod.ts",
+    "@scribe/runtime/support/settings/identity.ts": "../../engine/runtime/support/settings/identity.ts",
     "@scribe/search": "./lib/search.ts",
     "@scribe/search/": "./",
     "@scribe/search/e2e": "./tests/e2e/support/stack.ts",
     "@scribe/search/testing": "./tests/testing/testing.ts",
     "@scribe/search/testing/settings": "./tests/testing/settings.ts",
-    "@scribe/testing/": "../../engine/testing/"
+    "@scribe/testing/install.ts": "../../engine/testing/install.ts",
+    "@scribe/testing/runtime/device.ts": "../../engine/testing/runtime/device.ts",
+    "@scribe/testing/settings.ts": "../../engine/testing/settings.ts"
   }
 }
