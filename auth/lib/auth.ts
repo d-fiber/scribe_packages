@@ -152,7 +152,7 @@ export const scribe: LifecycleSteps = {
     extensions.register(
       new OptionalExtension(
         AUTH_EXTENSION,
-        () => import("@app/extensions/manifest/auth/auth.ts"),
+        () => import("@app/extensions/auth/auth.ts"),
       ),
     );
   },

@@ -114,7 +114,7 @@ export const scribe: LifecycleSteps = {
     extensions.register(
       new OptionalExtension(
         SEARCH_EXTENSION,
-        () => import("@app/extensions/manifest/search/search.ts"),
+        () => import("@app/extensions/search/search.ts"),
       ),
     );
   },
