@@ -12,6 +12,8 @@ services:
         "/data",
         "--auth",
         "${NATS_PASSWORD}",
+        "-m",
+        "8222",
       ]
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8222/healthz"]
