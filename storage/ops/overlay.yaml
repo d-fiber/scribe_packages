@@ -1,0 +1,4 @@
+services:
+  db:
+    volumes:
+      - "{{sdk_root}}/packages/storage/db/provisioning/roles.sql:/docker-entrypoint-initdb.d/init-scripts/98-storage-roles.sql:Z"

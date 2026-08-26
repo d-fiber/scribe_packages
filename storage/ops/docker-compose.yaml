@@ -11,7 +11,7 @@ services:
       SERVICE_KEY: ${SERVICE_KEY}
       POSTGREST_URL: "http://rest:3000"
       AUTH_JWT_SECRET: ${JWT_SECRET}
-      DATABASE_URL: "postgres://supabase_storage_admin:${POSTGRES_PASSWORD}@db:5432/postgres"
+      DATABASE_URL: "postgres://supabase_storage_admin:${STORAGE_ADMIN_PASSWORD}@db:5432/postgres"
       FILE_SIZE_LIMIT: "104857600"
       STORAGE_BACKEND: "${STORAGE_BACKEND:-file}"
       FILE_STORAGE_BACKEND_PATH: "/var/lib/storage"
