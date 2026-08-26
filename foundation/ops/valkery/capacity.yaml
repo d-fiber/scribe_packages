@@ -1,7 +1,0 @@
-services:
-  - name: redis
-    weight: 432
-    runtime: redis
-    min: 32Mi
-    dev: 128Mi
-    cpu_shares: 2048

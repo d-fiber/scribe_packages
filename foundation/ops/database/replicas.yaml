@@ -1,4 +1,0 @@
-services:
-  rest:
-    deploy:
-      replicas: {{rest_replicas}}

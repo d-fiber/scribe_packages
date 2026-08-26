@@ -1,4 +1,0 @@
-services:
-  nats:
-    environment:
-      GOMAXPROCS: "{{nats_gomaxprocs}}"

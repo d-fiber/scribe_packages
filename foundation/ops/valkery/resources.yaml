@@ -1,9 +1,0 @@
-services:
-  redis:
-    cpu_shares: 2048
-    deploy:
-      resources:
-        limits:
-          memory: "{{redis_mem_limit}}"
-        reservations:
-          memory: "{{redis_mem_res}}"

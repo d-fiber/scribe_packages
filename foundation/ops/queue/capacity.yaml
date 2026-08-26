@@ -1,7 +1,0 @@
-services:
-  - name: nats
-    weight: 113
-    runtime: go
-    min: 32Mi
-    dev: 128Mi
-    cpu_shares: 1024
