@@ -1,0 +1,82 @@
+name: sync
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sync
+  cancel-in-progress: false
+
+jobs:
+  packages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check that the key this needs is here
+        env:
+          KEY: ${{ secrets.SCRIBE_PUSH_KEY }}
+        run: |
+          set -eu
+          [ -n "$KEY" ] && exit 0
+          echo "SCRIBE_PUSH_KEY is not set on this repository, and nothing can be copied without it." >&2
+          echo "" >&2
+          echo "It is the private half of a deploy key with write access on d-fiber/scribe." >&2
+          echo "Without it the push to dev is refused like anybody else's." >&2
+          echo "" >&2
+          echo "Nothing was copied." >&2
+          exit 1
+
+      - uses: actions/checkout@v4
+        with:
+          path: source
+
+      - uses: actions/checkout@v4
+        with:
+          repository: d-fiber/scribe
+          ref: dev
+          path: scribe
+          ssh-key: ${{ secrets.SCRIBE_PUSH_KEY }}
+
+      - name: Copy what belongs in the framework
+        run: bash source/.github/sync/copy.sh "$GITHUB_WORKSPACE/scribe/packages"
+
+      - name: Leave if the framework already holds this
+        id: state
+        working-directory: scribe
+        run: |
+          set -eu
+          if git diff --quiet -- packages; then
+            echo "the framework already holds these packages"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git status --short -- packages
+          fi
+
+      - name: Check that what landed is a set of packages
+        if: steps.state.outputs.changed == 'true'
+        working-directory: scribe
+        run: |
+          set -eu
+          found=$(find packages -mindepth 2 -maxdepth 2 -name package.yaml | wc -l | tr -d ' ')
+          [ "$found" -gt 0 ] || { echo "packages/ holds no package.yaml at all" >&2; exit 1; }
+          [ -d packages/foundation ] || { echo "packages/ holds no foundation, which no project can do without" >&2; exit 1; }
+          echo "packages/ holds $found packages, foundation included"
+
+      - name: Put it on dev
+        if: steps.state.outputs.changed == 'true'
+        working-directory: scribe
+        run: |
+          set -eu
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add packages
+          git commit -m "[CHORE]: bring the packages up to ${GITHUB_SHA:0:7}"
+          git pull --rebase origin dev
+          git push origin HEAD:dev
