@@ -33,9 +33,8 @@ services:
     restart: "unless-stopped"
     volumes:
       - "{{sdk_root}}/packages/foundation/db/provisioning/_supabase.sql:/docker-entrypoint-initdb.d/init-scripts/97-_supabase.sql:Z"
-      - "{{sdk_root}}/provisioning/db/webhooks.sql:/docker-entrypoint-initdb.d/init-scripts/98-webhooks.sql:Z"
-      - "{{sdk_root}}/provisioning/db/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:Z"
-      - "{{sdk_root}}/provisioning/db/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:Z"
+      - "{{db_provisioning}}/roles.sql:/docker-entrypoint-initdb.d/init-scripts/99-roles.sql:Z"
+      - "{{db_provisioning}}/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/99-jwt.sql:Z"
       - "{{sdk_root}}/packages/foundation/db/init:/docker-entrypoint-init-sql/foundation:ro"
       - "${PROJECT_DB_INIT:-./lib/db/init}:/docker-entrypoint-init-sql/project:ro"
       - "{{sdk_root}}/packages/foundation/ops/database/run-init-scripts.sh:/docker-entrypoint-initdb.d/zz-run-init-scripts.sh:Z"
