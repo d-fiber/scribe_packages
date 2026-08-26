@@ -2,10 +2,6 @@ name: release
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: The version this release is, as three numbers.
-        required: true
 
 permissions:
   contents: write
@@ -24,27 +20,23 @@ jobs:
           ref: dev
           fetch-depth: 0
 
-      - name: Check that this version is free
-        env:
-          ASKED: ${{ inputs.version }}
-        run: bash .github/version/check.sh "$ASKED"
+      - name: Check that every version its manifest holds is free
+        run: bash .github/version/check.sh
 
-      - name: Write what this version is made of
-        env:
-          ASKED: ${{ inputs.version }}
+      - name: Write what each version is made of
         run: |
           set -eu
-          bash .github/version/changelog.sh "$ASKED"
+          for manifest in */package.yaml; do
+            bash .github/version/changelog.sh "$(dirname "$manifest")"
+          done
 
-          git diff --quiet CHANGELOG.md && exit 0
+          git diff --quiet -- '*/CHANGELOG.md' && exit 0
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add CHANGELOG.md
-          git commit -m "[DOC]: write what $ASKED is made of"
+          git add '*/CHANGELOG.md'
+          git commit -m "[DOC]: write what these versions are made of"
           git push origin HEAD:dev
 
-      - name: Name this commit after the version
-        env:
-          ASKED: ${{ inputs.version }}
-        run: bash .github/version/tag.sh "$ASKED"
+      - name: Name this commit after each version
+        run: bash .github/version/tag.sh

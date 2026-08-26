@@ -35,7 +35,6 @@
 # This header is a summary written for convenience. Where it differs from the
 # LICENSE file, the LICENSE file governs.
 
-
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
@@ -52,25 +51,44 @@ fail() {
 
 cd "$ROOT"
 
-asked="${1:-}"
+version_of() {
+  awk '/^version:/ { print $2; exit }' "$1/package.yaml"
+}
 
-previous=$(git tag --list 'v*' --sort=-v:refname | head -1)
+held=0
+moving=0
 
-if [ -z "$previous" ]; then
-  say "nothing has ever been tagged, so the next release is the first"
-else
-  say "the last release is $previous"
-fi
+for manifest in */package.yaml; do
+  package=$(dirname "$manifest")
+  version=$(version_of "$package")
 
-[ -n "$asked" ] || exit 0
+  case "$version" in
+    *.*.*) ;;
+    *) fail "$package/package.yaml holds \"version: $version\", which is not three numbers." ;;
+  esac
 
-case "$asked" in
-  *.*.*) ;;
-  *) fail "\"$asked\" is not a version. Write three numbers, as in \"1.0.2\"." ;;
-esac
+  tag="$package-v$version"
 
-if [ "${previous#v}" = "$asked" ]; then
-  fail "v$asked already exists, on $(git rev-parse --short "$previous^{commit}"). A tag never moves."
-fi
+  if ! git rev-parse "$tag" >/dev/null 2>&1; then
+    say "$package $version is free, and this commit is what it would name"
+    moving=$((moving + 1))
+    continue
+  fi
 
-say "v$asked is free, and this commit is what it would name"
+  # The changelog is written by the release itself, so a change to it is not a
+  # change to the package. Counting it would demand a version for the commit
+  # that wrote the section, whose own section would then demand another.
+  if git diff --quiet "$tag" HEAD -- "$package" ":(exclude)$package/CHANGELOG.md"; then
+    say "$package $version is already named, and nothing in it has changed since"
+    held=$((held + 1))
+    continue
+  fi
+
+  echo "[$SCOPE] $tag is on $(git rev-parse --short "$tag^{commit}") and $package has changed since." >&2
+  echo "" >&2
+  echo "A tag never moves, so the change needs a version of its own." >&2
+  echo "Raise version: in $package/package.yaml and run this again." >&2
+  exit 1
+done
+
+say "$moving package(s) to name, $held already named"

@@ -41,7 +41,7 @@ ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
 SCOPE="changelog"
 
 ORDER="BREAKING SECURITY DEV BUGFIX PERF REVERT REFACTO DOC TEST CI CHORE"
-BOOKKEEPING='^CHANGELOG\.md$'
+BOOKKEEPING='/CHANGELOG\.md$'
 
 say() {
   echo "[$SCOPE] $1"
@@ -49,36 +49,42 @@ say() {
 
 cd "$ROOT"
 
-version="${1:-}"
+package="${1:-}"
 
-if [ -z "$version" ]; then
-  echo "[$SCOPE] Name the version this section is for, as three numbers." >&2
+if [ -z "$package" ]; then
+  echo "[$SCOPE] Name the package this section is for, as its directory." >&2
   exit 1
 fi
 
-previous=$(git tag --list 'v*' --sort=-v:refname | head -1)
+[ -f "$package/package.yaml" ] || {
+  echo "[$SCOPE] $package holds no package.yaml, so it is not a package." >&2
+  exit 1
+}
 
-if [ "${previous#v}" = "$version" ]; then
-  say "v$version is already the last tag, so its section is already written"
+version=$(awk '/^version:/ { print $2; exit }' "$package/package.yaml")
+previous=$(git tag --list "$package-v*" --sort=-v:refname | head -1)
+
+if [ "$previous" = "$package-v$version" ]; then
+  say "$package-v$version is already the last tag, so its section is already written"
   exit 0
 fi
 
 if [ -z "$previous" ]; then
-  say "nothing has ever been tagged, so this section covers everything up to here"
+  say "$package has never been tagged, so this section covers everything up to here"
   range=""
 else
-  say "reading the commits between $previous and here"
+  say "reading the commits between $previous and here that touched $package"
   range="$previous..HEAD"
 fi
 
 subjects=$(mktemp)
 trap 'rm -f "$subjects"' EXIT
 
-for commit in $(git rev-list ${range:-HEAD}); do
+for commit in $(git rev-list ${range:-HEAD} -- "$package"); do
   parents=$(git rev-list --parents -n 1 "$commit" | wc -w)
   [ "$parents" -le 2 ] || continue
 
-  touched=$(git show --name-only --format= "$commit" | grep -v '^$' || true)
+  touched=$(git show --name-only --format= "$commit" -- "$package" | grep -v '^$' || true)
   [ -n "$(printf '%s\n' "$touched" | grep -vE "$BOOKKEEPING" || true)" ] || continue
 
   printf '%s\t%s\n' "$(git log -1 --format=%s "$commit")" "${commit:0:7}" >> "$subjects"
@@ -121,20 +127,20 @@ awk -v version="## $version" -v section="$section" '
   inside { next }
   { print }
   END { }
-' CHANGELOG.md > "$written"
+' "$package/CHANGELOG.md" > "$written"
 
 if ! grep -q "^## $version$" "$written"; then
   awk -v section="$section" '
     NR == 1 && /^# / { print; print ""; while ((getline line < section) > 0) print line; print ""; next }
     NR == 2 && $0 == "" { next }
     { print }
-  ' CHANGELOG.md > "$written"
+  ' "$package/CHANGELOG.md" > "$written"
 fi
 
-if cmp -s "$written" CHANGELOG.md; then
-  say "CHANGELOG.md already says this"
+if cmp -s "$written" "$package/CHANGELOG.md"; then
+  say "$package/CHANGELOG.md already says this"
   exit 0
 fi
 
-cp "$written" CHANGELOG.md
-say "wrote the $version section, $(grep -c '^- ' "$section") commits under $(grep -c ':$' "$section") headings"
+cp "$written" "$package/CHANGELOG.md"
+say "wrote $package $version, $(grep -c '^- ' "$section") commits under $(grep -c ':$' "$section") headings"

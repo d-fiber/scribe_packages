@@ -35,7 +35,6 @@
 # This header is a summary written for convenience. Where it differs from the
 # LICENSE file, the LICENSE file governs.
 
-
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
@@ -47,28 +46,33 @@ say() {
 
 cd "$ROOT"
 
-version="${1:-}"
-
-if [ -z "$version" ]; then
-  echo "[$SCOPE] Name the version to tag, as three numbers." >&2
-  exit 1
-fi
-
-tag="v$version"
-
-if git rev-parse "$tag" >/dev/null 2>&1; then
-  say "$tag is already on $(git rev-parse --short "$tag^{commit}"), so there is nothing to name"
-  exit 0
-fi
-
 if [ -z "$(git config user.email || true)" ]; then
   git config user.name "github-actions[bot]"
   git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 fi
 
-say "naming $(git rev-parse --short HEAD) as $tag"
+named=0
 
-git tag -a "$tag" -m "$version"
-git push origin "$tag"
+for manifest in */package.yaml; do
+  package=$(dirname "$manifest")
+  version=$(awk '/^version:/ { print $2; exit }' "$manifest")
+  tag="$package-v$version"
 
-say "$tag is pushed. It stays on this commit for good, and moving it is refused by the ruleset."
+  if git rev-parse "$tag" >/dev/null 2>&1; then
+    say "$tag is already on $(git rev-parse --short "$tag^{commit}"), so there is nothing to name"
+    continue
+  fi
+
+  say "naming $(git rev-parse --short HEAD) as $tag"
+  git tag -a "$tag" -m "$package $version"
+  named=$((named + 1))
+done
+
+if [ "$named" -eq 0 ]; then
+  say "nothing to push: every package is already named at the version its manifest holds"
+  exit 0
+fi
+
+git push origin --tags
+
+say "$named tag(s) pushed. Each stays on this commit for good, and moving one is refused by the ruleset."
