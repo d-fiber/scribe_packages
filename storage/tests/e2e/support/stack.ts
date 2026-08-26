@@ -74,9 +74,9 @@ export const STACK = {
 
 /** Points the settings slots at the containers, then loads the settings that read them. */
 export async function useStack(): Promise<void> {
-  Deno.env.set("SUPABASE_REST_INTERNAL_URL", STACK.restUrl);
-  Deno.env.set("SUPABASE_STORAGE_INTERNAL_URL", STACK.storageUrl);
-  Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", STACK.serviceKey);
+  Deno.env.set("REST_INTERNAL_URL", STACK.restUrl);
+  Deno.env.set("STORAGE_INTERNAL_URL", STACK.storageUrl);
+  Deno.env.set("SERVICE_KEY", STACK.serviceKey);
   Deno.env.set("APP_URL", STACK.appUrl);
   Deno.env.set("ADMIN_URL", STACK.adminUrl);
 

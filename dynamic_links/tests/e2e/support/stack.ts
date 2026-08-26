@@ -68,7 +68,7 @@ function base64Url(bytes: Uint8Array): string {
 /**
  * A `service_role` token PostgREST accepts.
  *
- * PostgREST reads the role from a signed JWT, so a plain string in `SUPABASE_SERVICE_ROLE_KEY`
+ * PostgREST reads the role from a signed JWT, so a plain string in `SERVICE_KEY`
  * is answered with `PGRST301`. Minting one here is what makes these tests exercise the same
  * path a deployment takes, rather than an anonymous one, which matters twice over for a package
  * whose tables are closed to `authenticated` and `anon`.
@@ -106,9 +106,9 @@ export async function useStack(): Promise<void> {
 
   Deno.env.set("REDIS_URL", STACK.redisUrl);
   Deno.env.set("NATS_URL", STACK.natsUrl);
-  Deno.env.set("SUPABASE_REST_INTERNAL_URL", STACK.restUrl);
-  Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", token);
-  Deno.env.set("SUPABASE_ANON_KEY", token);
+  Deno.env.set("REST_INTERNAL_URL", STACK.restUrl);
+  Deno.env.set("SERVICE_KEY", token);
+  Deno.env.set("ANON_KEY", token);
 
   await import("@scribe/testing/settings.ts");
 }

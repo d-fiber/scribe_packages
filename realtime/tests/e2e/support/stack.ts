@@ -94,9 +94,9 @@ export async function tokenFor(sub: string, role = "authenticated"): Promise<str
 export async function useStack(): Promise<void> {
   const token = await tokenFor("00000000-0000-0000-0000-000000000000", "service_role");
 
-  Deno.env.set("SUPABASE_REST_INTERNAL_URL", STACK.restUrl);
-  Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", token);
-  Deno.env.set("SUPABASE_ANON_KEY", STACK.anonKey);
+  Deno.env.set("REST_INTERNAL_URL", STACK.restUrl);
+  Deno.env.set("SERVICE_KEY", token);
+  Deno.env.set("ANON_KEY", STACK.anonKey);
 
   await import("@scribe/testing/settings.ts");
 }

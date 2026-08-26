@@ -24,10 +24,10 @@ services:
 
                 if not access_token then
                   -- Legacy path: static project key only.
-                  local is_static_key = apikey == "$SUPABASE_ANON_KEY"
-                    or apikey == "$SUPABASE_PUBLISHABLE_KEY"
-                    or apikey == "$SUPABASE_SERVICE_KEY"
-                    or apikey == "$SUPABASE_SECRET_KEY"
+                  local is_static_key = apikey == "$ANON_KEY"
+                    or apikey == "$PUBLISHABLE_KEY"
+                    or apikey == "$SERVICE_KEY"
+                    or apikey == "$SECRET_KEY"
 
                   if not is_static_key then
                     return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
@@ -58,7 +58,7 @@ services:
                 local role = app_meta and app_meta:match('"role"%s*:%s*"([^"]*)"')
                 local is_admin = role == "admin"
 
-                local key_list = is_admin and "$ADMIN_APP_KEYS" or "$APP_KEYS"
+                local key_list = is_admin and "$ADMIN_KEYS" or "$APP_KEYS"
                 local is_valid_app_key = false
                 for key in key_list:gmatch("[^,]+") do
                   if apikey == key then
@@ -72,7 +72,7 @@ services:
                 end
 
                 local query = kong.request.get_query()
-                query.apikey = "$SUPABASE_ANON_KEY"
+                query.apikey = "$ANON_KEY"
                 kong.service.request.set_query(query)
       - name: request-transformer
         config:

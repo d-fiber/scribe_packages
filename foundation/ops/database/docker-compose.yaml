@@ -26,7 +26,7 @@ services:
         max-file: "3"
 
   db:
-    container_name: "supabase-db"
+    container_name: "db"
     build:
       context: "{{sdk_root}}"
       dockerfile: "packages/foundation/ops/database/Dockerfile"

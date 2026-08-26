@@ -45,19 +45,19 @@ services:
         max-file: "3"
   realtime-init:
     profiles: ["realtime"]
-    container_name: "supabase-realtime-init"
+    container_name: "realtime-init"
     image: "postgres:15-alpine"
     restart: "no"
     environment:
       PGPASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - "{{sdk_root}}/packages/realtime/db/init/realtime.sql:/realtime-init.sql:ro,Z"
-      - "./lib/db/init/realtime.sql:/realtime-init-project.sql:ro,Z"
+      - "${PROJECT_DB_INIT:-./lib/db/init}:/project-db-init:ro,Z"
     command:
       [
         "sh",
         "-c",
-        "psql -v ON_ERROR_STOP=1 -h db -U postgres -d postgres -f /realtime-init.sql && if [ -f /realtime-init-project.sql ]; then psql -v ON_ERROR_STOP=1 -h db -U postgres -d postgres -f /realtime-init-project.sql; fi",
+        "psql -v ON_ERROR_STOP=1 -h db -U postgres -d postgres -f /realtime-init.sql && if [ -f /project-db-init/realtime.sql ]; then psql -v ON_ERROR_STOP=1 -h db -U postgres -d postgres -f /project-db-init/realtime.sql; fi",
       ]
     depends_on:
       realtime:

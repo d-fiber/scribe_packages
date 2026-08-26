@@ -79,9 +79,9 @@ export async function useStack(): Promise<void> {
 
   Deno.env.set("REDIS_URL", STACK.redisUrl);
   Deno.env.set("NATS_URL", STACK.natsUrl);
-  Deno.env.set("SUPABASE_REST_INTERNAL_URL", STACK.restUrl);
-  Deno.env.set("SUPABASE_SERVICE_ROLE_KEY", token);
-  Deno.env.set("SUPABASE_ANON_KEY", token);
+  Deno.env.set("REST_INTERNAL_URL", STACK.restUrl);
+  Deno.env.set("SERVICE_KEY", token);
+  Deno.env.set("ANON_KEY", token);
 
   await import("../../testing/settings.ts");
 }

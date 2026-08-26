@@ -100,8 +100,8 @@ export const scribe: LifecycleSteps = {
     capabilities.register(wireStorage);
 
     storageSettings.use({
-      apiUrl: required("SUPABASE_STORAGE_INTERNAL_URL"),
-      serviceRoleKey: required("SUPABASE_SERVICE_ROLE_KEY"),
+      apiUrl: required("STORAGE_INTERNAL_URL"),
+      serviceRoleKey: required("SERVICE_KEY"),
       publicBaseUrl: required("APP_URL"),
       privateBaseUrl: required("ADMIN_URL"),
     });
