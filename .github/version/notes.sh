@@ -35,19 +35,29 @@
 # This header is a summary written for convenience. Where it differs from the
 # LICENSE file, the LICENSE file governs.
 
-
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)
-SINCE="${1:-}"
+SCOPE="notes"
 
 cd "$ROOT"
 
-awk -v since="## $SINCE" '
+package="${1:-}"
+
+if [ -z "$package" ]; then
+  echo "[$SCOPE] Name the package these notes are for, as its directory." >&2
+  exit 1
+fi
+
+[ -f "$package/CHANGELOG.md" ] || {
+  echo "[$SCOPE] $package holds no CHANGELOG.md, so there is nothing to read." >&2
+  exit 1
+}
+
+awk '
   /^## / {
-    if ($0 == since) exit
-    if (started) print ""
+    if (started) exit
     started = 1
   }
   started { print }
-' CHANGELOG.md
+' "$package/CHANGELOG.md"

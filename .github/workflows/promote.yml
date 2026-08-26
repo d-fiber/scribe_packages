@@ -2,10 +2,6 @@ name: promote
 
 on:
   workflow_dispatch:
-    inputs:
-      version:
-        description: The version on dev you are putting on main, as three numbers.
-        required: true
 
 permissions:
   contents: write
@@ -53,31 +49,33 @@ jobs:
           fetch-depth: 0
           ssh-key: ${{ secrets.PROMOTE_PUSH_KEY }}
 
-      - name: Check that the version you named was tagged
-        env:
-          ASKED: ${{ inputs.version }}
+      - name: Check that every package is named at the version its manifest holds
         run: |
           set -eu
-          if ! git rev-parse "v$ASKED" >/dev/null 2>&1; then
-            echo "v$ASKED does not exist. Run release first, so the version is written and tagged." >&2
-            echo "Nothing was moved." >&2
-            exit 1
-          fi
+          missing=""
 
-      - name: Read where main stands
-        id: main
-        run: |
-          set -eu
-          if git rev-parse --verify origin/main >/dev/null 2>&1; then
-            echo "version=$(git describe --tags --abbrev=0 origin/main 2>/dev/null || true)" >> "$GITHUB_OUTPUT"
-          else
-            echo "main does not exist yet, so this promotion is what creates it"
-            echo "version=" >> "$GITHUB_OUTPUT"
-          fi
+          for manifest in */package.yaml; do
+            package=$(dirname "$manifest")
+            version=$(awk '/^version:/ { print $2; exit }' "$manifest")
+
+            if git rev-parse "$package-v$version" >/dev/null 2>&1; then
+              echo "$package is $version, named"
+              continue
+            fi
+
+            missing="$missing $package-v$version"
+          done
+
+          [ -z "$missing" ] && exit 0
+
+          echo "" >&2
+          echo "These tags do not exist, so the CI has never been green on those versions:" >&2
+          for tag in $missing; do echo "  $tag" >&2; done
+          echo "" >&2
+          echo "Run release first, so each version is written and named. Nothing was moved." >&2
+          exit 1
 
       - name: Put dev on main
-        env:
-          ASKED: ${{ inputs.version }}
         run: |
           set -eu
           git config user.name "${{ github.actor }}"
@@ -85,24 +83,53 @@ jobs:
 
           if git rev-parse --verify origin/main >/dev/null 2>&1; then
             git checkout main
-            git merge --no-ff origin/dev -m "Merge dev into main for $ASKED"
+            git merge --no-ff origin/dev -m "Merge dev into main"
           else
+            echo "main does not exist yet, so this promotion is what creates it"
             git checkout -b main
           fi
 
           git push origin main
 
-      - name: Write the release
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ASKED: ${{ inputs.version }}
-          FROM: ${{ steps.main.outputs.version }}
+      - name: Point dev back at main
         run: |
           set -eu
-          bash .github/version/notes.sh "${FROM#v}" > /tmp/notes.md
-
-          if gh release view "v$ASKED" >/dev/null 2>&1; then
-            gh release edit "v$ASKED" --notes-file /tmp/notes.md
-          else
-            gh release create "v$ASKED" --title "$ASKED" --notes-file /tmp/notes.md --verify-tag
+          if git push origin HEAD:dev; then
+            exit 0
           fi
+
+          echo "main now holds these packages, but dev could not be moved onto it." >&2
+          echo "" >&2
+          echo "Something reached dev while this promotion was running, so dev is no longer" >&2
+          echo "an ancestor of what main holds. Nothing is lost and nothing was published:" >&2
+          echo "settle dev, then run promote again. The merge, the push and the releases all" >&2
+          echo "redo themselves without doubling anything." >&2
+          exit 1
+
+      - name: Write one release per package that has none
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          written=0
+
+          for manifest in */package.yaml; do
+            package=$(dirname "$manifest")
+            version=$(awk '/^version:/ { print $2; exit }' "$manifest")
+            tag="$package-v$version"
+
+            if gh release view "$tag" >/dev/null 2>&1; then
+              echo "$tag is already released"
+              continue
+            fi
+
+            bash .github/version/notes.sh "$package" > /tmp/notes.md
+            gh release create "$tag" \
+              --title "$package $version" \
+              --notes-file /tmp/notes.md \
+              --verify-tag
+            written=$((written + 1))
+          done
+
+          echo ""
+          echo "$written package(s) released. The others were already out at the version they hold."
