@@ -1,6 +1,5 @@
 services:
   - name: storage-v1
-    _comment: "Storage: /storage/v1/* -> http://storage:5000/, read only. Public objects under /object/public/* are readable with no condition at all. Everything else lives in the private bucket and demands an admin JWT, with the VPN imposed upstream by Caddy, which only routes the private path on ADMIN_DOMAIN. No upload and no deletion comes through here: they all go to the edge functions, which carry the validation of identity, extension, size and path."
     url: http://storage:5000/
     routes:
       - name: storage-v1-all

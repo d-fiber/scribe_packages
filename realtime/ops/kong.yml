@@ -1,6 +1,5 @@
 services:
   - name: realtime-v1-ws
-    _comment: "Realtime: /realtime/v1/* -> ws://realtime:4000/socket/* (authenticated clients private channels enforced by Realtime JWT validation)"
     url: http://realtime-dev.supabase-realtime:4000/socket
     protocol: ws
     routes:
@@ -13,7 +12,6 @@ services:
         config:
           {{realtime_cors_origins}}
       - name: pre-function
-        _comment: "Two accepted shapes for the connection. (1) Legacy/mobile apikey is one of the static project keys (supabase_flutter), no access_token: unchanged. (2) App clients (desktop admin, and any future client following the same pattern) apikey is an app-key (not the anon key, never handled by the client) and access_token is the caller's real session JWT. access_token's app_metadata.role is decoded (format check only no signature verification, Kong's jwt plugin isn't enabled, see KONG_PLUGINS) to pick which rotation list apikey must belong to: role=admin -> ADMIN_APP_KEYS, anything else -> APP_KEYS. This also rejects a mismatched pairing (e.g. an admin JWT presented alongside an app key). apikey is then substituted for the real SUPABASE_ANON_KEY before the request reaches Realtime, which requires apikey to be a real project JWT. The cryptographic validity of access_token and per-topic authorization are enforced downstream by Realtime + RLS via the access_token already sent in each channel's phx_join payload."
         config:
           access:
             - |
@@ -86,7 +84,6 @@ services:
               - "apikey:$LUA_RT_WS_EXPR"
 
   - name: realtime-v1-rest
-    _comment: "Realtime REST API: /realtime/v1/api/* blocked for all external clients"
     url: http://realtime-dev.supabase-realtime:4000/api
     protocol: http
     routes:
