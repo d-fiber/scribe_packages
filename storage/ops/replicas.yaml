@@ -1,4 +1,4 @@
 services:
   storage:
     deploy:
-      replicas: { { storage_replicas } }
+      replicas: {{storage_replicas}}

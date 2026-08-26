@@ -10,7 +10,7 @@ services:
     plugins:
       - name: cors
         config:
-          { { storage_cors_origins } }
+          {{storage_cors_origins}}
       - name: pre-function
         config:
           access:

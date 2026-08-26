@@ -1,6 +1,6 @@
 services:
   storage:
-    cpu_shares: { { storage_cpu_shares } }
+    cpu_shares: {{storage_cpu_shares}}
     deploy:
       resources:
         limits:

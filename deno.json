@@ -10,6 +10,9 @@
     "./storage"
   ],
   "fmt": {
+    "exclude": [
+      "*/ops"
+    ],
     "lineWidth": 120
   }
 }
