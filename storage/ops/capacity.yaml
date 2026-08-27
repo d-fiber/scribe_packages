@@ -9,7 +9,7 @@ services:
   - name: storage
     weight: 188
     runtime: node
-    min: 128Mi
+    min: 256Mi
     dev: 256Mi
     cpu_shares_total: 4096
 

@@ -3,6 +3,6 @@ services:
     weight: 1361
     runtime: jvm
     profile: search
-    min: 512Mi
+    min: 1024Mi
     dev: 1Gi
     cpu_shares: 512
