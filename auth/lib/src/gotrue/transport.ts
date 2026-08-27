@@ -78,7 +78,14 @@ export interface GoTrueSessionResponse {
 }
 
 export function authUrl(): string {
-  return identitySettings.get().authUrl;
+  const url = identitySettings.get().authUrl;
+  if (!url) {
+    throw new Error(
+      "AUTH_INTERNAL_URL is unset while the auth package is mounted, so no identity service can be reached.",
+    );
+  }
+
+  return url;
 }
 
 export function anonHeaders(): HeadersInit {
