@@ -2,8 +2,6 @@ services:
   db:
     environment:
       AUTH_ADMIN_PASSWORD: "${AUTH_ADMIN_PASSWORD}"
-      JWT_SECRET: "${JWT_SECRET}"
-      JWT_EXP: "${JWT_EXP}"
     volumes:
       - "{{sdk_root}}/packages/auth/db/provisioning/roles.sql:/docker-entrypoint-initdb.d/init-scripts/98-auth-roles.sql:Z"
       - "{{sdk_root}}/packages/auth/db/provisioning/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/98-auth-jwt.sql:Z"

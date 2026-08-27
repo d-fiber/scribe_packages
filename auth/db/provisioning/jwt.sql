@@ -35,12 +35,6 @@
 -- LICENSE file, the LICENSE file governs.
 
 
-\getenv jwt_secret JWT_SECRET
-\getenv jwt_exp JWT_EXP
-
-ALTER DATABASE postgres SET "app.settings.jwt_secret" TO :'jwt_secret';
-ALTER DATABASE postgres SET "app.settings.jwt_exp" TO :'jwt_exp';
-
 CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb
   LANGUAGE sql STABLE
   AS $$
