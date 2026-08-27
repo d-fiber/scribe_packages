@@ -121,6 +121,24 @@ export function installValkeryMock(): InstalledMock {
     ),
     installMock(
       kv(),
+      "incr",
+      ((key: string) => {
+        // Counters live in the same store as everything else, which is what makes a test able to
+        // read one back with `get`. Redis reads the value as an integer and refuses what is not
+        // one, and so does this: a counter sharing a key with a string is a bug worth failing on
+        // rather than quietly restarting from one.
+        const held = store.get(key);
+        if (held !== undefined && !/^-?\d+$/.test(held)) {
+          return Promise.reject(new Error("ERR value is not an integer or out of range"));
+        }
+
+        const next = Number(held ?? 0) + 1;
+        store.set(key, String(next));
+        return Promise.resolve(next);
+      }) as unknown as Kv["incr"],
+    ),
+    installMock(
+      kv(),
       "expire",
       ((key: string) =>
         Promise.resolve(
