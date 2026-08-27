@@ -18,9 +18,14 @@ dashboard: "https://dash.fixture.example.com"
 
 targets:
   local:
+    kind: dev
     machine: host
   vps:
-    machine: 4c/8t/8g
+    kind: machine
+    machine:
+      cores: 4
+      threads: 8
+      memory: 8g
     cpu_cap: true
 
 api:
