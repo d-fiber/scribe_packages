@@ -83,9 +83,7 @@ Deno.test("a group of ten thousand reaches the body in one call and is acknowled
   refuseAt = -1;
   const messages = lot(10_000);
 
-  const started = performance.now();
   const { result } = await dispatchProbes(messages);
-  const spent = performance.now() - started;
 
   assertEquals(groups, [10_000]);
   assertEquals(result.done, 10_000);

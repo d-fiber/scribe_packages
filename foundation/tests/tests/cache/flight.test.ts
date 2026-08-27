@@ -245,8 +245,6 @@ Deno.test("attempt() gives up at once when another replica holds the lock", asyn
 Deno.test("DistributedFlight stops waiting when the caller's budget runs out, not when the lease does", async () => {
   const lock = new ScriptedLock([]);
   const gaveUp: string[] = [];
-  const started = Date.now();
-
   const value = await flight(lock, gaveUp).run(
     "id",
     "lock:id",
@@ -254,7 +252,6 @@ Deno.test("DistributedFlight stops waiting when the caller's budget runs out, no
     () => Promise.resolve("computed anyway"),
     Duration.milliseconds(250),
   );
-  const spent = Date.now() - started;
 
   assertEquals(value, "computed anyway");
   assertEquals(gaveUp, ["id"]);
