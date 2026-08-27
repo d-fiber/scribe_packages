@@ -66,6 +66,8 @@ services:
     command:
       [
         "psql",
+        "-v",
+        "ON_ERROR_STOP=1",
         "-h",
         "db",
         "-U",
