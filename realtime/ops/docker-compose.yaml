@@ -1,5 +1,8 @@
 services:
   realtime:
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    cap_add: ["CHOWN", "DAC_OVERRIDE", "SETGID", "SETUID"]
     profiles: ["realtime"]
     image: "supabase/realtime:v2.76.5"
     restart: "unless-stopped"
@@ -38,7 +41,8 @@ services:
       db:
         condition: "service_healthy"
     networks:
-      default:
+      data: null
+      app:
         aliases:
           - realtime-dev.supabase-realtime
     logging:
@@ -47,6 +51,7 @@ services:
         max-size: "10m"
         max-file: "3"
   realtime-init:
+    networks: ["data"]
     profiles: ["realtime"]
     image: "postgres:15.19-alpine"
     restart: "no"
