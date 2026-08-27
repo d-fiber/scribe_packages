@@ -21,12 +21,7 @@ dev_dependencies:
 scribe:
   db:
     init: ./db/init/
-    provisioning: ./db/provisioning/
   protocol: ./protocol/
-  ops:
-    - ./ops/database/
-    - ./ops/queue/
-    - ./ops/valkery/
   declarations:
     queues: Queue
     crons: Cron
