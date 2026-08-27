@@ -8,7 +8,7 @@ services:
     image: "opensearchproject/opensearch:2.19.1"
     restart: "unless-stopped"
     volumes:
-      - "{{sdk_root}}/opensearch:/usr/share/opensearch/data:Z"
+      - "opensearch-data:/usr/share/opensearch/data"
     environment:
       cluster.name: "{{app_name_snake}}"
       node.name: "opensearch"
@@ -37,3 +37,5 @@ services:
       options:
         max-size: "100m"
         max-file: "5"
+volumes:
+  opensearch-data: null

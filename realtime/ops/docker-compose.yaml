@@ -59,7 +59,7 @@ services:
       PGPASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - "{{sdk_root}}/packages/realtime/db/init/realtime.sql:/realtime-init.sql:ro,Z"
-      - "${PROJECT_DB_INIT:-./lib/db/init}:/project-db-init:ro,Z"
+      - "{{project_db_init}}:/project-db-init:ro,Z"
     command:
       [
         "sh",
