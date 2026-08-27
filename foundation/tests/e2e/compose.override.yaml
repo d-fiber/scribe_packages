@@ -2,8 +2,6 @@ name: scribe-foundation-e2e
 
 services:
   db:
-    container_name: "scribe-e2e-db"
-    ports: ["55432:5432"]
     volumes:
       - "./.postgres:/var/lib/postgresql/data:Z"
     command:
@@ -22,19 +20,13 @@ services:
       ]
 
   rest:
-    container_name: "scribe-e2e-rest"
-    ports: ["53000:3000"]
-
-  db-migrate:
-    container_name: "scribe-e2e-db-migrate"
+    ports: ["3000"]
 
   redis:
-    container_name: "scribe-e2e-redis"
-    ports: ["56379:6379"]
+    ports: ["6379"]
 
   nats:
-    container_name: "scribe-e2e-nats"
-    ports: ["54222:4222", "58222:8222"]
+    ports: ["4222", "8222"]
     command:
       [
         "-js",

@@ -34,25 +34,58 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+/** The Compose project `tool/e2e/up.sh dynamic_links` starts, which is how its containers are found again. */
+const PROJECT = "scribe-dynamic-links-e2e";
+
+/**
+ * The host port Docker gave `service` for the port `inside` its container.
+ *
+ * Nothing here publishes a fixed number, because a fixed number belongs to the whole machine
+ * rather than to one run: two harnesses, or a harness and a project stack, end up fighting over
+ * it. Docker takes a free one at start instead, so the running project is the only place it can
+ * be read back from.
+ */
+async function hostPort(service: string, inside: number): Promise<number> {
+  const shown = await new Deno.Command("docker", {
+    args: ["compose", "--project-name", PROJECT, "port", service, String(inside)],
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
+
+  const line = new TextDecoder().decode(shown.stdout).trim().split("\n").at(-1) ?? "";
+  const port = Number.parseInt(line.slice(line.lastIndexOf(":") + 1), 10);
+
+  if (!shown.success || !Number.isInteger(port)) {
+    throw new Error(
+      `Docker does not say which host port ${PROJECT}/${service} publishes ${inside} on.\n` +
+        "Start the stack with:\n" +
+        "  bash tool/e2e/up.sh dynamic_links\n" +
+        `Cause: ${new TextDecoder().decode(shown.stderr).trim() || line || "no output at all"}`,
+    );
+  }
+
+  return port;
+}
+
 /**
  * What the containers of the rendered fragments answer on, and how a test reaches them.
  *
- * Every port is shifted into the 5xxxx range on purpose: a developer running the real stack of
- * a project keeps 5432, 6379, 4222 and 3000, and an end-to-end run must not talk to it by
- * accident.
+ * No port is written down here. Each one is asked of Docker at import, because the harness
+ * publishes on whatever the machine has free rather than on a number a project stack, or a
+ * second harness, would want as well.
  */
 export const STACK = {
   /** PostgREST, which is where a link is written and read. */
-  restUrl: "http://localhost:53005",
+  restUrl: `http://localhost:${await hostPort("rest", 3000)}`,
 
   /** Redis, where a resolved slug is kept for ten minutes. */
-  redisUrl: "redis://:e2epass@localhost:56381",
+  redisUrl: `redis://:e2epass@localhost:${await hostPort("redis", 6379)}`,
 
   /** NATS, which carries a visit from the node that served the link to its table. */
-  natsUrl: "nats://e2epass@localhost:54223",
+  natsUrl: `nats://e2epass@localhost:${await hostPort("nats", 4222)}`,
 
   /** What NATS answers its health on, which is the cheapest proof the stack is up. */
-  natsMonitorUrl: "http://localhost:58223",
+  natsMonitorUrl: `http://localhost:${await hostPort("nats", 8222)}`,
 
   /** The secret the tokens of this stack are signed with, as `e2e.env` hands it to PostgREST. */
   jwtSecret: "e2e-jwt-secret-long-enough-for-hs256-signing",

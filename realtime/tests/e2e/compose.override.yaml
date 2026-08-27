@@ -2,8 +2,6 @@ name: scribe-realtime-e2e
 
 services:
   db:
-    container_name: "scribe-realtime-e2e-db"
-    ports: ["55434:5432"]
     volumes:
       - "../../realtime/db/provisioning/realtime.sql:/docker-entrypoint-initdb.d/init-scripts/96-realtime.sql:Z"
       - "./.postgres:/var/lib/postgresql/data:Z"
@@ -23,18 +21,12 @@ services:
       ]
 
   rest:
-    container_name: "scribe-realtime-e2e-rest"
-    ports: ["53002:3000"]
-
-  db-migrate:
-    container_name: "scribe-realtime-e2e-db-migrate"
+    ports: ["3000"]
 
   realtime:
-    container_name: "realtime-dev.scribe-realtime-e2e"
-    ports: ["54001:4000"]
+    ports: ["4000"]
 
   realtime-init:
-    container_name: "scribe-realtime-e2e-realtime-init"
     volumes:
       - "../db/init/realtime.sql:/realtime-init-project.sql:ro,Z"
 

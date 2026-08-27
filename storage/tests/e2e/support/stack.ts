@@ -34,18 +34,55 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+/** The Compose project `tool/e2e/up.sh storage` starts, which is how its containers are found again. */
+const PROJECT = "scribe-storage-e2e";
+
+/**
+ * The host port Docker gave `service` for the port `inside` its container.
+ *
+ * Nothing here publishes a fixed number, because a fixed number belongs to the whole machine
+ * rather than to one run: two harnesses, or a harness and a project stack, end up fighting over
+ * it. Docker takes a free one at start instead, so the running project is the only place it can
+ * be read back from.
+ */
+async function hostPort(service: string, inside: number): Promise<number> {
+  const shown = await new Deno.Command("docker", {
+    args: ["compose", "--project-name", PROJECT, "port", service, String(inside)],
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
+
+  const line = new TextDecoder().decode(shown.stdout).trim().split("\n").at(-1) ?? "";
+  const port = Number.parseInt(line.slice(line.lastIndexOf(":") + 1), 10);
+
+  if (!shown.success || !Number.isInteger(port)) {
+    throw new Error(
+      `Docker does not say which host port ${PROJECT}/${service} publishes ${inside} on.\n` +
+        "Start the stack with:\n" +
+        "  bash tool/e2e/up.sh storage\n" +
+        `Cause: ${new TextDecoder().decode(shown.stderr).trim() || line || "no output at all"}`,
+    );
+  }
+
+  return port;
+}
+
+/** Where the storage service answers on the host, which three of the slots below share. */
+const STORAGE_URL = `http://localhost:${await hostPort("storage", 5000)}`;
+
 /**
  * What the containers of the rendered fragments answer on, and how a test reaches them.
  *
- * Every port is shifted into the 5xxxx range on purpose: a developer running the real stack of a
- * project keeps 5000, 5432 and 3000, and an end-to-end run must not talk to it by accident.
+ * No port is written down here. Each one is asked of Docker at import, because the harness
+ * publishes on whatever the machine has free rather than on a number a project stack, or a
+ * second harness, would want as well.
  */
 export const STACK = {
   /** The storage service, reached the way the package reaches it, without the gateway prefix. */
-  storageUrl: "http://localhost:55000",
+  storageUrl: STORAGE_URL,
 
   /** PostgREST, which is where the index is written and read. */
-  restUrl: "http://localhost:53003",
+  restUrl: `http://localhost:${await hostPort("rest", 3000)}`,
 
   /** The bucket a declaration named `public` writes to. */
   publicBucket: "public_bucket",
@@ -66,10 +103,10 @@ export const STACK = {
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYXV0aGVudGljYXRlZCIsImlzcyI6InNjcmliZSIsInN1YiI6IjAwMDAwMDAwLTAwMDAtMDAwMC0wMDAwLTAwMDAwMDAwMDBiMSIsImFwcF9tZXRhZGF0YSI6eyJyb2xlIjoidXNlciJ9LCJpYXQiOjE3NjcyMjU2MDAsImV4cCI6NDEwMjQ0NDgwMH0.16MaVIEt_CI2938ukqBZ5mFiDBUXX_QR-zQ-uDDfj7M",
 
   /** Where a public object is served from, as the package builds the URL. */
-  appUrl: "http://localhost:55000",
+  appUrl: STORAGE_URL,
 
   /** Where a private object is served from, as the package builds the URL. */
-  adminUrl: "http://localhost:55000",
+  adminUrl: STORAGE_URL,
 } as const;
 
 /** Points the settings slots at the containers, then loads the settings that read them. */

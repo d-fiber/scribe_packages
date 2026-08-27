@@ -2,8 +2,6 @@ name: scribe-audience-e2e
 
 services:
   db:
-    container_name: "scribe-audience-e2e-db"
-    ports: ["55438:5432"]
     volumes:
       - "./.postgres:/var/lib/postgresql/data:Z"
       - "./db/skipped_features:/docker-entrypoint-init-sql/framework/04_features:ro"
@@ -23,15 +21,10 @@ services:
       ]
 
   rest:
-    container_name: "scribe-audience-e2e-rest"
-    ports: ["53006:3000"]
-
-  db-migrate:
-    container_name: "scribe-audience-e2e-db-migrate"
+    ports: ["3000"]
 
   redis:
-    container_name: "scribe-audience-e2e-redis"
-    ports: ["56382:6379"]
+    ports: ["6379"]
 
 volumes:
   db-config: null

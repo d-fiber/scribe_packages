@@ -2,8 +2,6 @@ name: scribe-search-e2e
 
 services:
   db:
-    container_name: "scribe-search-e2e-db"
-    ports: ["55436:5432"]
     volumes:
       - "./.postgres:/var/lib/postgresql/data:Z"
     command:
@@ -22,19 +20,13 @@ services:
       ]
 
   rest:
-    container_name: "scribe-search-e2e-rest"
-    ports: ["53004:3000"]
-
-  db-migrate:
-    container_name: "scribe-search-e2e-db-migrate"
+    ports: ["3000"]
 
   redis:
-    container_name: "scribe-search-e2e-redis"
-    ports: ["56380:6379"]
+    ports: ["6379"]
 
   opensearch:
-    container_name: "scribe-search-e2e-opensearch"
-    ports: ["59200:9200"]
+    ports: ["9200"]
     volumes:
       - "opensearch-data:/usr/share/opensearch/data"
     environment:

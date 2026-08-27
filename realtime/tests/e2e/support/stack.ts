@@ -34,11 +34,48 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+/** The Compose project `tool/e2e/up.sh realtime` starts, which is how its containers are found again. */
+const PROJECT = "scribe-realtime-e2e";
+
+/**
+ * The host port Docker gave `service` for the port `inside` its container.
+ *
+ * Nothing here publishes a fixed number, because a fixed number belongs to the whole machine
+ * rather than to one run: two harnesses, or a harness and a project stack, end up fighting over
+ * it. Docker takes a free one at start instead, so the running project is the only place it can
+ * be read back from.
+ */
+async function hostPort(service: string, inside: number): Promise<number> {
+  const shown = await new Deno.Command("docker", {
+    args: ["compose", "--project-name", PROJECT, "port", service, String(inside)],
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
+
+  const line = new TextDecoder().decode(shown.stdout).trim().split("\n").at(-1) ?? "";
+  const port = Number.parseInt(line.slice(line.lastIndexOf(":") + 1), 10);
+
+  if (!shown.success || !Number.isInteger(port)) {
+    throw new Error(
+      `Docker does not say which host port ${PROJECT}/${service} publishes ${inside} on.\n` +
+        "Start the stack with:\n" +
+        "  bash tool/e2e/up.sh realtime\n" +
+        `Cause: ${new TextDecoder().decode(shown.stderr).trim() || line || "no output at all"}`,
+    );
+  }
+
+  return port;
+}
+
+/** What Realtime answers on, which both the socket and the health probe are built from. */
+const REALTIME_PORT: number = await hostPort("realtime", 4000);
+
 /**
  * What the containers of the rendered fragments answer on, and how a test reaches them.
  *
- * Every port is shifted into the 5xxxx range on purpose: a developer running the real stack of
- * a project keeps 4000, 5432 and 3000, and an end-to-end run must not talk to it by accident.
+ * No port is written down here. Each one is asked of Docker at import, because the harness
+ * publishes on whatever the machine has free rather than on a number a project stack, or a
+ * second harness, would want as well.
  *
  * The websocket host is not `localhost`. Realtime picks its tenant from the first label of the
  * Host header, which is why a deployment names the container `realtime-dev.<something>` and
@@ -46,9 +83,9 @@
  * exist, and every join would answer with no reply at all.
  */
 export const STACK = {
-  socketUrl: "ws://realtime-dev.localhost:54001/socket/websocket",
-  healthUrl: "http://realtime-dev.localhost:54001/api/tenants/realtime-dev/health",
-  restUrl: "http://localhost:53002",
+  socketUrl: `ws://realtime-dev.localhost:${REALTIME_PORT}/socket/websocket`,
+  healthUrl: `http://realtime-dev.localhost:${REALTIME_PORT}/api/tenants/realtime-dev/health`,
+  restUrl: `http://localhost:${await hostPort("rest", 3000)}`,
   jwtSecret: "e2e-jwt-secret-long-enough-for-hs256-signing",
   anonKey:
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiYW5vbiIsImlzcyI6InNjcmliZSIsImlhdCI6MTc2NzIyNTYwMCwiZXhwIjo0MTAyNDQ0ODAwfQ.MwqtYvkgqU7cXxCu1ZtM4CGBL3iFpfxF-0tgx2j8x7w",
@@ -219,7 +256,7 @@ export async function sampleUsage(): Promise<Usage[]> {
   return new TextDecoder().decode(out.stdout)
     .trim()
     .split("\n")
-    .filter((line) => line.includes("realtime-e2e") || line.includes("realtime-dev"))
+    .filter((line) => line.startsWith(`${PROJECT}-`))
     .map((line) => {
       const [name, cpu, memory] = line.split("\t");
       return {

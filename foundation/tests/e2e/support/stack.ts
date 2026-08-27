@@ -33,11 +33,51 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
+/** The Compose project `tool/e2e/up.sh foundation` starts, which is how its containers are found again. */
+const PROJECT = "scribe-foundation-e2e";
+
+/**
+ * The host port Docker gave `service` for the port `inside` its container.
+ *
+ * Nothing here publishes a fixed number, because a fixed number belongs to the whole machine
+ * rather than to one run: two harnesses, or a harness and a project stack, end up fighting over
+ * it. Docker takes a free one at start instead, so the running project is the only place it can
+ * be read back from.
+ */
+async function hostPort(service: string, inside: number): Promise<number> {
+  const shown = await new Deno.Command("docker", {
+    args: ["compose", "--project-name", PROJECT, "port", service, String(inside)],
+    stdout: "piped",
+    stderr: "piped",
+  }).output();
+
+  const line = new TextDecoder().decode(shown.stdout).trim().split("\n").at(-1) ?? "";
+  const port = Number.parseInt(line.slice(line.lastIndexOf(":") + 1), 10);
+
+  if (!shown.success || !Number.isInteger(port)) {
+    throw new Error(
+      `Docker does not say which host port ${PROJECT}/${service} publishes ${inside} on.\n` +
+        "Start the stack with:\n" +
+        "  bash tool/e2e/up.sh foundation\n" +
+        `Cause: ${new TextDecoder().decode(shown.stderr).trim() || line || "no output at all"}`,
+    );
+  }
+
+  return port;
+}
+
+/**
+ * What the containers of the rendered fragments answer on, and how a test reaches them.
+ *
+ * No port is written down here. Each one is asked of Docker at import, because the harness
+ * publishes on whatever the machine has free rather than on a number a project stack, or a
+ * second harness, would want as well.
+ */
 export const STACK = {
-  redisUrl: "redis://:e2epass@localhost:56379",
-  natsUrl: "nats://e2epass@localhost:54222",
-  restUrl: "http://localhost:53000",
-  natsMonitorUrl: "http://localhost:58222",
+  redisUrl: `redis://:e2epass@localhost:${await hostPort("redis", 6379)}`,
+  natsUrl: `nats://e2epass@localhost:${await hostPort("nats", 4222)}`,
+  restUrl: `http://localhost:${await hostPort("rest", 3000)}`,
+  natsMonitorUrl: `http://localhost:${await hostPort("nats", 8222)}`,
   jwtSecret: "e2e-jwt-secret-long-enough-for-hs256-signing",
 } as const;
 
@@ -95,7 +135,7 @@ export async function requireStack(...urls: readonly string[]): Promise<void> {
       throw new Error(
         `The end-to-end stack is not answering on ${url}.\n` +
           "Start it with:\n" +
-          "  docker compose -f packages/foundation/e2e_tests/compose.yaml up -d\n" +
+          "  bash tool/e2e/up.sh foundation\n" +
           `Cause: ${cause instanceof Error ? cause.message : String(cause)}`,
       );
     }
