@@ -1,7 +1,6 @@
 services:
   opensearch:
     profiles: ["search"]
-    container_name: "opensearch"
     image: "opensearchproject/opensearch:2.19.1"
     restart: "unless-stopped"
     volumes:
@@ -23,12 +22,12 @@ services:
       test:
         [
           "CMD-SHELL",
-          'curl -sf http://localhost:9200/_cluster/health | grep -v ''"status":"red"''',
+          'curl -sf http://127.0.0.1:9200/_cluster/health | grep -v ''"status":"red"''',
         ]
       interval: "10s"
       timeout: "5s"
       retries: 5
-      start_period: "30s"
+      start_period: "60s"
     logging:
       driver: "json-file"
       options:

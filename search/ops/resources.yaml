@@ -1,6 +1,7 @@
 services:
   opensearch:
     cpu_shares: 512
+    memswap_limit: "{{opensearch_mem_limit}}"
     deploy:
       resources:
         limits:

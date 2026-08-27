@@ -1,6 +1,7 @@
 services:
   storage:
     cpu_shares: {{storage_cpu_shares}}
+    memswap_limit: "{{storage_mem_limit}}"
     deploy:
       resources:
         limits:
@@ -14,6 +15,7 @@ services:
           memory: "{{storage_init_mem_limit}}"
   imgproxy:
     cpu_shares: 1024
+    memswap_limit: "{{imgproxy_mem_limit}}"
     deploy:
       resources:
         limits:

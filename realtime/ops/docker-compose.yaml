@@ -1,7 +1,6 @@
 services:
   realtime:
     profiles: ["realtime"]
-    container_name: "realtime-dev.supabase-realtime"
     image: "supabase/realtime:v2.76.5"
     restart: "unless-stopped"
     environment:
@@ -29,15 +28,19 @@ services:
       test:
         [
           "CMD-SHELL",
-          'curl -sSfL --head -o /dev/null -H "Authorization: Bearer ${ANON_KEY}" http://localhost:4000/api/tenants/realtime-dev/health',
+          'curl -sSfL --head -o /dev/null -H "Authorization: Bearer ${ANON_KEY}" http://127.0.0.1:4000/api/tenants/realtime-dev/health',
         ]
       interval: "30s"
       timeout: "5s"
       retries: 3
-      start_period: "10s"
+      start_period: "60s"
     depends_on:
       db:
         condition: "service_healthy"
+    networks:
+      default:
+        aliases:
+          - realtime-dev.supabase-realtime
     logging:
       driver: "json-file"
       options:
@@ -45,7 +48,6 @@ services:
         max-file: "3"
   realtime-init:
     profiles: ["realtime"]
-    container_name: "realtime-init"
     image: "postgres:15-alpine"
     restart: "no"
     environment:

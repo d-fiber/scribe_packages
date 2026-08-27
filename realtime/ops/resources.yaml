@@ -1,6 +1,7 @@
 services:
   realtime:
     cpu_shares: 1024
+    memswap_limit: "{{realtime_mem_limit}}"
     deploy:
       resources:
         limits:
