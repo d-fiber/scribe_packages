@@ -259,7 +259,7 @@ Deno.test("a loser that waits out its budget computes without the lock and says 
   }
 });
 
-Deno.test("a loser pays two round trips for every fifty milliseconds it waits", async () => {
+Deno.test("a loser pays one lock attempt and one read back per poll, and nothing else", async () => {
   const redis = installFakeRedis();
 
   try {
@@ -273,14 +273,18 @@ Deno.test("a loser pays two round trips for every fifty milliseconds it waits", 
 
     await cache.upsert("k", () => Promise.resolve("mine"));
 
-    assert(
-      redis.countOf("set") >= 4 && redis.countOf("set") <= 8,
-      `a two hundred and fifty millisecond wait took ${redis.countOf("set")} lock attempts`,
+    const attempts = redis.countOf("set");
+    assert(attempts >= 1, "a loser has to reach for the lock before it gives up on it");
+    assertEquals(
+      redis.countOf("get"),
+      attempts + 1,
+      "one read back per attempt, plus the read that found nothing to begin with",
     );
-    assert(
-      redis.roundTrips >= 9 && redis.roundTrips <= 16,
-      `waiting a quarter of a second cost ${redis.roundTrips} round trips, one lock attempt and one read ` +
-        "back every fifty milliseconds",
+    assertEquals(redis.countOf("setex"), 1, "the loser writes what it computed, once");
+    assertEquals(
+      redis.roundTrips,
+      2 * attempts + 2,
+      `${redis.commands.map((one) => one.name).join(",")} carries something the poll does not need`,
     );
   } finally {
     redis.restore();
