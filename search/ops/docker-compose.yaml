@@ -10,7 +10,7 @@ services:
       node.name: "opensearch"
       discovery.type: "single-node"
       DISABLE_SECURITY_PLUGIN: "true"
-      OPENSEARCH_JAVA_OPTS: "-Xms4g -Xmx4g"
+      OPENSEARCH_JAVA_OPTS: "-Xms256m -Xmx256m"
     ulimits:
       memlock:
         soft: -1

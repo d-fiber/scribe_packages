@@ -17,13 +17,13 @@ services:
       METRICS_JWT_SECRET: ${JWT_SECRET}
       ERL_AFLAGS: "-proto_dist inet_tcp"
       DNS_NODES: "''"
-      RLIMIT_NOFILE: "65535"
+      RLIMIT_NOFILE: "4096"
       APP_NAME: "realtime"
       SEED_SELF_HOST: "true"
       RUN_JANITOR: "true"
       DISABLE_HEALTHCHECK_LOGGING: "true"
-      MAX_CONNECTIONS: "16000"
-      NUM_ACCEPTORS: "300"
+      MAX_CONNECTIONS: "100"
+      NUM_ACCEPTORS: "10"
     healthcheck:
       test:
         [
@@ -48,7 +48,7 @@ services:
         max-file: "3"
   realtime-init:
     profiles: ["realtime"]
-    image: "postgres:15-alpine"
+    image: "postgres:15.19-alpine"
     restart: "no"
     environment:
       PGPASSWORD: ${POSTGRES_PASSWORD}

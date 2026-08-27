@@ -1,6 +1,6 @@
 FROM supabase/storage-api:v1.48.26 AS upstream
 
-FROM node:24.14-alpine
+FROM node:24.14.1-alpine
 
 WORKDIR /app
 
