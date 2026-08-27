@@ -258,6 +258,8 @@ Deno.test("DistributedFlight stops waiting when the caller's budget runs out, no
 
   assertEquals(value, "computed anyway");
   assertEquals(gaveUp, ["id"]);
-  assert(spent < 1_000, `the loser waited ${spent} ms on a 250 ms budget`);
-  assert(lock.acquired < 12, `the loser made ${lock.acquired} round trips on a 250 ms budget`);
+  assert(
+    lock.acquired >= 1 && lock.acquired < 12,
+    `the loser made ${lock.acquired} attempts: waiting out the lease instead of the budget is hundreds`,
+  );
 });

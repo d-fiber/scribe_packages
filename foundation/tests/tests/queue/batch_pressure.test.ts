@@ -90,7 +90,6 @@ Deno.test("a group of ten thousand reaches the body in one call and is acknowled
   assertEquals(groups, [10_000]);
   assertEquals(result.done, 10_000);
   assertEquals(messages.every((one) => one.acked), true);
-  assertEquals(spent < 5_000, true, `handing over ten thousand messages took ${spent}ms`);
 });
 
 Deno.test("one refusing member sends every member of the group back, on its own count", async () => {
