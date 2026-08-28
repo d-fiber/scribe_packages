@@ -35,6 +35,8 @@
 -- LICENSE file, the LICENSE file governs.
 
 
+CREATE SCHEMA IF NOT EXISTS auth AUTHORIZATION supabase_auth_admin;
+
 CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb
   LANGUAGE sql STABLE
   AS $$

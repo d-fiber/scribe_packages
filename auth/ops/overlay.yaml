@@ -1,7 +1,7 @@
 services:
-  db:
+  provision:
     environment:
       AUTH_ADMIN_PASSWORD: "${AUTH_ADMIN_PASSWORD}"
     volumes:
-      - "{{sdk_root}}/packages/auth/db/provisioning/roles.sql:/docker-entrypoint-initdb.d/init-scripts/98-auth-roles.sql:Z"
-      - "{{sdk_root}}/packages/auth/db/provisioning/jwt.sql:/docker-entrypoint-initdb.d/init-scripts/98-auth-jwt.sql:Z"
+      - "{{sdk_root}}/packages/auth/db/provisioning/roles.sql:/provision/setup/50-auth-roles.sql:ro"
+      - "{{sdk_root}}/packages/auth/db/provisioning/jwt.sql:/provision/setup/60-auth-jwt.sql:ro"
