@@ -57,4 +57,39 @@ jobs:
           deno task lint
           deno task test
 
+  # The only job that writes, and it waits for every job that judges.
+  #
+  # A tag never moves, so one posted while a check was still running would name a
+  # red commit for good. The changelog goes out on this repository's own write
+  # key rather than on GITHUB_TOKEN, because a push made with that token starts
+  # no workflow and the commit would land on dev without anything reading it.
+  tag:
+    needs: [verify, checks]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
 
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          ssh-key: ${{ secrets.PROMOTE_PUSH_KEY }}
+          persist-credentials: true
+
+      - name: Write what each version that moved is made of
+        run: |
+          set -eu
+          bash .github/version/changelog.sh
+
+          git diff --quiet && exit 0
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ./*/CHANGELOG.md
+          git commit -m "[DOC]: write what the versions that moved are made of"
+          git push origin HEAD:dev
+
+      - name: Name this commit after every version that moved
+        run: bash .github/version/tag.sh
