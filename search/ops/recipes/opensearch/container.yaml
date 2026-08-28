@@ -1,0 +1,7 @@
+brings:
+  - opensearch
+
+outputs:
+  host: "opensearch"
+  port: "9200"
+  url: "http://opensearch:9200"
