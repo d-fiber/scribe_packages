@@ -1,4 +1,4 @@
 services:
-  db:
+  provision:
     volumes:
-      - "{{sdk_root}}/packages/realtime/db/provisioning/realtime.sql:/docker-entrypoint-initdb.d/init-scripts/97-realtime.sql:Z"
+      - "{{sdk_root}}/packages/realtime/db/provisioning/realtime.sql:/provision/setup/50-realtime.sql:ro"
