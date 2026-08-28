@@ -20,20 +20,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Check that the key this needs is here
-        env:
-          KEY: ${{ secrets.SCRIBE_PUSH_KEY }}
-        run: |
-          set -eu
-          [ -n "$KEY" ] && exit 0
-
-          echo "SCRIBE_PUSH_KEY is not set, and nothing here can be checked without it." >&2
-          echo "" >&2
-          echo "A package resolves only through the framework's import map, so verifying one" >&2
-          echo "means putting it in a scribe checkout and checking that. This job needs read" >&2
-          echo "access on d-fiber/scribe to make that checkout." >&2
-          exit 1
-
       - uses: actions/checkout@v4
         with:
           path: source
@@ -43,7 +29,6 @@ jobs:
           repository: d-fiber/scribe
           ref: dev
           path: scribe
-          ssh-key: ${{ secrets.SCRIBE_PUSH_KEY }}
 
       - uses: denoland/setup-deno@v2
         with:
