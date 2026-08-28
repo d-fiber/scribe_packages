@@ -3,15 +3,32 @@
   "target": "branch",
   "enforcement": "active",
   "bypass_actors": [
-    { "actor_id": 1, "actor_type": "OrganizationAdmin", "bypass_mode": "always" },
-    { "actor_id": null, "actor_type": "DeployKey", "bypass_mode": "always" }
+    {
+      "actor_id": 1,
+      "actor_type": "OrganizationAdmin",
+      "bypass_mode": "always"
+    },
+    {
+      "actor_id": null,
+      "actor_type": "DeployKey",
+      "bypass_mode": "always"
+    }
   ],
   "conditions": {
-    "ref_name": { "include": ["refs/heads/main"], "exclude": [] }
+    "ref_name": {
+      "include": [
+        "refs/heads/main"
+      ],
+      "exclude": []
+    }
   },
   "rules": [
-    { "type": "deletion" },
-    { "type": "non_fast_forward" },
+    {
+      "type": "deletion"
+    },
+    {
+      "type": "non_fast_forward"
+    },
     {
       "type": "pull_request",
       "parameters": {
@@ -20,7 +37,9 @@
         "require_code_owner_review": true,
         "require_last_push_approval": true,
         "required_review_thread_resolution": false,
-        "allowed_merge_methods": ["merge"]
+        "allowed_merge_methods": [
+          "merge"
+        ]
       }
     },
     {
@@ -29,9 +48,18 @@
         "strict_required_status_checks_policy": true,
         "do_not_enforce_on_create": false,
         "required_status_checks": [
-          { "context": "verify" },
-          { "context": "headers" },
-          { "context": "commits" }
+          {
+            "context": "verify"
+          },
+          {
+            "context": "checks / commits"
+          },
+          {
+            "context": "checks / headers"
+          },
+          {
+            "context": "checks / version"
+          }
         ]
       }
     }
