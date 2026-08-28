@@ -1,0 +1,7 @@
+outputs:
+  backend: "s3"
+  name: "${S3_BUCKET}"
+  endpoint: "${S3_ENDPOINT}"
+  region: "${S3_REGION}"
+  access_key: "${S3_ACCESS_KEY}"
+  secret_key: "${S3_SECRET_KEY}"
