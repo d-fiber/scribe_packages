@@ -1,8 +1,8 @@
 settings:
-  file_size_limit_mb:
-    doc: "The largest object the API accepts, in mebibytes."
+  max_object_bytes:
+    doc: "The largest object the API accepts, in bytes, refused at the door above it."
     type: integer
-    default: 100
+    default: 104857600
 
   image_transformation:
     doc: "Whether an image may be asked for at another size, which starts imgproxy."

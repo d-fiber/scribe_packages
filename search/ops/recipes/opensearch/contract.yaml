@@ -1,0 +1,4 @@
+outputs:
+  - host
+  - port
+  - url

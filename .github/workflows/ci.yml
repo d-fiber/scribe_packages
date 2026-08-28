@@ -16,40 +16,31 @@ env:
   DENO_VERSION: 2.7.14
 
 jobs:
+  # The three checks every repository owes, held once in the framework.
+  checks:
+    uses: d-fiber/scribe/.github/workflows/gate.yml@7cd6af853c86cdd9d06470d82eea9db049b65516
+    with:
+      excluded: "node_modules .git .dart_tool __pycache__ gen examples templates fixtures .e2e"
+
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Check that the key this needs is here
-        env:
-          KEY: ${{ secrets.SCRIBE_PUSH_KEY }}
-        run: |
-          set -eu
-          [ -n "$KEY" ] && exit 0
-
-          echo "SCRIBE_PUSH_KEY is not set, and nothing here can be checked without it." >&2
-          echo "" >&2
-          echo "A package resolves only through the framework's import map, so verifying one" >&2
-          echo "means putting it in a scribe checkout and checking that. This job needs read" >&2
-          echo "access on d-fiber/scribe to make that checkout." >&2
-          exit 1
-
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           path: source
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           repository: d-fiber/scribe
           ref: dev
           path: scribe
-          ssh-key: ${{ secrets.SCRIBE_PUSH_KEY }}
 
-      - uses: denoland/setup-deno@v2
+      - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
           deno-version: ${{ env.DENO_VERSION }}
 
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.cache/deno
           key: deno-${{ runner.os }}-${{ hashFiles('scribe/deno.lock') }}
@@ -66,25 +57,44 @@ jobs:
           deno task lint
           deno task test
 
-  headers:
+  # The only job that writes, and it waits for every job that judges.
+  #
+  # A tag never moves, so one posted while a check was still running would name a
+  # red commit for good. The changelog goes out on this repository's own write
+  # key rather than on GITHUB_TOKEN, because a push made with that token starts
+  # no workflow and the commit would land on dev without anything reading it.
+  tag:
+    needs: [verify, checks]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
+    permissions:
+      contents: read
 
-      - name: Check licence headers
-        run: bash .github/headers/check.sh
-
-  commits:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           fetch-depth: 0
+          ssh-key: ${{ secrets.PROMOTE_PUSH_KEY }}
+          persist-credentials: true
 
-      - name: Check commit messages
-        env:
-          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
-          HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-        run: bash .github/commits/check.sh "$BASE" "$HEAD"
+      - name: Write what each version that moved is made of
+        run: |
+          set -eu
+          # One section per package, because a version here belongs to a package
+          # and not to the repository. A package whose version has not moved is
+          # told so by the script and writes nothing.
+          for manifest in */package.yaml; do
+            bash .github/version/changelog.sh "$(dirname "$manifest")"
+          done
+
+          git diff --quiet && exit 0
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add ./*/CHANGELOG.md
+          git commit -m "[DOC]: write what the versions that moved are made of"
+          git push origin HEAD:dev
+
+      - name: Name this commit after every version that moved
+        run: bash .github/version/tag.sh

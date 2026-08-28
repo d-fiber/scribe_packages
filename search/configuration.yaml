@@ -1,0 +1,3 @@
+requires:
+  - name: index
+    type: opensearch

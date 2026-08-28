@@ -15,7 +15,7 @@ services:
       POSTGREST_URL: "{{resource_rest_url}}"
       AUTH_JWT_SECRET: ${JWT_SECRET}
       DATABASE_URL: "postgres://supabase_storage_admin:${STORAGE_ADMIN_PASSWORD}@{{resource_postgres_host}}:{{resource_postgres_port}}/{{resource_postgres_database}}"
-      FILE_SIZE_LIMIT: "104857600"
+      FILE_SIZE_LIMIT: "{{setting_storage_max_object_bytes}}"
       STORAGE_BACKEND: "${STORAGE_BACKEND:-file}"
       FILE_STORAGE_BACKEND_PATH: "/var/lib/storage"
       GLOBAL_S3_BUCKET: "${S3_BUCKET:-stub}"
@@ -26,7 +26,7 @@ services:
       AWS_ACCESS_KEY_ID: "${S3_ACCESS_KEY:-}"
       AWS_SECRET_ACCESS_KEY: "${S3_SECRET_KEY:-}"
       TENANT_ID: "stub"
-      ENABLE_IMAGE_TRANSFORMATION: "true"
+      ENABLE_IMAGE_TRANSFORMATION: "{{setting_storage_image_transformation}}"
       IMGPROXY_URL: "http://imgproxy:5001"
       REQUEST_ALLOW_X_FORWARDED_PATH: "true"
     healthcheck:
