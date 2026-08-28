@@ -16,6 +16,12 @@ env:
   DENO_VERSION: 2.7.14
 
 jobs:
+  # The three checks every repository owes, held once in the framework.
+  checks:
+    uses: d-fiber/scribe/.github/workflows/gate.yml@49b44ce030426789b2e9939b3413faacef57c973
+    with:
+      excluded: "node_modules .git .dart_tool __pycache__ gen examples templates fixtures .e2e"
+
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -51,25 +57,4 @@ jobs:
           deno task lint
           deno task test
 
-  headers:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - name: Check licence headers
-        run: bash .github/headers/check.sh
-
-  commits:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
-        with:
-          fetch-depth: 0
-
-      - name: Check commit messages
-        env:
-          BASE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
-          HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
-        run: bash .github/commits/check.sh "$BASE" "$HEAD"
