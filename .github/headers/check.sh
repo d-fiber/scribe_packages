@@ -38,7 +38,7 @@
 set -euo pipefail
 
 EXTENSIONS="ts tsx js mjs cjs jsx dart go c h cpp hpp cc rs java kt swift proto php py sh rb sql"
-EXCLUDED="node_modules .git .dart_tool __pycache__ gen examples templates"
+EXCLUDED="node_modules .git .dart_tool __pycache__ gen examples templates fixtures .e2e"
 SCAN_LINES=60
 
 COPYRIGHT="Copyright (C) 2026 Fiber"

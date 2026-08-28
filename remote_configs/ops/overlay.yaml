@@ -1,4 +1,4 @@
 services:
-  db:
+  provision:
     volumes:
-      - "{{sdk_root}}/packages/remote_configs/db/init:/docker-entrypoint-init-sql/modules/remote_configs:ro"
+      - "{{sdk_root}}/packages/remote_configs/db/init:/provision/modules/remote_configs:ro"

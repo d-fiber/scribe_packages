@@ -12,9 +12,9 @@ services:
     environment:
       ANON_KEY: ${ANON_KEY}
       SERVICE_KEY: ${SERVICE_KEY}
-      POSTGREST_URL: "http://rest:3000"
+      POSTGREST_URL: "{{resource_rest_url}}"
       AUTH_JWT_SECRET: ${JWT_SECRET}
-      DATABASE_URL: "postgres://supabase_storage_admin:${STORAGE_ADMIN_PASSWORD}@db:5432/postgres"
+      DATABASE_URL: "postgres://supabase_storage_admin:${STORAGE_ADMIN_PASSWORD}@{{resource_postgres_host}}:{{resource_postgres_port}}/{{resource_postgres_database}}"
       FILE_SIZE_LIMIT: "104857600"
       STORAGE_BACKEND: "${STORAGE_BACKEND:-file}"
       FILE_STORAGE_BACKEND_PATH: "/var/lib/storage"
@@ -44,8 +44,8 @@ services:
       retries: 3
       start_period: "60s"
     depends_on:
-      db:
-        condition: "service_healthy"
+      provision:
+        condition: "service_completed_successfully"
       rest:
         condition: "service_started"
       imgproxy:
@@ -69,7 +69,7 @@ services:
         "-v",
         "ON_ERROR_STOP=1",
         "-h",
-        "db",
+        "{{resource_postgres_host}}",
         "-U",
         "postgres",
         "-d",

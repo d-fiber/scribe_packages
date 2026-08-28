@@ -1,4 +1,4 @@
 services:
-  db:
+  provision:
     volumes:
-      - "{{sdk_root}}/packages/audience/db/init:/docker-entrypoint-init-sql/modules/audience:ro"
+      - "{{sdk_root}}/packages/audience/db/init:/provision/modules/audience:ro"

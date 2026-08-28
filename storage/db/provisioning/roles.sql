@@ -37,4 +37,12 @@
 
 \getenv password STORAGE_ADMIN_PASSWORD
 
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'supabase_storage_admin') THEN
+    CREATE ROLE supabase_storage_admin LOGIN NOINHERIT CREATEROLE;
+  END IF;
+END
+$$;
+
 ALTER USER supabase_storage_admin WITH PASSWORD :'password';

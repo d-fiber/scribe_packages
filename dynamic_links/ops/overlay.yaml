@@ -1,4 +1,4 @@
 services:
-  db:
+  provision:
     volumes:
-      - "{{sdk_root}}/packages/dynamic_links/db/init:/docker-entrypoint-init-sql/modules/dynamic_links:ro"
+      - "{{sdk_root}}/packages/dynamic_links/db/init:/provision/modules/dynamic_links:ro"
