@@ -59,6 +59,9 @@
           },
           {
             "context": "checks / version"
+          },
+          {
+            "context": "checks / signed"
           }
         ]
       }
