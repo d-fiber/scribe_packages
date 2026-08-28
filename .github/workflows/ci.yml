@@ -81,7 +81,12 @@ jobs:
       - name: Write what each version that moved is made of
         run: |
           set -eu
-          bash .github/version/changelog.sh
+          # One section per package, because a version here belongs to a package
+          # and not to the repository. A package whose version has not moved is
+          # told so by the script and writes nothing.
+          for manifest in */package.yaml; do
+            bash .github/version/changelog.sh "$(dirname "$manifest")"
+          done
 
           git diff --quiet && exit 0
 
