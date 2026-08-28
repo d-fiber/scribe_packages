@@ -1,0 +1,14 @@
+settings:
+  file_size_limit_mb:
+    doc: "The largest object the API accepts, in mebibytes."
+    type: integer
+    default: 100
+
+  image_transformation:
+    doc: "Whether an image may be asked for at another size, which starts imgproxy."
+    type: boolean
+    default: true
+
+requires:
+  - name: objects
+    type: bucket
