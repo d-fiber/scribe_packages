@@ -1,4 +1,4 @@
-import { type Caller, Middleware, type RateLimiter, Time } from "@scribe/sdk";
+import { Caller, Middleware, type RateLimiter, Time } from "@scribe/sdk";
 
 /**
  * Wraps every route under this node.
@@ -8,7 +8,7 @@ import { type Caller, Middleware, type RateLimiter, Time } from "@scribe/sdk";
  */
 export class ExampleBrowsing extends Middleware {
   protected override access(): Caller {
-    return "anonymous";
+    return Caller.Anonymous;
   }
 
   /**
