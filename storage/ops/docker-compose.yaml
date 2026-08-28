@@ -44,8 +44,8 @@ services:
       retries: 3
       start_period: "60s"
     depends_on:
-      db:
-        condition: "service_healthy"
+      provision:
+        condition: "service_completed_successfully"
       rest:
         condition: "service_started"
       imgproxy:
