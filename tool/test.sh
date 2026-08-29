@@ -35,48 +35,36 @@
 # This header is a summary written for convenience. Where it differs from the
 # LICENSE file, the LICENSE file governs.
 
+# Runs every package's tests: puts the packages into a scribe checkout and runs
+# the framework's own type check, lint and suite against them. This is what a
+# package resolves through, so there is no other way to check one from here.
+
 set -euo pipefail
 
 ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 SCRIBE="${SCRIBE_CHECKOUT:-${1:-$ROOT/../scribe}}"
-SCOPE="test"
 
-say() {
-  echo "[$SCOPE] $1"
-}
-
-fail() {
-  echo "[$SCOPE] $1" >&2
-  exit 1
-}
+say() { echo "[test] $1"; }
+fail() { echo "[test] $1" >&2; exit 1; }
 
 command -v deno >/dev/null 2>&1 || fail "deno is not on your PATH. Install Deno 2, then run this again."
 command -v rsync >/dev/null 2>&1 || fail "rsync is not on your PATH."
-
 [ -d "$SCRIBE/engine" ] || fail "$SCRIBE is not a scribe checkout. Name one, or set SCRIBE_CHECKOUT."
 
-cd "$ROOT"
-
-say "checking the licence headers"
-bash .github/headers/check.sh
-
 say "checking the version"
-bash .github/version/check.sh
+bash "$ROOT/.github/version/check.sh"
 
 say "copying the packages into $SCRIBE/packages"
-bash .github/sync/copy.sh "$SCRIBE/packages"
+bash "$ROOT/.github/sync/copy.sh" "$SCRIBE/packages"
 
-cd "$SCRIBE/engine"
-
+cd "$SCRIBE"
 say "type checking the framework with them"
 deno task check
-
 say "linting"
 deno lint
-
 say "running the suite"
-deno task test "$@"
+deno task test
 
 echo ""
-say "everything the CI runs is green."
+say "green: the framework type checks with these packages and its suite passes."
 say "the packages you just checked are the ones now in $SCRIBE, so commit or discard them there."

@@ -83,21 +83,12 @@ what `headers` refuses, and without the hook it refuses it after you pushed rath
 
 ### Run what you wrote
 
-Not the suite alone. If your change touches what only the real stack can answer, bring it up.
-
-`storage`, `search` and `realtime` carry a self-contained shell scenario that starts the stack, exercises it and tears it
-down:
+Not the suite alone. If your change touches what only the real stack can answer, bring it up. Every package carries a
+self-contained shell scenario that starts the stack, exercises it and tears it down:
 
 ```sh
-bash storage/tests/e2e/scenario.sh
-```
-
-The other packages render a stack and run a Deno suite against it:
-
-```sh
-bash tool/e2e/up.sh audience
-deno task test:e2e:audience    # from the scribe checkout
-bash tool/e2e/down.sh audience
+bash storage/tests/e2e/scenario.sh   # one package
+bash tool/e2e.sh                      # every package, then a sweep of whatever was left
 ```
 
 An end to end suite that was never run is a claim, not a proof, and it is the half of the testing that the CI cannot do
@@ -145,9 +136,8 @@ declared.
 Then, in the scribe checkout, the package gets one `imports` entry mapping `@scribe/<name>/` to its directory. It is not
 a `workspace` member: a member needs a `deno.json`, and a package carries none.
 
-A package's `tests/e2e/` holds either a `scenario.sh` (a self-contained shell scenario, with its copy of
-`support/stack.sh` and the `fixtures/mini/` project) or a Deno suite rendered by `tool/e2e/`. Every package carries the
-shell harness; the three that have a scenario run through it.
+A package's `tests/e2e/` holds a `scenario.sh` and its own copy of the harness: `support/stack.sh` and the
+`fixtures/mini/` project. `tool/test.sh` runs every package's suite, `tool/e2e.sh` runs every package's scenario.
 
 ## Commit messages
 

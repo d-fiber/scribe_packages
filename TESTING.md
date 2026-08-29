@@ -30,17 +30,16 @@ you are done.
 
 ```
 tests/tests/    needs nothing running        scribe test, from the package
-tests/e2e/      needs the containers up      a shell scenario, or a Deno suite against a rendered stack
+tests/e2e/      needs the containers up      bash <package>/tests/e2e/scenario.sh
 tests/testing/  is not a test at all         it is what a consumer stubs you with
 ```
 
 `tests/tests/` is where most of the proof belongs: a declaration, a key, a mapper, a refusal. No container, no clock, no
 network.
 
-`tests/e2e/` is for what only the real stack can answer: a notification that actually crosses Postgres, an object that
-actually lands in the bucket, an index that actually returns a hit. `storage`, `search` and `realtime` carry a
-`scenario.sh` that does the whole thing; the others carry a Deno suite whose files end in `.e2e.ts`, so `scribe test`
-walks past them.
+`tests/e2e/` is for what only the real stack can answer: an object that actually lands in the bucket, an index that
+actually returns a hit, a schema that actually applies to a live Postgres. Every package has a `scenario.sh` that starts
+the stack, exercises it and tears it down.
 
 `tests/testing/` is a published surface. It is documented like the rest, and its own correctness is proved by a case in
 `tests/tests/` that uses it, since somebody else's suite will.
@@ -49,20 +48,15 @@ walks past them.
 
 ## 3. Bringing the stack up
 
-For `storage`, `search` and `realtime`, one command does everything, the scenario brings its own stack up and down:
+One command per package, the scenario brings its own stack up and down:
 
 ```sh
-bash storage/tests/e2e/scenario.sh
+bash storage/tests/e2e/scenario.sh   # one package
+bash tool/e2e.sh                      # every package, then a sweep
+bash tool/e2e.sh audience             # just one, through the same runner
 ```
 
-For the others, render the stack, run the Deno suite from the scribe checkout, and take it down when you are done:
-
-```sh
-bash tool/e2e/up.sh audience
-deno task test:e2e:audience
-bash tool/e2e/down.sh audience
-bash tool/e2e/reset.sh audience     # and forget what Postgres kept
-```
+`KEEP=1` leaves the stack up after a scenario, for poking at it.
 
 An end to end test that passes against a stack somebody else left up has proved nothing about a fresh one.
 
@@ -205,8 +199,8 @@ Tested, everything passes.
 
 Yes
 tool/test.sh is green: the framework type checks with these packages and its 1064 tests pass.
-I brought up the realtime stack and ran test:e2e:realtime, 12 cases. I did not run the storage
-end to end suite, so the bucket change is unverified against a real MinIO.
+I ran bash storage/tests/e2e/scenario.sh, green. I did not run the search
+scenario, so the index change is unverified against a real OpenSearch.
 ```
 
 When something fails, report it with the real output. A failure described from memory loses exactly the detail that
@@ -217,14 +211,12 @@ would have explained it.
 ## What runs it
 
 ```sh
-bash tool/test.sh                    # headers, version, then the framework's checks with these packages
-bash .github/headers/check.sh        # the licence notice on every source file
-bash .github/version/check.sh 1.1.0  # whether that version is free to cut
-
-bash storage/tests/e2e/scenario.sh   # the whole scenario for storage, search or realtime
-bash tool/e2e/up.sh <package>        # the containers the others need, then deno task test:e2e:<package>
-bash tool/e2e/down.sh <package>
+bash tool/test.sh                    # the version check, then the framework's checks with these packages
+bash tool/e2e.sh                     # every package end to end, then a sweep
+bash storage/tests/e2e/scenario.sh   # just one
 ```
+
+The licence headers are checked by the shared gate in CI, not from here.
 
 Green on all of them is the floor, not the finish. What the suite cannot tell you is whether the thing was worth writing
 that way, and `STYLE.md` is where that gets decided.
