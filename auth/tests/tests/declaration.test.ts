@@ -33,7 +33,8 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { allOf, equals, expect, fail, isA, isTrue, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import { Duration } from "@scribe/alchemy";
 import { Failure, okay } from "@scribe/alchemy";
 import type { RequestDevice } from "@scribe/contracts/device.ts";
@@ -42,7 +43,6 @@ import { Account, SignInRefusal } from "../../lib/src/declaration/account.ts";
 import { Channel } from "../../lib/contracts/channel.ts";
 import { Optional, type ReadSelector, Required, type WriteSelector } from "../../lib/src/declaration/columns.ts";
 import { installAuthMock } from "../testing/mock.ts";
-import { assert, assertEquals, assertThrows } from "@std/assert";
 
 interface ProfileRow {
   account_id: string;
@@ -100,21 +100,20 @@ function seeded() {
   return installAuthMock({ app_user_profiles: [], app_user_settings: [] });
 }
 
-Deno.test("a role answers with the channels and the creation mode it was declared with", () => {
-  assertEquals(user.channels, [Channel.Email, Channel.Phone]);
-  assertEquals(user.autoConfirm, false, "a role that says nothing makes the holder prove what it gave");
-  assertEquals(admin.autoConfirm, true);
+Scribe.test("a role answers with the channels and the creation mode it was declared with", () => {
+  expect(user.channels, equals([Channel.Email, Channel.Phone]));
+  expect(user.autoConfirm, equals(false), "a role that says nothing makes the holder prove what it gave");
+  expect(admin.autoConfirm, equals(true));
 });
 
-Deno.test("two roles cannot take the same name", () => {
-  assertThrows(
+Scribe.test("two roles cannot take the same name", () => {
+  expect(
     () => Account("declaration-user", { channels: [Channel.Email], signUp: () => ({}), get: () => ({}) }),
-    TypeError,
-    "declared twice",
+    throwsA(allOf(isA(TypeError), withMessage("declared twice"))),
   );
 });
 
-Deno.test("a sign-up writes the account and one row per declared table", async () => {
+Scribe.test("a sign-up writes the account and one row per declared table", async () => {
   const auth = seeded();
 
   try {
@@ -126,28 +125,34 @@ Deno.test("a sign-up writes the account and one row per declared table", async (
       { id: "a1", email: "ada@example.com" },
     );
 
-    assert(written);
-    assertEquals(auth.rows("__accounts__"), [{
-      id: "a1",
-      role: "declaration-user",
-      email: "ada@example.com",
-      phone: null,
-      email_verified: false,
-      phone_verified: false,
-    }]);
-    assertEquals(auth.rows("app_user_profiles"), [{
-      account_id: "a1",
-      first_name: "Ada",
-      last_name: "Lovelace",
-      birthday: 1815,
-    }]);
-    assertEquals(auth.rows("app_user_settings"), [{ account_id: "a1", localization: "en" }]);
+    expect(written, isTrue);
+    expect(
+      auth.rows("__accounts__"),
+      equals([{
+        id: "a1",
+        role: "declaration-user",
+        email: "ada@example.com",
+        phone: null,
+        email_verified: false,
+        phone_verified: false,
+      }]),
+    );
+    expect(
+      auth.rows("app_user_profiles"),
+      equals([{
+        account_id: "a1",
+        first_name: "Ada",
+        last_name: "Lovelace",
+        birthday: 1815,
+      }]),
+    );
+    expect(auth.rows("app_user_settings"), equals([{ account_id: "a1", localization: "en" }]));
   } finally {
     auth.restore();
   }
 });
 
-Deno.test("a column the caller left out is not written at all", async () => {
+Scribe.test("a column the caller left out is not written at all", async () => {
   const auth = seeded();
 
   try {
@@ -156,47 +161,51 @@ Deno.test("a column the caller left out is not written at all", async () => {
       { id: "a2" },
     );
 
-    assertEquals(auth.rows("app_user_profiles"), [{
-      account_id: "a2",
-      first_name: "Ada",
-      last_name: "Lovelace",
-    }], "an omitted optional column is left to whatever the table defaults it to");
+    expect(
+      auth.rows("app_user_profiles"),
+      equals([{
+        account_id: "a2",
+        first_name: "Ada",
+        last_name: "Lovelace",
+      }]),
+      "an omitted optional column is left to whatever the table defaults it to",
+    );
   } finally {
     auth.restore();
   }
 });
 
-Deno.test("a role that declares nothing writes the account and nothing else", async () => {
+Scribe.test("a role that declares nothing writes the account and nothing else", async () => {
   const auth = seeded();
 
   try {
-    assert(await admin.create({}, { id: "a3", email: "root@example.com", emailVerified: true }));
-    assertEquals(auth.rows("__accounts__").length, 1);
-    assertEquals(auth.rows("app_user_profiles"), []);
+    expect(await admin.create({}, { id: "a3", email: "root@example.com", emailVerified: true }), isTrue);
+    expect(auth.rows("__accounts__").length, equals(1));
+    expect(auth.rows("app_user_profiles"), equals([]));
   } finally {
     auth.restore();
   }
 });
 
-Deno.test("a ban with no deadline stands until it is lifted", async () => {
+Scribe.test("a ban with no deadline stands until it is lifted", async () => {
   const auth = seeded();
   auth.seed("__accounts__", [{ id: "a1", role: "declaration-user" }]);
 
   try {
-    assert((await user.bans.lay("a1", { reason: "spam" })).ok);
+    expect((await user.bans.lay("a1", { reason: "spam" })).ok, isTrue);
 
     const ban = await user.bans.of("a1");
-    assertEquals(ban?.until, null, "a ban that lifts by itself has to be asked for");
-    assertEquals(ban?.reason, "spam");
+    expect(ban?.until, equals(null), "a ban that lifts by itself has to be asked for");
+    expect(ban?.reason, equals("spam"));
 
-    assert((await user.bans.lift("a1")).ok);
-    assertEquals(await user.bans.of("a1"), null);
+    expect((await user.bans.lift("a1")).ok, isTrue);
+    expect(await user.bans.of("a1"), equals(null));
   } finally {
     auth.restore();
   }
 });
 
-Deno.test("a ban whose deadline has passed stops answering", async () => {
+Scribe.test("a ban whose deadline has passed stops answering", async () => {
   const auth = seeded();
   auth.seed("__account_bans__", [{
     account_id: "a1",
@@ -206,38 +215,40 @@ Deno.test("a ban whose deadline has passed stops answering", async () => {
   }]);
 
   try {
-    assertEquals(await user.bans.of("a1"), null);
-    assertEquals(await user.bans.standing(), []);
+    expect(await user.bans.of("a1"), equals(null));
+    expect(await user.bans.standing(), equals([]));
   } finally {
     auth.restore();
   }
 });
 
-Deno.test("banning an account no role answers for is refused", async () => {
+Scribe.test("banning an account no role answers for is refused", async () => {
   const auth = seeded();
 
   try {
     const result = await user.bans.lay("nobody");
-    assert(!result.ok);
-    assertEquals(result.error, BanError.NotFound);
+    if (result.ok) fail("banning an account no role answers for must be refused");
+
+    expect(result.error, equals(BanError.NotFound));
   } finally {
     auth.restore();
   }
 });
 
-Deno.test("lifting a ban nobody laid is refused", async () => {
+Scribe.test("lifting a ban nobody laid is refused", async () => {
   const auth = seeded();
 
   try {
     const result = await user.bans.lift("a1");
-    assert(!result.ok);
-    assertEquals(result.error, BanError.NotFound);
+    if (result.ok) fail("lifting a ban nobody laid must be refused");
+
+    expect(result.error, equals(BanError.NotFound));
   } finally {
     auth.restore();
   }
 });
 
-Deno.test("a banned account is turned away before the role's own condition is asked", async () => {
+Scribe.test("a banned account is turned away before the role's own condition is asked", async () => {
   const account = {
     id: "a1",
     role: "declaration-user",
@@ -251,12 +262,12 @@ Deno.test("a banned account is turned away before the role's own condition is as
   };
 
   const result = await user.admits(account, device, location, Channel.Email);
+  if (result.ok) fail("a banned account must be turned away");
 
-  assert(!result.ok);
-  assertEquals(result.error, SignInRefusal.Banned, "the ban answers, not the onboarding condition");
+  expect(result.error, equals(SignInRefusal.Banned), "the ban answers, not the onboarding condition");
 });
 
-Deno.test("the role's own condition decides once no ban stands", async () => {
+Scribe.test("the role's own condition decides once no ban stands", async () => {
   const base = {
     id: "a1",
     role: "declaration-user",
@@ -269,8 +280,9 @@ Deno.test("the role's own condition decides once no ban stands", async () => {
   };
 
   const refused = await user.admits({ ...base, profile: null }, device, location, Channel.Email);
-  assert(!refused.ok);
-  assertEquals(refused.error, UserRefusal.Onboarding);
+  if (refused.ok) fail("an account with no profile must be refused for onboarding");
+
+  expect(refused.error, equals(UserRefusal.Onboarding));
 
   const admitted = await user.admits(
     { ...base, profile: { firstname: "Ada", avatar: null } },
@@ -278,10 +290,10 @@ Deno.test("the role's own condition decides once no ban stands", async () => {
     location,
     Channel.Email,
   );
-  assert(admitted.ok);
+  expect(admitted.ok, isTrue);
 });
 
-Deno.test("a role that declares no condition admits whatever no ban stopped", async () => {
+Scribe.test("a role that declares no condition admits whatever no ban stopped", async () => {
   const account = {
     id: "a3",
     role: "declaration-admin",
@@ -293,5 +305,5 @@ Deno.test("a role that declares no condition admits whatever no ban stopped", as
     banned: null,
   };
 
-  assert((await admin.admits(account, device, location, Channel.Email)).ok);
+  expect((await admin.admits(account, device, location, Channel.Email)).ok, isTrue);
 });

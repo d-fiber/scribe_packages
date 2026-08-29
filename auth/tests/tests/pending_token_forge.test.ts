@@ -37,46 +37,45 @@
 // The test forge re-implements the signing format so fixtures can be built
 // before the database mock exists. That duplication is only safe as long as both
 // sides stay interchangeable, which is exactly what this file checks.
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, fail, isNot, isTrue, Scribe } from "@scribe/alchemy/test";
 import { installAuthTestSettings } from "../testing/settings.ts";
 import { PendingToken, PendingTokenPurpose } from "../../lib/src/pending_token.ts";
 import { sha256Hex } from "@scribe/runtime/support/crypto/hash.ts";
 import { installAuthMock } from "../testing/mock.ts";
 import { forgeToken } from "../testing/pending_token.ts";
-import { assert, assertEquals, assertNotEquals } from "@std/assert";
-
 const IDENTIFIER = "u1@example.com";
 
 installAuthTestSettings();
 
-Deno.test("forge: a forged token is accepted by the production reader", async () => {
+Scribe.test("forge: a forged token is accepted by the production reader", async () => {
   for (const purpose of Object.values(PendingTokenPurpose)) {
     const reader = new PendingToken(purpose);
     const token = await forgeToken(IDENTIFIER, "user", { purpose });
     const payload = await reader.payload(token);
 
-    assertNotEquals(payload, null, `purpose ${purpose} must round-trip`);
-    assertEquals(payload?.identifier, IDENTIFIER);
-    assertEquals(payload?.role, "user");
+    expect(payload, isNot(equals(null)), `purpose ${purpose} must round-trip`);
+    expect(payload?.identifier, equals(IDENTIFIER));
+    expect(payload?.role, equals("user"));
   }
 });
 
-Deno.test("forge: an issued token is shaped exactly like a forged one", async () => {
+Scribe.test("forge: an issued token is shaped exactly like a forged one", async () => {
   const database = installAuthMock();
   try {
     const issued = await new PendingToken().issue(IDENTIFIER, "user", "device-1");
     const forged = await forgeToken(IDENTIFIER, "user", { deviceId: "device-1" });
+    if (issued === null) fail("issuing a token must succeed against a table that accepts the insert");
 
-    assert(issued !== null);
-    assertEquals(issued.split(".").length, forged.split(".").length);
+    expect(issued.split(".").length, equals(forged.split(".").length));
 
     const [issuedPayload, issuedSignature] = issued.split(".");
     const [forgedPayload, forgedSignature] = forged.split(".");
 
-    assertEquals(issuedSignature.length, forgedSignature.length);
-    assertEquals(
+    expect(issuedSignature.length, equals(forgedSignature.length));
+    expect(
       Object.keys(JSON.parse(atob(issuedPayload))).sort(),
-      Object.keys(JSON.parse(atob(forgedPayload))).sort(),
+      equals(Object.keys(JSON.parse(atob(forgedPayload))).sort()),
       "a new claim on either side would make every fixture silently unverifiable",
     );
   } finally {
@@ -84,30 +83,28 @@ Deno.test("forge: an issued token is shaped exactly like a forged one", async ()
   }
 });
 
-Deno.test("forge: the device binding survives the round-trip", async () => {
+Scribe.test("forge: the device binding survives the round-trip", async () => {
   const reader = new PendingToken();
 
-  assertEquals(
+  expect(
     (await reader.payload(await forgeToken(IDENTIFIER, "user", { deviceId: "device-1" })))?.deviceId,
-    "device-1",
+    equals("device-1"),
   );
-  assertEquals(
-    (await reader.payload(await forgeToken(IDENTIFIER, "user")))?.deviceId,
-    null,
-  );
+  expect((await reader.payload(await forgeToken(IDENTIFIER, "user")))?.deviceId, equals(null));
 });
 
-Deno.test("issue: the row it stores is the hash of the token it returns", async () => {
+Scribe.test("issue: the row it stores is the hash of the token it returns", async () => {
   const database = installAuthMock();
   try {
     const token = await new PendingToken().issue(IDENTIFIER, "user", null);
     const rows = database.rows("__pending_tokens__");
+    if (token === null) fail("issuing a token must succeed against a table that accepts the insert");
 
-    assert(token !== null);
-    assertEquals(rows.length, 1);
-    assertEquals(rows[0].token_hash, await sha256Hex(token));
-    assert(
+    expect(rows.length, equals(1));
+    expect(rows[0].token_hash, equals(await sha256Hex(token)));
+    expect(
       (rows[0].expires_at as number) > Date.now(),
+      isTrue,
       "an already-expired row would make the token unusable on arrival",
     );
   } finally {
@@ -115,18 +112,18 @@ Deno.test("issue: the row it stores is the hash of the token it returns", async 
   }
 });
 
-Deno.test("issue: a vpn link outlives a sign-in challenge", () => {
-  assertEquals(new PendingToken(PendingTokenPurpose.SignIn).ttlMs, 10 * 60 * 1000);
-  assertEquals(
+Scribe.test("issue: a vpn link outlives a sign-in challenge", () => {
+  expect(new PendingToken(PendingTokenPurpose.SignIn).ttlMs, equals(10 * 60 * 1000));
+  expect(
     new PendingToken(PendingTokenPurpose.VpnAccess).ttlMs,
-    4 * 60 * 60 * 1000,
+    equals(4 * 60 * 60 * 1000),
     "a mailed link survives a working half-day, not a full night",
   );
 });
 
-Deno.test("payload: an oversized token is rejected before any crypto work", async () => {
+Scribe.test("payload: an oversized token is rejected before any crypto work", async () => {
   const reader = new PendingToken();
 
-  assertEquals(await reader.payload("x".repeat(2049)), null);
-  assertEquals(await reader.payload(""), null);
+  expect(await reader.payload("x".repeat(2049)), equals(null));
+  expect(await reader.payload(""), equals(null));
 });

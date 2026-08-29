@@ -33,11 +33,11 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, isNot, Scribe } from "@scribe/alchemy/test";
 import { PendingToken, PendingTokenPurpose } from "../../lib/src/pending_token.ts";
 import { installAuthTestSettings } from "../testing/settings.ts";
 import { authSettings } from "../../lib/src/settings.ts";
-import { assertEquals, assertNotEquals } from "@std/assert";
 import { forgeToken, issueToken } from "../testing/pending_token.ts";
 import { installAuthMock } from "../testing/mock.ts";
 
@@ -69,36 +69,36 @@ async function signPayload(claims: Record<string, unknown>): Promise<string> {
 
 installAuthTestSettings();
 
-Deno.test("purpose: a password-reset token is refused by a sign-in reader", async () => {
+Scribe.test("purpose: a password-reset token is refused by a sign-in reader", async () => {
   const token = await forgeToken("+33612345678", "user", { purpose: PendingTokenPurpose.PasswordReset });
 
-  assertNotEquals(await reset.payload(token), null);
-  assertEquals(
+  expect(await reset.payload(token), isNot(equals(null)));
+  expect(
     await signIn.payload(token),
-    null,
+    equals(null),
     "PENDING_TOKEN_SECRET is shared: without the purpose check, a reset token would pass sign-in's verify-otp",
   );
 });
 
-Deno.test("purpose: a sign-in token is refused by a password-reset reader", async () => {
+Scribe.test("purpose: a sign-in token is refused by a password-reset reader", async () => {
   const token = await forgeToken("u1@example.com", "user", { purpose: PendingTokenPurpose.SignIn });
 
-  assertNotEquals(await signIn.payload(token), null);
-  assertEquals(await reset.payload(token), null);
+  expect(await signIn.payload(token), isNot(equals(null)));
+  expect(await reset.payload(token), equals(null));
 });
 
-Deno.test("purpose: the default instance stays on the sign-in purpose", async () => {
+Scribe.test("purpose: the default instance stays on the sign-in purpose", async () => {
   const token = await issueToken(
     new PendingToken(),
     "u1@example.com",
     "user",
   );
 
-  assertNotEquals(await signIn.payload(token), null);
-  assertEquals(await reset.payload(token), null);
+  expect(await signIn.payload(token), isNot(equals(null)));
+  expect(await reset.payload(token), equals(null));
 });
 
-Deno.test("purpose: a legacy payload without purpose is read as sign-in", async () => {
+Scribe.test("purpose: a legacy payload without purpose is read as sign-in", async () => {
   const legacy = await signPayload({
     identifier: "u1@example.com",
     role: "user",
@@ -107,15 +107,15 @@ Deno.test("purpose: a legacy payload without purpose is read as sign-in", async 
     exp: Date.now() + 60_000,
   });
 
-  assertNotEquals(
+  expect(
     await signIn.payload(legacy),
-    null,
+    isNot(equals(null)),
     "tokens already in flight at deploy time must keep working until they expire",
   );
-  assertEquals(await reset.payload(legacy), null);
+  expect(await reset.payload(legacy), equals(null));
 });
 
-Deno.test("purpose: swapping the purpose without re-signing is rejected", async () => {
+Scribe.test("purpose: swapping the purpose without re-signing is rejected", async () => {
   const token = await forgeToken("u1@example.com", "user", { purpose: PendingTokenPurpose.SignIn });
   const [payloadB64, signature] = token.split(".");
 
@@ -123,14 +123,14 @@ Deno.test("purpose: swapping the purpose without re-signing is rejected", async 
   decoded.purpose = PendingTokenPurpose.PasswordReset;
   const forgedB64 = btoa(JSON.stringify(decoded));
 
-  assertEquals(await reset.payload(`${forgedB64}.${signature}`), null);
-  assertEquals(await signIn.payload(`${forgedB64}.${signature}`), null);
+  expect(await reset.payload(`${forgedB64}.${signature}`), equals(null));
+  expect(await signIn.payload(`${forgedB64}.${signature}`), equals(null));
 });
 
-Deno.test("purpose: the role check still applies within one purpose", async () => {
+Scribe.test("purpose: the role check still applies within one purpose", async () => {
   const token = await forgeToken("a1@example.com", "admin", { purpose: PendingTokenPurpose.PasswordReset });
   const payload = await reset.payload(token);
 
-  assertEquals(payload?.role, "admin");
-  assertNotEquals(payload?.role, "user");
+  expect(payload?.role, equals("admin"));
+  expect(payload?.role, isNot(equals("user")));
 });

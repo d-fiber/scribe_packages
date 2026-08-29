@@ -33,27 +33,23 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { AuthValidator } from "../../lib/src/validator.ts";
-import { assertEquals } from "@std/assert";
-
-Deno.test("inbox() strips the `+` tag: same mailbox, same key", () => {
-  assertEquals(AuthValidator.email.inbox("a+promo@example.com"), "a@example.com");
-  assertEquals(AuthValidator.email.inbox("a+1+2@example.com"), "a@example.com");
-  assertEquals(AuthValidator.email.inbox("a@example.com"), "a@example.com");
+Scribe.test("inbox() strips the `+` tag: same mailbox, same key", () => {
+  expect(AuthValidator.email.inbox("a+promo@example.com"), equals("a@example.com"));
+  expect(AuthValidator.email.inbox("a+1+2@example.com"), equals("a@example.com"));
+  expect(AuthValidator.email.inbox("a@example.com"), equals("a@example.com"));
 });
 
-Deno.test("inbox() does not normalize dots (Gmail-specific)", () => {
-  assertEquals(AuthValidator.email.inbox("a.b@example.com"), "a.b@example.com");
+Scribe.test("inbox() does not normalize dots (Gmail-specific)", () => {
+  expect(AuthValidator.email.inbox("a.b@example.com"), equals("a.b@example.com"));
 });
 
-Deno.test("inbox() does not confuse a `+` in the domain", () => {
-  assertEquals(
-    AuthValidator.email.inbox("a@sub+domain.example.com"),
-    "a@sub+domain.example.com",
-  );
+Scribe.test("inbox() does not confuse a `+` in the domain", () => {
+  expect(AuthValidator.email.inbox("a@sub+domain.example.com"), equals("a@sub+domain.example.com"));
 });
 
-Deno.test("inbox() lets an input without `@` through", () => {
-  assertEquals(AuthValidator.email.inbox("not-an-address"), "not-an-address");
+Scribe.test("inbox() lets an input without `@` through", () => {
+  expect(AuthValidator.email.inbox("not-an-address"), equals("not-an-address"));
 });

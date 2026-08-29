@@ -33,7 +33,8 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import type { AccountRow } from "../../lib/contracts/account.ts";
 import {
   compileRead,
@@ -46,7 +47,6 @@ import {
   type WriteSelector,
   writeSelector,
 } from "../../lib/src/declaration/columns.ts";
-import { assertEquals } from "@std/assert";
 
 interface ProfileRow {
   account_id: string;
@@ -80,35 +80,32 @@ const write = {
   ),
 };
 
-Deno.test("a read compiles into a selection that aliases every entry to the name it was given", () => {
-  assertEquals(
-    compileRead(read),
-    "email:email,profile:app_user_profiles(firstname:first_name,avatar:avatar_url)",
-  );
+Scribe.test("a read compiles into a selection that aliases every entry to the name it was given", () => {
+  expect(compileRead(read), equals("email:email,profile:app_user_profiles(firstname:first_name,avatar:avatar_url)"));
 });
 
-Deno.test("a read answers with the names the shape gave, typed by the columns behind them", () => {
+Scribe.test("a read answers with the names the shape gave, typed by the columns behind them", () => {
   const answer: ReadOf<typeof read> = {
     email: "ada@example.com",
     profile: { firstname: "Ada", avatar: null },
   };
 
-  assertEquals(answer.profile?.firstname, "Ada");
-  assertEquals(answer.profile?.avatar, null);
+  expect(answer.profile?.firstname, equals("Ada"));
+  expect(answer.profile?.avatar, equals(null));
 });
 
-Deno.test("a folded table that answered nothing reads as null rather than as an empty row", () => {
+Scribe.test("a folded table that answered nothing reads as null rather than as an empty row", () => {
   const answer: ReadOf<typeof read> = { email: null, profile: null };
 
-  assertEquals(answer.profile, null);
+  expect(answer.profile, equals(null));
 });
 
-Deno.test("a sign-up asks for the required columns and lets the optional ones be left out", () => {
+Scribe.test("a sign-up asks for the required columns and lets the optional ones be left out", () => {
   const full: WriteOf<typeof write> = {
     profile: { firstname: "Ada", birthday: 1815 },
   };
   const partial: WriteOf<typeof write> = { profile: { firstname: "Ada" } };
 
-  assertEquals(full.profile.birthday, 1815);
-  assertEquals(partial.profile.birthday, undefined);
+  expect(full.profile.birthday, equals(1815));
+  expect(partial.profile.birthday, equals(undefined));
 });

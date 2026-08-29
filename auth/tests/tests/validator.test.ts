@@ -33,7 +33,8 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import {
   AuthValidator,
   EmailCheckStatus,
@@ -41,65 +42,30 @@ import {
   PasswordPresenceStatus,
   PhoneCheckStatus,
 } from "../../lib/src/validator.ts";
-import { assertEquals } from "@std/assert";
-
-Deno.test("presence() does not apply the policy: a weak password gets through", () => {
-  assertEquals(
-    AuthValidator.password.presence("abc"),
-    PasswordPresenceStatus.Ok,
-  );
-  assertEquals(
-    AuthValidator.password.presence("motdepasse"),
-    PasswordPresenceStatus.Ok,
-  );
+Scribe.test("presence() does not apply the policy: a weak password gets through", () => {
+  expect(AuthValidator.password.presence("abc"), equals(PasswordPresenceStatus.Ok));
+  expect(AuthValidator.password.presence("motdepasse"), equals(PasswordPresenceStatus.Ok));
 });
 
-Deno.test("presence() refuses empty input and whitespace only", () => {
-  assertEquals(
-    AuthValidator.password.presence(""),
-    PasswordPresenceStatus.Empty,
-  );
-  assertEquals(
-    AuthValidator.password.presence("   "),
-    PasswordPresenceStatus.Empty,
-  );
+Scribe.test("presence() refuses empty input and whitespace only", () => {
+  expect(AuthValidator.password.presence(""), equals(PasswordPresenceStatus.Empty));
+  expect(AuthValidator.password.presence("   "), equals(PasswordPresenceStatus.Empty));
 });
 
-Deno.test("presence() bounds the length so bcrypt never gets a huge input", () => {
-  assertEquals(
-    AuthValidator.password.presence("x".repeat(128)),
-    PasswordPresenceStatus.Ok,
-  );
-  assertEquals(
-    AuthValidator.password.presence("x".repeat(129)),
-    PasswordPresenceStatus.TooLong,
-  );
+Scribe.test("presence() bounds the length so bcrypt never gets a huge input", () => {
+  expect(AuthValidator.password.presence("x".repeat(128)), equals(PasswordPresenceStatus.Ok));
+  expect(AuthValidator.password.presence("x".repeat(129)), equals(PasswordPresenceStatus.TooLong));
 });
 
-Deno.test("check() does apply the policy, and stays reserved for sign-up", () => {
-  assertEquals(
-    AuthValidator.password.check("abc").status,
-    PasswordCheckStatus.Invalid,
-  );
-  assertEquals(
-    AuthValidator.password.check("password1").status,
-    PasswordCheckStatus.Invalid,
-  );
-  assertEquals(
-    AuthValidator.password.check("PASSWORD1").status,
-    PasswordCheckStatus.Invalid,
-  );
-  assertEquals(
-    AuthValidator.password.check("Password").status,
-    PasswordCheckStatus.Invalid,
-  );
-  assertEquals(
-    AuthValidator.password.check("Soleil2Alpha").status,
-    PasswordCheckStatus.Ok,
-  );
+Scribe.test("check() does apply the policy, and stays reserved for sign-up", () => {
+  expect(AuthValidator.password.check("abc").status, equals(PasswordCheckStatus.Invalid));
+  expect(AuthValidator.password.check("password1").status, equals(PasswordCheckStatus.Invalid));
+  expect(AuthValidator.password.check("PASSWORD1").status, equals(PasswordCheckStatus.Invalid));
+  expect(AuthValidator.password.check("Password").status, equals(PasswordCheckStatus.Invalid));
+  expect(AuthValidator.password.check("Soleil2Alpha").status, equals(PasswordCheckStatus.Ok));
 });
 
-Deno.test("check() rejects a common word dressed up to pass composition", () => {
+Scribe.test("check() rejects a common word dressed up to pass composition", () => {
   for (
     const weak of [
       "Password123",
@@ -112,15 +78,15 @@ Deno.test("check() rejects a common word dressed up to pass composition", () => 
       "P@ssword123",
     ]
   ) {
-    assertEquals(
+    expect(
       AuthValidator.password.check(weak).status,
-      PasswordCheckStatus.Invalid,
+      equals(PasswordCheckStatus.Invalid),
       `"${weak}" is a common base with a numeric tail`,
     );
   }
 });
 
-Deno.test("check() keeps a common word that is only a fragment", () => {
+Scribe.test("check() keeps a common word that is only a fragment", () => {
   for (
     const strong of [
       "Soleil2Alpha",
@@ -128,116 +94,96 @@ Deno.test("check() keeps a common word that is only a fragment", () => {
       "Qwerty4Meridian",
     ]
   ) {
-    assertEquals(
+    expect(
       AuthValidator.password.check(strong).status,
-      PasswordCheckStatus.Ok,
+      equals(PasswordCheckStatus.Ok),
       `"${strong}" carries real material past the common word`,
     );
   }
 });
 
-Deno.test("check() enforces the 10 character floor", () => {
-  assertEquals(
+Scribe.test("check() enforces the 10 character floor", () => {
+  expect(
     AuthValidator.password.check("Kavr7Nuq").status,
-    PasswordCheckStatus.Invalid,
+    equals(PasswordCheckStatus.Invalid),
     "eight characters is below the floor, however well composed",
   );
-  assertEquals(
-    AuthValidator.password.check("Kavr7Nuqel").status,
-    PasswordCheckStatus.Ok,
-  );
+  expect(AuthValidator.password.check("Kavr7Nuqel").status, equals(PasswordCheckStatus.Ok));
 });
 
-Deno.test("check() rejects known-bad passwords even when well formed", () => {
+Scribe.test("check() rejects known-bad passwords even when well formed", () => {
   for (
     const banned of ["Password123", "Azerty123", "Welcome123", "Qwerty123"]
   ) {
-    assertEquals(
+    expect(
       AuthValidator.password.check(banned).status,
-      PasswordCheckStatus.Invalid,
+      equals(PasswordCheckStatus.Invalid),
       `${banned} satisfies the character classes but is a top-list password`,
     );
   }
 });
 
-Deno.test("check() rejects repeated and sequential runs", () => {
-  assertEquals(
+Scribe.test("check() rejects repeated and sequential runs", () => {
+  expect(
     AuthValidator.password.check("Aaaaa1bcdX").status,
-    PasswordCheckStatus.Invalid,
+    equals(PasswordCheckStatus.Invalid),
     "four identical characters in a row",
   );
-  assertEquals(
+  expect(
     AuthValidator.password.check("Xy1abcdePq").status,
-    PasswordCheckStatus.Invalid,
+    equals(PasswordCheckStatus.Invalid),
     "four ascending characters in a row",
   );
-  assertEquals(
+  expect(
     AuthValidator.password.check("Xy1dcbaePq").status,
-    PasswordCheckStatus.Invalid,
+    equals(PasswordCheckStatus.Invalid),
     "four descending characters in a row",
   );
-  assertEquals(
+  expect(
     AuthValidator.password.check("Xy1abXdePq").status,
-    PasswordCheckStatus.Ok,
+    equals(PasswordCheckStatus.Ok),
     "three in a row stays acceptable, the rule targets runs of four",
   );
 });
 
-Deno.test("email: lowercased and trimmed", () => {
+Scribe.test("email: lowercased and trimmed", () => {
   const result = AuthValidator.email.check("  U1@Example.COM ");
-  assertEquals(result.status, EmailCheckStatus.Ok);
-  assertEquals(result.value, "u1@example.com");
+  expect(result.status, equals(EmailCheckStatus.Ok));
+  expect(result.value, equals("u1@example.com"));
 });
 
-Deno.test("email: invalid forms refused", () => {
+Scribe.test("email: invalid forms refused", () => {
   for (const value of ["", "   "]) {
-    assertEquals(
-      AuthValidator.email.check(value).status,
-      EmailCheckStatus.Empty,
-    );
+    expect(AuthValidator.email.check(value).status, equals(EmailCheckStatus.Empty));
   }
   for (const value of ["u1", "u1@", "@example.com", "u1@example", "a b@c.d"]) {
-    assertEquals(
-      AuthValidator.email.check(value).status,
-      EmailCheckStatus.Invalid,
-      `expected invalid : ${value}`,
-    );
+    expect(AuthValidator.email.check(value).status, equals(EmailCheckStatus.Invalid), `expected invalid : ${value}`);
   }
 });
 
-Deno.test("email: length bounded to 254", () => {
+Scribe.test("email: length bounded to 254", () => {
   const long = "a".repeat(250) + "@e.fr";
-  assertEquals(
-    AuthValidator.email.check(long).status,
-    EmailCheckStatus.Invalid,
-  );
+  expect(AuthValidator.email.check(long).status, equals(EmailCheckStatus.Invalid));
 });
 
-Deno.test("inbox() does not merge two genuinely distinct mailboxes", () => {
-  assertEquals(AuthValidator.email.inbox("a.b@example.com"), "a.b@example.com");
-  assertEquals(AuthValidator.email.inbox("a+x@example.com"), "a@example.com");
-  assertEquals(AuthValidator.email.inbox("a@b+c.com"), "a@b+c.com");
+Scribe.test("inbox() does not merge two genuinely distinct mailboxes", () => {
+  expect(AuthValidator.email.inbox("a.b@example.com"), equals("a.b@example.com"));
+  expect(AuthValidator.email.inbox("a+x@example.com"), equals("a@example.com"));
+  expect(AuthValidator.email.inbox("a@b+c.com"), equals("a@b+c.com"));
 });
 
-Deno.test("phone: international format and equivalent variants", () => {
+Scribe.test("phone: international format and equivalent variants", () => {
   const expected = AuthValidator.phone.check("+33612345678");
-  assertEquals(expected.status, PhoneCheckStatus.Ok);
+  expect(expected.status, equals(PhoneCheckStatus.Ok));
   for (
     const value of ["+33 6 12 34 56 78", "+33-6-12-34-56-78", "0033612345678"]
   ) {
-    assertEquals(
-      AuthValidator.phone.check(value).value,
-      expected.value,
-      `variant not normalized : ${value}`,
-    );
+    expect(AuthValidator.phone.check(value).value, equals(expected.value), `variant not normalized : ${value}`);
   }
 });
 
-Deno.test("phone: empty and invalid are distinguished", () => {
-  assertEquals(AuthValidator.phone.check("").status, PhoneCheckStatus.Empty);
-  assertEquals(AuthValidator.phone.check("   ").status, PhoneCheckStatus.Empty);
-  assertEquals(
-    AuthValidator.phone.check("123").status,
-    PhoneCheckStatus.Invalid,
-  );
+Scribe.test("phone: empty and invalid are distinguished", () => {
+  expect(AuthValidator.phone.check("").status, equals(PhoneCheckStatus.Empty));
+  expect(AuthValidator.phone.check("   ").status, equals(PhoneCheckStatus.Empty));
+  expect(AuthValidator.phone.check("123").status, equals(PhoneCheckStatus.Invalid));
 });

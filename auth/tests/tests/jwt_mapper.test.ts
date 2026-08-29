@@ -33,11 +33,11 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { AuthMapper } from "../../lib/src/gotrue/mappers.ts";
 import { installAuthTestSettings } from "../testing/settings.ts";
 import { authSettings } from "../../lib/src/settings.ts";
-import { assertEquals } from "@std/assert";
 
 function base64Url(value: string): string {
   return btoa(value).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -74,25 +74,25 @@ async function jwt(
 
 installAuthTestSettings();
 
-Deno.test("a valid admin token resolves to the admin role", async () => {
+Scribe.test("a valid admin token resolves to the admin role", async () => {
   const token = await jwt({
     sub: "admin-1",
     exp: HOUR_AHEAD(),
     app_metadata: { role: "admin" },
   });
-  assertEquals(await AuthMapper.jwt.accountRole(token), "admin");
+  expect(await AuthMapper.jwt.accountRole(token), equals("admin"));
 });
 
-Deno.test("a valid token without the admin claim resolves to the user role", async () => {
+Scribe.test("a valid token without the admin claim resolves to the user role", async () => {
   const token = await jwt({
     sub: "user-1",
     exp: HOUR_AHEAD(),
     app_metadata: { role: "user" },
   });
-  assertEquals(await AuthMapper.jwt.accountRole(token), "user");
+  expect(await AuthMapper.jwt.accountRole(token), equals("user"));
 });
 
-Deno.test("a tampered payload is rejected: the signature no longer matches", async () => {
+Scribe.test("a tampered payload is rejected: the signature no longer matches", async () => {
   const token = await jwt({
     sub: "user-1",
     exp: HOUR_AHEAD(),
@@ -103,48 +103,48 @@ Deno.test("a tampered payload is rejected: the signature no longer matches", asy
     JSON.stringify({ sub: "user-1", exp: HOUR_AHEAD(), app_metadata: { role: "admin" } }),
   );
 
-  assertEquals(await AuthMapper.jwt.accountRole(`${header}.${forged}.${signature}`), null);
+  expect(await AuthMapper.jwt.accountRole(`${header}.${forged}.${signature}`), equals(null));
 });
 
-Deno.test("the `none` algorithm is refused, signature or not", async () => {
+Scribe.test("the `none` algorithm is refused, signature or not", async () => {
   const header = base64Url(JSON.stringify({ alg: "none", typ: "JWT" }));
   const payload = base64Url(
     JSON.stringify({ sub: "a", exp: HOUR_AHEAD(), app_metadata: { role: "admin" } }),
   );
 
-  assertEquals(await AuthMapper.jwt.accountRole(`${header}.${payload}.`), null);
-  assertEquals(await AuthMapper.jwt.accountRole(`${header}.${payload}.anything`), null);
+  expect(await AuthMapper.jwt.accountRole(`${header}.${payload}.`), equals(null));
+  expect(await AuthMapper.jwt.accountRole(`${header}.${payload}.anything`), equals(null));
 });
 
-Deno.test("an algorithm other than HS256 is refused even when correctly signed", async () => {
+Scribe.test("an algorithm other than HS256 is refused even when correctly signed", async () => {
   const token = await jwt(
     { sub: "a", exp: HOUR_AHEAD(), app_metadata: { role: "admin" } },
     { alg: "HS512", typ: "JWT" },
   );
-  assertEquals(await AuthMapper.jwt.accountRole(token), null);
+  expect(await AuthMapper.jwt.accountRole(token), equals(null));
 });
 
-Deno.test("an expired token is refused", async () => {
+Scribe.test("an expired token is refused", async () => {
   const token = await jwt({
     sub: "a",
     exp: HOUR_AGO(),
     app_metadata: { role: "admin" },
   });
-  assertEquals(await AuthMapper.jwt.accountRole(token), null);
+  expect(await AuthMapper.jwt.accountRole(token), equals(null));
 });
 
-Deno.test("a token without exp is refused", async () => {
+Scribe.test("a token without exp is refused", async () => {
   const token = await jwt({ sub: "a", app_metadata: { role: "admin" } });
-  assertEquals(await AuthMapper.jwt.accountRole(token), null);
+  expect(await AuthMapper.jwt.accountRole(token), equals(null));
 });
 
-Deno.test("a malformed token is refused without throwing", async () => {
+Scribe.test("a malformed token is refused without throwing", async () => {
   for (const value of ["", "abc", "a.b", "a.b.c", "..", "....."]) {
-    assertEquals(await AuthMapper.jwt.accountRole(value), null, `refused: ${value}`);
+    expect(await AuthMapper.jwt.accountRole(value), equals(null), `refused: ${value}`);
   }
 });
 
-Deno.test("a token signed with another secret is refused", async () => {
+Scribe.test("a token signed with another secret is refused", async () => {
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode("another-secret"),
@@ -164,68 +164,71 @@ Deno.test("a token signed with another secret is refused", async () => {
   const signature = btoa(String.fromCharCode(...new Uint8Array(raw)))
     .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 
-  assertEquals(await AuthMapper.jwt.accountRole(`${header}.${payload}.${signature}`), null);
+  expect(await AuthMapper.jwt.accountRole(`${header}.${payload}.${signature}`), equals(null));
 });
 
-Deno.test("expiresInUnverified never returns a negative delay", async () => {
-  assertEquals(AuthMapper.jwt.expiresInUnverified(await jwt({ exp: HOUR_AGO() })), 0);
-  assertEquals(AuthMapper.jwt.expiresInUnverified("garbage"), 0);
+Scribe.test("expiresInUnverified never returns a negative delay", async () => {
+  expect(AuthMapper.jwt.expiresInUnverified(await jwt({ exp: HOUR_AGO() })), equals(0));
+  expect(AuthMapper.jwt.expiresInUnverified("garbage"), equals(0));
   const ahead = AuthMapper.jwt.expiresInUnverified(await jwt({ exp: HOUR_AHEAD() }));
-  assertEquals(ahead > 3500 && ahead <= 3600, true);
+  expect(ahead > 3500 && ahead <= 3600, equals(true));
 });
 
-Deno.test("account() returns both the subject and the role", async () => {
+Scribe.test("account() returns both the subject and the role", async () => {
   const token = await jwt({
     sub: "user-42",
     exp: HOUR_AHEAD(),
     app_metadata: { role: "user" },
   });
 
-  assertEquals(await AuthMapper.jwt.account(token), {
-    userId: "user-42",
-    role: "user",
-  });
+  expect(
+    await AuthMapper.jwt.account(token),
+    equals({
+      userId: "user-42",
+      role: "user",
+    }),
+  );
 });
 
-Deno.test("account() carries the admin role too", async () => {
+Scribe.test("account() carries the admin role too", async () => {
   const token = await jwt({
     sub: "admin-7",
     exp: HOUR_AHEAD(),
     app_metadata: { role: "admin" },
   });
 
-  assertEquals(await AuthMapper.jwt.account(token), {
-    userId: "admin-7",
-    role: "admin",
-  });
+  expect(
+    await AuthMapper.jwt.account(token),
+    equals({
+      userId: "admin-7",
+      role: "admin",
+    }),
+  );
 });
 
-Deno.test("account() refuses a token without a subject", async () => {
+Scribe.test("account() refuses a token without a subject", async () => {
   const token = await jwt({ exp: HOUR_AHEAD(), app_metadata: { role: "user" } });
-  assertEquals(await AuthMapper.jwt.account(token), null);
+  expect(await AuthMapper.jwt.account(token), equals(null));
 });
 
-Deno.test("account() applies the same guards as accountRole", async () => {
+Scribe.test("account() applies the same guards as accountRole", async () => {
   const expired = await jwt({ sub: "user-1", exp: HOUR_AGO() });
   const wrongAlg = await jwt(
     { sub: "user-1", exp: HOUR_AHEAD() },
     { alg: "none", typ: "JWT" },
   );
 
-  assertEquals(await AuthMapper.jwt.account(expired), null);
-  assertEquals(await AuthMapper.jwt.account(wrongAlg), null);
-  assertEquals(await AuthMapper.jwt.account("garbage"), null);
+  expect(await AuthMapper.jwt.account(expired), equals(null));
+  expect(await AuthMapper.jwt.account(wrongAlg), equals(null));
+  expect(await AuthMapper.jwt.account("garbage"), equals(null));
 });
 
-Deno.test("accountRole stays consistent with account()", async () => {
+Scribe.test("accountRole stays consistent with account()", async () => {
   const token = await jwt({
     sub: "user-9",
     exp: HOUR_AHEAD(),
     app_metadata: { role: "admin" },
   });
 
-  assertEquals(
-    await AuthMapper.jwt.accountRole(token),
-    (await AuthMapper.jwt.account(token))?.role,
-  );
+  expect(await AuthMapper.jwt.accountRole(token), equals((await AuthMapper.jwt.account(token))?.role ?? null));
 });

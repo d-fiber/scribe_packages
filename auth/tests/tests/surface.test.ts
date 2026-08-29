@@ -33,11 +33,11 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, isFalse, isTrue, Scribe } from "@scribe/alchemy/test";
 import { Account } from "../../lib/src/declaration/account.ts";
 import { Channel } from "../../lib/contracts/channel.ts";
 import { Optional, type ReadSelector, Required, type WriteSelector } from "../../lib/src/declaration/columns.ts";
-import { assert, assertEquals, assertFalse } from "@std/assert";
 
 interface ProfileRow {
   account_id: string;
@@ -70,30 +70,30 @@ function doors(surface: object): string[] {
   return Object.keys(surface).sort();
 }
 
-Deno.test("a sign-up offers exactly the doors the role declared", () => {
-  assertEquals(doors(user.signUp), ["email", "google", "phone"]);
-  assertEquals(doors(operator.signUp), ["email"]);
+Scribe.test("a sign-up offers exactly the doors the role declared", () => {
+  expect(doors(user.signUp), equals(["email", "google", "phone"]));
+  expect(doors(operator.signUp), equals(["email"]));
 });
 
-Deno.test("a sign-in offers exactly the doors the role declared", () => {
-  assertEquals(doors(user.signIn), ["email", "google", "phone"]);
-  assertEquals(doors(operator.signIn), ["email"]);
+Scribe.test("a sign-in offers exactly the doors the role declared", () => {
+  expect(doors(user.signIn), equals(["email", "google", "phone"]));
+  expect(doors(operator.signIn), equals(["email"]));
 });
 
-Deno.test("only the doors that send a code carry the code exchange", () => {
-  assert("verify" in user.signIn.email, "an address is proven by a code when the device is new");
-  assert("resend" in user.signIn.phone, "a number is proven by a code");
-  assertFalse("verify" in user.signIn.google, "an identity another provider vouched for needs no code");
+Scribe.test("only the doors that send a code carry the code exchange", () => {
+  expect("verify" in user.signIn.email, isTrue, "an address is proven by a code when the device is new");
+  expect("resend" in user.signIn.phone, isTrue, "a number is proven by a code");
+  expect("verify" in user.signIn.google, isFalse);
 });
 
-Deno.test("a role carries its own reset, and shares the session and the password", () => {
-  assertEquals(typeof user.resetPassword.complete, "function");
-  assertEquals(typeof user.session.refresh, "function");
-  assertEquals(typeof user.password.update, "function");
-  assertEquals(typeof user.identifier.email, "function");
+Scribe.test("a role carries its own reset, and shares the session and the password", () => {
+  expect(typeof user.resetPassword.complete, equals("function"));
+  expect(typeof user.session.refresh, equals("function"));
+  expect(typeof user.password.update, equals("function"));
+  expect(typeof user.identifier.email, equals("function"));
 });
 
-Deno.test("a role that auto-confirms serves without a proof coming back", () => {
-  assertEquals(operator.autoConfirm, true);
-  assertEquals(user.autoConfirm, false);
+Scribe.test("a role that auto-confirms serves without a proof coming back", () => {
+  expect(operator.autoConfirm, equals(true));
+  expect(user.autoConfirm, equals(false));
 });

@@ -33,7 +33,8 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, fail, isTrue, Scribe } from "@scribe/alchemy/test";
 import { fakeDevice, withRequest } from "@scribe/testing/runtime/device.ts";
 import { installAuthTestSettings } from "../testing/settings.ts";
 import { Channel } from "../../lib/contracts/channel.ts";
@@ -44,8 +45,6 @@ import { AccountRevocation } from "../../lib/src/revocation.ts";
 import { devices } from "../../lib/src/devices/devices.ts";
 import { installAuthMock } from "../testing/mock.ts";
 import { installMock } from "@scribe/testing/install.ts";
-import { assert, assertEquals } from "@std/assert";
-
 installAuthTestSettings();
 
 const DOOR: AccountRole = "member";
@@ -100,15 +99,13 @@ function door(answer: unknown, registers: string | null = "the-device-token") {
 function openChallenge(challenge: OtpChallenge): Promise<string> {
   return withRequest(fakeDevice(), async () => {
     const started = await challenge.start(IDENTIFIER);
-    assert(
-      started.ok,
-      "the challenge has to open before anything can be verified",
-    );
+    if (!started.ok) fail("the challenge has to open before anything can be verified");
+
     return started.data.pendingToken;
   });
 }
 
-Deno.test("otp: a session the identity service says holds another role is refused, and revoked", async () => {
+Scribe.test("otp: a session the identity service says holds another role is refused, and revoked", async () => {
   const stand = door(sessionFor("administrator"));
 
   try {
@@ -118,11 +115,11 @@ Deno.test("otp: a session the identity service says holds another role is refuse
       () => stand.challenge.verify(token, CODE),
     );
 
-    assertEquals(answer.ok, false);
-    assertEquals(answer.ok ? null : answer.error, OtpError.InvalidOrExpired);
-    assertEquals(
+    expect(answer.ok, equals(false));
+    expect(answer.ok ? null : answer.error, equals(OtpError.InvalidOrExpired));
+    expect(
       stand.revoked,
-      ["the-access-token"],
+      equals(["the-access-token"]),
       "the session was already minted by the identity service, so refusing without revoking leaves a usable one behind",
     );
   } finally {
@@ -130,7 +127,7 @@ Deno.test("otp: a session the identity service says holds another role is refuse
   }
 });
 
-Deno.test("otp: a pending token is spent once, and a second use is refused at the door", async () => {
+Scribe.test("otp: a pending token is spent once, and a second use is refused at the door", async () => {
   const stand = door(sessionFor(DOOR));
 
   try {
@@ -139,18 +136,18 @@ Deno.test("otp: a pending token is spent once, and a second use is refused at th
       fakeDevice(),
       () => stand.challenge.verify(token, CODE),
     );
-    assert(first.ok, "the first exchange is the one that works");
+    expect(first.ok, isTrue, "the first exchange is the one that works");
 
     const second = await withRequest(
       fakeDevice(),
       () => stand.challenge.verify(token, CODE),
     );
 
-    assertEquals(second.ok, false);
-    assertEquals(second.ok ? null : second.error, OtpError.InvalidOrExpired);
-    assertEquals(
+    expect(second.ok, equals(false));
+    expect(second.ok ? null : second.error, equals(OtpError.InvalidOrExpired));
+    expect(
       stand.revoked,
-      [],
+      equals([]),
       "a spent token is refused at the door, before a second session is ever minted: there is nothing to revoke because nothing was handed out",
     );
   } finally {
@@ -158,7 +155,7 @@ Deno.test("otp: a pending token is spent once, and a second use is refused at th
   }
 });
 
-Deno.test("otp: a device that could not be registered hands over no session", async () => {
+Scribe.test("otp: a device that could not be registered hands over no session", async () => {
   const stand = door(sessionFor(DOOR), null);
 
   try {
@@ -168,9 +165,9 @@ Deno.test("otp: a device that could not be registered hands over no session", as
       () => stand.challenge.verify(token, CODE),
     );
 
-    assertEquals(answer.ok, false);
-    assertEquals(answer.ok ? null : answer.error, OtpError.Unexpected);
-    assertEquals(stand.revoked, ["the-access-token"]);
+    expect(answer.ok, equals(false));
+    expect(answer.ok ? null : answer.error, equals(OtpError.Unexpected));
+    expect(stand.revoked, equals(["the-access-token"]));
   } finally {
     stand.restore();
   }
