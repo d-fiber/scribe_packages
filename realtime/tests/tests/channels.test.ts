@@ -33,8 +33,8 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
-import { assertEquals, assertThrows } from "@std/assert";
+import "@scribe/testing/runner.ts";
+import { allOf, equals, expect, isA, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import { Realtime } from "@scribe/realtime";
 
 interface Order {
@@ -46,43 +46,40 @@ const ACCOUNT = "11111111-1111-1111-1111-111111111111";
 
 const order = Realtime.granted<Order>("shape_order", { key: "orderId" });
 
-Deno.test("the broadcast channel is the declared name, bare", () => {
-  assertEquals(order.all.channel, "shape_order");
+Scribe.test("the broadcast channel is the declared name, bare", () => {
+  expect(order.all.channel, equals("shape_order"));
 });
 
-Deno.test("an account channel carries the account after a colon", () => {
-  assertEquals(order.to(ACCOUNT).channel, `shape_order:${ACCOUNT}`);
+Scribe.test("an account channel carries the account after a colon", () => {
+  expect(order.to(ACCOUNT).channel, equals(`shape_order:${ACCOUNT}`));
 });
 
-Deno.test("a topic channel is marked so it can never look like an account", () => {
-  assertEquals(order.topic("seller").channel, "shape_order:#seller");
+Scribe.test("a topic channel is marked so it can never look like an account", () => {
+  expect(order.topic("seller").channel, equals("shape_order:#seller"));
 });
 
-Deno.test("narrowing an account channel keeps the account in second place", () => {
-  assertEquals(
-    order.to(ACCOUNT).topic("warehouse").channel,
-    `shape_order:${ACCOUNT}:warehouse`,
-  );
+Scribe.test("narrowing an account channel keeps the account in second place", () => {
+  expect(order.to(ACCOUNT).topic("warehouse").channel, equals(`shape_order:${ACCOUNT}:warehouse`));
 });
 
-Deno.test("the second part of a topic channel never matches an account", () => {
+Scribe.test("the second part of a topic channel never matches an account", () => {
   const parts = order.topic("seller").channel.split(":");
-  assertEquals(parts[1].startsWith("#"), true);
+  expect(parts[1].startsWith("#"), equals(true));
 });
 
-Deno.test("two declarations never reach the same channel", () => {
+Scribe.test("two declarations never reach the same channel", () => {
   const other = Realtime.granted<Order>("shape_invoice", { key: "orderId" });
-  assertEquals(order.topic("seller").channel === other.topic("seller").channel, false);
+  expect(order.topic("seller").channel === other.topic("seller").channel, equals(false));
 });
 
-Deno.test("a topic with a colon in it is refused", () => {
-  assertThrows(() => order.topic("a:b"), TypeError, "is not a usable name");
+Scribe.test("a topic with a colon in it is refused", () => {
+  expect(() => order.topic("a:b"), throwsA(allOf(isA(TypeError), withMessage("is not a usable name"))));
 });
 
-Deno.test("a topic longer than 64 characters is refused", () => {
-  assertThrows(() => order.topic("t".repeat(65)), TypeError, "is not a usable name");
+Scribe.test("a topic longer than 64 characters is refused", () => {
+  expect(() => order.topic("t".repeat(65)), throwsA(allOf(isA(TypeError), withMessage("is not a usable name"))));
 });
 
-Deno.test("a topic is refused on an account channel too", () => {
-  assertThrows(() => order.to(ACCOUNT).topic("a b"), TypeError, "is not a usable name");
+Scribe.test("a topic is refused on an account channel too", () => {
+  expect(() => order.to(ACCOUNT).topic("a b"), throwsA(allOf(isA(TypeError), withMessage("is not a usable name"))));
 });

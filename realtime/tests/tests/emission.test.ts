@@ -33,8 +33,8 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
-import { assertEquals, assertThrows } from "@std/assert";
+import "@scribe/testing/runner.ts";
+import { allOf, equals, expect, isA, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import { Realtime } from "@scribe/realtime";
 import { installRealtimeMock } from "../testing/mock.ts";
 
@@ -48,63 +48,66 @@ const ROW: Order = { orderId: "o-1", total: 42 };
 
 const order = Realtime.granted<Order>("emit_order", { key: "orderId" });
 
-Deno.test("the three actions travel under the names they are called by", async () => {
+Scribe.test("the three actions travel under the names they are called by", async () => {
   const sent = installRealtimeMock();
 
   await order.all.insert(ROW);
   await order.all.update(ROW);
   await order.all.delete(ROW);
 
-  assertEquals(sent.rows.map((row) => row.action), ["insert", "update", "delete"]);
+  expect(sent.rows.map((row) => row.action), equals(["insert", "update", "delete"]));
   sent.restore();
 });
 
-Deno.test("an action of the project's own choosing travels as it was written", async () => {
+Scribe.test("an action of the project's own choosing travels as it was written", async () => {
   const sent = installRealtimeMock();
 
   await order.all.emit("shipped", ROW);
 
-  assertEquals(sent.rows[0].action, "shipped");
+  expect(sent.rows[0].action, equals("shipped"));
   sent.restore();
 });
 
-Deno.test("an action that is not snake case is refused before anything is sent", () => {
+Scribe.test("an action that is not snake case is refused before anything is sent", () => {
   const sent = installRealtimeMock();
 
-  assertThrows(() => order.all.emit("Shipped", ROW), TypeError, "must be lowercase snake_case");
-  assertEquals(sent.rows.length, 0);
+  expect(
+    () => order.all.emit("Shipped", ROW),
+    throwsA(allOf(isA(TypeError), withMessage("must be lowercase snake_case"))),
+  );
+  expect(sent.rows.length, equals(0));
   sent.restore();
 });
 
-Deno.test("the whole payload travels, not only its identifier", async () => {
-  const sent = installRealtimeMock();
-
-  await order.all.update(ROW);
-
-  assertEquals(sent.rows[0].payload, { orderId: "o-1", total: 42 });
-  sent.restore();
-});
-
-Deno.test("the identifier is pulled from the field the declaration named", async () => {
+Scribe.test("the whole payload travels, not only its identifier", async () => {
   const sent = installRealtimeMock();
 
   await order.all.update(ROW);
 
-  assertEquals(sent.rows[0].entityId, "o-1");
+  expect(sent.rows[0].payload, equals({ orderId: "o-1", total: 42 }));
   sent.restore();
 });
 
-Deno.test("a payload whose identifier is empty is dropped instead of sent", async () => {
+Scribe.test("the identifier is pulled from the field the declaration named", async () => {
+  const sent = installRealtimeMock();
+
+  await order.all.update(ROW);
+
+  expect(sent.rows[0].entityId, equals("o-1"));
+  sent.restore();
+});
+
+Scribe.test("a payload whose identifier is empty is dropped instead of sent", async () => {
   const sent = installRealtimeMock();
 
   const left = await order.all.update({ orderId: "", total: 1 });
 
-  assertEquals(left, false);
-  assertEquals(sent.rows.length, 0);
+  expect(left, equals(false));
+  expect(sent.rows.length, equals(0));
   sent.restore();
 });
 
-Deno.test("each destination addresses its own channel", async () => {
+Scribe.test("each destination addresses its own channel", async () => {
   const sent = installRealtimeMock();
 
   await order.all.update(ROW);
@@ -112,25 +115,28 @@ Deno.test("each destination addresses its own channel", async () => {
   await order.topic("seller").update(ROW);
   await order.to(ACCOUNT).topic("warehouse").update(ROW);
 
-  assertEquals(sent.rows.map((row) => row.channel), [
-    "emit_order",
-    `emit_order:${ACCOUNT}`,
-    "emit_order:#seller",
-    `emit_order:${ACCOUNT}:warehouse`,
-  ]);
+  expect(
+    sent.rows.map((row) => row.channel),
+    equals([
+      "emit_order",
+      `emit_order:${ACCOUNT}`,
+      "emit_order:#seller",
+      `emit_order:${ACCOUNT}:warehouse`,
+    ]),
+  );
   sent.restore();
 });
 
-Deno.test("what the transport answers is what the caller sees", async () => {
+Scribe.test("what the transport answers is what the caller sees", async () => {
   const refused = installRealtimeMock(false);
 
-  assertEquals(await order.all.update(ROW), false);
+  expect(await order.all.update(ROW), equals(false));
   refused.restore();
 });
 
-Deno.test("an emission with no transport registered is dropped, never thrown", async () => {
+Scribe.test("an emission with no transport registered is dropped, never thrown", async () => {
   const sent = installRealtimeMock();
   sent.restore();
 
-  assertEquals(await order.all.update(ROW), false);
+  expect(await order.all.update(ROW), equals(false));
 });

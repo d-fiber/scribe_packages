@@ -33,23 +33,23 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
-import { assertEquals } from "@std/assert";
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { isValidTopic } from "@scribe/realtime";
 
-Deno.test("a topic accepts letters, digits, underscore and dash", () => {
-  assertEquals(isValidTopic("seller"), true);
-  assertEquals(isValidTopic("Seller_2-b"), true);
+Scribe.test("a topic accepts letters, digits, underscore and dash", () => {
+  expect(isValidTopic("seller"), equals(true));
+  expect(isValidTopic("Seller_2-b"), equals(true));
 });
 
-Deno.test("a topic refuses what would split a channel", () => {
-  assertEquals(isValidTopic("a:b"), false);
-  assertEquals(isValidTopic("a b"), false);
-  assertEquals(isValidTopic("#seller"), false);
-  assertEquals(isValidTopic(""), false);
+Scribe.test("a topic refuses what would split a channel", () => {
+  expect(isValidTopic("a:b"), equals(false));
+  expect(isValidTopic("a b"), equals(false));
+  expect(isValidTopic("#seller"), equals(false));
+  expect(isValidTopic(""), equals(false));
 });
 
-Deno.test("a topic stops at 64 characters, matching the SQL check", () => {
-  assertEquals(isValidTopic("t".repeat(64)), true);
-  assertEquals(isValidTopic("t".repeat(65)), false);
+Scribe.test("a topic stops at 64 characters, matching the SQL check", () => {
+  expect(isValidTopic("t".repeat(64)), equals(true));
+  expect(isValidTopic("t".repeat(65)), equals(false));
 });

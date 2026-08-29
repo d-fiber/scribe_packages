@@ -33,8 +33,8 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
-import { assertEquals } from "@std/assert";
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { Realtime } from "@scribe/realtime";
 import { installRealtimeMock } from "../testing/mock.ts";
 
@@ -44,27 +44,27 @@ interface Item {
 
 const item = Realtime.granted<Item>("mock_item");
 
-Deno.test("the recording transport keeps every row in the order it was sent", async () => {
+Scribe.test("the recording transport keeps every row in the order it was sent", async () => {
   const sent = installRealtimeMock();
 
   await item.all.insert({ id: "a" });
   await item.all.insert({ id: "b" });
 
-  assertEquals(sent.rows.map((row) => row.entityId), ["a", "b"]);
+  expect(sent.rows.map((row) => row.entityId), equals(["a", "b"]));
   sent.restore();
 });
 
-Deno.test("the recording transport filters by channel", async () => {
+Scribe.test("the recording transport filters by channel", async () => {
   const sent = installRealtimeMock();
 
   await item.all.insert({ id: "a" });
   await item.topic("seller").insert({ id: "b" });
 
-  assertEquals(sent.on("mock_item:#seller").map((row) => row.entityId), ["b"]);
+  expect(sent.on("mock_item:#seller").map((row) => row.entityId), equals(["b"]));
   sent.restore();
 });
 
-Deno.test("restoring puts back the transport that was there before", async () => {
+Scribe.test("restoring puts back the transport that was there before", async () => {
   const first = installRealtimeMock();
   const second = installRealtimeMock();
 
@@ -72,7 +72,7 @@ Deno.test("restoring puts back the transport that was there before", async () =>
   second.restore();
   await item.all.insert({ id: "b" });
 
-  assertEquals(second.rows.map((row) => row.entityId), ["a"]);
-  assertEquals(first.rows.map((row) => row.entityId), ["b"]);
+  expect(second.rows.map((row) => row.entityId), equals(["a"]));
+  expect(first.rows.map((row) => row.entityId), equals(["b"]));
   first.restore();
 });

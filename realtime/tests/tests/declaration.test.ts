@@ -33,8 +33,8 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
-import { assertEquals, assertThrows } from "@std/assert";
+import "@scribe/testing/runner.ts";
+import { allOf, equals, expect, isA, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import { Listen, Realtime } from "@scribe/realtime";
 
 interface Order {
@@ -47,48 +47,45 @@ interface Keyed {
   label: string;
 }
 
-Deno.test("a declaration keeps the name it was given", () => {
-  assertEquals(Realtime.granted<Order>("order", { key: "orderId" }).name, "order");
+Scribe.test("a declaration keeps the name it was given", () => {
+  expect(Realtime.granted<Order>("order", { key: "orderId" }).name, equals("order"));
 });
 
-Deno.test("each factory carries its own openness", () => {
-  assertEquals(Realtime.public<Keyed>("public_one").listen, Listen.Public);
-  assertEquals(Realtime.authenticated<Keyed>("open_one").listen, Listen.Authenticated);
-  assertEquals(Realtime.granted<Keyed>("closed_one").listen, Listen.Granted);
+Scribe.test("each factory carries its own openness", () => {
+  expect(Realtime.public<Keyed>("public_one").listen, equals(Listen.Public));
+  expect(Realtime.authenticated<Keyed>("open_one").listen, equals(Listen.Authenticated));
+  expect(Realtime.granted<Keyed>("closed_one").listen, equals(Listen.Granted));
 });
 
-Deno.test("a declaration with no key falls back to id", () => {
+Scribe.test("a declaration with no key falls back to id", () => {
   const channel = Realtime.public<Keyed>("fallback_key");
-  assertEquals(channel.all.channel, "fallback_key");
+  expect(channel.all.channel, equals("fallback_key"));
 });
 
-Deno.test("a name that is not snake case is refused at the declaration", () => {
-  assertThrows(
+Scribe.test("a name that is not snake case is refused at the declaration", () => {
+  expect(
     () => Realtime.granted<Keyed>("Order"),
-    TypeError,
-    "must be lowercase snake_case",
+    throwsA(allOf(isA(TypeError), withMessage("must be lowercase snake_case"))),
   );
 });
 
-Deno.test("a name longer than 64 characters is refused", () => {
-  assertThrows(
+Scribe.test("a name longer than 64 characters is refused", () => {
+  expect(
     () => Realtime.granted<Keyed>("o".repeat(65)),
-    TypeError,
-    "exceeds 64 characters",
+    throwsA(allOf(isA(TypeError), withMessage("exceeds 64 characters"))),
   );
 });
 
-Deno.test("the same name declared twice with the same openness is accepted", () => {
+Scribe.test("the same name declared twice with the same openness is accepted", () => {
   Realtime.granted<Keyed>("declared_twice_same");
   Realtime.granted<Keyed>("declared_twice_same");
 });
 
-Deno.test("the same name declared twice with two opennesses is refused", () => {
+Scribe.test("the same name declared twice with two opennesses is refused", () => {
   Realtime.granted<Keyed>("declared_twice_apart");
 
-  assertThrows(
+  expect(
     () => Realtime.public<Keyed>("declared_twice_apart"),
-    TypeError,
-    "is declared twice",
+    throwsA(allOf(isA(TypeError), withMessage("is declared twice"))),
   );
 });
