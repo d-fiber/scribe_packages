@@ -33,12 +33,12 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
-import { Duration } from "@scribe/alchemy";
+import "@scribe/testing/runner.ts";
+import { allOf, equals, expect, having, isA, isTrue, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
+import { Duration, Failure } from "@scribe/alchemy";
 import { ConfigError } from "../../lib/contracts/config.ts";
 import { RemoteConfig } from "../../lib/src/core/declaration.ts";
 import { installRemoteConfigsMock } from "../testing/mock.ts";
-import { assert, assertEquals, assertThrows } from "@std/assert";
 
 interface Example {
   readonly firstname: string;
@@ -53,77 +53,77 @@ const key2 = RemoteConfig.of<string>("declaration-key2", { ttl: Duration.hours(2
 const key3 = RemoteConfig.of<Example>("declaration-key3");
 const forever = RemoteConfig.of<number>("declaration-forever");
 
-Deno.test("a config nothing was written to answers its declared value, or null", async () => {
+Scribe.test("a config nothing was written to answers its declared value, or null", async () => {
   const database = installRemoteConfigsMock();
 
   try {
-    assertEquals(await key1.get(), BLANK);
-    assertEquals(await key2.get(), null);
-    assertEquals(await key3.get(), null);
-    assertEquals(database.values().length, 0, "reading must write nothing");
+    expect(await key1.get(), equals(BLANK));
+    expect(await key2.get(), equals(null));
+    expect(await key3.get(), equals(null));
+    expect(database.values().length, equals(0), "reading must write nothing");
   } finally {
     database.restore();
   }
 });
 
-Deno.test("set writes the value, and reading it back answers it", async () => {
+Scribe.test("set writes the value, and reading it back answers it", async () => {
   const database = installRemoteConfigsMock();
 
   try {
     const written = await key1.set(ADA);
 
-    assert(written.ok, "writing must succeed against a table that accepts the insert");
-    assertEquals(await key1.get(), ADA);
-    assertEquals(database.values().length, 1);
-    assertEquals(database.values()[0].name, "declaration-key1");
+    expect(written.ok, isTrue, "writing must succeed against a table that accepts the insert");
+    expect(await key1.get(), equals(ADA));
+    expect(database.values().length, equals(1));
+    expect(database.values()[0].name, equals("declaration-key1"));
   } finally {
     database.restore();
   }
 });
 
-Deno.test("set called twice updates the row instead of writing a second one", async () => {
+Scribe.test("set called twice updates the row instead of writing a second one", async () => {
   const database = installRemoteConfigsMock();
 
   try {
     await key1.set(ADA);
     await key1.set({ firstname: "Grace", lastname: "Hopper" });
 
-    assertEquals(database.values().length, 1, "a second write on the same name must be an update");
-    assertEquals(await key1.get(), { firstname: "Grace", lastname: "Hopper" });
+    expect(database.values().length, equals(1), "a second write on the same name must be an update");
+    expect(await key1.get(), equals({ firstname: "Grace", lastname: "Hopper" }));
   } finally {
     database.restore();
   }
 });
 
-Deno.test("delete takes the value away, and the declared value comes back", async () => {
+Scribe.test("delete takes the value away, and the declared value comes back", async () => {
   const database = installRemoteConfigsMock();
 
   try {
     await key1.set(ADA);
     const removed = await key1.delete();
 
-    assert(removed.ok);
-    assertEquals(await key1.get(), BLANK);
-    assertEquals(await key3.get(), null, "a config with no declared value answers null once emptied");
-    assertEquals(database.values().length, 0);
+    expect(removed.ok, isTrue);
+    expect(await key1.get(), equals(BLANK));
+    expect(await key3.get(), equals(null), "a config with no declared value answers null once emptied");
+    expect(database.values().length, equals(0));
   } finally {
     database.restore();
   }
 });
 
-Deno.test("deleting a config that holds nothing is not a failure", async () => {
+Scribe.test("deleting a config that holds nothing is not a failure", async () => {
   const database = installRemoteConfigsMock();
 
   try {
     const removed = await key2.delete();
 
-    assert(removed.ok, "there is no name to get wrong, so there is nothing to report");
+    expect(removed.ok, isTrue, "there is no name to get wrong, so there is nothing to report");
   } finally {
     database.restore();
   }
 });
 
-Deno.test("a value written past its ttl answers as an empty table does", async () => {
+Scribe.test("a value written past its ttl answers as an empty table does", async () => {
   const database = installRemoteConfigsMock({
     __remote_configs__: [{
       name: "declaration-key1",
@@ -135,13 +135,13 @@ Deno.test("a value written past its ttl answers as an empty table does", async (
   });
 
   try {
-    assertEquals(await key1.get(), BLANK);
+    expect(await key1.get(), equals(BLANK));
   } finally {
     database.restore();
   }
 });
 
-Deno.test("a declaration ttl decides how long a written value lives", async () => {
+Scribe.test("a declaration ttl decides how long a written value lives", async () => {
   const database = installRemoteConfigsMock();
 
   try {
@@ -149,40 +149,44 @@ Deno.test("a declaration ttl decides how long a written value lives", async () =
     await key1.set(ADA);
 
     const written = database.values()[0].expires_at as number;
-    assert(written >= before + Duration.hours(2).inMilliseconds, `the declared ttl must be carried: ${written}`);
+    expect(
+      written >= before + Duration.hours(2).inMilliseconds,
+      isTrue,
+      `the declared ttl must be carried: ${written}`,
+    );
   } finally {
     database.restore();
   }
 });
 
-Deno.test("a config declared with no ttl holds its value forever", async () => {
+Scribe.test("a config declared with no ttl holds its value forever", async () => {
   const database = installRemoteConfigsMock();
 
   try {
     await forever.set(25);
 
-    assertEquals(database.values()[0].expires_at, null);
+    expect(database.values()[0].expires_at, equals(null));
   } finally {
     database.restore();
   }
 });
 
-Deno.test("set names its own ttl over the declaration's, and null outlives it", async () => {
+Scribe.test("set names its own ttl over the declaration's, and null outlives it", async () => {
   const database = installRemoteConfigsMock();
 
   try {
     await key1.set(ADA, { ttl: Duration.minutes(5) });
     const short = database.values()[0].expires_at as number;
-    assert(short < Date.now() + Duration.hours(1).inMilliseconds, `the caller's ttl must win: ${short}`);
+    expect(short < Date.now() + Duration.hours(1).inMilliseconds, isTrue, `the caller's ttl must win: ${short}`);
 
     await key1.set(ADA, { ttl: null });
-    assertEquals(database.values()[0].expires_at, null);
+    expect(database.values()[0].expires_at, equals(null));
   } finally {
     database.restore();
   }
 });
 
-Deno.test("ttl moves when a value is dropped without touching the value", async () => {
+Scribe.test("ttl moves when a value is dropped without touching the value", async () => {
   const database = installRemoteConfigsMock();
 
   try {
@@ -191,47 +195,45 @@ Deno.test("ttl moves when a value is dropped without touching the value", async 
 
     const retimed = await key1.ttl(Duration.hours(5));
 
-    assert(retimed.ok);
+    expect(retimed.ok, isTrue);
     const after = database.values()[0].expires_at as number;
-    assert(after > before, `retiming must push the expiry out: ${before} then ${after}`);
-    assertEquals(await key1.get(), ADA, "the value must be left alone");
+    expect(after > before, isTrue, `retiming must push the expiry out: ${before} then ${after}`);
+    expect(await key1.get(), equals(ADA), "the value must be left alone");
   } finally {
     database.restore();
   }
 });
 
-Deno.test("ttl null makes a value that was expiring stop expiring", async () => {
+Scribe.test("ttl null makes a value that was expiring stop expiring", async () => {
   const database = installRemoteConfigsMock();
 
   try {
     await key1.set(ADA, { ttl: Duration.minutes(5) });
     await key1.ttl(null);
 
-    assertEquals(database.values()[0].expires_at, null);
+    expect(database.values()[0].expires_at, equals(null));
   } finally {
     database.restore();
   }
 });
 
-Deno.test("retiming a config that holds nothing answers not found", async () => {
+Scribe.test("retiming a config that holds nothing answers not found", async () => {
   const database = installRemoteConfigsMock();
 
   try {
     const retimed = await key2.ttl(Duration.hours(5));
 
-    assert(!retimed.ok);
-    assertEquals(retimed.error, ConfigError.NotFound);
+    expect(retimed, having(isA(Failure), (r) => r.error, "error", equals(ConfigError.NotFound)));
   } finally {
     database.restore();
   }
 });
 
-Deno.test("two declarations taking the same name refuse to load", () => {
+Scribe.test("two declarations taking the same name refuse to load", () => {
   RemoteConfig.of<string>("declaration-twice");
 
-  assertThrows(
+  expect(
     () => RemoteConfig.of<number>("declaration-twice"),
-    TypeError,
-    "declaration-twice",
+    throwsA(allOf(isA(TypeError), withMessage("declaration-twice"))),
   );
 });

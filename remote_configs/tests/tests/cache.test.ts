@@ -34,66 +34,67 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import "@scribe/testing/runner.ts";
 import { Duration } from "@scribe/alchemy";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { RemoteConfig } from "../../lib/src/core/declaration.ts";
 import { forgetValue } from "../../lib/src/runtime/cache.ts";
 import { installRemoteConfigsMock } from "../testing/mock.ts";
-import { assertEquals } from "@std/assert";
 
 const motd = RemoteConfig.of<string>("cache-motd", { default: "quiet" });
 
-Deno.test("a config read once is answered from the cache until something drops it", async () => {
+Scribe.test("a config read once is answered from the cache until something drops it", async () => {
   const database = installRemoteConfigsMock();
 
   try {
-    assertEquals(await motd.get(), "quiet");
+    expect(await motd.get(), equals("quiet"));
 
     database.seed([{ name: "cache-motd", value: "loud", created_at: 1, updated_at: 1, expires_at: null }]);
-    assertEquals(await motd.get(), "quiet", "a row written behind the package must not be seen at once");
+    expect(await motd.get(), equals("quiet"), "a row written behind the package must not be seen at once");
 
     await forgetValue("cache-motd");
-    assertEquals(await motd.get(), "loud");
+    expect(await motd.get(), equals("loud"));
   } finally {
     database.restore();
   }
 });
 
-Deno.test("writing a value that was already read is seen by the next read", async () => {
+Scribe.test("writing a value that was already read is seen by the next read", async () => {
   const database = installRemoteConfigsMock();
 
   try {
-    assertEquals(await motd.get(), "quiet");
+    expect(await motd.get(), equals("quiet"));
 
     await motd.set("loud");
-    assertEquals(await motd.get(), "loud", "writing must drop what the cache holds");
+    expect(await motd.get(), equals("loud"), "writing must drop what the cache holds");
   } finally {
     database.restore();
   }
 });
 
-Deno.test("deleting a value that was already read is seen by the next read", async () => {
+Scribe.test("deleting a value that was already read is seen by the next read", async () => {
   const database = installRemoteConfigsMock();
 
   try {
     await motd.set("loud");
-    assertEquals(await motd.get(), "loud");
+    expect(await motd.get(), equals("loud"));
 
     await motd.delete();
-    assertEquals(await motd.get(), "quiet");
+    expect(await motd.get(), equals("quiet"));
   } finally {
     database.restore();
   }
 });
 
-Deno.test("retiming a value that was already read is seen by the next read", async () => {
+Scribe.test("retiming a value that was already read is seen by the next read", async () => {
   const database = installRemoteConfigsMock();
 
   try {
     await motd.set("loud", { ttl: Duration.minutes(5) });
-    assertEquals(await motd.get(), "loud");
+    expect(await motd.get(), equals("loud"));
 
     await motd.ttl(null);
-    assertEquals(await motd.get(), "loud", "the value must survive the retiming");
+    expect(await motd.get(), equals("loud"), "the value must survive the retiming");
   } finally {
     database.restore();
   }
