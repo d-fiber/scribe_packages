@@ -33,7 +33,8 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, fail, isFalse, isTrue, Scribe } from "@scribe/alchemy/test";
 import { LinkError, LinkOutcome, LinkPlatform } from "../../lib/contracts/link.ts";
 import { DynamicLink } from "../../lib/src/core/declaration.ts";
 import { DestinationKind, type Visit } from "../../lib/src/core/destination.ts";
@@ -43,7 +44,6 @@ import { resolveLink } from "../../lib/src/runtime/resolve.ts";
 import { installDynamicLinksMock } from "../testing/mock.ts";
 import { installMock } from "@scribe/testing/install.ts";
 import type { Row } from "@scribe/foundation/testing";
-import { assert, assertEquals } from "@std/assert";
 
 interface Party {
   partyId: string;
@@ -73,42 +73,45 @@ function row(overrides: Row = {}): Row {
   };
 }
 
-Deno.test("a resolved link answers the destination and the preview of its declaration", async () => {
+Scribe.test("a resolved link answers the destination and the preview of its declaration", async () => {
   const database = installDynamicLinksMock({ __dynamic_links__: [row()] });
 
   try {
     const resolved = await resolveLink("abcdefghij");
+    if (!resolved.ok) fail("a seeded slug must resolve");
 
-    assert(resolved.ok, "a seeded slug must resolve");
-    assertEquals(resolved.data.name, "resolve-party");
-    assertEquals(resolved.data.destination(VISIT), {
-      kind: DestinationKind.App,
-      path: "/party/42",
-      fallback: { kind: DestinationKind.Store },
-    });
-    assertEquals(resolved.data.preview("fr"), null);
+    expect(resolved.data.name, equals("resolve-party"));
+    expect(
+      resolved.data.destination(VISIT),
+      equals({
+        kind: DestinationKind.App,
+        path: "/party/42",
+        fallback: { kind: DestinationKind.Store },
+      }),
+    );
+    expect(resolved.data.preview("fr"), equals(null));
   } finally {
     database.restore();
   }
 });
 
-Deno.test("declaredBy answers for the declaration that wrote the link", async () => {
+Scribe.test("declaredBy answers for the declaration that wrote the link", async () => {
   const other = DynamicLink.deeplink<{ id: string }>("resolve-other", { path: "/other/{id}" });
   const database = installDynamicLinksMock({ __dynamic_links__: [row()] });
 
   try {
     const resolved = await resolveLink("abcdefghij");
+    if (!resolved.ok) fail("a seeded slug must resolve");
 
-    assert(resolved.ok);
-    assert(resolved.data.declaredBy(party));
-    assertEquals(resolved.data.data.partyId, "42");
-    assert(!resolved.data.declaredBy(other));
+    expect(resolved.data.declaredBy(party), isTrue);
+    expect(resolved.data.data.partyId, equals("42"));
+    expect(resolved.data.declaredBy(other), isFalse);
   } finally {
     database.restore();
   }
 });
 
-Deno.test("a slug is loaded once, then answered from the cache", async () => {
+Scribe.test("a slug is loaded once, then answered from the cache", async () => {
   const database = installDynamicLinksMock({ __dynamic_links__: [row({ slug: "cachedslug" })] });
 
   try {
@@ -116,15 +119,16 @@ Deno.test("a slug is loaded once, then answered from the cache", async () => {
     database.seed("__dynamic_links__", []);
     const second = await resolveLink("cachedslug");
 
-    assert(first.ok);
-    assert(second.ok, "the second resolution must come from the cache, not from the table");
-    assertEquals(second.data.slug, "cachedslug");
+    expect(first.ok, isTrue);
+    if (!second.ok) fail("the second resolution must come from the cache, not from the table");
+
+    expect(second.data.slug, equals("cachedslug"));
   } finally {
     database.restore();
   }
 });
 
-Deno.test("a slug nobody created is cached as absent", async () => {
+Scribe.test("a slug nobody created is cached as absent", async () => {
   const database = installDynamicLinksMock();
 
   try {
@@ -132,45 +136,46 @@ Deno.test("a slug nobody created is cached as absent", async () => {
     database.seed("__dynamic_links__", [row({ slug: "nothinghere" })]);
     const second = await resolveLink("nothinghere");
 
-    assert(!first.ok);
-    assertEquals(first.error, LinkError.NotFound);
-    assert(!second.ok, "an absence must be cached too, otherwise a scanner reaches the table each time");
+    if (first.ok) fail("a slug nobody created must not resolve");
+
+    expect(first.error, equals(LinkError.NotFound));
+    expect(second.ok, isFalse, "an absence must be cached too, otherwise a scanner reaches the table each time");
   } finally {
     database.restore();
   }
 });
 
-Deno.test("a link past its expiry answers expired rather than not found", async () => {
+Scribe.test("a link past its expiry answers expired rather than not found", async () => {
   const database = installDynamicLinksMock({
     __dynamic_links__: [row({ slug: "expiredslu", expires_at: Date.now() - 1 })],
   });
 
   try {
     const resolved = await resolveLink("expiredslu");
+    if (resolved.ok) fail("a link past its expiry must not resolve");
 
-    assert(!resolved.ok);
-    assertEquals(resolved.error, LinkError.Expired);
+    expect(resolved.error, equals(LinkError.Expired));
   } finally {
     database.restore();
   }
 });
 
-Deno.test("a link naming a declaration this process has not loaded answers unknown", async () => {
+Scribe.test("a link naming a declaration this process has not loaded answers unknown", async () => {
   const database = installDynamicLinksMock({
     __dynamic_links__: [row({ slug: "strangers", payload: { k: "nobody-declared-this", a: {} } })],
   });
 
   try {
     const resolved = await resolveLink("strangers");
+    if (resolved.ok) fail("a link naming an undeclared declaration must not resolve");
 
-    assert(!resolved.ok);
-    assertEquals(resolved.error, LinkError.Unknown);
+    expect(resolved.error, equals(LinkError.Unknown));
   } finally {
     database.restore();
   }
 });
 
-Deno.test("recording a visit enqueues it instead of writing it on the request path", async () => {
+Scribe.test("recording a visit enqueues it instead of writing it on the request path", async () => {
   const pushed: RecordedVisit[] = [];
   const queue = installMock(
     dynamicLinkStatisticsQueue,
@@ -184,31 +189,34 @@ Deno.test("recording a visit enqueues it instead of writing it on the request pa
 
   try {
     const resolved = await resolveLink("recordslug");
-    assert(resolved.ok);
+    if (!resolved.ok) fail("a seeded slug must resolve");
 
     await resolved.data.record(LinkOutcome.OpenedApp, { platform: LinkPlatform.IOS });
 
-    assertEquals(pushed, [{
-      linkId: 1,
-      outcome: LinkOutcome.OpenedApp,
-      visitor: { platform: LinkPlatform.IOS },
-    }]);
-    assertEquals(database.statistics().length, 0, "serving a link must not wait for its measurement");
+    expect(
+      pushed,
+      equals([{
+        linkId: 1,
+        outcome: LinkOutcome.OpenedApp,
+        visitor: { platform: LinkPlatform.IOS },
+      }]),
+    );
+    expect(database.statistics().length, equals(0), "serving a link must not wait for its measurement");
   } finally {
     database.restore();
     queue.restore();
   }
 });
 
-Deno.test("a preview rule answers in the language the visitor announced", async () => {
+Scribe.test("a preview rule answers in the language the visitor announced", async () => {
   const database = installDynamicLinksMock({ __dynamic_links__: [row()] });
   onLinkPreview((link, locale) => ({ title: `${locale}:${link.name}:${link.data.partyId}` }));
 
   try {
     const resolved = await resolveLink("abcdefghij");
+    if (!resolved.ok) fail("a seeded slug must resolve");
 
-    assert(resolved.ok);
-    assertEquals(resolved.data.preview("fr"), { title: "fr:resolve-party:42" });
+    expect(resolved.data.preview("fr"), equals({ title: "fr:resolve-party:42" }));
   } finally {
     onLinkPreview(null);
     database.restore();

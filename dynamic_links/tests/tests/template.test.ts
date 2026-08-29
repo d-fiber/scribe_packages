@@ -33,53 +33,48 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { allOf, equals, expect, isA, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import { LinkTemplate, LinkTemplateError } from "../../lib/src/core/template.ts";
-import { assertEquals, assertThrows } from "@std/assert";
-
-Deno.test("a template names its placeholders in the order it writes them", () => {
+Scribe.test("a template names its placeholders in the order it writes them", () => {
   const template = new LinkTemplate("/party/{partyId}/invite/{code}");
 
-  assertEquals(template.names, ["partyId", "code"]);
+  expect(template.names, equals(["partyId", "code"]));
 });
 
-Deno.test("rendering writes each parameter where its placeholder was", () => {
+Scribe.test("rendering writes each parameter where its placeholder was", () => {
   const template = new LinkTemplate("/invite/{code}");
 
-  assertEquals(template.render({ code: "A1B2" }), "/invite/A1B2");
+  expect(template.render({ code: "A1B2" }), equals("/invite/A1B2"));
 });
 
-Deno.test("a parameter is escaped, so it cannot open a second address", () => {
+Scribe.test("a parameter is escaped, so it cannot open a second address", () => {
   const template = new LinkTemplate("https://example.test/go/{target}");
 
-  assertEquals(
+  expect(
     template.render({ target: "https://evil.test/x" }),
-    "https://example.test/go/https%3A%2F%2Fevil.test%2Fx",
+    equals("https://example.test/go/https%3A%2F%2Fevil.test%2Fx"),
   );
 });
 
-Deno.test("a missing parameter renders nothing rather than an address with a hole", () => {
+Scribe.test("a missing parameter renders nothing rather than an address with a hole", () => {
   const template = new LinkTemplate("/invite/{code}");
 
-  assertEquals(template.render({}), null);
-  assertEquals(template.render({ code: "" }), null);
+  expect(template.render({}), equals(null));
+  expect(template.render({ code: "" }), equals(null));
 });
 
-Deno.test("a template refuses to write the same placeholder twice", () => {
-  assertThrows(
-    () => new LinkTemplate("/{code}/again/{code}"),
-    LinkTemplateError,
-    "twice",
-  );
+Scribe.test("a template refuses to write the same placeholder twice", () => {
+  expect(() => new LinkTemplate("/{code}/again/{code}"), throwsA(allOf(isA(LinkTemplateError), withMessage("twice"))));
 });
 
-Deno.test("an empty template is refused", () => {
-  assertThrows(() => new LinkTemplate(""), LinkTemplateError, "is empty");
+Scribe.test("an empty template is refused", () => {
+  expect(() => new LinkTemplate(""), throwsA(allOf(isA(LinkTemplateError), withMessage("is empty"))));
 });
 
-Deno.test("a template without a placeholder accepts any parameters", () => {
+Scribe.test("a template without a placeholder accepts any parameters", () => {
   const template = new LinkTemplate("/home");
 
-  assertEquals(template.names, []);
-  assertEquals(template.render({}), "/home");
+  expect(template.names, equals([]));
+  expect(template.render({}), equals("/home"));
 });

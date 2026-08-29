@@ -33,22 +33,21 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, fail, Scribe } from "@scribe/alchemy/test";
 import { LinkOutcome, LinkPlatform } from "../../lib/contracts/link.ts";
 import type { RecordedVisit } from "../../lib/src/db/statistics.ts";
 import { installDynamicLinksMock } from "../testing/mock.ts";
 import type { BatchHandler } from "@scribe/foundation/queue";
 import { queueRegistry } from "@scribe/foundation/queue";
-import { assert, assertEquals } from "@std/assert";
-
 import "../../lib/src/db/statistics.ts";
 
 const QUEUE_NAME = "dynamic-link-statistics";
 
 function drain(): BatchHandler<RecordedVisit> {
   const registered = queueRegistry.get(QUEUE_NAME);
-  assert(registered, `${QUEUE_NAME} must be registered by importing the module that declares it`);
-  assertEquals(registered.mode, "batch");
+  if (!registered) fail(`${QUEUE_NAME} must be registered by importing the module that declares it`);
+  expect(registered.mode, equals("batch"));
   return registered.handler as BatchHandler<RecordedVisit>;
 }
 
@@ -56,7 +55,7 @@ function visit(overrides: Partial<RecordedVisit> = {}): RecordedVisit {
   return { linkId: 1, outcome: LinkOutcome.Served, visitor: {}, ...overrides };
 }
 
-Deno.test("a group of visits is written by one insert", async () => {
+Scribe.test("a group of visits is written by one insert", async () => {
   const database = installDynamicLinksMock();
 
   try {
@@ -66,40 +65,40 @@ Deno.test("a group of visits is written by one insert", async () => {
     ]);
 
     const rows = database.statistics();
-    assertEquals(rows.length, 2);
-    assertEquals(rows[0].link_id, 1);
-    assertEquals(rows[0].outcome, LinkOutcome.Served);
-    assertEquals(rows[1].platform, LinkPlatform.Web);
+    expect(rows.length, equals(2));
+    expect(rows[0].link_id, equals(1));
+    expect(rows[0].outcome, equals(LinkOutcome.Served));
+    expect(rows[1].platform, equals(LinkPlatform.Web));
   } finally {
     database.restore();
   }
 });
 
-Deno.test("what the visitor did not announce is written as absent", async () => {
+Scribe.test("what the visitor did not announce is written as absent", async () => {
   const database = installDynamicLinksMock();
 
   try {
     await drain()([visit({ visitor: { userId: "user-1" } })]);
 
     const row = database.statistics()[0];
-    assertEquals(row.user_id, "user-1");
-    assertEquals(row.device_id, null);
-    assertEquals(row.ip_address, null);
-    assertEquals(row.user_agent, null);
-    assertEquals(row.referer, null);
-    assertEquals(row.platform, null);
+    expect(row.user_id, equals("user-1"));
+    expect(row.device_id, equals(null));
+    expect(row.ip_address, equals(null));
+    expect(row.user_agent, equals(null));
+    expect(row.referer, equals(null));
+    expect(row.platform, equals(null));
   } finally {
     database.restore();
   }
 });
 
-Deno.test("an empty group writes nothing", async () => {
+Scribe.test("an empty group writes nothing", async () => {
   const database = installDynamicLinksMock();
 
   try {
     await drain()([]);
 
-    assertEquals(database.statistics().length, 0);
+    expect(database.statistics().length, equals(0));
   } finally {
     database.restore();
   }
