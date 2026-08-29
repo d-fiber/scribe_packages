@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 import "@scribe/testing/runner.ts";
-import { allOf, equals, expect, having, isA, isTrue, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
-import { Duration, Failure } from "@scribe/alchemy";
+import { allOf, equals, expect, fail, isA, isTrue, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
+import { Duration } from "@scribe/alchemy";
 import { ConfigError } from "../../lib/contracts/config.ts";
 import { RemoteConfig } from "../../lib/src/core/declaration.ts";
 import { installRemoteConfigsMock } from "../testing/mock.ts";
@@ -222,8 +222,9 @@ Scribe.test("retiming a config that holds nothing answers not found", async () =
 
   try {
     const retimed = await key2.ttl(Duration.hours(5));
+    if (retimed.ok) fail("there is no name to get right, so there is nothing to retime");
 
-    expect(retimed, having(isA(Failure), (r) => r.error, "error", equals(ConfigError.NotFound)));
+    expect(retimed.error, equals(ConfigError.NotFound));
   } finally {
     database.restore();
   }
