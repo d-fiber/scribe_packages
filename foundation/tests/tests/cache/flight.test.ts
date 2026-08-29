@@ -32,13 +32,13 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, expectLater, isNotNull, isTrue, Scribe, throwsA } from "@scribe/alchemy/test";
 import { Duration } from "@scribe/alchemy";
 import { installDrivers } from "../../testing/drivers.ts";
 import type { DistributedLock, LockOutcome } from "../../../lib/src/cache/lock/distributed_lock.ts";
 import { DistributedFlight } from "../../../lib/src/cache/flight/distributed_flight.ts";
 import { LocalFlight } from "../../../lib/src/cache/flight/local_flight.ts";
-import { assert, assertEquals, assertRejects } from "@std/assert";
 
 class ScriptedLock {
   released: string[] = [];
@@ -72,7 +72,7 @@ function deferred<T>(): { promise: Promise<T>; resolve: (v: T) => void } {
 
 installDrivers();
 
-Deno.test("LocalFlight runs one computation for concurrent callers of a key", async () => {
+Scribe.test("LocalFlight runs one computation for concurrent callers of a key", async () => {
   const local = new LocalFlight();
   const gate = deferred<string>();
   let computed = 0;
@@ -87,14 +87,14 @@ Deno.test("LocalFlight runs one computation for concurrent callers of a key", as
     local.run("k", compute),
     local.run("k", compute),
   ]);
-  assertEquals(local.size, 1, "three callers should share one flight");
+  expect(local.size, equals(1), "three callers should share one flight");
 
   gate.resolve("value");
-  assertEquals(await all, ["value", "value", "value"]);
-  assertEquals(computed, 1);
+  expect(await all, equals(["value", "value", "value"]));
+  expect(computed, equals(1));
 });
 
-Deno.test("LocalFlight keeps distinct keys apart", async () => {
+Scribe.test("LocalFlight keeps distinct keys apart", async () => {
   const local = new LocalFlight();
   const seen: string[] = [];
 
@@ -109,21 +109,21 @@ Deno.test("LocalFlight keeps distinct keys apart", async () => {
     }),
   ]);
 
-  assertEquals(seen.sort(), ["a", "b"]);
+  expect(seen.sort(), equals(["a", "b"]));
 });
 
-Deno.test("LocalFlight forgets a settled key so the next caller computes again", async () => {
+Scribe.test("LocalFlight forgets a settled key so the next caller computes again", async () => {
   const local = new LocalFlight();
   let computed = 0;
 
   await local.run("k", () => Promise.resolve(++computed));
-  assertEquals(local.size, 0, "a settled flight must not be retained");
+  expect(local.size, equals(0), "a settled flight must not be retained");
 
   await local.run("k", () => Promise.resolve(++computed));
-  assertEquals(computed, 2);
+  expect(computed, equals(2));
 });
 
-Deno.test("LocalFlight shares a rejection, then lets the next caller retry", async () => {
+Scribe.test("LocalFlight shares a rejection, then lets the next caller retry", async () => {
   const local = new LocalFlight();
   let attempts = 0;
 
@@ -135,15 +135,15 @@ Deno.test("LocalFlight shares a rejection, then lets the next caller retry", asy
   const first = local.run("k", failing);
   const joined = local.run("k", failing);
 
-  await assertRejects(() => first);
-  await assertRejects(() => joined);
-  assertEquals(attempts, 1, "the joiner should share the failure, not repeat it");
-  assertEquals(local.size, 0, "a rejected flight must not be retained");
+  await expectLater(() => first, throwsA(isNotNull));
+  await expectLater(() => joined, throwsA(isNotNull));
+  expect(attempts, equals(1), "the joiner should share the failure, not repeat it");
+  expect(local.size, equals(0), "a rejected flight must not be retained");
 
-  assertEquals(await local.run("k", () => Promise.resolve("ok")), "ok");
+  expect(await local.run("k", () => Promise.resolve("ok")), equals("ok"));
 });
 
-Deno.test("DistributedFlight computes and releases when it wins the lock", async () => {
+Scribe.test("DistributedFlight computes and releases when it wins the lock", async () => {
   const lock = new ScriptedLock([{ state: "acquired", token: "t1" }]);
   const gaveUp: string[] = [];
 
@@ -155,12 +155,12 @@ Deno.test("DistributedFlight computes and releases when it wins the lock", async
     Duration.seconds(8),
   );
 
-  assertEquals(value, "computed");
-  assertEquals(lock.released, ["lock:id"]);
-  assertEquals(gaveUp, []);
+  expect(value, equals("computed"));
+  expect(lock.released, equals(["lock:id"]));
+  expect(gaveUp, equals([]));
 });
 
-Deno.test("DistributedFlight releases the lock even if the computation throws", async () => {
+Scribe.test("DistributedFlight releases the lock even if the computation throws", async () => {
   const lock = new ScriptedLock([{ state: "acquired", token: "t1" }]);
   const gaveUp: string[] = [];
 
@@ -174,10 +174,10 @@ Deno.test("DistributedFlight releases the lock even if the computation throws", 
     )
     .catch(() => {});
 
-  assertEquals(lock.released, ["lock:id"]);
+  expect(lock.released, equals(["lock:id"]));
 });
 
-Deno.test("DistributedFlight reads back the winner's value instead of computing twice", async () => {
+Scribe.test("DistributedFlight reads back the winner's value instead of computing twice", async () => {
   const lock = new ScriptedLock([{ state: "held" }]);
   const gaveUp: string[] = [];
   let computed = 0;
@@ -194,12 +194,12 @@ Deno.test("DistributedFlight reads back the winner's value instead of computing 
     Duration.seconds(8),
   );
 
-  assertEquals(value, "from winner");
-  assertEquals(computed, 0);
-  assertEquals(gaveUp, []);
+  expect(value, equals("from winner"));
+  expect(computed, equals(0));
+  expect(gaveUp, equals([]));
 });
 
-Deno.test("DistributedFlight computes without the lock when acquiring errors", async () => {
+Scribe.test("DistributedFlight computes without the lock when acquiring errors", async () => {
   const lock = new ScriptedLock([{ state: "error" }]);
   const gaveUp: string[] = [];
 
@@ -211,12 +211,12 @@ Deno.test("DistributedFlight computes without the lock when acquiring errors", a
     Duration.seconds(8),
   );
 
-  assertEquals(value, "fallback");
-  assertEquals(gaveUp, ["id"]);
-  assert(lock.released.length === 0);
+  expect(value, equals("fallback"));
+  expect(gaveUp, equals(["id"]));
+  expect(lock.released.length === 0, isTrue);
 });
 
-Deno.test("attempt() runs the refresh when it wins, and releases", async () => {
+Scribe.test("attempt() runs the refresh when it wins, and releases", async () => {
   const lock = new ScriptedLock([{ state: "acquired", token: "t1" }]);
 
   const value = await flight(lock, []).attempt(
@@ -224,11 +224,11 @@ Deno.test("attempt() runs the refresh when it wins, and releases", async () => {
     () => Promise.resolve("refreshed"),
   );
 
-  assertEquals(value, "refreshed");
-  assertEquals(lock.released, ["lock:id"]);
+  expect(value, equals("refreshed"));
+  expect(lock.released, equals(["lock:id"]));
 });
 
-Deno.test("attempt() gives up at once when another replica holds the lock", async () => {
+Scribe.test("attempt() gives up at once when another replica holds the lock", async () => {
   const lock = new ScriptedLock([{ state: "held" }]);
   let computed = 0;
 
@@ -237,12 +237,12 @@ Deno.test("attempt() gives up at once when another replica holds the lock", asyn
     return Promise.resolve("refreshed");
   });
 
-  assertEquals(value, null, "a refresh must never wait, the old value is still good");
-  assertEquals(computed, 0);
-  assertEquals(lock.acquired, 1, "it must not poll");
+  expect(value, equals(null), "a refresh must never wait, the old value is still good");
+  expect(computed, equals(0));
+  expect(lock.acquired, equals(1), "it must not poll");
 });
 
-Deno.test("DistributedFlight stops waiting when the caller's budget runs out, not when the lease does", async () => {
+Scribe.test("DistributedFlight stops waiting when the caller's budget runs out, not when the lease does", async () => {
   const lock = new ScriptedLock([]);
   const gaveUp: string[] = [];
   const value = await flight(lock, gaveUp).run(
@@ -253,10 +253,11 @@ Deno.test("DistributedFlight stops waiting when the caller's budget runs out, no
     Duration.milliseconds(250),
   );
 
-  assertEquals(value, "computed anyway");
-  assertEquals(gaveUp, ["id"]);
-  assert(
+  expect(value, equals("computed anyway"));
+  expect(gaveUp, equals(["id"]));
+  expect(
     lock.acquired >= 1 && lock.acquired < 12,
+    isTrue,
     `the loser made ${lock.acquired} attempts: waiting out the lease instead of the budget is hundreds`,
   );
 });

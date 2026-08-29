@@ -32,87 +32,87 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, isNotNull, Scribe, throwsA } from "@scribe/alchemy/test";
 import "../../testing/settings.ts";
 
 import { Duration } from "@scribe/alchemy";
 import { at, cronExpression, every } from "../../../lib/src/cron/schedule.ts";
 import { CronTimezone } from "../../../lib/src/cron/cron_timezone.ts";
-import { assertEquals, assertThrows } from "@std/assert";
-
-Deno.test("Duration.minutes/hours/days convert to the right ms", () => {
-  assertEquals(Duration.minutes(1).inMilliseconds, 60_000);
-  assertEquals(Duration.minutes(5).inMilliseconds, 300_000);
-  assertEquals(Duration.hours(1).inMilliseconds, 3_600_000);
-  assertEquals(Duration.days(1).inMilliseconds, 86_400_000);
+Scribe.test("Duration.minutes/hours/days convert to the right ms", () => {
+  expect(Duration.minutes(1).inMilliseconds, equals(60_000));
+  expect(Duration.minutes(5).inMilliseconds, equals(300_000));
+  expect(Duration.hours(1).inMilliseconds, equals(3_600_000));
+  expect(Duration.days(1).inMilliseconds, equals(86_400_000));
 });
 
-Deno.test(
+Scribe.test(
   "every() rejects zero, negative, fractional and sub-minute intervals the scheduler only ticks on the minute",
   () => {
-    assertThrows(() => every(Duration.minutes(0)));
-    assertThrows(() => every(Duration.minutes(-1)));
-    assertThrows(() => every(Duration.minutes(1.5)));
-    assertThrows(() => every(Duration.hours(0)));
-    assertThrows(() => every(Duration.days(-2)));
-    assertThrows(() => every(Duration.seconds(30)));
-    assertThrows(() => every(Duration.milliseconds(1)));
+    expect(() => every(Duration.minutes(0)), throwsA(isNotNull));
+    expect(() => every(Duration.minutes(-1)), throwsA(isNotNull));
+    expect(() => every(Duration.minutes(1.5)), throwsA(isNotNull));
+    expect(() => every(Duration.hours(0)), throwsA(isNotNull));
+    expect(() => every(Duration.days(-2)), throwsA(isNotNull));
+    expect(() => every(Duration.seconds(30)), throwsA(isNotNull));
+    expect(() => every(Duration.milliseconds(1)), throwsA(isNotNull));
   },
 );
 
-Deno.test(
+Scribe.test(
   "every() wraps a whole-minute interval as-is, no timezone attached",
   () => {
     const schedule = every(Duration.minutes(5));
-    assertEquals(schedule.kind, "interval");
-    assertEquals(schedule.every.inMinutes, 5, "the interval is kept as the duration it was declared with");
+    expect(schedule.kind, equals("interval"));
+    expect(schedule.every.inMinutes, equals(5), "the interval is kept as the duration it was declared with");
   },
 );
 
-Deno.test(
+Scribe.test(
   "cronExpression() validates the expression eagerly (fails at declaration, not at the next tick)",
   () => {
     const fiveTokensAllOutOfRange = "99 99 99 99 99";
 
-    assertThrows(
+    expect(
       () => cronExpression(fiveTokensAllOutOfRange, CronTimezone.Utc),
+      throwsA(isNotNull),
       "the CronExpression type only counts the tokens, so croner's parser is what has to " +
         "refuse the values inside them",
     );
   },
 );
 
-Deno.test(
+Scribe.test(
   "cronExpression() builds a schedule carrying the expression, timezone and underlying Cron job",
   () => {
     const schedule = cronExpression("0 3 * * *", CronTimezone.EuropeParis);
 
-    assertEquals(schedule.kind, "cron");
-    assertEquals(schedule.expression, "0 3 * * *");
-    assertEquals(schedule.timezone, CronTimezone.EuropeParis);
+    expect(schedule.kind, equals("cron"));
+    expect(schedule.expression, equals("0 3 * * *"));
+    expect(schedule.timezone, equals(CronTimezone.EuropeParis));
   },
 );
 
-Deno.test("at() rejects an empty times list", () => {
-  assertThrows(() => at(CronTimezone.Utc));
+Scribe.test("at() rejects an empty times list", () => {
+  expect(() => at(CronTimezone.Utc), throwsA(isNotNull));
 });
 
-Deno.test(
+Scribe.test(
   "at() rejects an out-of-range time (regex checks real 24h bounds, the type only checks shape)",
   () => {
-    assertThrows(() => at(CronTimezone.Utc, "25:00"));
-    assertThrows(() => at(CronTimezone.Utc, "12:60"));
+    expect(() => at(CronTimezone.Utc, "25:00"), throwsA(isNotNull));
+    expect(() => at(CronTimezone.Utc, "12:60"), throwsA(isNotNull));
   },
 );
 
-Deno.test(
+Scribe.test(
   "at() builds one independent Cron job per time (not one combined expression)",
   () => {
     const schedule = at(CronTimezone.Utc, "00:00", "12:00");
 
-    assertEquals(schedule.kind, "daily");
-    assertEquals(schedule.times, ["00:00", "12:00"]);
-    assertEquals(schedule.timezone, CronTimezone.Utc);
-    assertEquals(schedule.jobs.length, 2);
+    expect(schedule.kind, equals("daily"));
+    expect(schedule.times, equals(["00:00", "12:00"]));
+    expect(schedule.timezone, equals(CronTimezone.Utc));
+    expect(schedule.jobs.length, equals(2));
   },
 );

@@ -32,9 +32,9 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { contains, equals, expect, isNotNull, Scribe, throwsA } from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
-import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
 import { Duration } from "@scribe/alchemy";
 import { Cron } from "../../../lib/src/cron/cron.ts";
 import { cronRegistry } from "../../../lib/src/cron/cron_registry.ts";
@@ -44,27 +44,27 @@ const noop = () => Promise.resolve();
 
 installDrivers();
 
-Deno.test("new Cron() arms the job and returns its next occurrence", () => {
+Scribe.test("new Cron() arms the job and returns its next occurrence", () => {
   const job = new Cron(
     { name: "test:define:next-run", schedule: every(Duration.minutes(5)) },
     noop,
   );
 
-  assertEquals(job.name, "test:define:next-run");
-  assertEquals(job.nextRun() > new Date(), true);
+  expect(job.name, equals("test:define:next-run"));
+  expect(job.nextRun() > new Date(), equals(true));
 });
 
-Deno.test("new Cron() applies the default 10-minute timeout", () => {
+Scribe.test("new Cron() applies the default 10-minute timeout", () => {
   const job = new Cron(
     { name: "test:define:default-timeout", schedule: every(Duration.minutes(1)) },
     noop,
   );
 
-  assertEquals(job.timeout.inMilliseconds, Duration.minutes(10).inMilliseconds);
+  expect(job.timeout.inMilliseconds, equals(Duration.minutes(10).inMilliseconds));
 });
 
-Deno.test("new Cron() refuses a timeout that is not a whole number of minutes", () => {
-  assertThrows(() =>
+Scribe.test("new Cron() refuses a timeout that is not a whole number of minutes", () => {
+  expect(() =>
     new Cron(
       {
         name: "test:define:bad-timeout",
@@ -72,25 +72,23 @@ Deno.test("new Cron() refuses a timeout that is not a whole number of minutes", 
         timeout: Duration.seconds(90),
       },
       noop,
-    )
-  );
+    ), throwsA(isNotNull));
 });
 
-Deno.test("new Cron() refuses two jobs with the same name", () => {
+Scribe.test("new Cron() refuses two jobs with the same name", () => {
   new Cron(
     { name: "test:define:duplicate", schedule: every(Duration.minutes(1)) },
     noop,
   );
 
-  assertThrows(() =>
+  expect(() =>
     new Cron(
       { name: "test:define:duplicate", schedule: every(Duration.minutes(1)) },
       noop,
-    )
-  );
+    ), throwsA(isNotNull));
 });
 
-Deno.test("the registry lists armed jobs and their next occurrence", () => {
+Scribe.test("the registry lists armed jobs and their next occurrence", () => {
   new Cron(
     { name: "test:define:reported", schedule: every(Duration.minutes(2)) },
     noop,
@@ -98,10 +96,7 @@ Deno.test("the registry lists armed jobs and their next occurrence", () => {
 
   const report = cronRegistry.report();
 
-  assertStringIncludes(report, "[cron]");
-  assertStringIncludes(report, "test:define:reported");
-  assertEquals(
-    cronRegistry.list().some((e) => e.job.name === "test:define:reported"),
-    true,
-  );
+  expect(report, contains("[cron]"));
+  expect(report, contains("test:define:reported"));
+  expect(cronRegistry.list().some((e) => e.job.name === "test:define:reported"), equals(true));
 });

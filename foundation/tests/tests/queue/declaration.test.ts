@@ -32,7 +32,8 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, isNot, Scribe } from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
 import {
   limitsFrom,
@@ -44,7 +45,6 @@ import { planFor, planSignature } from "../../../lib/src/queue/topology/topology
 import { Queue } from "../../../lib/src/queue/queue.ts";
 import { graceFor, IMMEDIATE_GRACE_MS } from "../../../lib/src/queue/runner/grace_period.ts";
 import { Duration } from "@scribe/alchemy";
-import { assertEquals, assertNotEquals } from "@std/assert";
 
 function queue(over: Partial<RegisteredQueue> = {}): RegisteredQueue {
   return {
@@ -60,93 +60,99 @@ function queue(over: Partial<RegisteredQueue> = {}): RegisteredQueue {
 
 installDrivers();
 
-Deno.test("limitsFrom falls back to the declared defaults", () => {
-  assertEquals(limitsFrom(), {
-    maxRetries: QUEUE_DEFAULTS.maxRetries,
-    maxLen: QUEUE_DEFAULTS.maxLen,
-    concurrency: QUEUE_DEFAULTS.concurrency,
-    retryBackoffMs: QUEUE_DEFAULTS.retryBackoff.inMilliseconds,
-    retryBackoffMaxMs: QUEUE_DEFAULTS.retryBackoffMax.inMilliseconds,
-    processingTimeoutMs: QUEUE_DEFAULTS.processingTimeout.inMilliseconds,
-  });
+Scribe.test("limitsFrom falls back to the declared defaults", () => {
+  expect(
+    limitsFrom(),
+    equals({
+      maxRetries: QUEUE_DEFAULTS.maxRetries,
+      maxLen: QUEUE_DEFAULTS.maxLen,
+      concurrency: QUEUE_DEFAULTS.concurrency,
+      retryBackoffMs: QUEUE_DEFAULTS.retryBackoff.inMilliseconds,
+      retryBackoffMaxMs: QUEUE_DEFAULTS.retryBackoffMax.inMilliseconds,
+      processingTimeoutMs: QUEUE_DEFAULTS.processingTimeout.inMilliseconds,
+    }),
+  );
 });
 
-Deno.test("limitsFrom converts every duration to milliseconds", () => {
+Scribe.test("limitsFrom converts every duration to milliseconds", () => {
   const limits = limitsFrom({
     retryBackoff: Duration.seconds(2),
     retryBackoffMax: Duration.minutes(1),
     processingTimeout: Duration.seconds(30),
   });
 
-  assertEquals(limits.retryBackoffMs, 2_000);
-  assertEquals(limits.retryBackoffMaxMs, 60_000);
-  assertEquals(limits.processingTimeoutMs, 30_000);
+  expect(limits.retryBackoffMs, equals(2_000));
+  expect(limits.retryBackoffMaxMs, equals(60_000));
+  expect(limits.processingTimeoutMs, equals(30_000));
 });
 
-Deno.test("limitsFrom never lets concurrency drop below one worker", () => {
-  assertEquals(limitsFrom({ concurrency: 0 }).concurrency, 1);
-  assertEquals(limitsFrom({ concurrency: -5 }).concurrency, 1);
+Scribe.test("limitsFrom never lets concurrency drop below one worker", () => {
+  expect(limitsFrom({ concurrency: 0 }).concurrency, equals(1));
+  expect(limitsFrom({ concurrency: -5 }).concurrency, equals(1));
 });
 
-Deno.test("subjectsOf pairs a live subject with a dead one", () => {
-  assertEquals(subjectsOf("mail.send", false), {
-    subject: "q.mail_send",
-    deadSubject: "dead.mail_send",
-  });
-  assertEquals(subjectsOf("mail.send", true).subject, "qd.mail_send");
+Scribe.test("subjectsOf pairs a live subject with a dead one", () => {
+  expect(
+    subjectsOf("mail.send", false),
+    equals({
+      subject: "q.mail_send",
+      deadSubject: "dead.mail_send",
+    }),
+  );
+  expect(subjectsOf("mail.send", true).subject, equals("qd.mail_send"));
 });
 
-Deno.test("planFor keeps the most permissive value of the whole declaration set", () => {
+Scribe.test("planFor keeps the most permissive value of the whole declaration set", () => {
   const plan = planFor([
     queue({ name: "a", maxLen: 10, processingTimeoutMs: 1 }),
     queue({ name: "b", maxLen: 500_000, processingTimeoutMs: 60_000 }),
   ]);
 
-  assertEquals(plan.maxPerSubject, 500_000);
-  assertEquals(plan.ackWaitMs, QUEUE_DEFAULTS.processingTimeout.inMilliseconds);
+  expect(plan.maxPerSubject, equals(500_000));
+  expect(plan.ackWaitMs, equals(QUEUE_DEFAULTS.processingTimeout.inMilliseconds));
 });
 
-Deno.test("planFor never goes below the defaults, however small a queue asks", () => {
+Scribe.test("planFor never goes below the defaults, however small a queue asks", () => {
   const plan = planFor([queue({ maxLen: 1, processingTimeoutMs: 1 })]);
 
-  assertEquals(plan.maxPerSubject, QUEUE_DEFAULTS.maxLen);
-  assertEquals(plan.ackWaitMs, QUEUE_DEFAULTS.processingTimeout.inMilliseconds);
+  expect(plan.maxPerSubject, equals(QUEUE_DEFAULTS.maxLen));
+  expect(plan.ackWaitMs, equals(QUEUE_DEFAULTS.processingTimeout.inMilliseconds));
 });
 
-Deno.test("planFor holds without a single queue declared", () => {
+Scribe.test("planFor holds without a single queue declared", () => {
   const plan = planFor([]);
 
-  assertEquals(plan.maxPerSubject, QUEUE_DEFAULTS.maxLen);
-  assertEquals(plan.dedicated, []);
+  expect(plan.maxPerSubject, equals(QUEUE_DEFAULTS.maxLen));
+  expect(plan.dedicated, equals([]));
 });
 
-Deno.test("planFor lets the server deliver for as long as the policy retries", () => {
+Scribe.test("planFor lets the server deliver for as long as the policy retries", () => {
   const plan = planFor([queue({ maxRetries: 20 }), queue({ maxRetries: 3 })]);
 
-  assertEquals(
+  expect(
     plan.maxDeliver > 20,
-    true,
+    equals(true),
     `the server gives up after ${plan.maxDeliver} deliveries, before the longest policy has ` +
       "finished retrying, so that message dies on an advisory and never reaches the dead letter",
   );
 });
 
-Deno.test("planFor never lets the server stop before the default policy is done", () => {
+Scribe.test("planFor never lets the server stop before the default policy is done", () => {
   const plan = planFor([queue({ maxRetries: 1 })]);
 
-  assertEquals(plan.maxDeliver > QUEUE_DEFAULTS.maxRetries, true);
+  expect(plan.maxDeliver > QUEUE_DEFAULTS.maxRetries, equals(true));
 });
 
-Deno.test("planFor lists the dedicated queues only", () => {
+Scribe.test("planFor lists the dedicated queues only", () => {
   const plan = planFor([
     queue({ name: "shared" }),
     queue({ name: "isolated", dedicated: true }),
   ]);
 
-  assertEquals(plan.dedicated, ["isolated"]);
+  expect(plan.dedicated, equals(["isolated"]));
 });
 
-Deno.test("planSignature ignores the declaration order", () => {
+Scribe.test("planSignature ignores the declaration order", () => {
   const first = planFor([
     queue({ name: "b", dedicated: true }),
     queue({ name: "a", dedicated: true }),
@@ -156,47 +162,44 @@ Deno.test("planSignature ignores the declaration order", () => {
     queue({ name: "b", dedicated: true }),
   ]);
 
-  assertEquals(planSignature(first), planSignature(second));
+  expect(planSignature(first), equals(planSignature(second)));
 });
 
-Deno.test("planSignature separates two plans that provision differently", () => {
-  assertNotEquals(
-    planSignature(planFor([queue({ maxLen: 200_000 })])),
-    planSignature(planFor([queue()])),
-  );
-  assertNotEquals(
+Scribe.test("planSignature separates two plans that provision differently", () => {
+  expect(planSignature(planFor([queue({ maxLen: 200_000 })])), isNot(equals(planSignature(planFor([queue()])))));
+  expect(
     planSignature(planFor([queue({ name: "x", dedicated: true })])),
-    planSignature(planFor([queue({ name: "x" })])),
+    isNot(equals(planSignature(planFor([queue({ name: "x" })])))),
   );
 });
 
-Deno.test("graceFor gives a batch queue its own linger window", () => {
+Scribe.test("graceFor gives a batch queue its own linger window", () => {
   new Queue<{ id: string }>(
     { name: "test:grace:batch", batch: { lingerMs: 1_500 } },
     () => Promise.resolve(),
   );
 
-  assertEquals(graceFor("q.test_grace_batch"), 1_500);
+  expect(graceFor("q.test_grace_batch"), equals(1_500));
 });
 
-Deno.test("graceFor keeps an immediate queue on the short window", () => {
+Scribe.test("graceFor keeps an immediate queue on the short window", () => {
   new Queue<{ id: string }>(
     { name: "test:grace:immediate" },
     () => Promise.resolve(),
   );
 
-  assertEquals(graceFor("q.test_grace_immediate"), IMMEDIATE_GRACE_MS);
+  expect(graceFor("q.test_grace_immediate"), equals(IMMEDIATE_GRACE_MS));
 });
 
-Deno.test("graceFor falls back to the short window on a batch queue without a linger", () => {
+Scribe.test("graceFor falls back to the short window on a batch queue without a linger", () => {
   new Queue<{ id: string }>(
     { name: "test:grace:default", batch: {} },
     () => Promise.resolve(),
   );
 
-  assertEquals(graceFor("q.test_grace_default"), IMMEDIATE_GRACE_MS);
+  expect(graceFor("q.test_grace_default"), equals(IMMEDIATE_GRACE_MS));
 });
 
-Deno.test("graceFor never delays a subject it does not know", () => {
-  assertEquals(graceFor("q.never_declared"), IMMEDIATE_GRACE_MS);
+Scribe.test("graceFor never delays a subject it does not know", () => {
+  expect(graceFor("q.never_declared"), equals(IMMEDIATE_GRACE_MS));
 });

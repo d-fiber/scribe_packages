@@ -33,9 +33,9 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
-import { assertEquals } from "@std/assert";
 import type { Result } from "@scribe/alchemy";
 import type { PostgrestClient } from "@supabase/postgrest-js";
 import { from } from "../../../lib/src/database/tables_base.ts";
@@ -82,24 +82,24 @@ const WRITES: ReadonlyArray<[string, (client: PostgrestClient) => Promise<Result
 
 installDrivers();
 
-Deno.test("a store that answered with a code is a conflict, on every one of the five writes", async () => {
+Scribe.test("a store that answered with a code is a conflict, on every one of the five writes", async () => {
   for (const [name, write] of WRITES) {
     const outcome = await write(answering({ data: null, error: { code: "23505", message: "duplicate key" } }));
 
-    assertEquals(kindOf(outcome), "conflict", `${name} did not read the store's own refusal`);
-    assertEquals(saidBy(outcome), "duplicate key", `${name} lost what the store said`);
+    expect(kindOf(outcome), equals("conflict"), `${name} did not read the store's own refusal`);
+    expect(saidBy(outcome), equals("duplicate key"), `${name} lost what the store said`);
   }
 });
 
-Deno.test("a store that answered nothing at all is unavailable, on every one of the five writes", async () => {
+Scribe.test("a store that answered nothing at all is unavailable, on every one of the five writes", async () => {
   for (const [name, write] of WRITES) {
     const outcome = await write(answering({ data: null, error: new Error("connection reset") }));
 
-    assertEquals(kindOf(outcome), "unavailable", `${name} called a reachability failure something else`);
+    expect(kindOf(outcome), equals("unavailable"), `${name} called a reachability failure something else`);
   }
 });
 
-Deno.test("a write that names no row is denied before the store is reached", async () => {
+Scribe.test("a write that names no row is denied before the store is reached", async () => {
   const unbounded: ReadonlyArray<[string, (c: PostgrestClient) => Promise<Result<unknown>>]> = [
     ["update", (c) => from<{ id: string }>(c, TABLE).update({ id: "b" })],
     ["delete", (c) => from<{ id: string }>(c, TABLE).delete()],
@@ -109,127 +109,115 @@ Deno.test("a write that names no row is denied before the store is reached", asy
   for (const [name, write] of unbounded) {
     const outcome = await write(answering({ data: [{ id: "a" }], error: null }));
 
-    assertEquals(kindOf(outcome), "denied", `${name} reached the store with no bound`);
+    expect(kindOf(outcome), equals("denied"), `${name} reached the store with no bound`);
   }
 });
 
-Deno.test("a one-row write that matched nothing is missing, not a failure of the store", async () => {
-  assertEquals(
+Scribe.test("a one-row write that matched nothing is missing, not a failure of the store", async () => {
+  expect(
     kindOf(await from<{ id: string }>(answering({ data: null, error: null }), TABLE).insertOne({ id: "a" })),
-    "missing",
+    equals("missing"),
   );
-  assertEquals(
+  expect(
     kindOf(
       await from<{ id: string }>(answering({ data: null, error: null }), TABLE)
         .where((f) => f.id.eq("a"))
         .deleteOne(),
     ),
-    "missing",
+    equals("missing"),
   );
 });
 
-Deno.test("a many-row write that matched nothing succeeded with a count of zero", async () => {
+Scribe.test("a many-row write that matched nothing succeeded with a count of zero", async () => {
   const removed = await from<{ id: string }>(answering({ data: [], error: null }), TABLE)
     .where((f) => f.id.eq("a"))
     .delete();
 
-  assertEquals(removed.ok, true, "matching no row is not a refusal");
-  assertEquals(removed.ok === true && removed.data, 0);
+  expect(removed.ok, equals(true), "matching no row is not a refusal");
+  expect(removed.ok === true && removed.data, equals(0));
 });
 
-Deno.test("insert answers the number of rows it was handed, not what the store echoed", async () => {
+Scribe.test("insert answers the number of rows it was handed, not what the store echoed", async () => {
   const one = await from<{ id: string }>(answering({ data: null, error: null }), TABLE).insert({ id: "a" });
   const three = await from<{ id: string }>(answering({ data: null, error: null }), TABLE)
     .insert([{ id: "a" }, { id: "b" }, { id: "c" }]);
 
-  assertEquals(one.ok === true && one.data, 1);
-  assertEquals(three.ok === true && three.data, 3);
+  expect(one.ok === true && one.data, equals(1));
+  expect(three.ok === true && three.data, equals(3));
 });
 
-Deno.test("a store that answered a row count of its own is counted, not the payload it was sent", async () => {
+Scribe.test("a store that answered a row count of its own is counted, not the payload it was sent", async () => {
   const written = await from<{ id: string }>(answering({ data: [{ id: "a" }, { id: "b" }], error: null }), TABLE)
     .where((f) => f.id.eq("a"))
     .update({ id: "b" });
 
-  assertEquals(written.ok === true && written.data, 2);
+  expect(written.ok === true && written.data, equals(2));
 });
 
-Deno.test({
-  name: "DEFECT a store failure that is falsy reads as a write that happened",
-  async fn() {
-    for (const [name, write] of WRITES) {
-      const outcome = await write(answering({ data: null, error: "" }));
+Scribe.test("DEFECT a store failure that is falsy reads as a write that happened", async () => {
+  for (const [name, write] of WRITES) {
+    const outcome = await write(answering({ data: null, error: "" }));
 
-      assertEquals(outcome.ok, false, `${name} answered success on a store that reported a failure`);
-    }
-  },
+    expect(outcome.ok, equals(false), `${name} answered success on a store that reported a failure`);
+  }
 });
 
-Deno.test({
-  name: "DEFECT a store failure that is not an object is called retryable",
-  async fn() {
-    for (const shape of ["duplicate key value violates unique constraint", 23505]) {
-      const outcome = await from<{ id: string }>(answering({ data: null, error: shape }), TABLE).insert({ id: "a" });
+Scribe.test("DEFECT a store failure that is not an object is called retryable", async () => {
+  for (const shape of ["duplicate key value violates unique constraint", 23505]) {
+    const outcome = await from<{ id: string }>(answering({ data: null, error: shape }), TABLE).insert({ id: "a" });
 
-      assertEquals(
-        kindOf(outcome),
-        "conflict",
-        `a store that answered ${JSON.stringify(shape)} answered, so replaying the call cannot help`,
-      );
-    }
-  },
-});
-
-Deno.test({
-  name: "DEFECT a store failure that is not an object loses what it said",
-  async fn() {
-    const outcome = await from<{ id: string }>(
-      answering({ data: null, error: "duplicate key value violates unique constraint" }),
-      TABLE,
-    ).insert({ id: "a" });
-
-    assertEquals(saidBy(outcome), "duplicate key value violates unique constraint");
-  },
-});
-
-Deno.test({
-  name: "DEFECT a many-row write the store answered nothing for is indistinguishable from one that matched nothing",
-  async fn() {
-    const silent = await from<{ id: string }>(answering({ data: null, error: null }), TABLE)
-      .where((f) => f.id.eq("a"))
-      .update({ id: "b" });
-    const matchedNothing = await from<{ id: string }>(answering({ data: [], error: null }), TABLE)
-      .where((f) => f.id.eq("a"))
-      .update({ id: "b" });
-
-    assertEquals(
-      kindOf(silent) === kindOf(matchedNothing) && silent.ok === true && matchedNothing.ok === true &&
-        silent.data === matchedNothing.data,
-      false,
-      "a store that did not say what it wrote must not be reported as a store that wrote nothing",
+    expect(
+      kindOf(outcome),
+      equals("conflict"),
+      `a store that answered ${JSON.stringify(shape)} answered, so replaying the call cannot help`,
     );
-  },
+  }
 });
 
-Deno.test("a store failure carrying a code but nothing to say still says which kind it is", async () => {
+Scribe.test("DEFECT a store failure that is not an object loses what it said", async () => {
+  const outcome = await from<{ id: string }>(
+    answering({ data: null, error: "duplicate key value violates unique constraint" }),
+    TABLE,
+  ).insert({ id: "a" });
+
+  expect(saidBy(outcome), equals("duplicate key value violates unique constraint"));
+});
+
+Scribe.test("DEFECT a many-row write the store answered nothing for is indistinguishable from one that matched nothing", async () => {
+  const silent = await from<{ id: string }>(answering({ data: null, error: null }), TABLE)
+    .where((f) => f.id.eq("a"))
+    .update({ id: "b" });
+  const matchedNothing = await from<{ id: string }>(answering({ data: [], error: null }), TABLE)
+    .where((f) => f.id.eq("a"))
+    .update({ id: "b" });
+
+  expect(
+    kindOf(silent) === kindOf(matchedNothing) && silent.ok === true && matchedNothing.ok === true &&
+      silent.data === matchedNothing.data,
+    equals(false),
+    "a store that did not say what it wrote must not be reported as a store that wrote nothing",
+  );
+});
+
+Scribe.test("a store failure carrying a code but nothing to say still says which kind it is", async () => {
   const outcome = await from<{ id: string }>(answering({ data: null, error: { code: "42501" } }), TABLE)
     .insert({ id: "a" });
 
-  assertEquals(kindOf(outcome), "conflict");
-  assertEquals(saidBy(outcome), "the write did not happen.");
+  expect(kindOf(outcome), equals("conflict"));
+  expect(saidBy(outcome), equals("the write did not happen."));
 });
 
-Deno.test("a store failure carrying what it says but no code is left retryable", async () => {
+Scribe.test("a store failure carrying what it says but no code is left retryable", async () => {
   const outcome = await from<{ id: string }>(answering({ data: null, error: { message: "socket hang up" } }), TABLE)
     .insert({ id: "a" });
 
-  assertEquals(kindOf(outcome), "unavailable", "no code means nothing on the far side answered");
-  assertEquals(saidBy(outcome), "socket hang up");
+  expect(kindOf(outcome), equals("unavailable"), "no code means nothing on the far side answered");
+  expect(saidBy(outcome), equals("socket hang up"));
 });
 
-Deno.test("an insert of no rows at all is an honest count of zero", async () => {
+Scribe.test("an insert of no rows at all is an honest count of zero", async () => {
   const outcome = await from<{ id: string }>(answering({ data: null, error: null }), TABLE).insert([]);
 
-  assertEquals(outcome.ok, true);
-  assertEquals(outcome.ok === true && outcome.data, 0);
+  expect(outcome.ok, equals(true));
+  expect(outcome.ok === true && outcome.data, equals(0));
 });

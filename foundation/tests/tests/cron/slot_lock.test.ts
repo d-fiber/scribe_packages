@@ -32,13 +32,13 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, isNot, Scribe } from "@scribe/alchemy/test";
 import "../../testing/settings.ts";
 
 import { SlotLock } from "../../../lib/src/cron/slot_lock.ts";
 import type { Scheduled } from "../../../lib/src/cron/schedule.ts";
 import { Duration } from "@scribe/alchemy";
-import { assertEquals, assertNotEquals } from "@std/assert";
 
 function intervalJob(name: string, every: Duration): Scheduled {
   return { name, schedule: { kind: "interval", every }, timeout: Duration.seconds(30) };
@@ -54,66 +54,63 @@ function cronJob(name: string): Scheduled {
 
 const lock = new SlotLock();
 
-Deno.test("SlotLock floors an interval slot so every instance agrees on the key", () => {
+Scribe.test("SlotLock floors an interval slot so every instance agrees on the key", () => {
   const job = intervalJob("cleanup", Duration.milliseconds(60_000));
 
   const a = lock.keyFor(job, new Date(1_700_000_040_000));
   const b = lock.keyFor(job, new Date(1_700_000_059_999));
 
-  assertEquals(a, b);
-  assertEquals(a, "cron:lock:cleanup:1700000040000");
+  expect(a, equals(b));
+  expect(a, equals("cron:lock:cleanup:1700000040000"));
 });
 
-Deno.test("SlotLock gives consecutive interval slots distinct keys", () => {
+Scribe.test("SlotLock gives consecutive interval slots distinct keys", () => {
   const job = intervalJob("cleanup", Duration.milliseconds(60_000));
 
-  assertNotEquals(
-    lock.keyFor(job, new Date(1_700_000_040_000)),
-    lock.keyFor(job, new Date(1_700_000_100_000)),
-  );
+  expect(lock.keyFor(job, new Date(1_700_000_040_000)), isNot(equals(lock.keyFor(job, new Date(1_700_000_100_000)))));
 });
 
-Deno.test("SlotLock uses the exact instant for a calendar schedule", () => {
+Scribe.test("SlotLock uses the exact instant for a calendar schedule", () => {
   const at = new Date(1_700_000_012_345);
 
-  assertEquals(lock.keyFor(cronJob("digest"), at), "cron:lock:digest:1700000012345");
+  expect(lock.keyFor(cronJob("digest"), at), equals("cron:lock:digest:1700000012345"));
 });
 
-Deno.test("SlotLock namespaces by job name", () => {
+Scribe.test("SlotLock namespaces by job name", () => {
   const at = new Date(1_700_000_040_000);
 
-  assertNotEquals(
+  expect(
     lock.keyFor(intervalJob("a", Duration.milliseconds(60_000)), at),
-    lock.keyFor(intervalJob("b", Duration.milliseconds(60_000)), at),
+    isNot(equals(lock.keyFor(intervalJob("b", Duration.milliseconds(60_000)), at))),
   );
 });
 
-Deno.test("the lease covers the occurrence the key names, not the time the body is given", () => {
+Scribe.test("the lease covers the occurrence the key names, not the time the body is given", () => {
   const quarterly = intervalJob("sweep", Duration.minutes(15));
   const slot = new Date(0);
 
-  assertEquals(lock.leaseFor(quarterly, slot).inMinutes, 15);
-  assertNotEquals(lock.leaseFor(quarterly, slot).inMinutes, quarterly.timeout.inMinutes);
+  expect(lock.leaseFor(quarterly, slot).inMinutes, equals(15));
+  expect(lock.leaseFor(quarterly, slot).inMinutes, isNot(equals(quarterly.timeout.inMinutes)));
 });
 
-Deno.test("a job given longer than its own interval keeps the marker for as long as it runs", () => {
+Scribe.test("a job given longer than its own interval keeps the marker for as long as it runs", () => {
   const slow: Scheduled = {
     name: "slow",
     schedule: { kind: "interval", every: Duration.minutes(1) },
     timeout: Duration.minutes(10),
   };
 
-  assertEquals(lock.leaseFor(slow, new Date(0)).inMinutes, 10);
+  expect(lock.leaseFor(slow, new Date(0)).inMinutes, equals(10));
 });
 
-Deno.test("a second replica reaching a current occurrence finds it already spoken for", () => {
+Scribe.test("a second replica reaching a current occurrence finds it already spoken for", () => {
   const quarterly = intervalJob("sweep", Duration.minutes(15));
   const cell = new Date(0);
   const lease = lock.leaseFor(quarterly, cell).inMilliseconds;
 
   for (const arrivalMinutes of [0, 7, 14]) {
     const arrival = new Date(arrivalMinutes * 60_000);
-    assertEquals(lock.keyFor(quarterly, arrival), lock.keyFor(quarterly, cell));
-    assertEquals(arrival.getTime() - cell.getTime() < lease, true, `t+${arrivalMinutes} min`);
+    expect(lock.keyFor(quarterly, arrival), equals(lock.keyFor(quarterly, cell)));
+    expect(arrival.getTime() - cell.getTime() < lease, equals(true), `t+${arrivalMinutes} min`);
   }
 });

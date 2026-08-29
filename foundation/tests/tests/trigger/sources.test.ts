@@ -32,10 +32,9 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import "../../testing/settings.ts";
-
-import { assertEquals } from "@std/assert";
 import { Trigger } from "../../../lib/src/trigger/trigger.ts";
 import { syncDeclaredSources } from "../../../lib/src/trigger/trigger_sources.ts";
 import { triggerSources } from "../../../lib/src/trigger/trigger_tables.ts";
@@ -63,44 +62,44 @@ async function storedKey(table: string): Promise<string | null> {
   return row === null ? null : row.key_column;
 }
 
-Deno.test("every declared table is written once, under the key its declaration named", async () => {
+Scribe.test("every declared table is written once, under the key its declaration named", async () => {
   const db = installDatabaseFake();
 
-  assertEquals(await syncDeclaredSources(), 2);
-  assertEquals(await storedKey("orders"), "id");
-  assertEquals(await storedKey("shipments"), "reference");
+  expect(await syncDeclaredSources(), equals(2));
+  expect(await storedKey("orders"), equals("id"));
+  expect(await storedKey("shipments"), equals("reference"));
   db.restore();
 });
 
-Deno.test("two declarations on one table write one row", async () => {
+Scribe.test("two declarations on one table write one row", async () => {
   const db = installDatabaseFake();
 
   await syncDeclaredSources();
   const rows = await triggerSources().where((f) => f.table_name.eq("orders")).get();
 
-  assertEquals(rows.length, 1);
+  expect(rows.length, equals(1));
   db.restore();
 });
 
-Deno.test("a key column that changed in the code is written over the stored one", async () => {
+Scribe.test("a key column that changed in the code is written over the stored one", async () => {
   const db = installDatabaseFake({
     __trigger_sources__: [{ table_name: "shipments", key_column: "id" }],
   });
 
   await syncDeclaredSources();
 
-  assertEquals(await storedKey("shipments"), "reference");
+  expect(await storedKey("shipments"), equals("reference"));
   db.restore();
 });
 
-Deno.test("a table nobody declares any more stops emitting", async () => {
+Scribe.test("a table nobody declares any more stops emitting", async () => {
   const db = installDatabaseFake({
     __trigger_sources__: [{ table_name: "carts", key_column: "id" }],
   });
 
   await syncDeclaredSources();
 
-  assertEquals(await storedKey("carts"), null);
-  assertEquals(await storedKey("orders"), "id");
+  expect(await storedKey("carts"), equals(null));
+  expect(await storedKey("orders"), equals("id"));
   db.restore();
 });

@@ -32,52 +32,51 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, isNot, isTrue, same, Scribe } from "@scribe/alchemy/test";
 import { Caches, Crons, Databases, FileSystems, Hooks, Now, Queues, RateLimiters, Triggers } from "@scribe/alchemy";
 import { Clients } from "@scribe/alchemy/http";
 import { Loggers } from "@scribe/alchemy/observe";
 import { FetchClient, FetchClients } from "../../../lib/src/http/fetch_client.ts";
 import { scribe } from "@scribe/foundation";
-import { assert, assertEquals, assertNotStrictEquals } from "@std/assert";
-
-Deno.test("the driver opens a client that goes on the network", () => {
+Scribe.test("the driver opens a client that goes on the network", () => {
   const client = new FetchClients().open();
 
-  assert(client instanceof FetchClient, "the driver of this package is the one that reaches fetch");
+  expect(client instanceof FetchClient, isTrue, "the driver of this package is the one that reaches fetch");
   client.close();
 });
 
-Deno.test("each call opens its own client, since a caller closes what it was given", () => {
+Scribe.test("each call opens its own client, since a caller closes what it was given", () => {
   const driver = new FetchClients();
 
   const first = driver.open();
   const second = driver.open();
 
-  assertNotStrictEquals(first, second, "a shared client would be closed under whoever still holds it");
+  expect(first, isNot(same(second)), "a shared client would be closed under whoever still holds it");
   first.close();
   second.close();
 });
 
-Deno.test("wiring the package fills the slot an outbound call goes through", () => {
+Scribe.test("wiring the package fills the slot an outbound call goes through", () => {
   Clients.clear();
 
   scribe.wires?.();
 
-  assert(Clients.get().open() instanceof FetchClient, "http.get has nothing to send through until this runs");
+  expect(Clients.get().open() instanceof FetchClient, isTrue, "http.get has nothing to send through until this runs");
   Clients.clear();
 });
 
-Deno.test("wiring the package answers every slot its drivers are for", () => {
+Scribe.test("wiring the package answers every slot its drivers are for", () => {
   const every = [Clients, Loggers, Now, Caches, RateLimiters, Queues, Hooks, Crons, Triggers, Databases, FileSystems];
   for (const slot of every) slot.clear();
 
   scribe.wires?.();
 
-  assertEquals(every.map((slot) => slot.configured), every.map(() => true));
-  assertEquals(Caches.get().open({ key: "probe" }).constructor.name, "RedisCache");
+  expect(every.map((slot) => slot.configured), equals(every.map(() => true)));
+  expect(Caches.get().open({ key: "probe" }).constructor.name, equals("RedisCache"));
 });
 
-Deno.test("wiring the package leaves standing whatever the host already put there", () => {
+Scribe.test("wiring the package leaves standing whatever the host already put there", () => {
   class HostClock {
     millisecondsSinceEpoch(): number {
       return 42;
@@ -89,9 +88,9 @@ Deno.test("wiring the package leaves standing whatever the host already put ther
 
   scribe.wires?.();
 
-  assertEquals(Now.get().constructor.name, "HostClock");
-  assertEquals(Now.get().millisecondsSinceEpoch(), 42);
-  assertEquals(Caches.configured, true, "a slot nobody filled is still filled");
+  expect(Now.get().constructor.name, equals("HostClock"));
+  expect(Now.get().millisecondsSinceEpoch(), equals(42));
+  expect(Caches.configured, equals(true), "a slot nobody filled is still filled");
 
   for (const slot of every) slot.clear();
 });

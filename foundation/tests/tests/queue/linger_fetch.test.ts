@@ -33,7 +33,8 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
 import { lingerFetch } from "../../../lib/src/queue/topology/linger_fetch.ts";
 import type { Consumer, JsMsg } from "@nats-io/jetstream";
@@ -43,8 +44,6 @@ import { topology } from "../../../lib/src/queue/topology/topology.ts";
 import { installMock } from "../../testing/install.ts";
 import { Queue } from "../../../lib/src/queue/queue.ts";
 import { probe } from "./probe.ts";
-import { assertEquals } from "@std/assert";
-
 installDrivers();
 
 new Queue<{ id: number }>(
@@ -105,38 +104,38 @@ function feed(available: number, subject = "q.linger"): Feed {
   return { available, subject, stopped: false, delivered: 0 };
 }
 
-Deno.test("a fetch asked for nothing never reaches the server", async () => {
+Scribe.test("a fetch asked for nothing never reaches the server", async () => {
   const source = feed(10);
 
-  assertEquals(await lingerFetch(consumer(source), 0, 5_000, () => 25), []);
-  assertEquals(await lingerFetch(consumer(source), -3, 5_000, () => 25), []);
-  assertEquals(source.delivered, 0);
+  expect(await lingerFetch(consumer(source), 0, 5_000, () => 25), equals([]));
+  expect(await lingerFetch(consumer(source), -3, 5_000, () => 25), equals([]));
+  expect(source.delivered, equals(0));
 });
 
-Deno.test("a fetch without a grace resolver takes everything the iterator gives it", async () => {
+Scribe.test("a fetch without a grace resolver takes everything the iterator gives it", async () => {
   const source = feed(40);
 
   const messages = await lingerFetch(consumer(source), 40, 5_000);
 
-  assertEquals(messages.length, 40);
-  assertEquals(source.stopped, false);
+  expect(messages.length, equals(40));
+  expect(source.stopped, equals(false));
 });
 
-Deno.test("the window closes once the grace has passed since the first message", async () => {
+Scribe.test("the window closes once the grace has passed since the first message", async () => {
   const source = feed(100);
   Now.use(new SteppingNow(1_800_000_000_000, 4));
 
   try {
     const messages = await lingerFetch(consumer(source), 100, 5_000, () => 25);
 
-    assertEquals(messages.length < 100, true, `${messages.length} messages came back`);
-    assertEquals(source.stopped, true);
+    expect(messages.length < 100, equals(true), `${messages.length} messages came back`);
+    expect(source.stopped, equals(true));
   } finally {
     installDrivers();
   }
 });
 
-Deno.test("a clock reading the epoch loses the stamp of the first message of the window", async () => {
+Scribe.test("a clock reading the epoch loses the stamp of the first message of the window", async () => {
   const atEpoch = feed(100);
   const later = feed(100);
   Now.use(new SteppingNow(0, 4));
@@ -146,51 +145,48 @@ Deno.test("a clock reading the epoch loses the stamp of the first message of the
   const fromLater = await lingerFetch(consumer(later), 100, 5_000, () => 25);
   installDrivers();
 
-  assertEquals(
+  expect(
     fromEpoch.length - fromLater.length,
-    1,
+    equals(1),
     "firstAt is held in a number whose empty value is zero, so a clock reading zero does not " +
       "look stamped and the second message restamps the window: the slip is one message and " +
       "no more, because the second stamp is not zero",
   );
 });
 
-Deno.test({
-  name: "a fetch gives a batch queue less time to group than the linger it declared",
-  fn: async () => {
-    const asked: number[] = [];
-    const mock = installMock(
-      topology,
-      "fetch",
-      (
-        _stream: string,
-        _durable: string,
-        _count: number,
-        expiresMs: number,
-      ) => {
-        asked.push(expiresMs);
-        return Promise.resolve([] as JsMsg[]);
-      },
+Scribe.test("a fetch gives a batch queue less time to group than the linger it declared", async () => {
+  const asked: number[] = [];
+  const mock = installMock(
+    topology,
+    "fetch",
+    (
+      _stream: string,
+      _durable: string,
+      _count: number,
+      expiresMs: number,
+    ) => {
+      asked.push(expiresMs);
+      return Promise.resolve([] as JsMsg[]);
+    },
+  );
+
+  try {
+    await StreamSource.shared().fetch(100);
+
+    expect(
+      asked[0] >= 30_000,
+      equals(true),
+      `the fetch window is a constant ${asked[0]}ms while the linger comes from the ` +
+        "declaration, so a queue that asked to group over 30000ms has its iterator closed " +
+        "first and is handed its group early, without anything saying the number it " +
+        "declared was not the one applied",
     );
-
-    try {
-      await StreamSource.shared().fetch(100);
-
-      assertEquals(
-        asked[0] >= 30_000,
-        true,
-        `the fetch window is a constant ${asked[0]}ms while the linger comes from the ` +
-          "declaration, so a queue that asked to group over 30000ms has its iterator closed " +
-          "first and is handed its group early, without anything saying the number it " +
-          "declared was not the one applied",
-      );
-    } finally {
-      mock.restore();
-    }
-  },
+  } finally {
+    mock.restore();
+  }
 });
 
-Deno.test("the shortest grace in the batch is the one the window closes on", async () => {
+Scribe.test("the shortest grace in the batch is the one the window closes on", async () => {
   const source = feed(60);
   Now.use(new SteppingNow(1_800_000_000_000, 6));
   const asked: string[] = [];
@@ -201,14 +197,14 @@ Deno.test("the shortest grace in the batch is the one the window closes on", asy
       return asked.length === 1 ? 10_000 : 12;
     });
 
-    assertEquals(messages.length < 60, true);
-    assertEquals(asked.length, messages.length);
+    expect(messages.length < 60, equals(true));
+    expect(asked.length, equals(messages.length));
   } finally {
     installDrivers();
   }
 });
 
-Deno.test("every message of the fetch costs one grace lookup and one timer", async () => {
+Scribe.test("every message of the fetch costs one grace lookup and one timer", async () => {
   const source = feed(50);
   Now.use(new SteppingNow(1_800_000_000_000, 0));
   let lookups = 0;
@@ -219,10 +215,10 @@ Deno.test("every message of the fetch costs one grace lookup and one timer", asy
       return 25;
     });
 
-    assertEquals(messages.length, 50);
-    assertEquals(
+    expect(messages.length, equals(50));
+    expect(
       lookups,
-      50,
+      equals(50),
       "the deadline is firstAt plus the smallest grace seen, and it only ever moves earlier, " +
         "so re-arming a timer on every message is work the window does not need",
     );

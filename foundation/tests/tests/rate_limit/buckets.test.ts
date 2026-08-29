@@ -32,15 +32,14 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
 import { Duration } from "@scribe/alchemy";
 import { kv } from "../../../lib/src/redis/kv.ts";
 import { RedisRateLimiter } from "../../../lib/src/rate_limit/redis_rate_limiter.ts";
 import type { RateLimitCommands } from "../../../lib/src/rate_limit/rate_limit_commands.ts";
 import { installMock } from "../../testing/install.ts";
-import { assertEquals } from "@std/assert";
-
 const POLICY = {
   limit: 3,
   window: Duration.seconds(90),
@@ -81,20 +80,20 @@ function recordCalls(
 
 installDrivers();
 
-Deno.test("a call with no segments uses the one bucket everybody shares", async () => {
+Scribe.test("a call with no segments uses the one bucket everybody shares", async () => {
   const limit = new RedisRateLimiter({ key: "sign-in:email", ...POLICY });
   const calls = recordCalls();
 
   try {
-    assertEquals(await limit.check(), { ok: true, remaining: 2 });
+    expect(await limit.check(), equals({ ok: true, remaining: 2 }));
   } finally {
     calls.restore();
   }
 
-  assertEquals(calls.blockedKeys, ["rl:blocked:sign-in:email"]);
+  expect(calls.blockedKeys, equals(["rl:blocked:sign-in:email"]));
 });
 
-Deno.test("a suffix gives each caller its own bucket", async () => {
+Scribe.test("a suffix gives each caller its own bucket", async () => {
   const limit = new RedisRateLimiter({ key: "sign-in:email", ...POLICY });
   const calls = recordCalls();
 
@@ -105,13 +104,16 @@ Deno.test("a suffix gives each caller its own bucket", async () => {
     calls.restore();
   }
 
-  assertEquals(calls.blockedKeys, [
-    "rl:blocked:sign-in:email:1.2.3.4",
-    "rl:blocked:sign-in:email:5.6.7.8",
-  ]);
+  expect(
+    calls.blockedKeys,
+    equals([
+      "rl:blocked:sign-in:email:1.2.3.4",
+      "rl:blocked:sign-in:email:5.6.7.8",
+    ]),
+  );
 });
 
-Deno.test("a prefix keeps two mounts of one limit apart", async () => {
+Scribe.test("a prefix keeps two mounts of one limit apart", async () => {
   const limit = new RedisRateLimiter({ key: "brand", ...POLICY });
   const calls = recordCalls();
 
@@ -122,30 +124,29 @@ Deno.test("a prefix keeps two mounts of one limit apart", async () => {
     calls.restore();
   }
 
-  assertEquals(calls.blockedKeys, [
-    "rl:blocked:admin:brand:1.2.3.4",
-    "rl:blocked:app:brand:1.2.3.4",
-  ]);
+  expect(
+    calls.blockedKeys,
+    equals([
+      "rl:blocked:admin:brand:1.2.3.4",
+      "rl:blocked:app:brand:1.2.3.4",
+    ]),
+  );
 });
 
-Deno.test("a limit never reads the request scope to name a bucket", async () => {
+Scribe.test("a limit never reads the request scope to name a bucket", async () => {
   const limit = new RedisRateLimiter({ key: "cron:sweep", ...POLICY });
   const calls = recordCalls();
 
   try {
-    assertEquals(await limit.check(), { ok: true, remaining: 2 });
+    expect(await limit.check(), equals({ ok: true, remaining: 2 }));
   } finally {
     calls.restore();
   }
 
-  assertEquals(
-    calls.blockedKeys,
-    ["rl:blocked:cron:sweep"],
-    "no request is open, and none is needed",
-  );
+  expect(calls.blockedKeys, equals(["rl:blocked:cron:sweep"]), "no request is open, and none is needed");
 });
 
-Deno.test("a limit that measures nothing refuses nobody", async () => {
+Scribe.test("a limit that measures nothing refuses nobody", async () => {
   const limit = new RedisRateLimiter({
     key: "misdeclared",
     limit: 0,
@@ -155,19 +156,15 @@ Deno.test("a limit that measures nothing refuses nobody", async () => {
   const calls = recordCalls();
 
   try {
-    assertEquals(await limit.check(), { ok: true, remaining: 0 });
+    expect(await limit.check(), equals({ ok: true, remaining: 0 }));
   } finally {
     calls.restore();
   }
 
-  assertEquals(
-    calls.blockedKeys,
-    [],
-    "a policy that measures nothing never reaches Redis",
-  );
+  expect(calls.blockedKeys, equals([]), "a policy that measures nothing never reaches Redis");
 });
 
-Deno.test("a declaration hands its ceiling to the script untouched", async () => {
+Scribe.test("a declaration hands its ceiling to the script untouched", async () => {
   const limit = new RedisRateLimiter({
     key: "sign-up:user",
     ...POLICY,
@@ -181,29 +178,32 @@ Deno.test("a declaration hands its ceiling to the script untouched", async () =>
     calls.restore();
   }
 
-  assertEquals(
+  expect(
     calls.ceilings,
-    [Duration.days(1).inSeconds],
+    equals([Duration.days(1).inSeconds]),
     "capping a shared address is the caller's call, not this class's",
   );
 });
 
-Deno.test("a refused hit carries the wait and the strikes behind it", async () => {
+Scribe.test("a refused hit carries the wait and the strikes behind it", async () => {
   const limit = new RedisRateLimiter({ key: "sign-in:email", ...POLICY });
   const calls = recordCalls([0, 0, 900, 3]);
 
   try {
-    assertEquals(await limit.check(), {
-      ok: false,
-      retryAfter: 900,
-      strikes: 3,
-    });
+    expect(
+      await limit.check(),
+      equals({
+        ok: false,
+        retryAfter: 900,
+        strikes: 3,
+      }),
+    );
   } finally {
     calls.restore();
   }
 });
 
-Deno.test("a hit Redis refuses to answer falls back on the declaration", async () => {
+Scribe.test("a hit Redis refuses to answer falls back on the declaration", async () => {
   const open = new RedisRateLimiter({ key: "discover:feed", ...POLICY });
   const closed = new RedisRateLimiter({
     key: "sign-in:email",
@@ -219,48 +219,47 @@ Deno.test("a hit Redis refuses to answer falls back on the declaration", async (
   );
 
   try {
-    assertEquals(await open.check(), { ok: true, remaining: 3 });
-    assertEquals(await closed.check(), {
-      ok: false,
-      retryAfter: 90,
-      strikes: 0,
-    });
+    expect(await open.check(), equals({ ok: true, remaining: 3 }));
+    expect(
+      await closed.check(),
+      equals({
+        ok: false,
+        retryAfter: 90,
+        strikes: 0,
+      }),
+    );
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("a peek reads the block without recording a hit", async () => {
+Scribe.test("a peek reads the block without recording a hit", async () => {
   const limit = new RedisRateLimiter({ key: "sign-in:email", ...POLICY });
   const calls = recordCalls();
   const pttl = installMock(kv(), "pttl", () => Promise.resolve(4_200));
 
   try {
-    assertEquals(await limit.isBlocked("", "hash-one"), true);
+    expect(await limit.isBlocked("", "hash-one"), equals(true));
   } finally {
     pttl.restore();
     calls.restore();
   }
 
-  assertEquals(
-    calls.blockedKeys,
-    [],
-    "a peek never reaches the script that records",
-  );
+  expect(calls.blockedKeys, equals([]), "a peek never reaches the script that records");
 });
 
-Deno.test("a peek answers false when no penalty is running", async () => {
+Scribe.test("a peek answers false when no penalty is running", async () => {
   const limit = new RedisRateLimiter({ key: "sign-in:email", ...POLICY });
   const pttl = installMock(kv(), "pttl", () => Promise.resolve(-2));
 
   try {
-    assertEquals(await limit.isBlocked("", "hash-one"), false);
+    expect(await limit.isBlocked("", "hash-one"), equals(false));
   } finally {
     pttl.restore();
   }
 });
 
-Deno.test("a peek that cannot reach Redis answers what the declaration decided", async () => {
+Scribe.test("a peek that cannot reach Redis answers what the declaration decided", async () => {
   const closed = new RedisRateLimiter({
     key: "sign-in:email",
     ...POLICY,
@@ -278,16 +277,8 @@ Deno.test("a peek that cannot reach Redis answers what the declaration decided",
   );
 
   try {
-    assertEquals(
-      await closed.isBlocked(),
-      true,
-      "a credential guard refuses what it cannot measure",
-    );
-    assertEquals(
-      await open.isBlocked(),
-      false,
-      "a capacity guard does not become an outage",
-    );
+    expect(await closed.isBlocked(), equals(true), "a credential guard refuses what it cannot measure");
+    expect(await open.isBlocked(), equals(false), "a capacity guard does not become an outage");
   } finally {
     pttl.restore();
   }

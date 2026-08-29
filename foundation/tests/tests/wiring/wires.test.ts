@@ -32,7 +32,8 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { allOf, equals, expect, isA, isTrue, same, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import {
   Caches,
   Crons,
@@ -53,8 +54,6 @@ import { cacheSettings } from "../../../lib/src/cache/cache_settings.ts";
 import { databaseSettings } from "../../../lib/src/database/database_settings.ts";
 import { queueSettings } from "../../../lib/src/queue/queue_settings.ts";
 import { installMock } from "../../testing/install.ts";
-import { assert, assertEquals, assertStrictEquals, assertThrows } from "@std/assert";
-
 const PORTS: readonly Slot<unknown>[] = [
   Clients,
   Loggers,
@@ -105,18 +104,18 @@ function mount<T>(body: () => T): T {
   }
 }
 
-Deno.test("wiring twice settles on the same driver in every slot", () => {
+Scribe.test("wiring twice settles on the same driver in every slot", () => {
   mount(() => {
     scribe.wires?.();
     const first = held();
 
     scribe.wires?.();
 
-    assertEquals(held(), first, "a second mount must not replace what the first put there");
+    expect(held(), equals(first), "a second mount must not replace what the first put there");
   });
 });
 
-Deno.test("a slot the host filled is left standing, one slot at a time", () => {
+Scribe.test("a slot the host filled is left standing, one slot at a time", () => {
   const stand = { stood: true };
 
   PORTS.forEach((slot, at) => {
@@ -124,17 +123,13 @@ Deno.test("a slot the host filled is left standing, one slot at a time", () => {
       slot.use(stand as never);
       scribe.wires?.();
 
-      assertStrictEquals(slot.get(), stand, `${NAMES[at]} was written over`);
-      assertEquals(
-        PORTS.every((one) => one.configured),
-        true,
-        `the ten slots beside ${NAMES[at]} were left empty`,
-      );
+      expect(slot.get(), same(stand), `${NAMES[at]} was written over`);
+      expect(PORTS.every((one) => one.configured), equals(true), `the ten slots beside ${NAMES[at]} were left empty`);
     });
   });
 });
 
-Deno.test("a partial clear refills only what was cleared", () => {
+Scribe.test("a partial clear refills only what was cleared", () => {
   mount(() => {
     scribe.wires?.();
     const first = held();
@@ -145,14 +140,14 @@ Deno.test("a partial clear refills only what was cleared", () => {
 
     const after = held();
     PORTS.forEach((slot, at) => {
-      assert(slot.configured, `${NAMES[at]} was left empty by the second mount`);
+      expect(slot.configured, isTrue, `${NAMES[at]} was left empty by the second mount`);
       if (slot === Caches || slot === Queues) return;
-      assertStrictEquals(after[at], first[at], `${NAMES[at]} was untouched and should have been left alone`);
+      expect(after[at], same(first[at]), `${NAMES[at]} was untouched and should have been left alone`);
     });
   });
 });
 
-Deno.test("two mounts racing over a microtask boundary still leave one driver per slot", async () => {
+Scribe.test("two mounts racing over a microtask boundary still leave one driver per slot", async () => {
   await mount(async () => {
     const both = [
       Promise.resolve().then(() => scribe.wires?.()),
@@ -160,14 +155,14 @@ Deno.test("two mounts racing over a microtask boundary still leave one driver pe
     ];
     await Promise.all(both);
 
-    assertEquals(PORTS.map((slot) => slot.configured), PORTS.map(() => true));
+    expect(PORTS.map((slot) => slot.configured), equals(PORTS.map(() => true)));
     const settled = held();
     scribe.wires?.();
-    assertEquals(held(), settled);
+    expect(held(), equals(settled));
   });
 });
 
-Deno.test("mounting reads no setting and opens no connection", () => {
+Scribe.test("mounting reads no setting and opens no connection", () => {
   const settings = [cacheSettings, queueSettings, databaseSettings] as const;
   const kept = settings.map((slot) => (slot.configured ? slot.get() : null));
   let dialled = 0;
@@ -184,9 +179,9 @@ Deno.test("mounting reads no setting and opens no connection", () => {
     mount(() => {
       scribe.wires?.();
 
-      assertEquals(dialled, 0, "a driver that dials while it is being built makes the port untestable");
+      expect(dialled, equals(0), "a driver that dials while it is being built makes the port untestable");
       for (const slot of settings) {
-        assertEquals(slot.configured, false, "mounting must not fill a settings slot either");
+        expect(slot.configured, equals(false), "mounting must not fill a settings slot either");
       }
     });
   } finally {
@@ -200,7 +195,7 @@ Deno.test("mounting reads no setting and opens no connection", () => {
   }
 });
 
-Deno.test("every mounted driver answers the members its port declares", () => {
+Scribe.test("every mounted driver answers the members its port declares", () => {
   mount(() => {
     scribe.wires?.();
 
@@ -221,86 +216,74 @@ Deno.test("every mounted driver answers the members its port declares", () => {
       if (wanted === undefined) return;
       const driver = slot.get() as Record<string, unknown>;
       for (const name of wanted) {
-        assertEquals(typeof driver[name], "function", `${NAMES[at]} answers no ${name}`);
+        expect(typeof driver[name], equals("function"), `${NAMES[at]} answers no ${name}`);
       }
     });
   });
 });
 
-Deno.test("the file system driver hands out one disk however often it is asked", () => {
+Scribe.test("the file system driver hands out one disk however often it is asked", () => {
   mount(() => {
     scribe.wires?.();
     const driver = FileSystems.get();
 
-    assertStrictEquals(driver.open(), driver.open());
+    expect(driver.open(), same(driver.open()));
   });
 });
 
-Deno.test({
-  name: "re-wiring after a clear refuses the cron key the driver it replaced had already declared",
-  fn() {
-    mount(() => {
-      scribe.wires?.();
-      Crons.get().schedule({ key: "wiring:cron", schedule: { every: Duration.minutes(1) }, run: () => {} });
+Scribe.test("re-wiring after a clear refuses the cron key the driver it replaced had already declared", () => {
+  mount(() => {
+    scribe.wires?.();
+    Crons.get().schedule({ key: "wiring:cron", schedule: { every: Duration.minutes(1) }, run: () => {} });
 
-      Crons.clear();
-      scribe.wires?.();
+    Crons.clear();
+    scribe.wires?.();
 
-      Crons.get().schedule({ key: "wiring:cron", schedule: { every: Duration.minutes(1) }, run: () => {} });
-    });
-  },
+    Crons.get().schedule({ key: "wiring:cron", schedule: { every: Duration.minutes(1) }, run: () => {} });
+  });
 });
 
-Deno.test({
-  name: "re-wiring after a clear refuses the queue key the driver it replaced had already opened",
-  fn() {
-    mount(() => {
-      scribe.wires?.();
-      Queues.get().open({ key: "wiring:queue" });
+Scribe.test("re-wiring after a clear refuses the queue key the driver it replaced had already opened", () => {
+  mount(() => {
+    scribe.wires?.();
+    Queues.get().open({ key: "wiring:queue" });
 
-      Queues.clear();
-      scribe.wires?.();
+    Queues.clear();
+    scribe.wires?.();
 
-      Queues.get().open({ key: "wiring:queue" });
-    });
-  },
+    Queues.get().open({ key: "wiring:queue" });
+  });
 });
 
-Deno.test({
-  name: "re-wiring after a clear refuses the hook event the driver it replaced had already opened",
-  fn() {
-    mount(() => {
-      scribe.wires?.();
-      Hooks.get().open({ event: "wiring.event" });
+Scribe.test("re-wiring after a clear refuses the hook event the driver it replaced had already opened", () => {
+  mount(() => {
+    scribe.wires?.();
+    Hooks.get().open({ event: "wiring.event" });
 
-      Hooks.clear();
-      scribe.wires?.();
+    Hooks.clear();
+    scribe.wires?.();
 
-      Hooks.get().open({ event: "wiring.event" });
-    });
-  },
+    Hooks.get().open({ event: "wiring.event" });
+  });
 });
 
-Deno.test({
-  name: "a mount that follows a clear still answers the store its predecessor opened, rather than a second one",
-  fn() {
-    mount(() => {
-      scribe.wires?.();
-      const opened = Caches.get().open({ key: "wiring:cache" });
+Scribe.test("a mount that follows a clear still answers the store its predecessor opened, rather than a second one", () => {
+  mount(() => {
+    scribe.wires?.();
+    const opened = Caches.get().open({ key: "wiring:cache" });
 
-      Caches.clear();
-      scribe.wires?.();
+    Caches.clear();
+    scribe.wires?.();
 
-      assertStrictEquals(
-        Caches.get().open({ key: "wiring:cache" }),
-        opened,
-        "the port promises one store per key, and a rebuilt driver hands out a second",
-      );
-    });
-  },
+    expect(
+      Caches.get().open({ key: "wiring:cache" }),
+      same(opened),
+      "the port promises one store per key, and a rebuilt driver hands out a second",
+    );
+  });
 });
 
-Deno.test("declaring the same cron key twice through one driver answers the same run rather than firing twice", () => {
+Scribe.test("declaring the same cron key twice through one driver answers the same run rather than firing twice", () => {
   mount(() => {
     scribe.wires?.();
     const driver = Crons.get();
@@ -308,19 +291,18 @@ Deno.test("declaring the same cron key twice through one driver answers the same
     const first = driver.schedule({ key: "wiring:once", schedule: { every: Duration.minutes(1) }, run: () => {} });
     const second = driver.schedule({ key: "wiring:once", schedule: { every: Duration.minutes(1) }, run: () => {} });
 
-    assertStrictEquals(first, second);
-    assert(first.key === "wiring:once");
+    expect(first, same(second));
+    expect(first.key === "wiring:once", isTrue);
   });
 });
 
-Deno.test("a schedule naming none of the three shapes is refused where it is written", () => {
+Scribe.test("a schedule naming none of the three shapes is refused where it is written", () => {
   mount(() => {
     scribe.wires?.();
 
-    assertThrows(
+    expect(
       () => Crons.get().schedule({ key: "wiring:bad", schedule: {} as never, run: () => {} }),
-      Error,
-      "a schedule names an interval",
+      throwsA(allOf(isA(Error), withMessage("a schedule names an interval"))),
     );
   });
 });

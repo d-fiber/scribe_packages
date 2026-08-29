@@ -32,8 +32,8 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
-import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
+import "@scribe/testing/runner.ts";
+import { allOf, contains, equals, expect, isA, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import { triggerRegistry } from "../../../lib/src/trigger/trigger_registry.ts";
 import { Trigger } from "../../../lib/src/trigger/trigger.ts";
 
@@ -52,102 +52,92 @@ function declared(name: string): boolean {
   return triggerRegistry.list().some((trigger) => trigger.name === name);
 }
 
-Deno.test("onInsert takes its name from the table and the operation", () => {
+Scribe.test("onInsert takes its name from the table and the operation", () => {
   const trigger = orders.onInsert("orders/{orderId}", noop);
 
-  assertEquals(trigger.name, "orders:insert");
-  assertEquals(trigger.table, "orders");
-  assertEquals(trigger.op, "insert");
-  assertEquals(trigger.fields, []);
-  assertEquals(declared("orders:insert"), true);
+  expect(trigger.name, equals("orders:insert"));
+  expect(trigger.table, equals("orders"));
+  expect(trigger.op, equals("insert"));
+  expect(trigger.fields, equals([]));
+  expect(declared("orders:insert"), equals(true));
 });
 
-Deno.test("onUpdate and onDelete take the same name under their own operation", () => {
-  assertEquals(orders.onUpdate("orders/{orderId}", noop).name, "orders:update");
-  assertEquals(orders.onDelete("orders/{orderId}", noop).name, "orders:delete");
+Scribe.test("onUpdate and onDelete take the same name under their own operation", () => {
+  expect(orders.onUpdate("orders/{orderId}", noop).name, equals("orders:update"));
+  expect(orders.onDelete("orders/{orderId}", noop).name, equals("orders:delete"));
 });
 
-Deno.test("onFieldChange takes its name from the column the path ends on", () => {
+Scribe.test("onFieldChange takes its name from the column the path ends on", () => {
   const trigger = orders.onFieldChange("orders/{orderId}/status", noop);
 
-  assertEquals(trigger.name, "orders:status");
-  assertEquals(trigger.op, "update");
-  assertEquals(trigger.fields, ["status"]);
+  expect(trigger.name, equals("orders:status"));
+  expect(trigger.op, equals("update"));
+  expect(trigger.fields, equals(["status"]));
 });
 
-Deno.test("onFieldsChange sorts the columns it watches into its name", () => {
+Scribe.test("onFieldsChange sorts the columns it watches into its name", () => {
   const trigger = orders.onFieldsChange(
     { path: "invoices/{invoiceId}", observe: ["total", "status"] },
     noop,
   );
 
-  assertEquals(trigger.name, "invoices:status+total");
-  assertEquals(trigger.fields, ["total", "status"]);
+  expect(trigger.name, equals("invoices:status+total"));
+  expect(trigger.fields, equals(["total", "status"]));
 });
 
-Deno.test("a declaration takes the key column it names, and id when it names none", () => {
-  assertEquals(orders.onInsert("carts/{cartId}", noop).key, "id");
-  assertEquals(
-    orders.onInsert({ path: "shipments/{ref}", key: "reference" }, noop).key,
-    "reference",
-  );
+Scribe.test("a declaration takes the key column it names, and id when it names none", () => {
+  expect(orders.onInsert("carts/{cartId}", noop).key, equals("id"));
+  expect(orders.onInsert({ path: "shipments/{ref}", key: "reference" }, noop).key, equals("reference"));
 });
 
-Deno.test("a name given by hand tells two declarations on the same table apart", () => {
+Scribe.test("a name given by hand tells two declarations on the same table apart", () => {
   orders.onUpdate("refunds/{refundId}", noop);
   const named = orders.onUpdate(
     { path: "refunds/{refundId}", name: "refunds:shipping" },
     noop,
   );
 
-  assertEquals(named.name, "refunds:shipping");
+  expect(named.name, equals("refunds:shipping"));
 });
 
-Deno.test("two declarations that derive the same name are refused", () => {
+Scribe.test("two declarations that derive the same name are refused", () => {
   orders.onInsert("payments/{paymentId}", noop);
 
-  assertThrows(
+  expect(
     () => orders.onInsert("payments/{paymentId}", noop),
-    Error,
-    '"payments:insert" is already declared',
+    throwsA(allOf(isA(Error), withMessage('"payments:insert" is already declared'))),
   );
 });
 
-Deno.test("onFieldsChange refuses a path that also names a column", () => {
+Scribe.test("onFieldsChange refuses a path that also names a column", () => {
   const path: string = "audits/{auditId}/status";
 
-  assertThrows(
+  expect(
     () => orders.onFieldsChange({ path, observe: ["status"] }, noop),
-    Error,
-    "the path stops at the row",
+    throwsA(allOf(isA(Error), withMessage("the path stops at the row"))),
   );
 });
 
-Deno.test("onFieldsChange refuses an empty list of columns", () => {
-  assertThrows(
-    () =>
-      orders.onFieldsChange(
-        { path: "audits/{auditId}", observe: [] },
-        noop,
-      ),
-    Error,
-    '"observe" names no column',
-  );
+Scribe.test("onFieldsChange refuses an empty list of columns", () => {
+  expect(() =>
+    orders.onFieldsChange(
+      { path: "audits/{auditId}", observe: [] },
+      noop,
+    ), throwsA(allOf(isA(Error), withMessage('"observe" names no column'))));
 });
 
-Deno.test("onFieldChange refuses a transition on a path that names no column", () => {
+Scribe.test("onFieldChange refuses a transition on a path that names no column", () => {
   const path: string = "quotes/{quoteId}";
 
-  assertThrows(
+  expect(
     () => orders.onFieldChange({ path, when: {} }, noop),
-    Error,
-    "the path has to end on a column",
+    throwsA(allOf(isA(Error), withMessage("the path has to end on a column"))),
   );
 });
 
-Deno.test("the report counts the declarations and the tables they sit on", () => {
+Scribe.test("the report counts the declarations and the tables they sit on", () => {
   const report = triggerRegistry.report();
 
-  assertStringIncludes(report, "[trigger]");
-  assertStringIncludes(report, "declared on");
+  expect(report, contains("[trigger]"));
+  expect(report, contains("declared on"));
 });

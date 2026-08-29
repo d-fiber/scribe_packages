@@ -33,7 +33,8 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
 import { Queue } from "../../../lib/src/queue/queue.ts";
 import { queueRegistry } from "../../../lib/src/queue/queue_registry.ts";
@@ -42,8 +43,6 @@ import { topology } from "../../../lib/src/queue/topology/topology.ts";
 import { type Kv, kv } from "../../../lib/src/redis/kv.ts";
 import { installMock } from "../../testing/install.ts";
 import { dispatchProbes, probe } from "./probe.ts";
-import { assertEquals } from "@std/assert";
-
 installDrivers();
 
 const DEAD_AT = 2;
@@ -90,124 +89,112 @@ function counting() {
   };
 }
 
-Deno.test("a message that succeeds is decoded exactly once", async () => {
+Scribe.test("a message that succeeds is decoded exactly once", async () => {
   const reads = { count: 0 };
 
   await dispatchProbes([probe({ subject: "q.test_hot_ok", data: { id: "a" }, reads })]);
 
-  assertEquals(reads.count, 1);
+  expect(reads.count, equals(1));
 });
 
-Deno.test({
-  name: "a message that is refused is decoded twice, and the second decode is thrown away",
-  fn: async () => {
-    const reads = { count: 0 };
+Scribe.test("a message that is refused is decoded twice, and the second decode is thrown away", async () => {
+  const reads = { count: 0 };
 
-    await dispatchProbes([
-      probe({ subject: "q.test_hot_refuses", data: { id: "a" }, deliveryCount: 1, reads }),
-    ]);
+  await dispatchProbes([
+    probe({ subject: "q.test_hot_refuses", data: { id: "a" }, deliveryCount: 1, reads }),
+  ]);
 
-    assertEquals(
-      reads.count,
-      1,
-      "fail() decodes the payload a second time to hand it to the policy, which only reads it " +
-        "on the dead-letter path: on a retry the whole parse is work nobody uses",
-    );
-  },
+  expect(
+    reads.count,
+    equals(1),
+    "fail() decodes the payload a second time to hand it to the policy, which only reads it " +
+      "on the dead-letter path: on a retry the whole parse is work nobody uses",
+  );
 });
 
-Deno.test({
-  name: "a group that is refused decodes every one of its members twice",
-  fn: async () => {
-    const reads = { count: 0 };
-    const messages = Array.from(
-      { length: 50 },
-      (_, at) => probe({ subject: "q.test_hot_group", data: { id: `j${at}` }, seq: at + 1, reads }),
-    );
+Scribe.test("a group that is refused decodes every one of its members twice", async () => {
+  const reads = { count: 0 };
+  const messages = Array.from(
+    { length: 50 },
+    (_, at) => probe({ subject: "q.test_hot_group", data: { id: `j${at}` }, seq: at + 1, reads }),
+  );
 
-    await dispatchProbes(messages);
+  await dispatchProbes(messages);
 
-    assertEquals(
-      reads.count,
-      50,
-      "the group is decoded once to be handed over and once more per member on the way out, " +
-        "so a group of fifty that fails pays a hundred parses for fifty payloads",
-    );
-  },
+  expect(
+    reads.count,
+    equals(50),
+    "the group is decoded once to be handed over and once more per member on the way out, " +
+      "so a group of fifty that fails pays a hundred parses for fifty payloads",
+  );
 });
 
-Deno.test("a message on the dead-letter path is decoded once and re-serialised once", async () => {
+Scribe.test("a message on the dead-letter path is decoded once and re-serialised once", async () => {
   const reads = { count: 0 };
 
   const { published } = await dispatchProbes([
     probe({ subject: "q.test_hot_refuses", data: { id: "a" }, deliveryCount: DEAD_AT, reads }),
   ]);
 
-  assertEquals(published.length, 1);
-  assertEquals(
+  expect(published.length, equals(1));
+  expect(
     reads.count,
-    1,
+    equals(1),
     "the decoded message travels from where it was read to where it is republished, so the " +
       "payload is parsed once for the whole path rather than once per step",
   );
 });
 
-Deno.test("reading one queue's standing costs two counts and one scan of the delayed set", async () => {
+Scribe.test("reading one queue's standing costs two counts and one scan of the delayed set", async () => {
   queueStatus.forget();
   const probeCalls = counting();
 
   try {
     await queueStatus.one(queueRegistry.get("test:hot:ok")!);
 
-    assertEquals(probeCalls.calls.filter((one) => one.startsWith("count:")).length, 2);
-    assertEquals(probeCalls.calls.filter((one) => one === "zscan").length, 1);
+    expect(probeCalls.calls.filter((one) => one.startsWith("count:")).length, equals(2));
+    expect(probeCalls.calls.filter((one) => one === "zscan").length, equals(1));
   } finally {
     probeCalls.restore();
   }
 });
 
-Deno.test("reading every queue's standing scans the delayed set once, not once per queue", async () => {
+Scribe.test("reading every queue's standing scans the delayed set once, not once per queue", async () => {
   queueStatus.forget();
   const probeCalls = counting();
 
   try {
     const all = await queueStatus.all();
 
-    assertEquals(all.length, queueRegistry.list().length);
-    assertEquals(probeCalls.calls.filter((one) => one === "zscan").length, 1);
-    assertEquals(
-      probeCalls.calls.filter((one) => one.startsWith("count:")).length,
-      all.length * 2,
+    expect(all.length, equals(queueRegistry.list().length));
+    expect(probeCalls.calls.filter((one) => one === "zscan").length, equals(1));
+    expect(probeCalls.calls.filter((one) => one.startsWith("count:")).length, equals(all.length * 2));
+  } finally {
+    probeCalls.restore();
+  }
+});
+
+Scribe.test("reading the queues one by one scans the whole delayed set once per queue", async () => {
+  queueStatus.forget();
+  const probeCalls = counting();
+  const queues = queueRegistry.list().slice(0, 5);
+
+  try {
+    for (const queue of queues) await queueStatus.one(queue);
+
+    expect(
+      probeCalls.calls.filter((one) => one === "zscan").length,
+      equals(1),
+      "a dashboard that asks each queue for its standing walks the whole delayed set again " +
+        "each time, and the set is shared by every queue of the process: at the scan cap " +
+        "that is a hundred round trips per queue for a number all() reads once",
     );
   } finally {
     probeCalls.restore();
   }
 });
 
-Deno.test({
-  name: "reading the queues one by one scans the whole delayed set once per queue",
-  fn: async () => {
-    queueStatus.forget();
-    const probeCalls = counting();
-    const queues = queueRegistry.list().slice(0, 5);
-
-    try {
-      for (const queue of queues) await queueStatus.one(queue);
-
-      assertEquals(
-        probeCalls.calls.filter((one) => one === "zscan").length,
-        1,
-        "a dashboard that asks each queue for its standing walks the whole delayed set again " +
-          "each time, and the set is shared by every queue of the process: at the scan cap " +
-          "that is a hundred round trips per queue for a number all() reads once",
-      );
-    } finally {
-      probeCalls.restore();
-    }
-  },
-});
-
-Deno.test("a push of a hundred items provisions the topology once, not once per item", async () => {
+Scribe.test("a push of a hundred items provisions the topology once, not once per item", async () => {
   const published: string[] = [];
   const probeCalls = counting();
   const publishing = installMock(topology, "publish", (subject: string) => {
@@ -222,50 +209,47 @@ Deno.test("a push of a hundred items provisions the topology once, not once per 
     );
     await queue.pushMany(Array.from({ length: 100 }, (_, id) => ({ id })));
 
-    assertEquals(published.length, 100);
-    assertEquals(probeCalls.calls.filter((one) => one === "ensure").length, 1);
+    expect(published.length, equals(100));
+    expect(probeCalls.calls.filter((one) => one === "ensure").length, equals(1));
   } finally {
     publishing.restore();
     probeCalls.restore();
   }
 });
 
-Deno.test({
-  name: "a push of ten thousand items opens ten thousand publications at once",
-  fn: async () => {
-    let inFlight = 0;
-    let peak = 0;
-    const probeCalls = counting();
-    const publishing = installMock(topology, "publish", async () => {
-      inFlight++;
-      peak = Math.max(peak, inFlight);
-      await Promise.resolve();
-      inFlight--;
-      return "1";
-    });
+Scribe.test("a push of ten thousand items opens ten thousand publications at once", async () => {
+  let inFlight = 0;
+  let peak = 0;
+  const probeCalls = counting();
+  const publishing = installMock(topology, "publish", async () => {
+    inFlight++;
+    peak = Math.max(peak, inFlight);
+    await Promise.resolve();
+    inFlight--;
+    return "1";
+  });
 
-    try {
-      const queue = new Queue<{ id: number }>(
-        { name: "test:hot:flood" },
-        () => Promise.resolve(),
-      );
-      await queue.pushMany(Array.from({ length: 10_000 }, (_, id) => ({ id })));
+  try {
+    const queue = new Queue<{ id: number }>(
+      { name: "test:hot:flood" },
+      () => Promise.resolve(),
+    );
+    await queue.pushMany(Array.from({ length: 10_000 }, (_, id) => ({ id })));
 
-      assertEquals(
-        peak <= 100,
-        true,
-        `${peak} publications were in flight at once: pushMany hands the whole list to ` +
-          "Promise.all with no pool, so the producer's memory and the server's inbox both " +
-          "grow with the size of the list rather than with a limit the package chose",
-      );
-    } finally {
-      publishing.restore();
-      probeCalls.restore();
-    }
-  },
+    expect(
+      peak <= 100,
+      equals(true),
+      `${peak} publications were in flight at once: pushMany hands the whole list to ` +
+        "Promise.all with no pool, so the producer's memory and the server's inbox both " +
+        "grow with the size of the list rather than with a limit the package chose",
+    );
+  } finally {
+    publishing.restore();
+    probeCalls.restore();
+  }
 });
 
-Deno.test("an empty pushMany costs nothing at all", async () => {
+Scribe.test("an empty pushMany costs nothing at all", async () => {
   const probeCalls = counting();
 
   try {
@@ -274,14 +258,14 @@ Deno.test("an empty pushMany costs nothing at all", async () => {
       () => Promise.resolve(),
     );
 
-    assertEquals(await queue.pushMany([]), []);
-    assertEquals(probeCalls.calls, []);
+    expect(await queue.pushMany([]), equals([]));
+    expect(probeCalls.calls, equals([]));
   } finally {
     probeCalls.restore();
   }
 });
 
-Deno.test("a pass over a mixed batch asks the registry once per message and no more", async () => {
+Scribe.test("a pass over a mixed batch asks the registry once per message and no more", async () => {
   const messages = Array.from(
     { length: 200 },
     (_, at) =>
@@ -301,9 +285,9 @@ Deno.test("a pass over a mixed batch asks the registry once per message and no m
   try {
     await dispatchProbes(messages);
 
-    assertEquals(
+    expect(
       lookups.length,
-      2,
+      equals(2),
       "the batch is grouped by subject before anything is looked up, so the registry is asked " +
         "once per subject present and not once per message",
     );

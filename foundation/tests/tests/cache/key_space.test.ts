@@ -32,58 +32,57 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, isTrue, Scribe } from "@scribe/alchemy/test";
 import "../../testing/settings.ts";
 
 import { withJitter } from "../../../lib/src/cache/ttl_jitter.ts";
 import { KeySpace } from "../../../lib/src/cache/key_space.ts";
 import { Duration } from "@scribe/alchemy";
-import { assert, assertEquals } from "@std/assert";
-
 const keys = new KeySpace("auth:device");
 
-Deno.test("KeySpace namespaces an id under its prefix", () => {
-  assertEquals(keys.keyOf("42"), "auth:device/42");
+Scribe.test("KeySpace namespaces an id under its prefix", () => {
+  expect(keys.keyOf("42"), equals("auth:device/42"));
 });
 
-Deno.test("KeySpace derives a distinct lock key", () => {
-  assertEquals(keys.lockKeyOf("42"), "lock:auth:device/42");
-  assert(keys.lockKeyOf("42") !== keys.keyOf("42"));
+Scribe.test("KeySpace derives a distinct lock key", () => {
+  expect(keys.lockKeyOf("42"), equals("lock:auth:device/42"));
+  expect(keys.lockKeyOf("42") !== keys.keyOf("42"), isTrue);
 });
 
-Deno.test("KeySpace without a pattern matches the whole namespace", () => {
-  assertEquals(keys.matching(), "auth:device/*");
+Scribe.test("KeySpace without a pattern matches the whole namespace", () => {
+  expect(keys.matching(), equals("auth:device/*"));
 });
 
-Deno.test("KeySpace takes a glob, not a prefix", () => {
-  assertEquals(keys.matching("u1:*"), "auth:device/u1:*");
-  assertEquals(keys.matching("u1"), "auth:device/u1");
+Scribe.test("KeySpace takes a glob, not a prefix", () => {
+  expect(keys.matching("u1:*"), equals("auth:device/u1:*"));
+  expect(keys.matching("u1"), equals("auth:device/u1"));
 });
 
-Deno.test("withJitter never returns less than the ttl", () => {
+Scribe.test("withJitter never returns less than the ttl", () => {
   const ttl = Duration.seconds(100);
 
   for (let i = 0; i < 200; i++) {
-    assert(withJitter(ttl) >= ttl.inSeconds);
+    expect(withJitter(ttl) >= ttl.inSeconds, isTrue);
   }
 });
 
-Deno.test("withJitter stays within a tenth above the ttl", () => {
+Scribe.test("withJitter stays within a tenth above the ttl", () => {
   const ttl = Duration.seconds(100);
   const ceiling = ttl.inSeconds + Math.ceil(ttl.inSeconds * 0.1);
 
   for (let i = 0; i < 200; i++) {
-    assert(withJitter(ttl) < ceiling);
+    expect(withJitter(ttl) < ceiling, isTrue);
   }
 });
 
-Deno.test("withJitter leaves a ttl too small to spread untouched", () => {
-  assertEquals(withJitter(Duration.seconds(0)), 0);
+Scribe.test("withJitter leaves a ttl too small to spread untouched", () => {
+  expect(withJitter(Duration.seconds(0)), equals(0));
 });
 
-Deno.test("withJitter actually spreads across calls", () => {
+Scribe.test("withJitter actually spreads across calls", () => {
   const ttl = Duration.seconds(1000);
   const seen = new Set(Array.from({ length: 100 }, () => withJitter(ttl)));
 
-  assert(seen.size > 1, "jitter produced a single value");
+  expect(seen.size > 1, isTrue, "jitter produced a single value");
 });

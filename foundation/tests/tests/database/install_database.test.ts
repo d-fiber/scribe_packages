@@ -32,36 +32,36 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { database } from "../../../lib/src/database/database_client.ts";
-import { assertEquals } from "@std/assert";
 import { clientOf, installDatabaseMock } from "./mocks/install_database.ts";
 import { from } from "../../../lib/src/database/tables_base.ts";
 
-Deno.test("installDatabaseMock: a query written against the fake reads the rows it was given", async () => {
+Scribe.test("installDatabaseMock: a query written against the fake reads the rows it was given", async () => {
   const mock = installDatabaseMock({ t_roles: [{ role: "owner" }] });
   try {
     const found = await from<{ role: string }>(clientOf(mock), "t_roles")
       .where((f) => f.role.eq("owner"))
       .getOne();
 
-    assertEquals(found?.role, "owner");
+    expect(found?.role, equals("owner"));
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("installDatabaseMock: rpc goes through the fake, and restore takes it back off", async () => {
+Scribe.test("installDatabaseMock: rpc goes through the fake, and restore takes it back off", async () => {
   const mock = installDatabaseMock();
   mock.onRpc("count_roles", () => 3);
 
   const answered = await database.rpc<{ n: number }>("count_roles");
-  assertEquals(answered.data, 3, "the call went through the fake, not the real client");
+  expect(answered.data, equals(3), "the call went through the fake, not the real client");
 
   mock.restore();
-  assertEquals(
+  expect(
     Object.getOwnPropertyNames(database).includes("rpc"),
-    false,
+    equals(false),
     "restore() took its own property back off database, which is all this can check: calling rpc " +
       "again would reach the real client, and that one reads settings no test has outside the server",
   );

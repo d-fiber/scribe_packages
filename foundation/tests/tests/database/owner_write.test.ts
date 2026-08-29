@@ -33,9 +33,9 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { allOf, equals, expect, expectLater, isA, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
-import { assertEquals, assertRejects } from "@std/assert";
 import type { RequestUser } from "@scribe/alchemy/route";
 import { RequestIdentityCache } from "@scribe/runtime/http/accessors/identity.ts";
 import { RequestScope } from "@scribe/runtime/scope.ts";
@@ -90,119 +90,94 @@ function withIdentity<T>(identity: RequestUser | null, run: () => Promise<T>): P
 
 installDrivers();
 
-Deno.test({
-  name: "DEFECT insert lets a caller write a row owned by somebody else",
-  sanitizeOps: false,
-  sanitizeResources: false,
-  async fn() {
-    const mock = installDatabaseMock({ [SECRETS]: [] });
-    try {
-      const outcome = await withIdentity(
-        CALLER,
-        () => from<Secret>(clientOf(mock), SECRETS).insert({ id: "s9", owner_id: "victim", body: "planted" }),
-      );
+Scribe.test("DEFECT insert lets a caller write a row owned by somebody else", async () => {
+  const mock = installDatabaseMock({ [SECRETS]: [] });
+  try {
+    const outcome = await withIdentity(
+      CALLER,
+      () => from<Secret>(clientOf(mock), SECRETS).insert({ id: "s9", owner_id: "victim", body: "planted" }),
+    );
 
-      assertEquals(outcome.ok, false, "naming an owner the caller is not must not be written");
-      assertEquals(mock.rows(SECRETS).length, 0, "no row may be planted under another owner");
-    } finally {
-      mock.restore();
-    }
-  },
+    expect(outcome.ok, equals(false), "naming an owner the caller is not must not be written");
+    expect(mock.rows(SECRETS).length, equals(0), "no row may be planted under another owner");
+  } finally {
+    mock.restore();
+  }
 });
 
-Deno.test({
-  name: "DEFECT insertOne lets a caller write a row owned by somebody else",
-  sanitizeOps: false,
-  sanitizeResources: false,
-  async fn() {
-    const mock = installDatabaseMock({ [SECRETS]: [] });
-    try {
-      const outcome = await withIdentity(
-        CALLER,
-        () => from<Secret>(clientOf(mock), SECRETS).insertOne({ id: "s9", owner_id: "victim", body: "planted" }),
-      );
+Scribe.test("DEFECT insertOne lets a caller write a row owned by somebody else", async () => {
+  const mock = installDatabaseMock({ [SECRETS]: [] });
+  try {
+    const outcome = await withIdentity(
+      CALLER,
+      () => from<Secret>(clientOf(mock), SECRETS).insertOne({ id: "s9", owner_id: "victim", body: "planted" }),
+    );
 
-      assertEquals(outcome.ok, false, "the one-row insert has to refuse what the many-row one refuses");
-      assertEquals(mock.rows(SECRETS).length, 0);
-    } finally {
-      mock.restore();
-    }
-  },
+    expect(outcome.ok, equals(false), "the one-row insert has to refuse what the many-row one refuses");
+    expect(mock.rows(SECRETS).length, equals(0));
+  } finally {
+    mock.restore();
+  }
 });
 
-Deno.test({
-  name: "DEFECT one row of a batch naming another owner carries the whole batch through",
-  sanitizeOps: false,
-  sanitizeResources: false,
-  async fn() {
-    const mock = installDatabaseMock({ [SECRETS]: [] });
-    try {
-      const outcome = await withIdentity(
-        CALLER,
-        () =>
-          from<Secret>(clientOf(mock), SECRETS).insert([
-            { id: "a", body: "mine" },
-            { id: "b", owner_id: "victim", body: "planted" },
-          ] as never),
-      );
+Scribe.test("DEFECT one row of a batch naming another owner carries the whole batch through", async () => {
+  const mock = installDatabaseMock({ [SECRETS]: [] });
+  try {
+    const outcome = await withIdentity(
+      CALLER,
+      () =>
+        from<Secret>(clientOf(mock), SECRETS).insert([
+          { id: "a", body: "mine" },
+          { id: "b", owner_id: "victim", body: "planted" },
+        ] as never),
+    );
 
-      assertEquals(outcome.ok, false, "one row naming another owner refuses the batch it is in");
-      assertEquals(
-        mock.rows(SECRETS).length,
-        0,
-        "the row that named nobody must not be written either, or the batch is half applied",
-      );
-    } finally {
-      mock.restore();
-    }
-  },
+    expect(outcome.ok, equals(false), "one row naming another owner refuses the batch it is in");
+    expect(
+      mock.rows(SECRETS).length,
+      equals(0),
+      "the row that named nobody must not be written either, or the batch is half applied",
+    );
+  } finally {
+    mock.restore();
+  }
 });
 
-Deno.test({
-  name: "DEFECT an anonymous caller writes into a table it may not read a single row of",
-  sanitizeOps: false,
-  sanitizeResources: false,
-  async fn() {
-    const mock = installDatabaseMock({ [SECRETS]: [] });
-    try {
-      const outcome = await withIdentity(
-        null,
-        () => from<Secret>(clientOf(mock), SECRETS).insert({ id: "s9", owner_id: "victim", body: "planted" }),
-      );
+Scribe.test("DEFECT an anonymous caller writes into a table it may not read a single row of", async () => {
+  const mock = installDatabaseMock({ [SECRETS]: [] });
+  try {
+    const outcome = await withIdentity(
+      null,
+      () => from<Secret>(clientOf(mock), SECRETS).insert({ id: "s9", owner_id: "victim", body: "planted" }),
+    );
 
-      assertEquals(outcome.ok, false, "a caller narrowed to nobody on the read side owns no row to write either");
-      assertEquals(mock.rows(SECRETS).length, 0);
-    } finally {
-      mock.restore();
-    }
-  },
+    expect(outcome.ok, equals(false), "a caller narrowed to nobody on the read side owns no row to write either");
+    expect(mock.rows(SECRETS).length, equals(0));
+  } finally {
+    mock.restore();
+  }
 });
 
-Deno.test({
-  name: "DEFECT update rewrites the owning column and hands the row to somebody else",
-  sanitizeOps: false,
-  sanitizeResources: false,
-  async fn() {
-    const mock = installDatabaseMock({ [SECRETS]: [...TWO_OWNERS] });
-    try {
-      const outcome = await withIdentity(
-        CALLER,
-        () => from<Secret>(clientOf(mock), SECRETS).update({ owner_id: "victim" } as never),
-      );
+Scribe.test("DEFECT update rewrites the owning column and hands the row to somebody else", async () => {
+  const mock = installDatabaseMock({ [SECRETS]: [...TWO_OWNERS] });
+  try {
+    const outcome = await withIdentity(
+      CALLER,
+      () => from<Secret>(clientOf(mock), SECRETS).update({ owner_id: "victim" } as never),
+    );
 
-      assertEquals(outcome.ok, false, "the column the scope is decided on is not the caller's to write");
-      assertEquals(
-        mock.rows(SECRETS).find((row) => row.id === "s1")?.owner_id,
-        "u1",
-        "the row stayed with the caller who owned it",
-      );
-    } finally {
-      mock.restore();
-    }
-  },
+    expect(outcome.ok, equals(false), "the column the scope is decided on is not the caller's to write");
+    expect(
+      mock.rows(SECRETS).find((row) => row.id === "s1")?.owner_id,
+      equals("u1"),
+      "the row stayed with the caller who owned it",
+    );
+  } finally {
+    mock.restore();
+  }
 });
 
-Deno.test("insert fills the owning column of every row of a batch that leaves it out", async () => {
+Scribe.test("insert fills the owning column of every row of a batch that leaves it out", async () => {
   const mock = installDatabaseMock({ [SECRETS]: [] });
   try {
     const outcome = await withIdentity(
@@ -214,128 +189,102 @@ Deno.test("insert fills the owning column of every row of a batch that leaves it
         ] as never),
     );
 
-    assertEquals(outcome.ok, true);
-    assertEquals(mock.rows(SECRETS).map((row) => row.owner_id), ["u1", "u1"]);
+    expect(outcome.ok, equals(true));
+    expect(mock.rows(SECRETS).map((row) => row.owner_id), equals(["u1", "u1"]));
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("insert into an owned table from a path that proved no caller is refused, not filled with nothing", async () => {
+Scribe.test("insert into an owned table from a path that proved no caller is refused, not filled with nothing", async () => {
   const mock = installDatabaseMock({ [SECRETS]: [] });
   try {
-    await assertRejects(
+    await expectLater(
       () => from<Secret>(clientOf(mock), SECRETS).insert({ id: "s9", body: "x" } as never),
-      UnprovenCallerError,
-      "with no caller",
+      throwsA(allOf(isA(UnprovenCallerError), withMessage("with no caller"))),
     );
-    assertEquals(mock.rows(SECRETS).length, 0);
+    expect(mock.rows(SECRETS).length, equals(0));
   } finally {
     mock.restore();
   }
 });
 
-Deno.test({
-  name: "entireTable does not lift the owner scope, it only lifts the refusal",
-  sanitizeOps: false,
-  sanitizeResources: false,
-  async fn() {
-    const mock = installDatabaseMock({ [SECRETS]: [...TWO_OWNERS] });
-    try {
-      const outcome = await withIdentity(
-        CALLER,
-        () => from<Secret>(clientOf(mock), SECRETS).entireTable().delete(),
-      );
+Scribe.test("entireTable does not lift the owner scope, it only lifts the refusal", async () => {
+  const mock = installDatabaseMock({ [SECRETS]: [...TWO_OWNERS] });
+  try {
+    const outcome = await withIdentity(
+      CALLER,
+      () => from<Secret>(clientOf(mock), SECRETS).entireTable().delete(),
+    );
 
-      assertEquals(outcome.ok, true);
-      assertEquals(
-        mock.rows(SECRETS).map((row) => row.id),
-        ["s2"],
-        "declaring the write deliberate reaches every row the caller owns, and no other",
-      );
-    } finally {
-      mock.restore();
-    }
-  },
+    expect(outcome.ok, equals(true));
+    expect(
+      mock.rows(SECRETS).map((row) => row.id),
+      equals(["s2"]),
+      "declaring the write deliberate reaches every row the caller owns, and no other",
+    );
+  } finally {
+    mock.restore();
+  }
 });
 
-Deno.test({
-  name: "the permission to read every row is also what reaches every row of a write",
-  sanitizeOps: false,
-  sanitizeResources: false,
-  async fn() {
-    const mock = installDatabaseMock({ [SECRETS]: [...TWO_OWNERS] });
-    try {
-      const outcome = await withIdentity(
-        EVERY_ROW,
-        () => from<Secret>(clientOf(mock), SECRETS).entireTable().delete(),
-      );
+Scribe.test("the permission to read every row is also what reaches every row of a write", async () => {
+  const mock = installDatabaseMock({ [SECRETS]: [...TWO_OWNERS] });
+  try {
+    const outcome = await withIdentity(
+      EVERY_ROW,
+      () => from<Secret>(clientOf(mock), SECRETS).entireTable().delete(),
+    );
 
-      assertEquals(outcome.ok, true);
-      assertEquals(mock.rows(SECRETS).length, 0);
-    } finally {
-      mock.restore();
-    }
-  },
+    expect(outcome.ok, equals(true));
+    expect(mock.rows(SECRETS).length, equals(0));
+  } finally {
+    mock.restore();
+  }
 });
 
-Deno.test({
-  name: "a scoped delete naming another owner in its predicate removes nothing",
-  sanitizeOps: false,
-  sanitizeResources: false,
-  async fn() {
-    const mock = installDatabaseMock({ [SECRETS]: [...TWO_OWNERS] });
-    try {
-      const outcome = await withIdentity(
-        CALLER,
-        () => from<Secret>(clientOf(mock), SECRETS).where((f) => f.owner_id.eq("victim")).delete(),
-      );
+Scribe.test("a scoped delete naming another owner in its predicate removes nothing", async () => {
+  const mock = installDatabaseMock({ [SECRETS]: [...TWO_OWNERS] });
+  try {
+    const outcome = await withIdentity(
+      CALLER,
+      () => from<Secret>(clientOf(mock), SECRETS).where((f) => f.owner_id.eq("victim")).delete(),
+    );
 
-      assertEquals(outcome.ok, true);
-      assertEquals(outcome.ok === true && outcome.data, 0, "the two owner conditions can never both hold");
-      assertEquals(mock.rows(SECRETS).length, 2);
-    } finally {
-      mock.restore();
-    }
-  },
+    expect(outcome.ok, equals(true));
+    expect(outcome.ok === true && outcome.data, equals(0), "the two owner conditions can never both hold");
+    expect(mock.rows(SECRETS).length, equals(2));
+  } finally {
+    mock.restore();
+  }
 });
 
-Deno.test({
-  name: "a table nobody owns is written without an owning column being invented for it",
-  sanitizeOps: false,
-  sanitizeResources: false,
-  async fn() {
-    const mock = installDatabaseMock({ [OPEN]: [] });
-    try {
-      const outcome = await withIdentity(
-        CALLER,
-        () => from<{ id: string }>(clientOf(mock), OPEN).insert({ id: "n1" }),
-      );
+Scribe.test("a table nobody owns is written without an owning column being invented for it", async () => {
+  const mock = installDatabaseMock({ [OPEN]: [] });
+  try {
+    const outcome = await withIdentity(
+      CALLER,
+      () => from<{ id: string }>(clientOf(mock), OPEN).insert({ id: "n1" }),
+    );
 
-      assertEquals(outcome.ok, true);
-      assertEquals(mock.rows(OPEN), [{ id: "n1" }], "no column was added to a table that declares no owner");
-    } finally {
-      mock.restore();
-    }
-  },
+    expect(outcome.ok, equals(true));
+    expect(mock.rows(OPEN), equals([{ id: "n1" }]), "no column was added to a table that declares no owner");
+  } finally {
+    mock.restore();
+  }
 });
 
-Deno.test({
-  name: "unscoped on a write is what a worker uses, and it reaches rows the caller does not own",
-  sanitizeOps: false,
-  sanitizeResources: false,
-  async fn() {
-    const mock = installDatabaseMock({ [SECRETS]: [...TWO_OWNERS] });
-    try {
-      const outcome = await from<Secret>(clientOf(mock), SECRETS)
-        .unscoped()
-        .where((f) => f.id.eq("s2"))
-        .delete();
+Scribe.test("unscoped on a write is what a worker uses, and it reaches rows the caller does not own", async () => {
+  const mock = installDatabaseMock({ [SECRETS]: [...TWO_OWNERS] });
+  try {
+    const outcome = await from<Secret>(clientOf(mock), SECRETS)
+      .unscoped()
+      .where((f) => f.id.eq("s2"))
+      .delete();
 
-      assertEquals(outcome.ok, true);
-      assertEquals(mock.rows(SECRETS).map((row) => row.id), ["s1"]);
-    } finally {
-      mock.restore();
-    }
-  },
+    expect(outcome.ok, equals(true));
+    expect(mock.rows(SECRETS).map((row) => row.id), equals(["s1"]));
+  } finally {
+    mock.restore();
+  }
 });

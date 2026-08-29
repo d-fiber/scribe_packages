@@ -33,12 +33,11 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, isNot, Scribe } from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
 import { Queue } from "../../../lib/src/queue/queue.ts";
 import { dispatchProbes, probe, unanswered } from "./probe.ts";
-import { assertEquals, assertNotEquals } from "@std/assert";
-
 installDrivers();
 
 const handled: unknown[] = [];
@@ -59,113 +58,101 @@ new Queue<unknown>(
   },
 );
 
-Deno.test({
-  name: "one unparseable payload leaves every later message of its queue unanswered",
-  fn: async () => {
-    const poison = probe({ subject: "q.test_poison_serial", raw: "{ not json", seq: 1 });
-    const second = probe({ subject: "q.test_poison_serial", data: { id: "b" }, seq: 2 });
-    const third = probe({ subject: "q.test_poison_serial", data: { id: "c" }, seq: 3 });
+Scribe.test("one unparseable payload leaves every later message of its queue unanswered", async () => {
+  const poison = probe({ subject: "q.test_poison_serial", raw: "{ not json", seq: 1 });
+  const second = probe({ subject: "q.test_poison_serial", data: { id: "b" }, seq: 2 });
+  const third = probe({ subject: "q.test_poison_serial", data: { id: "c" }, seq: 3 });
 
-    const { rejected } = await dispatchProbes([poison, second, third]);
+  const { rejected } = await dispatchProbes([poison, second, third]);
 
-    assertEquals(
-      rejected,
-      null,
-      "a payload nobody can read must not throw out of the pass: the exception escapes " +
-        "runPooled, the dispatcher and the drain, and the whole pass is lost",
-    );
-    assertEquals(
-      unanswered(second) || unanswered(third),
-      false,
-      "the messages queued behind the unreadable one were never acknowledged, retried or " +
-        "terminated, so they hold their consumer slot until ack_wait expires",
-    );
-  },
+  expect(
+    rejected,
+    equals(null),
+    "a payload nobody can read must not throw out of the pass: the exception escapes " +
+      "runPooled, the dispatcher and the drain, and the whole pass is lost",
+  );
+  expect(
+    unanswered(second) || unanswered(third),
+    equals(false),
+    "the messages queued behind the unreadable one were never acknowledged, retried or " +
+      "terminated, so they hold their consumer slot until ack_wait expires",
+  );
 });
 
-Deno.test({
-  name: "an unparseable payload is never routed to the dead letter, so it comes back forever",
-  fn: async () => {
-    const poison = probe({
-      subject: "q.test_poison_serial",
-      raw: "{ not json",
-      deliveryCount: 99,
-    });
+Scribe.test("an unparseable payload is never routed to the dead letter, so it comes back forever", async () => {
+  const poison = probe({
+    subject: "q.test_poison_serial",
+    raw: "{ not json",
+    deliveryCount: 99,
+  });
 
-    const { published } = await dispatchProbes([poison]);
+  const { published } = await dispatchProbes([poison]);
 
-    assertEquals(
-      published.map((one) => one.subject),
-      ["dead.test_poison_serial"],
-      "a payload that cannot be decoded can never succeed, so it belongs on the dead letter " +
-        "on its first delivery rather than being redelivered until the server gives up",
-    );
-  },
+  expect(
+    published.map((one) => one.subject),
+    equals(["dead.test_poison_serial"]),
+    "a payload that cannot be decoded can never succeed, so it belongs on the dead letter " +
+      "on its first delivery rather than being redelivered until the server gives up",
+  );
 });
 
-Deno.test({
-  name: "one unparseable payload in a group takes the whole group down with it",
-  fn: async () => {
-    const poison = probe({ subject: "q.test_poison_group", raw: "]]]", seq: 1 });
-    const healthy = probe({ subject: "q.test_poison_group", data: { id: "b" }, seq: 2 });
+Scribe.test("one unparseable payload in a group takes the whole group down with it", async () => {
+  const poison = probe({ subject: "q.test_poison_group", raw: "]]]", seq: 1 });
+  const healthy = probe({ subject: "q.test_poison_group", data: { id: "b" }, seq: 2 });
 
-    const { rejected } = await dispatchProbes([poison, healthy]);
+  const { rejected } = await dispatchProbes([poison, healthy]);
 
-    assertEquals(rejected, null, "the group is decoded outside the guarded call");
-    assertEquals(
-      unanswered(healthy),
-      false,
-      "a readable message travelling beside an unreadable one is dropped on the floor",
-    );
-  },
+  expect(rejected, equals(null), "the group is decoded outside the guarded call");
+  expect(
+    unanswered(healthy),
+    equals(false),
+    "a readable message travelling beside an unreadable one is dropped on the floor",
+  );
 });
 
-Deno.test({
-  name: "a payload of literal null throws where nothing catches it",
-  fn: async () => {
-    const empty = probe({ subject: "q.test_poison_serial", raw: "null" });
+Scribe.test("a payload of literal null throws where nothing catches it", async () => {
+  const empty = probe({ subject: "q.test_poison_serial", raw: "null" });
 
-    const { rejected } = await dispatchProbes([empty]);
+  const { rejected } = await dispatchProbes([empty]);
 
-    assertEquals(rejected, null, "reading .data off a decoded null happens outside the try");
-  },
+  expect(rejected, equals(null), "reading .data off a decoded null happens outside the try");
 });
 
-Deno.test("a payload whose envelope is a bare number never reaches the body", async () => {
+Scribe.test("a payload whose envelope is a bare number never reaches the body", async () => {
   handled.length = 0;
   const odd = probe({ subject: "q.test_poison_serial", raw: "3" });
 
   const { result, rejected } = await dispatchProbes([odd]);
 
-  assertEquals(rejected, null);
-  assertEquals(handled, [], "a number carries no data, so there is nothing to hand a body");
-  assertEquals(result.done, 0);
-  assertEquals(odd.acked, false);
+  expect(rejected, equals(null));
+  expect(handled, equals([]), "a number carries no data, so there is nothing to hand a body");
+  expect(result.done, equals(0));
+  expect(odd.acked, equals(false));
 });
 
-Deno.test("a payload carrying the wildcard separators of the protocol survives the wire", async () => {
+Scribe.test("a payload carrying the wildcard separators of the protocol survives the wire", async () => {
   handled.length = 0;
   const hostile = { subject: "q.>", filter: "*.*", token: "a.b.c", glob: "dead.*" };
   const message = probe({ subject: "q.test_poison_serial", data: hostile });
 
   const { result } = await dispatchProbes([message]);
 
-  assertEquals(result.done, 1);
-  assertEquals(handled, [hostile]);
+  expect(result.done, equals(1));
+  expect(handled, equals([hostile]));
 });
 
-Deno.test("a payload of ten thousand characters is handed over untouched", async () => {
+Scribe.test("a payload of ten thousand characters is handed over untouched", async () => {
   handled.length = 0;
   const long = "é".repeat(10_000);
   const message = probe({ subject: "q.test_poison_serial", data: { long } });
 
   const { result } = await dispatchProbes([message]);
 
-  assertEquals(result.done, 1);
-  assertEquals((handled[0] as { long: string }).long.length, 10_000);
+  expect(result.done, equals(1));
+  expect((handled[0] as { long: string }).long.length, equals(10_000));
 });
 
-Deno.test("a payload whose envelope names a second data key keeps the outer one", async () => {
+Scribe.test("a payload whose envelope names a second data key keeps the outer one", async () => {
   handled.length = 0;
   const message = probe({
     subject: "q.test_poison_serial",
@@ -174,7 +161,7 @@ Deno.test("a payload whose envelope names a second data key keeps the outer one"
 
   const { result } = await dispatchProbes([message]);
 
-  assertEquals(result.done, 1);
-  assertEquals(handled, [{ data: "inner" }]);
-  assertNotEquals(handled[0], "inner");
+  expect(result.done, equals(1));
+  expect(handled, equals([{ data: "inner" }]));
+  expect(handled[0], isNot(equals("inner")));
 });

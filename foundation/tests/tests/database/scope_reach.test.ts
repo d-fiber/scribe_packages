@@ -33,9 +33,9 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { allOf, equals, expect, expectLater, isA, isTrue, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
-import { assert, assertEquals, assertRejects } from "@std/assert";
 import type { RequestUser } from "@scribe/alchemy/route";
 import { RequestIdentityCache } from "@scribe/runtime/http/accessors/identity.ts";
 import { RequestScope } from "@scribe/runtime/scope.ts";
@@ -99,39 +99,7 @@ function probe(table: string): Probe {
 
 installDrivers();
 
-Deno.test({
-  name: "DEFECT an embedded table that declares an owner is joined in without an owner filter",
-  async fn() {
-    const { builder, sent } = probe(ORDERS);
-
-    await withIdentity(CALLER, () =>
-      builder
-        .select((s: Any) => ({ id: s.id, card: s.embed(CARDS, (c: Any) => ({ pan: c.pan })) }))
-        .get());
-
-    assert(sent[0].includes("buyer_id=eq.u1"), `the outer table is narrowed: ${sent[0]}`);
-    assert(
-      sent[0].includes(`${CARDS}.holder_id=eq.u1`),
-      `the embedded table is read whole: ${sent[0]}`,
-    );
-  },
-});
-
-Deno.test({
-  name: "DEFECT a raw selection embedding an owned table is not narrowed either",
-  async fn() {
-    const { builder, sent } = probe(ORDERS);
-
-    await withIdentity(CALLER, () => builder.selectRaw(`*,${CARDS}(*)`).get());
-
-    assert(
-      sent[0].includes(`${CARDS}.holder_id=eq.u1`),
-      `an embed written by hand reaches rows the caller owns none of: ${sent[0]}`,
-    );
-  },
-});
-
-Deno.test("the owner filter is added to the table the query names, whatever it selects", async () => {
+Scribe.test("DEFECT an embedded table that declares an owner is joined in without an owner filter", async () => {
   const { builder, sent } = probe(ORDERS);
 
   await withIdentity(CALLER, () =>
@@ -139,10 +107,34 @@ Deno.test("the owner filter is added to the table the query names, whatever it s
       .select((s: Any) => ({ id: s.id, card: s.embed(CARDS, (c: Any) => ({ pan: c.pan })) }))
       .get());
 
-  assertEquals(sent[0], `${ORDERS}?select=id,${CARDS}(pan)&${CARDS}.holder_id=eq.u1&buyer_id=eq.u1`);
+  expect(sent[0].includes("buyer_id=eq.u1"), isTrue, `the outer table is narrowed: ${sent[0]}`);
+  expect(sent[0].includes(`${CARDS}.holder_id=eq.u1`), isTrue, `the embedded table is read whole: ${sent[0]}`);
 });
 
-Deno.test("an embed is written as PostgREST spells it, and inner is the caller's own word", async () => {
+Scribe.test("DEFECT a raw selection embedding an owned table is not narrowed either", async () => {
+  const { builder, sent } = probe(ORDERS);
+
+  await withIdentity(CALLER, () => builder.selectRaw(`*,${CARDS}(*)`).get());
+
+  expect(
+    sent[0].includes(`${CARDS}.holder_id=eq.u1`),
+    isTrue,
+    `an embed written by hand reaches rows the caller owns none of: ${sent[0]}`,
+  );
+});
+
+Scribe.test("the owner filter is added to the table the query names, whatever it selects", async () => {
+  const { builder, sent } = probe(ORDERS);
+
+  await withIdentity(CALLER, () =>
+    builder
+      .select((s: Any) => ({ id: s.id, card: s.embed(CARDS, (c: Any) => ({ pan: c.pan })) }))
+      .get());
+
+  expect(sent[0], equals(`${ORDERS}?select=id,${CARDS}(pan)&${CARDS}.holder_id=eq.u1&buyer_id=eq.u1`));
+});
+
+Scribe.test("an embed is written as PostgREST spells it, and inner is the caller's own word", async () => {
   const { builder, sent } = probe(ORDERS);
 
   await withIdentity(CALLER, () =>
@@ -150,21 +142,20 @@ Deno.test("an embed is written as PostgREST spells it, and inner is the caller's
       .select((s: Any) => ({ card: s.embed(CARDS, (c: Any) => ({ pan: c.pan }), { inner: true }) }))
       .get());
 
-  assertEquals(sent[0], `${ORDERS}?select=${CARDS}!inner(pan)&buyer_id=eq.u1`);
+  expect(sent[0], equals(`${ORDERS}?select=${CARDS}!inner(pan)&buyer_id=eq.u1`));
 });
 
-Deno.test("a Postgres function is reached from a path that proved no caller, unlike a table", async () => {
+Scribe.test("a Postgres function is reached from a path that proved no caller, unlike a table", async () => {
   const mock = installDatabaseMock();
   mock.onRpc("t_reach_count", () => 3);
   try {
     const answered = await mock.service.rpc<{ n: number }>("t_reach_count");
 
-    assertEquals(answered.data, 3, "nothing on the rpc path reads who is calling, so nothing refuses it");
+    expect(answered.data, equals(3), "nothing on the rpc path reads who is calling, so nothing refuses it");
 
-    await assertRejects(
+    await expectLater(
       () => new TypedQueryBuilder<{ id: string }>(clientOf(mock), ORDERS).get(),
-      UnprovenCallerError,
-      "with no caller",
+      throwsA(allOf(isA(UnprovenCallerError), withMessage("with no caller"))),
       "the same path is refused the moment it names an owned table",
     );
   } finally {
@@ -172,15 +163,14 @@ Deno.test("a Postgres function is reached from a path that proved no caller, unl
   }
 });
 
-Deno.test("the port hands back the builder this package reads its own rows with", async () => {
+Scribe.test("the port hands back the builder this package reads its own rows with", async () => {
   const db = installDatabaseFake({ [ORDERS]: [] });
   try {
     const table = new PostgrestDatabases().table<{ [ORDERS]: { row: { id: string } } }, typeof ORDERS>(ORDERS);
 
-    await assertRejects(
+    await expectLater(
       () => (table as unknown as { get(): Promise<unknown> }).get(),
-      UnprovenCallerError,
-      "with no caller",
+      throwsA(allOf(isA(UnprovenCallerError), withMessage("with no caller"))),
       "a package reaching the port is held to the same guard as one reaching the builder",
     );
   } finally {
@@ -188,7 +178,7 @@ Deno.test("the port hands back the builder this package reads its own rows with"
   }
 });
 
-Deno.test("the port narrows to the caller the same way the builder does", async () => {
+Scribe.test("the port narrows to the caller the same way the builder does", async () => {
   const mock = installDatabaseMock({
     [ORDERS]: [{ id: "o1", buyer_id: "u1" }, { id: "o2", buyer_id: "u2" }],
   });
@@ -199,22 +189,22 @@ Deno.test("the port narrows to the caller the same way the builder does", async 
       () => new TypedQueryBuilder<{ id: string; buyer_id: string }>(clientOf(mock), ORDERS).get(),
     );
 
-    assertEquals(rows.map((row) => row.id), ["o1"]);
+    expect(rows.map((row) => row.id), equals(["o1"]));
   } finally {
     db.restore();
     mock.restore();
   }
 });
 
-Deno.test("a table nobody registered is read whole, which is why a view over an owned table has to be registered too", async () => {
+Scribe.test("a table nobody registered is read whole, which is why a view over an owned table has to be registered too", async () => {
   const { builder, sent } = probe(OPEN);
 
   await withIdentity(CALLER, () => builder.get());
 
-  assertEquals(sent[0], `${OPEN}?select=*`, "the engine narrows what a project told it to narrow, and nothing else");
+  expect(sent[0], equals(`${OPEN}?select=*`), "the engine narrows what a project told it to narrow, and nothing else");
 });
 
-Deno.test("an ordering on an embedded table names the relation rather than widening the query", async () => {
+Scribe.test("an ordering on an embedded table names the relation rather than widening the query", async () => {
   const { builder, sent } = probe(ORDERS);
 
   await withIdentity(CALLER, () =>
@@ -223,8 +213,8 @@ Deno.test("an ordering on an embedded table names the relation rather than widen
       .order("pan" as never, { foreignTable: CARDS })
       .get());
 
-  assertEquals(
+  expect(
     sent[0],
-    `${ORDERS}?select=*,${CARDS}(*)&${CARDS}.holder_id=eq.u1&buyer_id=eq.u1&${CARDS}.order=pan.asc`,
+    equals(`${ORDERS}?select=*,${CARDS}(*)&${CARDS}.holder_id=eq.u1&buyer_id=eq.u1&${CARDS}.order=pan.asc`),
   );
 });

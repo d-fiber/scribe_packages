@@ -33,7 +33,8 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
 import { Queue } from "../../../lib/src/queue/queue.ts";
 import { processorFor } from "../../../lib/src/queue/runner/processor_for.ts";
@@ -42,8 +43,6 @@ import { DrainTally } from "../../../lib/src/queue/runner/drain_tally.ts";
 import { graceFor, IMMEDIATE_GRACE_MS } from "../../../lib/src/queue/runner/grace_period.ts";
 import type { JsMsg } from "@nats-io/jetstream";
 import { dispatchProbes, type Probe, probe } from "./probe.ts";
-import { assertEquals } from "@std/assert";
-
 installDrivers();
 
 let groups: number[] = [];
@@ -78,19 +77,19 @@ function lot(count: number, subject = "q.test_lot_group"): Probe[] {
   );
 }
 
-Deno.test("a group of ten thousand reaches the body in one call and is acknowledged whole", async () => {
+Scribe.test("a group of ten thousand reaches the body in one call and is acknowledged whole", async () => {
   groups = [];
   refuseAt = -1;
   const messages = lot(10_000);
 
   const { result } = await dispatchProbes(messages);
 
-  assertEquals(groups, [10_000]);
-  assertEquals(result.done, 10_000);
-  assertEquals(messages.every((one) => one.acked), true);
+  expect(groups, equals([10_000]));
+  expect(result.done, equals(10_000));
+  expect(messages.every((one) => one.acked), equals(true));
 });
 
-Deno.test("one refusing member sends every member of the group back, on its own count", async () => {
+Scribe.test("one refusing member sends every member of the group back, on its own count", async () => {
   groups = [];
   refuseAt = 3;
   const messages = lot(6);
@@ -98,14 +97,14 @@ Deno.test("one refusing member sends every member of the group back, on its own 
 
   const { result } = await dispatchProbes(messages);
 
-  assertEquals(groups, [6]);
-  assertEquals(result.retried, 5);
-  assertEquals(result.dead, 1, "the member that had used up its deliveries left the group alone");
-  assertEquals(messages[1].termed, true);
-  assertEquals(messages.filter((one) => one.nakedAfter !== null).length, 5);
+  expect(groups, equals([6]));
+  expect(result.retried, equals(5));
+  expect(result.dead, equals(1), "the member that had used up its deliveries left the group alone");
+  expect(messages[1].termed, equals(true));
+  expect(messages.filter((one) => one.nakedAfter !== null).length, equals(5));
 });
 
-Deno.test("a group that failed runs again in full, refusing member included", async () => {
+Scribe.test("a group that failed runs again in full, refusing member included", async () => {
   groups = [];
   refuseAt = 3;
 
@@ -113,25 +112,25 @@ Deno.test("a group that failed runs again in full, refusing member included", as
   refuseAt = -1;
   await dispatchProbes(lot(6));
 
-  assertEquals(
+  expect(
     groups,
-    [6, 6],
+    equals([6, 6]),
     "the group succeeds or fails whole, so the five members that had nothing wrong with them " +
       "are handed to the body a second time and the body has to stand that",
   );
 });
 
-Deno.test("a group of one is still a group", async () => {
+Scribe.test("a group of one is still a group", async () => {
   groups = [];
   refuseAt = -1;
 
   const { result } = await dispatchProbes(lot(1));
 
-  assertEquals(groups, [1]);
-  assertEquals(result.done, 1);
+  expect(groups, equals([1]));
+  expect(result.done, equals(1));
 });
 
-Deno.test("an empty group never reaches the body at all", async () => {
+Scribe.test("an empty group never reaches the body at all", async () => {
   groups = [];
   refuseAt = -1;
   const declared = queueRegistry.get("test:lot:group");
@@ -139,38 +138,34 @@ Deno.test("an empty group never reaches the body at all", async () => {
 
   await processorFor(declared!).process([] as unknown as readonly JsMsg[], tally);
 
-  assertEquals(
-    groups,
-    [],
-    "a body that opens a transaction per group must not pay for a group with no work in it",
-  );
-  assertEquals(tally.toResult().done, 0);
+  expect(groups, equals([]), "a body that opens a transaction per group must not pay for a group with no work in it");
+  expect(tally.toResult().done, equals(0));
 });
 
-Deno.test("a linger of zero declares a batch queue that never waits for company", () => {
-  assertEquals(
+Scribe.test("a linger of zero declares a batch queue that never waits for company", () => {
+  expect(
     graceFor("q.test_lot_instant"),
-    0,
+    equals(0),
     "zero is kept rather than read as absent, so the fetch closes on its first message and " +
       "the body is called once per message while still acknowledging all or nothing",
   );
-  assertEquals(graceFor("q.test_lot_group"), 40);
-  assertEquals(graceFor("q.test_lot_patient"), 30_000);
+  expect(graceFor("q.test_lot_group"), equals(40));
+  expect(graceFor("q.test_lot_patient"), equals(30_000));
 });
 
-Deno.test("the shortest linger in a mixed fetch is the one every subject waits under", () => {
+Scribe.test("the shortest linger in a mixed fetch is the one every subject waits under", () => {
   const present = ["q.test_lot_patient", "q.test_lot_group", "q.test_dispatch_never"];
 
-  assertEquals(
+  expect(
     Math.min(...present.map(graceFor)),
-    IMMEDIATE_GRACE_MS,
+    equals(IMMEDIATE_GRACE_MS),
     "a queue that groups must never hold back one that does not, so the batch closes on the " +
       "shortest window present and a patient queue gets no grouping at all when it travels " +
       "beside an impatient one",
   );
 });
 
-Deno.test("a mixed fetch of two groups is handed over in parallel, not one after the other", async () => {
+Scribe.test("a mixed fetch of two groups is handed over in parallel, not one after the other", async () => {
   groups = [];
   refuseAt = -1;
   const order: string[] = [];
@@ -190,5 +185,5 @@ Deno.test("a mixed fetch of two groups is handed over in parallel, not one after
     probe({ subject: "q.test_lot_quick", data: { id: 2 }, seq: 2 }),
   ]);
 
-  assertEquals(order, ["slow-in", "quick", "slow-out"]);
+  expect(order, equals(["slow-in", "quick", "slow-out"]));
 });

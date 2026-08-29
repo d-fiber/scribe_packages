@@ -32,46 +32,43 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { allOf, equals, expect, isA, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import { HttpRequest } from "@scribe/alchemy/http";
-import { assertEquals, assertThrows } from "@std/assert";
 import { MemoryClient } from "@scribe/alchemy/test";
 
-Deno.test("a request upper-cases its method and keeps the whole url", () => {
+Scribe.test("a request upper-cases its method and keeps the whole url", () => {
   const request = new HttpRequest("post", "https://example.test/a?b=1#c");
 
-  assertEquals(request.method, "POST");
-  assertEquals(request.url.href, "https://example.test/a?b=1#c");
-  assertEquals(request.toString(), "POST https://example.test/a?b=1#c");
+  expect(request.method, equals("POST"));
+  expect(request.url.href, equals("https://example.test/a?b=1#c"));
+  expect(request.toString(), equals("POST https://example.test/a?b=1#c"));
 });
 
-Deno.test(
+Scribe.test(
   "the three views of the body are three views of the same bytes",
   () => {
     const request = new HttpRequest("POST", "https://example.test/");
 
     request.bodyFields = { name: "ada", city: "lovelace lane" };
 
-    assertEquals(request.body, "name=ada&city=lovelace+lane");
-    assertEquals(request.bodyFields, { name: "ada", city: "lovelace lane" });
-    assertEquals(
-      new TextDecoder().decode(request.bodyBytes),
-      "name=ada&city=lovelace+lane",
-    );
+    expect(request.body, equals("name=ada&city=lovelace+lane"));
+    expect(request.bodyFields, equals({ name: "ada", city: "lovelace lane" }));
+    expect(new TextDecoder().decode(request.bodyBytes), equals("name=ada&city=lovelace+lane"));
   },
 );
 
-Deno.test("setting one view replaces the other two", () => {
+Scribe.test("setting one view replaces the other two", () => {
   const request = new HttpRequest("POST", "https://example.test/");
 
   request.bodyFields = { name: "ada" };
   request.bodyBytes = new Uint8Array([104, 105]);
 
-  assertEquals(request.body, "hi");
-  assertEquals(request.contentLength, 2);
+  expect(request.body, equals("hi"));
+  expect(request.contentLength, equals(2));
 });
 
-Deno.test(
+Scribe.test(
   "text gives itself a content-type, and leaves one already set alone",
   () => {
     const plain = new HttpRequest("POST", "https://example.test/");
@@ -81,63 +78,64 @@ Deno.test(
     json.headers.set("content-type", "application/json");
     json.body = "{}";
 
-    assertEquals(
-      plain.headers.get("content-type"),
-      "text/plain; charset=utf-8",
-    );
-    assertEquals(json.headers.get("content-type"), "application/json");
+    expect(plain.headers.get("content-type"), equals("text/plain; charset=utf-8"));
+    expect(json.headers.get("content-type"), equals("application/json"));
   },
 );
 
-Deno.test("the content-type carries the encoding the request was given", () => {
+Scribe.test("the content-type carries the encoding the request was given", () => {
   const request = new HttpRequest("POST", "https://example.test/");
 
   request.encoding = "latin1";
   request.body = "x";
 
-  assertEquals(
-    request.headers.get("content-type"),
-    "text/plain; charset=latin1",
-  );
+  expect(request.headers.get("content-type"), equals("text/plain; charset=latin1"));
 });
 
-Deno.test("reading form fields off a body that is not a form throws", () => {
+Scribe.test("reading form fields off a body that is not a form throws", () => {
   const request = new HttpRequest("POST", "https://example.test/");
   request.body = "name=ada";
 
-  assertThrows(
+  expect(
     () => request.bodyFields,
-    Error,
-    'The body fields of a request can only be read when its content-type is "application/x-www-form-urlencoded".',
+    throwsA(
+      allOf(
+        isA(Error),
+        withMessage(
+          'The body fields of a request can only be read when its content-type is "application/x-www-form-urlencoded".',
+        ),
+      ),
+    ),
   );
 });
 
-Deno.test("the content length counts bytes, not characters", () => {
+Scribe.test("the content length counts bytes, not characters", () => {
   const request = new HttpRequest("POST", "https://example.test/");
 
   request.body = "héllo";
 
-  assertEquals(request.contentLength, 6);
+  expect(request.contentLength, equals(6));
 });
 
-Deno.test(
+Scribe.test(
   "finalize hands the body over, and refuses to do it twice",
   async () => {
     const request = new HttpRequest("POST", "https://example.test/");
     request.body = "hello";
 
-    assertEquals(request.finalized, false);
-    assertEquals(await request.finalize().bytesToString(), "hello");
-    assertEquals(request.finalized, true);
-    assertThrows(
+    expect(request.finalized, equals(false));
+    expect(await request.finalize().bytesToString(), equals("hello"));
+    expect(request.finalized, equals(true));
+    expect(
       () => request.finalize(),
-      Error,
-      "This request has already been sent, and a sent request cannot be changed.",
+      throwsA(
+        allOf(isA(Error), withMessage("This request has already been sent, and a sent request cannot be changed.")),
+      ),
     );
   },
 );
 
-Deno.test("a finalized request refuses every write", () => {
+Scribe.test("a finalized request refuses every write", () => {
   const request = new HttpRequest("POST", "https://example.test/");
   request.finalize();
 
@@ -153,44 +151,41 @@ Deno.test("a finalized request refuses every write", () => {
       () => (request.timeoutMs = 1_000),
     ]
   ) {
-    assertThrows(
+    expect(
       write,
-      Error,
-      "This request has already been sent, and a sent request cannot be changed.",
+      throwsA(
+        allOf(isA(Error), withMessage("This request has already been sent, and a sent request cannot be changed.")),
+      ),
     );
   }
 });
 
-Deno.test(
+Scribe.test(
   "a request follows redirects five deep on a kept connection unless told otherwise",
   () => {
     const request = new HttpRequest("GET", "https://example.test/");
 
-    assertEquals(request.followRedirects, true);
-    assertEquals(request.maxRedirects, 5);
-    assertEquals(request.persistentConnection, true);
-    assertEquals(
-      request.timeoutMs,
-      null,
-      "no limit is the default, as it is for fetch itself",
-    );
+    expect(request.followRedirects, equals(true));
+    expect(request.maxRedirects, equals(5));
+    expect(request.persistentConnection, equals(true));
+    expect(request.timeoutMs, equals(null), "no limit is the default, as it is for fetch itself");
 
     request.followRedirects = false;
     request.maxRedirects = 0;
     request.persistentConnection = false;
 
-    assertEquals(request.followRedirects, false);
-    assertEquals(request.maxRedirects, 0);
-    assertEquals(request.persistentConnection, false);
+    expect(request.followRedirects, equals(false));
+    expect(request.maxRedirects, equals(0));
+    expect(request.persistentConnection, equals(false));
   },
 );
 
-Deno.test("send goes through the client it is handed", async () => {
+Scribe.test("send goes through the client it is handed", async () => {
   const client = new MemoryClient({ status: 201 });
   const request = new HttpRequest("PUT", "https://example.test/a");
 
   const response = await request.send(client);
 
-  assertEquals(response.statusCode, 201);
-  assertEquals(client.only, request);
+  expect(response.statusCode, equals(201));
+  expect(client.only, equals(request));
 });

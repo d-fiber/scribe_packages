@@ -32,9 +32,9 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { allOf, equals, expect, expectLater, isA, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
-import { assertEquals, assertRejects } from "@std/assert";
 import type { RequestUser } from "@scribe/alchemy/route";
 import { RequestIdentityCache } from "@scribe/runtime/http/accessors/identity.ts";
 import { RequestScope } from "@scribe/runtime/scope.ts";
@@ -102,19 +102,19 @@ function withIdentity<T>(identity: RequestUser | null, run: () => Promise<T>): P
 
 installDrivers();
 
-Deno.test("scope: a caller reads its own rows of an owned table and no others", async () => {
+Scribe.test("scope: a caller reads its own rows of an owned table and no others", async () => {
   const mock = installDatabaseMock({ [PREFERENCES]: [...SOME_PREFERENCES] });
   try {
     const rows = await withIdentity(USER, () => from<Preference>(clientOf(mock), PREFERENCES).get());
 
-    assertEquals(rows.length, 1, "the table is owned, so the read narrowed to the caller");
-    assertEquals(rows[0].user_id, "u1", "and it narrowed to the caller's own row");
+    expect(rows.length, equals(1), "the table is owned, so the read narrowed to the caller");
+    expect(rows[0].user_id, equals("u1"), "and it narrowed to the caller's own row");
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("scope: the narrowing composes with a filter the caller wrote, it does not replace it", async () => {
+Scribe.test("scope: the narrowing composes with a filter the caller wrote, it does not replace it", async () => {
   const mock = installDatabaseMock({ [PREFERENCES]: [...SOME_PREFERENCES] });
   try {
     const found = await withIdentity(
@@ -122,13 +122,13 @@ Deno.test("scope: the narrowing composes with a filter the caller wrote, it does
       () => from<Preference>(clientOf(mock), PREFERENCES).where((f) => f.user_id.eq("u2")).getOne(),
     );
 
-    assertEquals(found, null, "the scope adds user_id = the caller, so the two filters can never both hold");
+    expect(found, equals(null), "the scope adds user_id = the caller, so the two filters can never both hold");
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("scope: a caller reading its own row needs no opt-out", async () => {
+Scribe.test("scope: a caller reading its own row needs no opt-out", async () => {
   const mock = installDatabaseMock({ [PREFERENCES]: [...SOME_PREFERENCES] });
   try {
     const found = await withIdentity(
@@ -136,119 +136,113 @@ Deno.test("scope: a caller reading its own row needs no opt-out", async () => {
       () => from<Preference>(clientOf(mock), PREFERENCES).where((f) => f.user_id.eq("u1")).getOne(),
     );
 
-    assertEquals(found?.locale, "fr", "the scope already narrows to the caller, so the filter agrees with it");
+    expect(found?.locale, equals("fr"), "the scope already narrows to the caller, so the filter agrees with it");
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("scope: the permission to read every row lifts the narrowing", async () => {
+Scribe.test("scope: the permission to read every row lifts the narrowing", async () => {
   const mock = installDatabaseMock({ [PREFERENCES]: [...SOME_PREFERENCES] });
   try {
     const rows = await withIdentity(EVERY_ROW, () => from<Preference>(clientOf(mock), PREFERENCES).get());
 
-    assertEquals(rows.length, 2, "nothing narrowed the read, so every row came back");
+    expect(rows.length, equals(2), "nothing narrowed the read, so every row came back");
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("scope: the owning column is the one the table declared, not one kind of account", async () => {
+Scribe.test("scope: the owning column is the one the table declared, not one kind of account", async () => {
   const mock = installDatabaseMock({ [NOTES]: [...SOME_NOTES] });
   try {
     const rows = await withIdentity(OWNER_OF_ONE, () => from<Note>(clientOf(mock), NOTES).get());
 
-    assertEquals(rows.length, 1, "a second table owned on another column narrows the same way");
-    assertEquals(rows[0].admin_id, "a1", "and it narrowed on that column, not on user_id");
+    expect(rows.length, equals(1), "a second table owned on another column narrows the same way");
+    expect(rows[0].admin_id, equals("a1"), "and it narrowed on that column, not on user_id");
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("scope: a table that declares no owner is read whole", async () => {
+Scribe.test("scope: a table that declares no owner is read whole", async () => {
   const mock = installDatabaseMock({ t_public: [{ id: 1 }, { id: 2 }] });
   try {
     const rows = await withIdentity(USER, () => from<{ id: number }>(clientOf(mock), "t_public").get());
 
-    assertEquals(rows.length, 2, "there is no column to narrow on, so nothing is narrowed");
+    expect(rows.length, equals(2), "there is no column to narrow on, so nothing is narrowed");
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("scope: an anonymous caller reads no row of a table somebody owns", async () => {
+Scribe.test("scope: an anonymous caller reads no row of a table somebody owns", async () => {
   const mock = installDatabaseMock({ [PREFERENCES]: [...SOME_PREFERENCES] });
   try {
     const rows = await withIdentity(null, () => from<Preference>(clientOf(mock), PREFERENCES).get());
 
-    assertEquals(rows.length, 0, "proving nobody is not the same as owning every row");
+    expect(rows.length, equals(0), "proving nobody is not the same as owning every row");
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("scope: a path that never resolved a caller is refused, not opened", async () => {
+Scribe.test("scope: a path that never resolved a caller is refused, not opened", async () => {
   const mock = installDatabaseMock({ [PREFERENCES]: [...SOME_PREFERENCES] });
   try {
-    await assertRejects(
+    await expectLater(
       () => from<Preference>(clientOf(mock), PREFERENCES).get(),
-      UnprovenCallerError,
-      "with no caller",
+      throwsA(allOf(isA(UnprovenCallerError), withMessage("with no caller"))),
     );
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("scope: a path with no caller says how to read the table on purpose", async () => {
+Scribe.test("scope: a path with no caller says how to read the table on purpose", async () => {
   const mock = installDatabaseMock({ [PREFERENCES]: [...SOME_PREFERENCES] });
   try {
     const rows = await from<Preference>(clientOf(mock), PREFERENCES).unscoped().get();
 
-    assertEquals(rows.length, 2, "unscoped() is what a worker, a cron and a hook write");
+    expect(rows.length, equals(2), "unscoped() is what a worker, a cron and a hook write");
   } finally {
     mock.restore();
   }
 });
 
-Deno.test({
-  name: "scope: an update only touches the caller's own row",
-  sanitizeOps: false,
-  sanitizeResources: false,
-  async fn() {
-    const mock = installDatabaseMock({ [PREFERENCES]: [...SOME_PREFERENCES] });
-    try {
-      const outcome = await withIdentity(
-        USER,
-        () => from<Preference>(clientOf(mock), PREFERENCES).update({ theme: "system" }),
-      );
-      assertEquals(outcome.ok, true);
+Scribe.test("scope: an update only touches the caller's own row", async () => {
+  const mock = installDatabaseMock({ [PREFERENCES]: [...SOME_PREFERENCES] });
+  try {
+    const outcome = await withIdentity(
+      USER,
+      () => from<Preference>(clientOf(mock), PREFERENCES).update({ theme: "system" }),
+    );
+    expect(outcome.ok, equals(true));
 
-      const rows = mock.rows(PREFERENCES);
-      assertEquals(rows.find((row) => row.user_id === "u1")?.theme, "system");
-      assertEquals(rows.find((row) => row.user_id === "u2")?.theme, "light", "the other row was left alone");
-    } finally {
-      mock.restore();
-    }
-  },
+    const rows = mock.rows(PREFERENCES);
+    expect(rows.find((row) => row.user_id === "u1")?.theme, equals("system"));
+    expect(rows.find((row) => row.user_id === "u2")?.theme, equals("light"), "the other row was left alone");
+  } finally {
+    mock.restore();
+  }
 });
 
-Deno.test("scope: an update with neither a filter nor an identity is refused", async () => {
+Scribe.test("scope: an update with neither a filter nor an identity is refused", async () => {
   const mock = installDatabaseMock({ [PREFERENCES]: [...SOME_PREFERENCES] });
   try {
     const outcome = await withIdentity(
       null,
       () => from<Preference>(clientOf(mock), PREFERENCES).update({ theme: "dark" }),
     );
-    assertEquals(outcome.ok, false, "a write that would touch every row is refused");
+    expect(outcome.ok, equals(false), "a write that would touch every row is refused");
 
-    assertEquals(mock.rows(PREFERENCES).find((row) => row.user_id === "u2")?.theme, "light");
+    expect(mock.rows(PREFERENCES).find((row) => row.user_id === "u2")?.theme, equals("light"));
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("scope: unscoped hands back the whole table to a caller that asked for it", async () => {
+Scribe.test("scope: unscoped hands back the whole table to a caller that asked for it", async () => {
   const mock = installDatabaseMock({ [PREFERENCES]: [...SOME_PREFERENCES] });
   try {
     const rows = await withIdentity(
@@ -256,28 +250,23 @@ Deno.test("scope: unscoped hands back the whole table to a caller that asked for
       () => from<Preference>(clientOf(mock), PREFERENCES).unscoped().get(),
     );
 
-    assertEquals(rows.length, 2);
+    expect(rows.length, equals(2));
   } finally {
     mock.restore();
   }
 });
 
-Deno.test({
-  name: "scope: an insert carries the identifier of the caller",
-  sanitizeOps: false,
-  sanitizeResources: false,
-  async fn() {
-    const mock = installDatabaseMock({ [PREFERENCES]: [] });
-    try {
-      const outcome = await withIdentity(
-        USER,
-        () => from<Preference>(clientOf(mock), PREFERENCES).insert({ locale: "fr" } as never),
-      );
-      assertEquals(outcome.ok, true);
+Scribe.test("scope: an insert carries the identifier of the caller", async () => {
+  const mock = installDatabaseMock({ [PREFERENCES]: [] });
+  try {
+    const outcome = await withIdentity(
+      USER,
+      () => from<Preference>(clientOf(mock), PREFERENCES).insert({ locale: "fr" } as never),
+    );
+    expect(outcome.ok, equals(true));
 
-      assertEquals(mock.rows(PREFERENCES)[0].user_id, "u1", "the owning column was filled from the caller");
-    } finally {
-      mock.restore();
-    }
-  },
+    expect(mock.rows(PREFERENCES)[0].user_id, equals("u1"), "the owning column was filled from the caller");
+  } finally {
+    mock.restore();
+  }
 });

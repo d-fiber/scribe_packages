@@ -32,20 +32,20 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { allOf, contains, equals, expect, fail, isA, isNot, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import { MultipartFile } from "@scribe/alchemy/http";
 import { MultipartRequest } from "@scribe/alchemy/http";
-import { assert, assertEquals, assertNotEquals, assertStringIncludes, assertThrows } from "@std/assert";
 
 function boundaryOf(request: MultipartRequest): string {
   const type = request.headers.get("content-type") ?? "";
   const found = /boundary=(.+)$/.exec(type);
+  if (found === null) fail(`no boundary in ${type}`);
 
-  assert(found !== null, `no boundary in ${type}`);
   return found[1];
 }
 
-Deno.test("the body carries the fields, then the files, then the closing boundary", async () => {
+Scribe.test("the body carries the fields, then the files, then the closing boundary", async () => {
   const request = new MultipartRequest("POST", "https://example.test/upload");
   request.fields.set("name", "ada");
   request.files.push(
@@ -55,30 +55,32 @@ Deno.test("the body carries the fields, then the files, then the closing boundar
   const body = await request.finalize().bytesToString();
   const boundary = boundaryOf(request);
 
-  assertEquals(
+  expect(
     body,
-    `--${boundary}\r\n` +
-      'content-disposition: form-data; name="name"\r\n\r\n' +
-      "ada\r\n" +
+    equals(
       `--${boundary}\r\n` +
-      "content-type: text/plain; charset=utf-8\r\n" +
-      'content-disposition: form-data; name="note"; filename="note.txt"\r\n\r\n' +
-      "hello\r\n" +
-      `--${boundary}--\r\n`,
+        'content-disposition: form-data; name="name"\r\n\r\n' +
+        "ada\r\n" +
+        `--${boundary}\r\n` +
+        "content-type: text/plain; charset=utf-8\r\n" +
+        'content-disposition: form-data; name="note"; filename="note.txt"\r\n\r\n' +
+        "hello\r\n" +
+        `--${boundary}--\r\n`,
+    ),
   );
 });
 
-Deno.test("a file with no filename says so by leaving the directive out", async () => {
+Scribe.test("a file with no filename says so by leaving the directive out", async () => {
   const request = new MultipartRequest("POST", "https://example.test/upload");
   request.files.push(MultipartFile.fromBytes("blob", new Uint8Array([1, 2])));
 
   const body = await request.finalize().bytesToString();
 
-  assertStringIncludes(body, "content-type: application/octet-stream\r\n");
-  assertStringIncludes(body, 'content-disposition: form-data; name="blob"\r\n');
+  expect(body, contains("content-type: application/octet-stream\r\n"));
+  expect(body, contains('content-disposition: form-data; name="blob"\r\n'));
 });
 
-Deno.test("the announced length is the length of the body", async () => {
+Scribe.test("the announced length is the length of the body", async () => {
   const cases: Array<[string, (request: MultipartRequest) => void]> = [
     ["nothing at all", () => {}],
     ["one field", (request) => request.fields.set("name", "ada")],
@@ -114,38 +116,31 @@ Deno.test("the announced length is the length of the body", async () => {
     const announced = request.contentLength;
     const sent = (await request.finalize().toBytes()).length;
 
-    assertEquals(
-      announced,
-      sent,
-      `${label}: announced ${announced}, sent ${sent}`,
-    );
+    expect(announced, equals(sent), `${label}: announced ${announced}, sent ${sent}`);
   }
 });
 
-Deno.test("two requests do not share a boundary", () => {
+Scribe.test("two requests do not share a boundary", () => {
   const first = new MultipartRequest("POST", "https://example.test/upload");
   const second = new MultipartRequest("POST", "https://example.test/upload");
 
   first.finalize();
   second.finalize();
 
-  assertNotEquals(boundaryOf(first), boundaryOf(second));
+  expect(boundaryOf(first), isNot(equals(boundaryOf(second))));
 });
 
-Deno.test("the boundary is drawn at finalize, not before", () => {
+Scribe.test("the boundary is drawn at finalize, not before", () => {
   const request = new MultipartRequest("POST", "https://example.test/upload");
 
-  assertEquals(request.headers.get("content-type"), null);
+  expect(request.headers.get("content-type"), equals(null));
 
   request.finalize();
 
-  assertStringIncludes(
-    request.headers.get("content-type") ?? "",
-    "multipart/form-data; boundary=",
-  );
+  expect(request.headers.get("content-type") ?? "", contains("multipart/form-data; boundary="));
 });
 
-Deno.test("a quote or a newline in a name cannot end the header early", async () => {
+Scribe.test("a quote or a newline in a name cannot end the header early", async () => {
   const request = new MultipartRequest("POST", "https://example.test/upload");
   request.fields.set('a"b\r\nc', "v");
   request.files.push(
@@ -154,45 +149,50 @@ Deno.test("a quote or a newline in a name cannot end the header early", async ()
 
   const body = await request.finalize().bytesToString();
 
-  assertStringIncludes(body, 'name="a%22b%0D%0Ac"');
-  assertStringIncludes(body, 'filename="d%22e%0Af"');
+  expect(body, contains('name="a%22b%0D%0Ac"'));
+  expect(body, contains('filename="d%22e%0Af"'));
 });
 
-Deno.test("a file hands its bytes over once", () => {
+Scribe.test("a file hands its bytes over once", () => {
   const file = MultipartFile.fromString("f", "x");
 
   file.finalize();
 
-  assertThrows(
+  expect(
     () => file.finalize(),
-    Error,
-    "This file has already been finalised, and a finalised file cannot be sent twice.",
+    throwsA(
+      allOf(
+        isA(Error),
+        withMessage("This file has already been finalised, and a finalised file cannot be sent twice."),
+      ),
+    ),
   );
 });
 
-Deno.test("a file made from text announces its length in bytes and calls itself text", () => {
+Scribe.test("a file made from text announces its length in bytes and calls itself text", () => {
   const file = MultipartFile.fromString("f", "héllo");
 
-  assertEquals(file.length, 6);
-  assertEquals(file.contentType, "text/plain; charset=utf-8");
-  assertEquals(file.filename, null);
+  expect(file.length, equals(6));
+  expect(file.contentType, equals("text/plain; charset=utf-8"));
+  expect(file.filename, equals(null));
 });
 
-Deno.test("a content type given by the caller wins over the one text assumes", () => {
+Scribe.test("a content type given by the caller wins over the one text assumes", () => {
   const file = MultipartFile.fromString("f", "{}", {
     contentType: "application/json",
   });
 
-  assertEquals(file.contentType, "application/json");
+  expect(file.contentType, equals("application/json"));
 });
 
-Deno.test("a finalized multipart request refuses a second finalize", () => {
+Scribe.test("a finalized multipart request refuses a second finalize", () => {
   const request = new MultipartRequest("POST", "https://example.test/upload");
   request.finalize();
 
-  assertThrows(
+  expect(
     () => request.finalize(),
-    Error,
-    "This request has already been sent, and a sent request cannot be changed.",
+    throwsA(
+      allOf(isA(Error), withMessage("This request has already been sent, and a sent request cannot be changed.")),
+    ),
   );
 });

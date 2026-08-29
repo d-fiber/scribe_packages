@@ -32,9 +32,9 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, isTrue, Scribe } from "@scribe/alchemy/test";
 import { ByteStream } from "@scribe/alchemy/http";
-import { assert, assertEquals } from "@std/assert";
 
 function streamOf(...chunks: string[]): ByteStream {
   const encoder = new TextEncoder();
@@ -49,21 +49,21 @@ function streamOf(...chunks: string[]): ByteStream {
   );
 }
 
-Deno.test("fromBytes carries the bytes it was given and nothing else", async () => {
+Scribe.test("fromBytes carries the bytes it was given and nothing else", async () => {
   const bytes = new Uint8Array([0, 1, 2, 253, 254, 255]);
 
-  assertEquals(await ByteStream.fromBytes(bytes).toBytes(), bytes);
+  expect(await ByteStream.fromBytes(bytes).toBytes(), equals(bytes));
 });
 
-Deno.test("toBytes joins the chunks in the order they arrived", async () => {
-  assertEquals(await streamOf("ab", "cd", "ef").bytesToString(), "abcdef");
+Scribe.test("toBytes joins the chunks in the order they arrived", async () => {
+  expect(await streamOf("ab", "cd", "ef").bytesToString(), equals("abcdef"));
 });
 
-Deno.test("an empty stream collects to an empty buffer", async () => {
-  assertEquals(await streamOf().toBytes(), new Uint8Array(0));
+Scribe.test("an empty stream collects to an empty buffer", async () => {
+  expect(await streamOf().toBytes(), equals(new Uint8Array(0)));
 });
 
-Deno.test("a character split across two chunks is decoded once the whole stream is in", async () => {
+Scribe.test("a character split across two chunks is decoded once the whole stream is in", async () => {
   const split = new ByteStream(
     new ReadableStream<Uint8Array>({
       start(controller) {
@@ -74,16 +74,16 @@ Deno.test("a character split across two chunks is decoded once the whole stream 
     }),
   );
 
-  assertEquals(await split.bytesToString(), "é");
+  expect(await split.bytesToString(), equals("é"));
 });
 
-Deno.test("bytesToString decodes utf-8 unless told otherwise", async () => {
+Scribe.test("bytesToString decodes utf-8 unless told otherwise", async () => {
   const latin = ByteStream.fromBytes(new Uint8Array([0xe9]));
 
-  assertEquals(await latin.bytesToString("latin1"), "é");
+  expect(await latin.bytesToString("latin1"), equals("é"));
 });
 
-Deno.test("the underlying stream is handed back rather than wrapped away", async () => {
+Scribe.test("the underlying stream is handed back rather than wrapped away", async () => {
   const underlying = new ReadableStream<Uint8Array>({
     start(controller) {
       controller.enqueue(new Uint8Array([1]));
@@ -92,9 +92,6 @@ Deno.test("the underlying stream is handed back rather than wrapped away", async
   });
   const wrapped = new ByteStream(underlying);
 
-  assert(wrapped.stream === underlying);
-  assertEquals(
-    (await wrapped.stream.getReader().read()).value,
-    new Uint8Array([1]),
-  );
+  expect(wrapped.stream === underlying, isTrue);
+  expect((await wrapped.stream.getReader().read()).value, equals(new Uint8Array([1])));
 });

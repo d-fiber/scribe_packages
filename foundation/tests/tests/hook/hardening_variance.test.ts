@@ -32,8 +32,8 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
-import { assertEquals } from "@std/assert";
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import type { Hook, HookDefinition } from "../../../lib/src/hook/hook.ts";
 import type { BackgroundHookHandler, HookHandler } from "../../../lib/src/hook/hook_handler.ts";
 import type { InlineChain } from "../../../lib/src/hook/inline_chain.ts";
@@ -92,33 +92,33 @@ const chainAnswersARicherDecision: Holds<
 const channelRefusesARicherPayload: Holds<BackgroundChannel<RicherEvent>, BackgroundChannel<Event>> = false;
 const channelRefusesAWiderPayload: Holds<BackgroundChannel<Event>, BackgroundChannel<RicherEvent>> = false;
 
-Deno.test("HookHandler takes a payload contravariantly and answers a decision covariantly", () => {
-  assertEquals(handlerTakesAWiderPayload, true, "HookHandler declares in T");
-  assertEquals(handlerRefusesANarrowerPayload, false, "HookHandler does not declare out T");
-  assertEquals(handlerAnswersARicherDecision, true, "HookHandler declares out R");
-  assertEquals(handlerRefusesAWiderDecision, false, "HookHandler does not declare in R");
+Scribe.test("HookHandler takes a payload contravariantly and answers a decision covariantly", () => {
+  expect(handlerTakesAWiderPayload, equals(true), "HookHandler declares in T");
+  expect(handlerRefusesANarrowerPayload, equals(false), "HookHandler does not declare out T");
+  expect(handlerAnswersARicherDecision, equals(true), "HookHandler declares out R");
+  expect(handlerRefusesAWiderDecision, equals(false), "HookHandler does not declare in R");
 });
 
-Deno.test("BackgroundHookHandler takes a payload contravariantly", () => {
-  assertEquals(deferredTakesAWiderPayload, true, "BackgroundHookHandler declares in T");
-  assertEquals(deferredRefusesANarrowerPayload, false, "BackgroundHookHandler does not declare out T");
+Scribe.test("BackgroundHookHandler takes a payload contravariantly", () => {
+  expect(deferredTakesAWiderPayload, equals(true), "BackgroundHookHandler declares in T");
+  expect(deferredRefusesANarrowerPayload, equals(false), "BackgroundHookHandler does not declare out T");
 });
 
-Deno.test("HookDefinition carries its fallback covariantly", () => {
-  assertEquals(definitionCarriesARicherFallback, true, "HookDefinition declares out R");
-  assertEquals(definitionRefusesAWiderFallback, false, "HookDefinition does not declare in R");
+Scribe.test("HookDefinition carries its fallback covariantly", () => {
+  expect(definitionCarriesARicherFallback, equals(true), "HookDefinition declares out R");
+  expect(definitionRefusesAWiderFallback, equals(false), "HookDefinition does not declare in R");
 });
 
-Deno.test("Hook is invariant in its payload and covariant in its decision", () => {
-  assertEquals(hookRefusesARicherPayload, false, "Hook declares in out T, not out T");
-  assertEquals(hookRefusesAWiderPayload, false, "Hook declares in out T, not in T");
-  assertEquals(hookAnswersARicherDecision, true, "Hook declares out R");
-  assertEquals(hookRefusesAWiderDecision, false, "Hook does not declare in R");
+Scribe.test("Hook is invariant in its payload and covariant in its decision", () => {
+  expect(hookRefusesARicherPayload, equals(false), "Hook declares in out T, not out T");
+  expect(hookRefusesAWiderPayload, equals(false), "Hook declares in out T, not in T");
+  expect(hookAnswersARicherDecision, equals(true), "Hook declares out R");
+  expect(hookRefusesAWiderDecision, equals(false), "Hook does not declare in R");
 });
 
-Deno.test("the payload of a hook is invariant because the chain holds a mutable array of handlers", () => {
-  assertEquals(chainRefusesEitherPayload, false, "InlineChain declares in out T");
-  assertEquals(chainAnswersARicherDecision, true, "InlineChain declares out R");
-  assertEquals(channelRefusesARicherPayload, false, "BackgroundChannel declares in out T");
-  assertEquals(channelRefusesAWiderPayload, false, "BackgroundChannel declares in out T");
+Scribe.test("the payload of a hook is invariant because the chain holds a mutable array of handlers", () => {
+  expect(chainRefusesEitherPayload, equals(false), "InlineChain declares in out T");
+  expect(chainAnswersARicherDecision, equals(true), "InlineChain declares out R");
+  expect(channelRefusesARicherPayload, equals(false), "BackgroundChannel declares in out T");
+  expect(channelRefusesAWiderPayload, equals(false), "BackgroundChannel declares in out T");
 });

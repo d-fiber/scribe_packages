@@ -32,11 +32,11 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, isNot, Scribe } from "@scribe/alchemy/test";
 import "../../testing/settings.ts";
 
 import { Duration } from "@scribe/alchemy";
-import { assertEquals, assertNotEquals } from "@std/assert";
 import { installDrivers } from "../../testing/drivers.ts";
 import { nextRun } from "../../../lib/src/cron/next_run.ts";
 import { SlotLock } from "../../../lib/src/cron/slot_lock.ts";
@@ -69,131 +69,122 @@ installDrivers();
 
 const lock = new SlotLock();
 
-Deno.test("two replicas anywhere inside one cell claim the same key", () => {
+Scribe.test("two replicas anywhere inside one cell claim the same key", () => {
   const job = everyMinutes("fleet:cleanup", 1);
   const cell = 1_800_000_000_000;
   const expected = lock.keyFor(job, new Date(cell));
 
   for (const offset of [0, 1, 999, 30_000, 59_998, 59_999]) {
-    assertEquals(lock.keyFor(job, new Date(cell + offset)), expected, `slot at cell+${offset} ms`);
+    expect(lock.keyFor(job, new Date(cell + offset)), equals(expected), `slot at cell+${offset} ms`);
   }
 });
 
-Deno.test({
-  name: "two replicas whose slots straddle a cell boundary by one millisecond both run",
-  fn: () => {
-    const every = Duration.minutes(1);
-    const boundary = 1_800_000_000_000;
+Scribe.test("two replicas whose slots straddle a cell boundary by one millisecond both run", () => {
+  const every = Duration.minutes(1);
+  const boundary = 1_800_000_000_000;
 
-    assertEquals(
-      nextRun({ kind: "interval", every }, new Date(boundary - 1)),
-      nextRun({ kind: "interval", every }, new Date(boundary - 60_000)),
-      "an interval counted from whenever a replica registered gives every replica a series of " +
-        "its own, so a process started one millisecond earlier claims occurrences no other " +
-        "replica ever computes",
-    );
-  },
+  expect(
+    nextRun({ kind: "interval", every }, new Date(boundary - 1)),
+    equals(nextRun({ kind: "interval", every }, new Date(boundary - 60_000))),
+    "an interval counted from whenever a replica registered gives every replica a series of " +
+      "its own, so a process started one millisecond earlier claims occurrences no other " +
+      "replica ever computes",
+  );
 });
 
-Deno.test("a slot before 1970 still floors onto the same grid for every replica", () => {
+Scribe.test("a slot before 1970 still floors onto the same grid for every replica", () => {
   const job = everyMinutes("fleet:archaic", 1);
 
-  assertEquals(lock.keyFor(job, new Date(-1)), lock.keyFor(job, new Date(-59_999)));
-  assertEquals(lock.keyFor(job, new Date(-1)), "cron:lock:fleet:archaic:-60000");
+  expect(lock.keyFor(job, new Date(-1)), equals(lock.keyFor(job, new Date(-59_999))));
+  expect(lock.keyFor(job, new Date(-1)), equals("cron:lock:fleet:archaic:-60000"));
 });
 
-Deno.test("a job name holding the key separator cannot be confused with another job", () => {
+Scribe.test("a job name holding the key separator cannot be confused with another job", () => {
   const plain = everyMinutes("sweep", 1);
   const nested = everyMinutes("sweep:1", 1);
 
-  assertNotEquals(lock.keyFor(plain, new Date(60_000)), lock.keyFor(nested, new Date(60_000)));
-  assertEquals(lock.keyFor(nested, new Date(60_000)), "cron:lock:sweep:1:60000");
+  expect(lock.keyFor(plain, new Date(60_000)), isNot(equals(lock.keyFor(nested, new Date(60_000)))));
+  expect(lock.keyFor(nested, new Date(60_000)), equals("cron:lock:sweep:1:60000"));
 });
 
-Deno.test("a job name is written into the key as it was declared, glob characters included", () => {
+Scribe.test("a job name is written into the key as it was declared, glob characters included", () => {
   const globbed = everyMinutes("sweep:*", 1);
 
-  assertEquals(
+  expect(
     lock.keyFor(globbed, new Date(60_000)),
-    "cron:lock:sweep:*:60000",
+    equals("cron:lock:sweep:*:60000"),
     "nothing escapes the name, so an operator scanning cron:lock:sweep:* sweeps this job too",
   );
 });
 
-Deno.test("a ten thousand character job name is carried into the key whole", () => {
+Scribe.test("a ten thousand character job name is carried into the key whole", () => {
   const long = everyMinutes("x".repeat(10_000), 1);
 
-  assertEquals(lock.keyFor(long, new Date(60_000)).length, 10_000 + "cron:lock::60000".length);
+  expect(lock.keyFor(long, new Date(60_000)).length, equals(10_000 + "cron:lock::60000".length));
 });
 
-Deno.test("a one minute interval keeps the marker for the timeout, not for the minute", () => {
+Scribe.test("a one minute interval keeps the marker for the timeout, not for the minute", () => {
   const job = everyMinutes("fleet:minute", 1);
 
-  assertEquals(lock.leaseFor(job, new Date(60_000)).inMinutes, 10);
+  expect(lock.leaseFor(job, new Date(60_000)).inMinutes, equals(10));
 });
 
-Deno.test("a timeout longer than the interval does not stop a replica taking the next occurrence", () => {
+Scribe.test("a timeout longer than the interval does not stop a replica taking the next occurrence", () => {
   const job = everyMinutes("fleet:overrun", 1);
   const slot = new Date(60_000);
   const nextSlot = new Date(120_000);
 
-  assertNotEquals(lock.keyFor(job, slot), lock.keyFor(job, nextSlot));
-  assertEquals(
+  expect(lock.keyFor(job, slot), isNot(equals(lock.keyFor(job, nextSlot))));
+  expect(
     lock.leaseFor(job, slot).inMilliseconds > nextSlot.getTime() - slot.getTime(),
-    true,
+    equals(true),
     "the marker of one occurrence outlives that occurrence, and the next one is a free key: " +
       "ten replicas can be inside the same body, on ten consecutive minutes",
   );
 });
 
-Deno.test("a daily lease covers the whole day the occurrence names", () => {
+Scribe.test("a daily lease covers the whole day the occurrence names", () => {
   const daily: Scheduled = {
     name: "fleet:digest",
     schedule: at(CronTimezone.Utc, "08:00"),
     timeout: Duration.minutes(10),
   };
 
-  assertEquals(
-    lock.leaseFor(daily, new Date("2026-01-01T08:00:00.000Z")).inMilliseconds,
-    86_400_000,
-  );
+  expect(lock.leaseFor(daily, new Date("2026-01-01T08:00:00.000Z")).inMilliseconds, equals(86_400_000));
 });
 
-Deno.test("claim() answers yes only on the exact reply the store promises", async () => {
+Scribe.test("claim() answers yes only on the exact reply the store promises", async () => {
   const job = everyMinutes("fleet:reply", 1);
   const slot = new Date(60_000);
 
   for (const [reply, expected] of [["OK", true], [null, false], ["ok", false]] as const) {
     const shadow = answering(reply);
     try {
-      assertEquals(await lock.claim(job, slot), expected, `the store answered ${String(reply)}`);
+      expect(await lock.claim(job, slot), equals(expected), `the store answered ${String(reply)}`);
     } finally {
       shadow.restore();
     }
   }
 });
 
-Deno.test({
-  name: "claim() cannot tell a lost race from a store answering something it does not understand",
-  fn: async () => {
-    const job = everyMinutes("fleet:mute", 1);
-    const shadow = answering(42);
-    const logs = recordLog();
-    try {
-      assertEquals(await lock.claim(job, new Date(60_000)), false);
-      assertEquals(
-        logs.lines.length > 0,
-        true,
-        "every occurrence of every job is skipped for as long as the store answers this, and " +
-          "nothing is written down",
-      );
-    } finally {
-      shadow.restore();
-    }
-  },
+Scribe.test("claim() cannot tell a lost race from a store answering something it does not understand", async () => {
+  const job = everyMinutes("fleet:mute", 1);
+  const shadow = answering(42);
+  const logs = recordLog();
+  try {
+    expect(await lock.claim(job, new Date(60_000)), equals(false));
+    expect(
+      logs.lines.length > 0,
+      equals(true),
+      "every occurrence of every job is skipped for as long as the store answers this, and " +
+        "nothing is written down",
+    );
+  } finally {
+    shadow.restore();
+  }
 });
 
-Deno.test("claim() answers no and says so when the store is unreachable", async () => {
+Scribe.test("claim() answers no and says so when the store is unreachable", async () => {
   const job = everyMinutes("fleet:down", 1);
   const target = kv() as unknown as Record<string, unknown>;
   const had = Object.prototype.hasOwnProperty.call(target, "set");
@@ -202,8 +193,8 @@ Deno.test("claim() answers no and says so when the store is unreachable", async 
   const logs = recordLog();
 
   try {
-    assertEquals(await lock.claim(job, new Date(60_000)), false);
-    assertEquals(logs.actions.includes("cron-runner.lock_unavailable"), true);
+    expect(await lock.claim(job, new Date(60_000)), equals(false));
+    expect(logs.actions.includes("cron-runner.lock_unavailable"), equals(true));
   } finally {
     if (had) target.set = original;
     else delete target.set;

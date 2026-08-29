@@ -33,110 +33,94 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { allOf, equals, expect, isA, isNot, isNotNull, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
 import { Queue } from "../../../lib/src/queue/queue.ts";
 import { queueRegistry } from "../../../lib/src/queue/queue_registry.ts";
 import { deadSubjectOf, sanitize, subjectOf } from "../../../lib/src/queue/queue_naming.ts";
 import { dispatchProbes, probe } from "./probe.ts";
 import { DuplicateDeclarationError } from "@scribe/alchemy";
-import { assertEquals, assertNotEquals, assertThrows } from "@std/assert";
-
 installDrivers();
 
-Deno.test("sanitize folds two different names onto one subject token", () => {
-  assertEquals(sanitize("test:collide.one"), sanitize("test:collide_one"));
-  assertEquals(subjectOf("mail.send", false), subjectOf("mail send", false));
-  assertEquals(deadSubjectOf("mail.send"), deadSubjectOf("mail/send"));
+Scribe.test("sanitize folds two different names onto one subject token", () => {
+  expect(sanitize("test:collide.one"), equals(sanitize("test:collide_one")));
+  expect(subjectOf("mail.send", false), equals(subjectOf("mail send", false)));
+  expect(deadSubjectOf("mail.send"), equals(deadSubjectOf("mail/send")));
 });
 
-Deno.test({
-  name: "two names that fold onto the same subject are both accepted, and the second steals the first",
-  fn: () => {
-    const first: string[] = [];
-    const second: string[] = [];
-    assertEquals(first, []);
+Scribe.test("two names that fold onto the same subject are both accepted, and the second steals the first", () => {
+  const first: string[] = [];
+  const second: string[] = [];
+  expect(first, equals([]));
 
-    new Queue<{ id: string }>({ name: "test:collide.subject" }, (job) => {
-      first.push(job.id);
-      return Promise.resolve();
-    });
+  new Queue<{ id: string }>({ name: "test:collide.subject" }, (job) => {
+    first.push(job.id);
+    return Promise.resolve();
+  });
 
-    assertThrows(
-      () =>
-        new Queue<{ id: string }>({ name: "test:collide_subject" }, (job) => {
-          second.push(job.id);
-          return Promise.resolve();
-        }),
-      DuplicateDeclarationError,
-      "subject",
-      "the second declaration takes a subject the first already publishes to, which the " +
-        "duplicate guard does not see because it only indexes by name",
-    );
-  },
-});
-
-Deno.test({
-  name: "a message pushed by the first queue is handed to the body of the one that stole its subject",
-  fn: async () => {
-    const first: string[] = [];
-    const second: string[] = [];
-
-    new Queue<{ id: string }>({ name: "test:steal.a" }, (job) => {
-      first.push(job.id);
-      return Promise.resolve();
-    });
-    assertThrows(() =>
-      new Queue<{ id: string }>({ name: "test:steal_a" }, (job) => {
+  expect(
+    () =>
+      new Queue<{ id: string }>({ name: "test:collide_subject" }, (job) => {
         second.push(job.id);
         return Promise.resolve();
-      })
-    );
-
-    await dispatchProbes([probe({ subject: "q.test_steal_a", data: { id: "x" } })]);
-
-    assertEquals(
-      first,
-      ["x"],
-      "the registry answers the last declaration, so every message of the first queue runs " +
-        "under a body that was never meant to see it",
-    );
-    assertEquals(second, []);
-  },
+      }),
+    throwsA(allOf(isA(DuplicateDeclarationError), withMessage("subject"))),
+    "the second declaration takes a subject the first already publishes to, which the " +
+      "duplicate guard does not see because it only indexes by name",
+  );
 });
 
-Deno.test({
-  name: "an empty queue name is accepted and builds a subject NATS refuses",
-  fn: () => {
-    assertThrows(
-      () => new Queue<{ id: string }>({ name: "" }, () => Promise.resolve()),
-      Error,
-      "",
-      'sanitize("") answers the empty string, so the subject is "q." and its second token is ' +
-        "empty, which the server rejects at publish time rather than at declaration time",
-    );
-  },
+Scribe.test("a message pushed by the first queue is handed to the body of the one that stole its subject", async () => {
+  const first: string[] = [];
+  const second: string[] = [];
+
+  new Queue<{ id: string }>({ name: "test:steal.a" }, (job) => {
+    first.push(job.id);
+    return Promise.resolve();
+  });
+  expect(() =>
+    new Queue<{ id: string }>({ name: "test:steal_a" }, (job) => {
+      second.push(job.id);
+      return Promise.resolve();
+    }), throwsA(isNotNull));
+
+  await dispatchProbes([probe({ subject: "q.test_steal_a", data: { id: "x" } })]);
+
+  expect(
+    first,
+    equals(["x"]),
+    "the registry answers the last declaration, so every message of the first queue runs " +
+      "under a body that was never meant to see it",
+  );
+  expect(second, equals([]));
 });
 
-Deno.test("a name whose subject a dedicated queue would take stays on its own prefix", () => {
+Scribe.test("an empty queue name is accepted and builds a subject NATS refuses", () => {
+  expect(
+    () => new Queue<{ id: string }>({ name: "" }, () => Promise.resolve()),
+    throwsA(isA(Error)),
+    'sanitize("") answers the empty string, so the subject is "q." and its second token is ' +
+      "empty, which the server rejects at publish time rather than at declaration time",
+  );
+});
+
+Scribe.test("a name whose subject a dedicated queue would take stays on its own prefix", () => {
   new Queue<{ id: string }>({ name: "test:prefix:shared" }, () => Promise.resolve());
   new Queue<{ id: string }>(
     { name: "test:prefix:shared:iso", dedicated: true },
     () => Promise.resolve(),
   );
 
-  assertEquals(queueRegistry.get("test:prefix:shared")?.subject, "q.test_prefix_shared");
-  assertEquals(
-    queueRegistry.get("test:prefix:shared:iso")?.subject,
-    "qd.test_prefix_shared_iso",
-  );
-  assertNotEquals(
+  expect(queueRegistry.get("test:prefix:shared")?.subject, equals("q.test_prefix_shared"));
+  expect(queueRegistry.get("test:prefix:shared:iso")?.subject, equals("qd.test_prefix_shared_iso"));
+  expect(
     queueRegistry.get("test:prefix:shared")?.subject,
-    queueRegistry.get("test:prefix:shared:iso")?.subject,
+    isNot(equals(queueRegistry.get("test:prefix:shared:iso")?.subject)),
   );
 });
 
-Deno.test("a subject that is a strict prefix of another is never confused with it", async () => {
+Scribe.test("a subject that is a strict prefix of another is never confused with it", async () => {
   const outer: string[] = [];
   const inner: string[] = [];
 
@@ -154,14 +138,14 @@ Deno.test("a subject that is a strict prefix of another is never confused with i
     probe({ subject: "q.test_pre_longer", data: { id: "long" }, seq: 2 }),
   ]);
 
-  assertEquals(outer, ["short"]);
-  assertEquals(inner, ["long"]);
+  expect(outer, equals(["short"]));
+  expect(inner, equals(["long"]));
 });
 
-Deno.test("a name of ten thousand characters keeps its own subject", () => {
+Scribe.test("a name of ten thousand characters keeps its own subject", () => {
   const long = "z".repeat(10_000);
 
   new Queue<{ id: string }>({ name: `test:long:${long}` }, () => Promise.resolve());
 
-  assertEquals(queueRegistry.get(`test:long:${long}`)?.subject.length, 10_000 + 12);
+  expect(queueRegistry.get(`test:long:${long}`)?.subject.length, equals(10_000 + 12));
 });

@@ -32,9 +32,9 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { allOf, equals, expect, expectLater, isA, same, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
-import { assertEquals, assertRejects, assertStrictEquals } from "@std/assert";
 import { Failure, okay, type Result } from "@scribe/alchemy";
 import { Hook } from "../../../lib/src/hook/hook.ts";
 import { Duration } from "@scribe/alchemy";
@@ -43,7 +43,7 @@ import { isRefusal } from "../../../lib/src/hook/is_refusal.ts";
 
 installDrivers();
 
-Deno.test("a handler that subscribes during the emission is called by that same emission", () => {
+Scribe.test("a handler that subscribes during the emission is called by that same emission", () => {
   const chain = new InlineChain<string, string>("hardening.subscribe-inside", "none");
   const seen: string[] = [];
 
@@ -61,12 +61,12 @@ Deno.test("a handler that subscribes during the emission is called by that same 
   });
 
   return chain.run("x").then((answer) => {
-    assertEquals(seen, ["first", "second", "late"]);
-    assertEquals(answer, "late", "the subscriber that did not exist when the event started decided it");
+    expect(seen, equals(["first", "second", "late"]));
+    expect(answer, equals("late"), "the subscriber that did not exist when the event started decided it");
   });
 });
 
-Deno.test("a chain a handler grows on every emission grows without bound", async () => {
+Scribe.test("a chain a handler grows on every emission grows without bound", async () => {
   const chain = new InlineChain<string, string>("hardening.grows", "none");
   chain.add(() => {
     chain.add(() => "leaf");
@@ -77,29 +77,29 @@ Deno.test("a chain a handler grows on every emission grows without bound", async
   await chain.run("x");
   await chain.run("x");
 
-  assertEquals(
+  expect(
     chain.size >= 4,
-    true,
+    equals(true),
     "nothing takes a handler back off, so a subscriber added per request stays for the life of " +
       "the process",
   );
 });
 
-Deno.test("no subscriber can be taken back off, on either side of a hook", () => {
+Scribe.test("no subscriber can be taken back off, on either side of a hook", () => {
   const hook = new Hook<string, void>({ name: "hardening.no-unsubscribe" });
   const surface = Object.getOwnPropertyNames(Object.getPrototypeOf(hook));
 
-  assertEquals(surface.includes("off"), false);
-  assertEquals(surface.includes("remove"), false);
-  assertEquals(
+  expect(surface.includes("off"), equals(false));
+  expect(surface.includes("remove"), equals(false));
+  expect(
     hook.on(() => {}) !== null,
-    true,
+    equals(true),
     "on() answers the handler back so a caller can keep a reference, and there is nothing to " +
       "hand it to",
   );
 });
 
-Deno.test("two thousand synchronous subscribers all run, in order", async () => {
+Scribe.test("two thousand synchronous subscribers all run, in order", async () => {
   const chain = new InlineChain<number, number>("hardening.two-thousand", -1);
   let called = 0;
   for (let i = 0; i < 2000; i++) {
@@ -109,22 +109,22 @@ Deno.test("two thousand synchronous subscribers all run, in order", async () => 
     });
   }
 
-  assertEquals(await chain.run(0), 1999);
-  assertEquals(called, 2000);
+  expect(await chain.run(0), equals(1999));
+  expect(called, equals(2000));
 });
 
-Deno.test("a handler answering undefined answers for the whole chain, fallback and all", async () => {
+Scribe.test("a handler answering undefined answers for the whole chain, fallback and all", async () => {
   const chain = new InlineChain<string, string | undefined>("hardening.undefined", "declared");
   chain.add(() => undefined);
 
-  assertEquals(
+  expect(
     await chain.run("x"),
-    undefined,
+    equals(undefined),
     "a handler that decided nothing replaced the answer the declaration wrote down",
   );
 });
 
-Deno.test("a plain record carrying ok:false stops the chain without being a Result", async () => {
+Scribe.test("a plain record carrying ok:false stops the chain without being a Result", async () => {
   const hook = new Hook<string, Result<void, string> | { ok: false; why: string }>({
     name: "hardening.looks-like-a-refusal",
     fallback: okay,
@@ -137,63 +137,57 @@ Deno.test("a plain record carrying ok:false stops the chain without being a Resu
     return okay;
   });
 
-  assertEquals(isRefusal(await hook.run("x")), true);
-  assertEquals(secondRan, false, "any answer shaped like a failure is read as one");
+  expect(isRefusal(await hook.run("x")), equals(true));
+  expect(secondRan, equals(false), "any answer shaped like a failure is read as one");
 });
 
-Deno.test({
-  name: "a refusal the engine cannot see: a callable carrying ok:false lets the chain run on",
-  fn: async () => {
-    const refusal = Object.assign(() => {}, { ok: false as const });
-    const chain = new InlineChain<string, typeof refusal | string>("hardening.callable", "none");
-    let secondRan = false;
+Scribe.test("a refusal the engine cannot see: a callable carrying ok:false lets the chain run on", async () => {
+  const refusal = Object.assign(() => {}, { ok: false as const });
+  const chain = new InlineChain<string, typeof refusal | string>("hardening.callable", "none");
+  let secondRan = false;
 
-    chain.add(() => refusal);
-    chain.add(() => {
-      secondRan = true;
-      return "ran";
-    });
+  chain.add(() => refusal);
+  chain.add(() => {
+    secondRan = true;
+    return "ran";
+  });
 
-    await chain.run("x");
+  await chain.run("x");
 
-    assertEquals(
-      secondRan,
-      false,
-      "isRefusal() tests typeof === object, so a refusal that is also callable reads as an " +
-        "acceptance, the chain keeps going and the background work is queued",
-    );
-  },
+  expect(
+    secondRan,
+    equals(false),
+    "isRefusal() tests typeof === object, so a refusal that is also callable reads as an " +
+      "acceptance, the chain keeps going and the background work is queued",
+  );
 });
 
-Deno.test({
-  name: "a handler answering a thenable that never calls back parks the emission for good",
-  fn: async () => {
-    const chain = new InlineChain<string, unknown>(
-      "hardening.dead-thenable",
-      null,
-      Duration.milliseconds(20),
-    );
-    chain.add(() => ({ then: () => {} }));
+Scribe.test("a handler answering a thenable that never calls back parks the emission for good", async () => {
+  const chain = new InlineChain<string, unknown>(
+    "hardening.dead-thenable",
+    null,
+    Duration.milliseconds(20),
+  );
+  chain.add(() => ({ then: () => {} }));
 
-    let tick: ReturnType<typeof setTimeout> | 0 = 0;
-    const answered = await Promise.race([
-      chain.run("x").then(() => "answered"),
-      new Promise((resolve) => {
-        tick = setTimeout(() => resolve("parked"), 50);
-      }),
-    ]);
-    clearTimeout(tick);
+  let tick: ReturnType<typeof setTimeout> | 0 = 0;
+  const answered = await Promise.race([
+    chain.run("x").then(() => "answered"),
+    new Promise((resolve) => {
+      tick = setTimeout(() => resolve("parked"), 50);
+    }),
+  ]);
+  clearTimeout(tick);
 
-    assertEquals(
-      answered,
-      "answered",
-      "the chain awaits anything carrying a then, and nothing puts a deadline on it, so the " +
-        "request holding this emission is held for as long as the process lives",
-    );
-  },
+  expect(
+    answered,
+    equals("answered"),
+    "the chain awaits anything carrying a then, and nothing puts a deadline on it, so the " +
+      "request holding this emission is held for as long as the process lives",
+  );
 });
 
-Deno.test("a handler that throws synchronously rejects the emission and leaves the rest alone", async () => {
+Scribe.test("a handler that throws synchronously rejects the emission and leaves the rest alone", async () => {
   const hook = new Hook<string, void>({ name: "hardening.sync-throw" });
   let secondRan = false;
 
@@ -204,19 +198,19 @@ Deno.test("a handler that throws synchronously rejects the emission and leaves t
     secondRan = true;
   });
 
-  await assertRejects(() => hook.run("x"), Error, "thrown before any await");
-  assertEquals(secondRan, false);
+  await expectLater(() => hook.run("x"), throwsA(allOf(isA(Error), withMessage("thrown before any await"))));
+  expect(secondRan, equals(false));
 });
 
-Deno.test("a handler answering a rejected promise rejects the emission", async () => {
+Scribe.test("a handler answering a rejected promise rejects the emission", async () => {
   const hook = new Hook<string, void>({ name: "hardening.async-throw" });
 
   hook.on(() => Promise.reject(new Error("rejected")));
 
-  await assertRejects(() => hook.run("x"), Error, "rejected");
+  await expectLater(() => hook.run("x"), throwsA(allOf(isA(Error), withMessage("rejected"))));
 });
 
-Deno.test("a refusal keeps the deferred half of the event from being queued", async () => {
+Scribe.test("a refusal keeps the deferred half of the event from being queued", async () => {
   const hook = new Hook<{ id: string }, Result<void, string>>({
     name: "hardening.refusal-stops-background",
     fallback: okay,
@@ -228,44 +222,41 @@ Deno.test("a refusal keeps the deferred half of the event from being queued", as
     deferred++;
   });
 
-  assertEquals((await hook.run({ id: "x" })).ok, false);
-  assertEquals(deferred, 0);
+  expect((await hook.run({ id: "x" })).ok, equals(false));
+  expect(deferred, equals(0));
 });
 
-Deno.test({
-  name: "a handler that emits its own hook recurses until something else stops it",
-  fn: async () => {
-    const hook = new Hook<number, void>({ name: "hardening.reentrant" });
-    let depth = 0;
+Scribe.test("a handler that emits its own hook recurses until something else stops it", async () => {
+  const hook = new Hook<number, void>({ name: "hardening.reentrant" });
+  let depth = 0;
 
-    hook.on((n) => {
-      depth++;
-      if (depth < 200) return hook.run(n);
-    });
+  hook.on((n) => {
+    depth++;
+    if (depth < 200) return hook.run(n);
+  });
 
-    await hook.run(1);
+  await hook.run(1);
 
-    assertEquals(
-      depth,
-      1,
-      "nothing marks a hook as being emitted, so a handler that emits the hook it is on nests " +
-        "one emission inside the last until the counter it happens to carry stops it",
-    );
-  },
+  expect(
+    depth,
+    equals(1),
+    "nothing marks a hook as being emitted, so a handler that emits the hook it is on nests " +
+      "one emission inside the last until the counter it happens to carry stops it",
+  );
 });
 
-Deno.test("an emission with only a deferred subscriber still answers the declared fallback", async () => {
+Scribe.test("an emission with only a deferred subscriber still answers the declared fallback", async () => {
   const hook = new Hook<{ id: string }, string>({
     name: "hardening.background-only",
     fallback: "declared",
   });
   hook.background(() => {});
 
-  assertEquals(await hook.run({ id: "x" }), "declared");
+  expect(await hook.run({ id: "x" }), equals("declared"));
 });
 
-Deno.test("a hook nobody listens to hands out one promise for the life of the process", () => {
+Scribe.test("a hook nobody listens to hands out one promise for the life of the process", () => {
   const hook = new Hook<string, string>({ name: "hardening.idle-identity", fallback: "none" });
 
-  assertStrictEquals(hook.run("a"), hook.run("b"));
+  expect(hook.run("a"), same(hook.run("b")));
 });

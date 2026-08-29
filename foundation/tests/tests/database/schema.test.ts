@@ -32,34 +32,29 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import "../../testing/settings.ts";
 
 import { ownerOf, registerTableOwners } from "../../../lib/src/database/table_owners.ts";
-import { assertEquals } from "@std/assert";
-
-Deno.test("a table nobody registered has no owner column", () => {
+Scribe.test("a table nobody registered has no owner column", () => {
   registerTableOwners({ t__orders: "user_id" });
 
-  assertEquals(ownerOf("t__orders"), "user_id");
-  assertEquals(ownerOf("t__unregistered"), null);
+  expect(ownerOf("t__orders"), equals("user_id"));
+  expect(ownerOf("t__unregistered"), equals(null));
 });
 
-Deno.test("an Object.prototype member is not mistaken for an owner column", () => {
+Scribe.test("an Object.prototype member is not mistaken for an owner column", () => {
   registerTableOwners({ t__orders: "user_id" });
 
   for (const inherited of ["constructor", "toString", "valueOf", "hasOwnProperty", "__proto__"]) {
-    assertEquals(
-      ownerOf(inherited),
-      null,
-      `${inherited} must not resolve through the prototype chain`,
-    );
+    expect(ownerOf(inherited), equals(null), `${inherited} must not resolve through the prototype chain`);
   }
 });
 
-Deno.test("a registered owner is always a string, never a borrowed function", () => {
+Scribe.test("a registered owner is always a string, never a borrowed function", () => {
   registerTableOwners({ toString: "user_id" });
 
-  assertEquals(typeof ownerOf("toString"), "string");
-  assertEquals(ownerOf("toString"), "user_id");
+  expect(typeof ownerOf("toString"), equals("string"));
+  expect(ownerOf("toString"), equals("user_id"));
 });

@@ -32,23 +32,33 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import {
+  allOf,
+  equals,
+  expect,
+  expectLater,
+  isA,
+  isNotNull,
+  same,
+  Scribe,
+  throwsA,
+  withMessage,
+} from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
 import { Hook } from "../../../lib/src/hook/hook.ts";
 import { hookRegistry } from "../../../lib/src/hook/hook_registry.ts";
 import { Failure, okay, type Result } from "@scribe/alchemy";
-import { assertEquals, assertRejects, assertStrictEquals, assertThrows } from "@std/assert";
-
 installDrivers();
 
-Deno.test("hook.on() returns the handler unchanged", () => {
+Scribe.test("hook.on() returns the handler unchanged", () => {
   const hook = new Hook<string>({ name: "test.returns-handler" });
   const handler = (_payload: string): Promise<void> => Promise.resolve();
 
-  assertStrictEquals(hook.on(handler), handler);
+  expect(hook.on(handler), same(handler));
 });
 
-Deno.test("hook.run() passes the payload and returns the handler's result", async () => {
+Scribe.test("hook.run() passes the payload and returns the handler's result", async () => {
   const hook = new Hook<{ value: string }, string>({
     name: "test.payload",
     fallback: "none",
@@ -60,20 +70,20 @@ Deno.test("hook.run() passes the payload and returns the handler's result", asyn
     return `handled:${payload.value}`;
   });
 
-  assertEquals(await hook.run({ value: "x" }), "handled:x");
-  assertEquals(received, { value: "x" });
+  expect(await hook.run({ value: "x" }), equals("handled:x"));
+  expect<{ value: string } | null>(received, equals({ value: "x" }));
 });
 
-Deno.test("hook.run() returns the fallback when no handler is registered", async () => {
+Scribe.test("hook.run() returns the fallback when no handler is registered", async () => {
   const hook = new Hook<undefined, string>({
     name: "test.fallback",
     fallback: "no-op",
   });
 
-  assertEquals(await hook.run(undefined), "no-op");
+  expect(await hook.run(undefined), equals("no-op"));
 });
 
-Deno.test("hook.run() chains handlers in registration order", async () => {
+Scribe.test("hook.run() chains handlers in registration order", async () => {
   const hook = new Hook<string>({ name: "test.order" });
   const calls: string[] = [];
 
@@ -86,10 +96,10 @@ Deno.test("hook.run() chains handlers in registration order", async () => {
 
   await hook.run("x");
 
-  assertEquals(calls, ["first", "second"]);
+  expect(calls, equals(["first", "second"]));
 });
 
-Deno.test("hook.run() stops at the first refusal, like an early return", async () => {
+Scribe.test("hook.run() stops at the first refusal, like an early return", async () => {
   const hook = new Hook<string, Result<void, string>>({
     name: "test.refusal",
     fallback: okay,
@@ -104,42 +114,42 @@ Deno.test("hook.run() stops at the first refusal, like an early return", async (
 
   const result = await hook.run("x");
 
-  assertEquals(result.ok, false);
-  assertEquals(secondRan, false);
+  expect(result.ok, equals(false));
+  expect(secondRan, equals(false));
 });
 
-Deno.test("hook.run() propagates a handler's error to the caller", async () => {
+Scribe.test("hook.run() propagates a handler's error to the caller", async () => {
   const hook = new Hook<string>({ name: "test.rejects" });
   hook.on(() => Promise.reject(new Error("boom")));
 
-  await assertRejects(() => hook.run("x"), Error, "boom");
+  await expectLater(() => hook.run("x"), throwsA(allOf(isA(Error), withMessage("boom"))));
 });
 
-Deno.test("hook.run() turns a synchronous throw into a rejection", async () => {
+Scribe.test("hook.run() turns a synchronous throw into a rejection", async () => {
   const hook = new Hook<string>({ name: "test.throws" });
   hook.on(() => {
     throw new Error("boom");
   });
 
-  await assertRejects(() => hook.run("x"), Error, "boom");
+  await expectLater(() => hook.run("x"), throwsA(allOf(isA(Error), withMessage("boom"))));
 });
 
-Deno.test("new Hook() refuses two hooks with the same name", () => {
+Scribe.test("new Hook() refuses two hooks with the same name", () => {
   new Hook<string>({ name: "test.duplicate" });
 
-  assertThrows(() => new Hook<string>({ name: "test.duplicate" }));
+  expect(() => new Hook<string>({ name: "test.duplicate" }), throwsA(isNotNull));
 });
 
-Deno.test("the registry knows which hooks have no handler", () => {
+Scribe.test("the registry knows which hooks have no handler", () => {
   new Hook<string>({ name: "test.idle" });
 
   const report = hookRegistry.report();
 
-  assertEquals(report.includes("test.idle"), true);
-  assertEquals(report.startsWith("[hooks]"), true);
+  expect(report.includes("test.idle"), equals(true));
+  expect(report.startsWith("[hooks]"), equals(true));
 });
 
-Deno.test("background() does not run the handler within the request", async () => {
+Scribe.test("background() does not run the handler within the request", async () => {
   const hook = new Hook<{ id: string }>({ name: "test.background" });
   let inlineRan = false;
   let backgroundRan = false;
@@ -153,39 +163,39 @@ Deno.test("background() does not run the handler within the request", async () =
 
   await hook.run({ id: "x" });
 
-  assertEquals(inlineRan, true, "the inline handler ran within run()");
-  assertEquals(
+  expect(inlineRan, equals(true), "the inline handler ran within run()");
+  expect(
     backgroundRan,
-    false,
+    equals(false),
     "the background handler was pushed rather than called, and the push failing on the " +
       "absent NATS did not hold run() back",
   );
 });
 
-Deno.test("handlers() counts inline and background subscribers together", () => {
+Scribe.test("handlers() counts inline and background subscribers together", () => {
   const hook = new Hook<string>({ name: "test.background.count" });
 
-  assertEquals(hook.handlers(), 0);
+  expect(hook.handlers(), equals(0));
   hook.on(() => {});
-  assertEquals(hook.handlers(), 1);
+  expect(hook.handlers(), equals(1));
   hook.background(() => {});
-  assertEquals(hook.handlers(), 2);
+  expect(hook.handlers(), equals(2));
 });
 
-Deno.test("a hook nobody listens to answers without doing any work", () => {
+Scribe.test("a hook nobody listens to answers without doing any work", () => {
   const hook = new Hook<string, string>({
     name: "test.unhandled",
     fallback: "no-op",
   });
 
-  assertStrictEquals(
+  expect(
     hook.run("a"),
-    hook.run("b"),
+    same(hook.run("b")),
     "two emissions answered the same promise instance, so neither allocated anything",
   );
 });
 
-Deno.test("a hook stops answering from the fast path once someone subscribes", async () => {
+Scribe.test("a hook stops answering from the fast path once someone subscribes", async () => {
   const hook = new Hook<string, string>({
     name: "test.becomes-handled",
     fallback: "no-op",
@@ -194,11 +204,11 @@ Deno.test("a hook stops answering from the fast path once someone subscribes", a
 
   hook.on(() => "handled");
 
-  assertStrictEquals(before === hook.run("b"), false);
-  assertEquals(await hook.run("c"), "handled");
+  expect(before === hook.run("b"), same(false));
+  expect(await hook.run("c"), equals("handled"));
 });
 
-Deno.test("a synchronous chain is not made to wait on itself", async () => {
+Scribe.test("a synchronous chain is not made to wait on itself", async () => {
   const hook = new Hook<string, string>({ name: "test.sync", fallback: "none" });
   const order: string[] = [];
 
@@ -211,6 +221,6 @@ Deno.test("a synchronous chain is not made to wait on itself", async () => {
     return "second";
   });
 
-  assertEquals(await hook.run("x"), "second");
-  assertEquals(order, ["first:x", "second:x"]);
+  expect(await hook.run("x"), equals("second"));
+  expect(order, equals(["first:x", "second:x"]));
 });

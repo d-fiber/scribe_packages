@@ -32,87 +32,86 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { contains, equals, expect, isNotNull, Scribe, throwsA } from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
-import { assertEquals, assertStringIncludes, assertThrows } from "@std/assert";
 import { Queue } from "../../../lib/src/queue/queue.ts";
 import { queueRegistry } from "../../../lib/src/queue/queue_registry.ts";
 import { queueRunner } from "../../../lib/src/queue/runner/queue_runner.ts";
 
 installDrivers();
 
-Deno.test("new Queue() arms the body with the runner", () => {
+Scribe.test("new Queue() arms the body with the runner", () => {
   new Queue<{ id: string }>(
     { name: "test:define:immediate" },
     () => Promise.resolve(),
   );
 
-  assertEquals(queueRunner.names().includes("test:define:immediate"), true);
+  expect(queueRunner.names().includes("test:define:immediate"), equals(true));
 });
 
-Deno.test("new Queue() distinguishes batch mode from job-by-job mode", () => {
+Scribe.test("new Queue() distinguishes batch mode from job-by-job mode", () => {
   new Queue<{ id: string }>(
     { name: "test:define:batch", batch: { lingerMs: 100 } },
     () => Promise.resolve(),
   );
 
   const entry = queueRegistry.get("test:define:batch");
-  assertEquals(entry?.mode, "batch");
-  assertEquals(queueRegistry.get("test:define:immediate")?.mode, "immediate");
+  expect(entry?.mode, equals("batch"));
+  expect(queueRegistry.get("test:define:immediate")?.mode, equals("immediate"));
 });
 
-Deno.test("new Queue() returns the producer side", () => {
+Scribe.test("new Queue() returns the producer side", () => {
   const queue = new Queue<{ id: string }>(
     { name: "test:define:producer" },
     () => Promise.resolve(),
   );
 
-  assertEquals(queue.name, "test:define:producer");
-  assertEquals(typeof queue.push, "function");
-  assertEquals(typeof queue.pushMany, "function");
+  expect(queue.name, equals("test:define:producer"));
+  expect(typeof queue.push, equals("function"));
+  expect(typeof queue.pushMany, equals("function"));
 });
 
-Deno.test("new Queue() refuses two queues with the same name", () => {
+Scribe.test("new Queue() refuses two queues with the same name", () => {
   new Queue<{ id: string }>(
     { name: "test:define:duplicate" },
     () => Promise.resolve(),
   );
 
-  assertThrows(() =>
+  expect(() =>
     new Queue<{ id: string }>(
       { name: "test:define:duplicate" },
       () => Promise.resolve(),
-    )
-  );
+    ), throwsA(isNotNull));
 });
 
-Deno.test("the registry returns a compact report, without listing names", () => {
+Scribe.test("the registry returns a compact report, without listing names", () => {
   const report = queueRegistry.report();
 
-  assertStringIncludes(report, "[queue]");
-  assertStringIncludes(report, "declared");
-  assertEquals(
+  expect(report, contains("[queue]"));
+  expect(report, contains("declared"));
+  expect(
     report.includes("test:define:immediate"),
-    false,
+    equals(false),
     "the report counts the queues instead of naming them, which a project with thousands " +
       "of them could not read",
   );
 });
 
-Deno.test("a queue's linger delay is indeed carried by the registry", () => {
+Scribe.test("a queue's linger delay is indeed carried by the registry", () => {
   new Queue<{ id: string }>(
     { name: "test:define:linger", batch: { lingerMs: 2_500 } },
     () => Promise.resolve(),
   );
 
-  assertEquals(
+  expect(
     queueRegistry.get("test:define:linger")?.lingerMs,
-    2_500,
+    equals(2_500),
     "the declared linger reached the registry, where graceFor() reads it to widen the fetch",
   );
-  assertEquals(
+  expect(
     queueRegistry.get("test:define:immediate")?.lingerMs,
-    undefined,
+    equals(undefined),
     "a queue declared without batch mode carries no linger at all",
   );
 });

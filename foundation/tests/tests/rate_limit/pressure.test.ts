@@ -32,7 +32,8 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, isTrue, Scribe } from "@scribe/alchemy/test";
 import { Duration } from "@scribe/alchemy";
 import type { RateLimitOutcome } from "@scribe/alchemy";
 import { installDrivers } from "../../testing/drivers.ts";
@@ -41,8 +42,6 @@ import { RateLimitBucket } from "../../../lib/src/rate_limit/rate_limit_bucket.t
 import type { RateLimitCommands } from "../../../lib/src/rate_limit/rate_limit_commands.ts";
 import { RedisRateLimiter } from "../../../lib/src/rate_limit/redis_rate_limiter.ts";
 import { installMock } from "../../testing/install.ts";
-import { assert, assertEquals } from "@std/assert";
-
 const POLICY = {
   limit: 5,
   window: Duration.minutes(1),
@@ -69,143 +68,128 @@ function answering(answer: unknown): Watched {
 
 const logged = installDrivers();
 
-Deno.test({
-  name: "a limit that refuses what it cannot measure lets everybody through when it is misdeclared",
-  async fn() {
-    const guard = new RedisRateLimiter({
-      key: "sign-in:email",
-      limit: 0,
-      window: Duration.minutes(1),
-      penalty: Duration.minutes(5),
-      failOpen: false,
-    });
-    const script = answering([1, 4, 0, 0]);
+Scribe.test("a limit that refuses what it cannot measure lets everybody through when it is misdeclared", async () => {
+  const guard = new RedisRateLimiter({
+    key: "sign-in:email",
+    limit: 0,
+    window: Duration.minutes(1),
+    penalty: Duration.minutes(5),
+    failOpen: false,
+  });
+  const script = answering([1, 4, 0, 0]);
 
-    try {
-      assertEquals(
-        await guard.check("", "1.2.3.4"),
-        guard.unmeasured(),
-        "the declaration said refuse what you cannot measure, the class decided it could not measure, " +
-          "and it answered allow, having never reached Redis",
-      );
-      assertEquals(script.calls.length, 0);
-    } finally {
-      script.restore();
-    }
-  },
+  try {
+    expect(
+      await guard.check("", "1.2.3.4"),
+      equals(guard.unmeasured()),
+      "the declaration said refuse what you cannot measure, the class decided it could not measure, " +
+        "and it answered allow, having never reached Redis",
+    );
+    expect(script.calls.length, equals(0));
+  } finally {
+    script.restore();
+  }
 });
 
-Deno.test({
-  name: "a limit whose count is not a number lets everybody through and hands out an allowance of NaN",
-  async fn() {
-    const guard = new RedisRateLimiter({ key: "typo", ...POLICY, limit: Number.NaN, failOpen: false });
-    const script = answering([1, 4, 0, 0]);
+Scribe.test("a limit whose count is not a number lets everybody through and hands out an allowance of NaN", async () => {
+  const guard = new RedisRateLimiter({ key: "typo", ...POLICY, limit: Number.NaN, failOpen: false });
+  const script = answering([1, 4, 0, 0]);
 
-    try {
-      const answer = await guard.check();
+  try {
+    const answer = await guard.check();
 
-      assertEquals(answer.ok, false, "a count nobody can read is a limit nobody can measure");
-      assert(
-        !answer.ok || Number.isFinite(answer.remaining),
-        `the caller was handed remaining=${(answer as { remaining: number }).remaining}`,
-      );
-    } finally {
-      script.restore();
-    }
-  },
+    expect(answer.ok, equals(false), "a count nobody can read is a limit nobody can measure");
+    expect(
+      !answer.ok || Number.isFinite(answer.remaining),
+      isTrue,
+      `the caller was handed remaining=${(answer as { remaining: number }).remaining}`,
+    );
+  } finally {
+    script.restore();
+  }
 });
 
-Deno.test({
-  name: "a negative count is handed to the caller as a negative allowance",
-  async fn() {
-    const guard = new RedisRateLimiter({ key: "negative", ...POLICY, limit: -1 });
-    const script = answering([1, 4, 0, 0]);
+Scribe.test("a negative count is handed to the caller as a negative allowance", async () => {
+  const guard = new RedisRateLimiter({ key: "negative", ...POLICY, limit: -1 });
+  const script = answering([1, 4, 0, 0]);
 
-    try {
-      const answer = await guard.check();
+  try {
+    const answer = await guard.check();
 
-      assert(answer.ok && answer.remaining >= 0, `the caller was told it had ${JSON.stringify(answer)}`);
-    } finally {
-      script.restore();
-    }
-  },
+    expect(answer.ok && answer.remaining >= 0, isTrue, `the caller was told it had ${JSON.stringify(answer)}`);
+  } finally {
+    script.restore();
+  }
 });
 
-Deno.test({
-  name: "a script that answers half a tuple is read as an allow with no allowance in it",
-  async fn() {
-    const guard = new RedisRateLimiter({ key: "half", ...POLICY, failOpen: false });
-    const script = answering([1]);
+Scribe.test("a script that answers half a tuple is read as an allow with no allowance in it", async () => {
+  const guard = new RedisRateLimiter({ key: "half", ...POLICY, failOpen: false });
+  const script = answering([1]);
 
-    try {
-      const answer = await guard.check();
+  try {
+    const answer = await guard.check();
 
-      assert(
-        !answer.ok || Number.isFinite(answer.remaining),
-        `a store that answered ${JSON.stringify([1])} produced ${JSON.stringify(answer)}, and only a reply ` +
-          "that is not a list at all ever reaches the catch",
-      );
-    } finally {
-      script.restore();
-    }
-  },
+    expect(
+      !answer.ok || Number.isFinite(answer.remaining),
+      isTrue,
+      `a store that answered ${JSON.stringify([1])} produced ${JSON.stringify(answer)}, and only a reply ` +
+        "that is not a list at all ever reaches the catch",
+    );
+  } finally {
+    script.restore();
+  }
 });
 
-Deno.test({
-  name: "a script that answers an empty list refuses with no wait to hand the caller",
-  async fn() {
-    const guard = new RedisRateLimiter({ key: "nothing", ...POLICY });
-    const script = answering([]);
+Scribe.test("a script that answers an empty list refuses with no wait to hand the caller", async () => {
+  const guard = new RedisRateLimiter({ key: "nothing", ...POLICY });
+  const script = answering([]);
 
-    try {
-      const answer = await guard.check();
+  try {
+    const answer = await guard.check();
 
-      assert(
-        answer.ok || Number.isFinite(answer.retryAfter),
-        `the caller was refused and told to come back after ${JSON.stringify(answer)}, which sends it round ` +
-          "again at once",
-      );
-    } finally {
-      script.restore();
-    }
-  },
+    expect(
+      answer.ok || Number.isFinite(answer.retryAfter),
+      isTrue,
+      `the caller was refused and told to come back after ${JSON.stringify(answer)}, which sends it round ` +
+        "again at once",
+    );
+  } finally {
+    script.restore();
+  }
 });
 
-Deno.test({
-  name: "numbers that come back as text turn every allowed hit into a refusal",
-  async fn() {
-    const guard = new RedisRateLimiter({ key: "text", ...POLICY });
-    const script = answering(["1", "4", "0", "0"]);
+Scribe.test("numbers that come back as text turn every allowed hit into a refusal", async () => {
+  const guard = new RedisRateLimiter({ key: "text", ...POLICY });
+  const script = answering(["1", "4", "0", "0"]);
 
-    try {
-      assertEquals(
-        (await guard.check()).ok,
-        true,
-        "the comparison is strict, so a reply carrying the right numbers as text refuses every caller and " +
-          "tells each of them to come back after zero seconds",
-      );
-    } finally {
-      script.restore();
-    }
-  },
+  try {
+    expect(
+      (await guard.check()).ok,
+      equals(true),
+      "the comparison is strict, so a reply carrying the right numbers as text refuses every caller and " +
+        "tells each of them to come back after zero seconds",
+    );
+  } finally {
+    script.restore();
+  }
 });
 
-Deno.test("a reply that is not a list at all falls back on the declaration", async () => {
+Scribe.test("a reply that is not a list at all falls back on the declaration", async () => {
   const closed = new RedisRateLimiter({ key: "closed", ...POLICY, failOpen: false });
   const open = new RedisRateLimiter({ key: "open", ...POLICY });
   const script = answering(null);
   logged.clear();
 
   try {
-    assertEquals(await closed.check(), { ok: false, retryAfter: 60, strikes: 0 });
-    assertEquals(await open.check(), { ok: true, remaining: 5 });
-    assert(logged.actions.filter((one) => one === "rate-limit.check_failed").length === 2);
+    expect(await closed.check(), equals({ ok: false, retryAfter: 60, strikes: 0 }));
+    expect(await open.check(), equals({ ok: true, remaining: 5 }));
+    expect(logged.actions.filter((one) => one === "rate-limit.check_failed").length === 2, isTrue);
   } finally {
     script.restore();
   }
 });
 
-Deno.test("a store that fails on one call is asked again on the next", async () => {
+Scribe.test("a store that fails on one call is asked again on the next", async () => {
   const guard = new RedisRateLimiter({ key: "flaky", ...POLICY });
   let asked = 0;
   const mock = installMock(
@@ -218,101 +202,96 @@ Deno.test("a store that fails on one call is asked again on the next", async () 
   );
 
   try {
-    assertEquals(await guard.check(), { ok: true, remaining: 5 });
-    assertEquals(await guard.check(), { ok: true, remaining: 4 });
-    assertEquals(asked, 2, "an outage must not latch");
+    expect(await guard.check(), equals({ ok: true, remaining: 5 }));
+    expect(await guard.check(), equals({ ok: true, remaining: 4 }));
+    expect(asked, equals(2), "an outage must not latch");
   } finally {
     mock.restore();
   }
 });
 
-Deno.test({
-  name: "a penalty longer than the ceiling is cut down without a word",
-  async fn() {
-    const guard = new RedisRateLimiter({ key: "week", ...POLICY, penalty: Duration.days(7) });
-    const script = answering([1, 4, 0, 0]);
-    logged.clear();
+Scribe.test("a penalty longer than the ceiling is cut down without a word", async () => {
+  const guard = new RedisRateLimiter({ key: "week", ...POLICY, penalty: Duration.days(7) });
+  const script = answering([1, 4, 0, 0]);
+  logged.clear();
 
-    try {
-      await guard.check();
-      const [, , , , , penalty, ceiling] = script.calls[0] as number[];
+  try {
+    await guard.check();
+    const [, , , , , penalty, ceiling] = script.calls[0] as number[];
 
-      assert(
-        penalty <= ceiling,
-        `the declaration asked for ${penalty} seconds and the script will grant ${ceiling}, and nothing ` +
-          "between the two says so",
-      );
-    } finally {
-      script.restore();
-    }
-  },
-});
-
-Deno.test({
-  name: "a penalty longer than the strike memory defeats the escalation it belongs to",
-  async fn() {
-    const guard = new RedisRateLimiter({
-      key: "forgetful",
-      ...POLICY,
-      penalty: Duration.hours(2),
-      strikeMemory: Duration.hours(1),
-    });
-    const script = answering([1, 4, 0, 0]);
-
-    try {
-      await guard.check();
-      const [, , , , , penalty, , memory] = script.calls[0] as number[];
-
-      assert(
-        penalty < memory,
-        `a block of ${penalty} seconds outlives a strike count kept for ${memory}, so the count is gone by ` +
-          "the time the block lifts and the next penalty starts over at the first",
-      );
-    } finally {
-      script.restore();
-    }
-  },
-});
-
-Deno.test({
-  name: "two declarations that differ only in where the colon falls share one bucket",
-  fn() {
-    const mounted = new RateLimitBucket("api", "read", "user:42");
-    const declared = new RateLimitBucket("api", "read:user", "42");
-
-    assert(
-      mounted.blockedKey !== declared.blockedKey,
-      `both name ${mounted.blockedKey}, so one declaration's penalty blocks the other's callers, and a ` +
-        "suffix a caller controls decides which bucket it spends",
+    expect(
+      penalty <= ceiling,
+      isTrue,
+      `the declaration asked for ${penalty} seconds and the script will grant ${ceiling}, and nothing ` +
+        "between the two says so",
     );
-  },
+  } finally {
+    script.restore();
+  }
 });
 
-Deno.test("a bucket is the same for the same three segments and different for any other", () => {
-  assertEquals(
-    new RateLimitBucket("api", "read", "42").blockedKey,
-    new RateLimitBucket("api", "read", "42").blockedKey,
+Scribe.test("a penalty longer than the strike memory defeats the escalation it belongs to", async () => {
+  const guard = new RedisRateLimiter({
+    key: "forgetful",
+    ...POLICY,
+    penalty: Duration.hours(2),
+    strikeMemory: Duration.hours(1),
+  });
+  const script = answering([1, 4, 0, 0]);
+
+  try {
+    await guard.check();
+    const [, , , , , penalty, , memory] = script.calls[0] as number[];
+
+    expect(
+      penalty < memory,
+      isTrue,
+      `a block of ${penalty} seconds outlives a strike count kept for ${memory}, so the count is gone by ` +
+        "the time the block lifts and the next penalty starts over at the first",
+    );
+  } finally {
+    script.restore();
+  }
+});
+
+Scribe.test("two declarations that differ only in where the colon falls share one bucket", () => {
+  const mounted = new RateLimitBucket("api", "read", "user:42");
+  const declared = new RateLimitBucket("api", "read:user", "42");
+
+  expect(
+    mounted.blockedKey !== declared.blockedKey,
+    isTrue,
+    `both name ${mounted.blockedKey}, so one declaration's penalty blocks the other's callers, and a ` +
+      "suffix a caller controls decides which bucket it spends",
   );
-  assert(
+});
+
+Scribe.test("a bucket is the same for the same three segments and different for any other", () => {
+  expect(
+    new RateLimitBucket("api", "read", "42").blockedKey,
+    equals(new RateLimitBucket("api", "read", "42").blockedKey),
+  );
+  expect(
     new RateLimitBucket("api", "read", "42").blockedKey !==
       new RateLimitBucket("api", "read", "43").blockedKey,
+    isTrue,
   );
 });
 
-Deno.test("a suffix of ten thousand characters is passed through untouched", async () => {
+Scribe.test("a suffix of ten thousand characters is passed through untouched", async () => {
   const guard = new RedisRateLimiter({ key: "long", ...POLICY });
   const script = answering([1, 4, 0, 0]);
 
   try {
     await guard.check("", "y".repeat(10_000));
 
-    assertEquals((script.calls[0][0] as string).length, "rl:blocked:long:".length + 10_000);
+    expect((script.calls[0][0] as string).length, equals("rl:blocked:long:".length + 10_000));
   } finally {
     script.restore();
   }
 });
 
-Deno.test("a window of one millisecond still reaches the script, with the fraction it was given", async () => {
+Scribe.test("a window of one millisecond still reaches the script, with the fraction it was given", async () => {
   const guard = new RedisRateLimiter({
     key: "tiny",
     limit: 10,
@@ -325,55 +304,52 @@ Deno.test("a window of one millisecond still reaches the script, with the fracti
     await guard.check();
     const [, , , limit, window, penalty] = script.calls[0] as number[];
 
-    assertEquals([limit, window, penalty], [10, 0.001, 0.001]);
+    expect([limit, window, penalty], equals([10, 0.001, 0.001]));
   } finally {
     script.restore();
   }
 });
 
-Deno.test({
-  name: "a peek reaches Redis for a limit that check refuses to measure",
-  async fn() {
-    const broken = new RedisRateLimiter({
-      key: "misdeclared",
-      limit: 0,
-      window: Duration.seconds(0),
-      penalty: Duration.seconds(0),
-      failOpen: false,
-    });
-    let asked = 0;
-    const mock = installMock(kv(), "pttl", () => {
-      asked++;
-      return Promise.resolve(-2);
-    });
+Scribe.test("a peek reaches Redis for a limit that check refuses to measure", async () => {
+  const broken = new RedisRateLimiter({
+    key: "misdeclared",
+    limit: 0,
+    window: Duration.seconds(0),
+    penalty: Duration.seconds(0),
+    failOpen: false,
+  });
+  let asked = 0;
+  const mock = installMock(kv(), "pttl", () => {
+    asked++;
+    return Promise.resolve(-2);
+  });
 
-    try {
-      await broken.isBlocked();
+  try {
+    await broken.isBlocked();
 
-      assertEquals(
-        asked,
-        0,
-        "check decides this limit measures nothing and never leaves the process, and the peek beside it " +
-          "goes to Redis anyway",
-      );
-    } finally {
-      mock.restore();
-    }
-  },
+    expect(
+      asked,
+      equals(0),
+      "check decides this limit measures nothing and never leaves the process, and the peek beside it " +
+        "goes to Redis anyway",
+    );
+  } finally {
+    mock.restore();
+  }
 });
 
-Deno.test("a refused hit carries what the script measured, whatever it is", async () => {
+Scribe.test("a refused hit carries what the script measured, whatever it is", async () => {
   const guard = new RedisRateLimiter({ key: "refused", ...POLICY });
   const script = answering([0, 0, 900, 3]);
 
   try {
-    assertEquals(await guard.check(), { ok: false, retryAfter: 900, strikes: 3 } satisfies RateLimitOutcome);
+    expect(await guard.check(), equals({ ok: false, retryAfter: 900, strikes: 3 } satisfies RateLimitOutcome));
   } finally {
     script.restore();
   }
 });
 
-Deno.test("a burst of two hundred hits costs two hundred round trips and nothing else", async () => {
+Scribe.test("a burst of two hundred hits costs two hundred round trips and nothing else", async () => {
   const guard = new RedisRateLimiter({ key: "burst", ...POLICY });
   let spent = 0;
   const script = answering(null);
@@ -391,8 +367,8 @@ Deno.test("a burst of two hundred hits costs two hundred round trips and nothing
   try {
     const answers = await Promise.all(Array.from({ length: 200 }, () => guard.check("", "1.2.3.4")));
 
-    assertEquals(answers.filter((one) => one.ok).length, 5, "the burst is exactly the limit");
-    assertEquals(spent, 200, "one hit, one round trip, whatever the answer");
+    expect(answers.filter((one) => one.ok).length, equals(5), "the burst is exactly the limit");
+    expect(spent, equals(200), "one hit, one round trip, whatever the answer");
   } finally {
     mock.restore();
   }

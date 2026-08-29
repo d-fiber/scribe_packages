@@ -32,24 +32,27 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { caught, equals, expect, isA, Scribe } from "@scribe/alchemy/test";
 import "../../testing/settings.ts";
 
 import { DrainTally } from "../../../lib/src/queue/runner/drain_tally.ts";
 import { TimeoutException, withDeadline } from "@scribe/alchemy";
-import { assertEquals, assertInstanceOf, assertRejects } from "@std/assert";
 import { Duration } from "@scribe/alchemy";
 
-Deno.test("DrainTally starts at zero on every counter", () => {
-  assertEquals(new DrainTally().toResult(), {
-    done: 0,
-    retried: 0,
-    dead: 0,
-    promoted: 0,
-  });
+Scribe.test("DrainTally starts at zero on every counter", () => {
+  expect(
+    new DrainTally().toResult(),
+    equals({
+      done: 0,
+      retried: 0,
+      dead: 0,
+      promoted: 0,
+    }),
+  );
 });
 
-Deno.test("DrainTally accumulates each outcome independently", () => {
+Scribe.test("DrainTally accumulates each outcome independently", () => {
   const tally = new DrainTally();
 
   tally.record("done");
@@ -58,46 +61,49 @@ Deno.test("DrainTally accumulates each outcome independently", () => {
   tally.record("dead", 2);
   tally.promote(7);
 
-  assertEquals(tally.toResult(), {
-    done: 5,
-    retried: 1,
-    dead: 2,
-    promoted: 7,
-  });
+  expect(
+    tally.toResult(),
+    equals({
+      done: 5,
+      retried: 1,
+      dead: 2,
+      promoted: 7,
+    }),
+  );
 });
 
-Deno.test("DrainTally hands out a snapshot, not its own state", () => {
+Scribe.test("DrainTally hands out a snapshot, not its own state", () => {
   const tally = new DrainTally();
   tally.record("done");
 
   const first = tally.toResult();
   tally.record("done");
 
-  assertEquals(first.done, 1);
-  assertEquals(tally.toResult().done, 2);
+  expect(first.done, equals(1));
+  expect(tally.toResult().done, equals(2));
 });
 
-Deno.test("withDeadline resolves when the handler beats the clock", async () => {
-  assertEquals(await withDeadline("fast", Duration.milliseconds(50), Promise.resolve("ok")), "ok");
+Scribe.test("withDeadline resolves when the handler beats the clock", async () => {
+  expect(await withDeadline("fast", Duration.milliseconds(50), Promise.resolve("ok")), equals("ok"));
 });
 
-Deno.test("withDeadline rejects with TimeoutException past the deadline", async () => {
+Scribe.test("withDeadline rejects with TimeoutException past the deadline", async () => {
   let release: (value: string) => void = () => {};
   const pending = new Promise<string>((resolve) => {
     release = resolve;
   });
 
-  const error = await assertRejects(() => withDeadline("slow", Duration.milliseconds(5), pending));
-  assertInstanceOf(error, TimeoutException);
+  const error = await caught(() => withDeadline("slow", Duration.milliseconds(5), pending));
+  expect(error, isA(TimeoutException));
 
   release("late");
   await pending;
 });
 
-Deno.test("withDeadline propagates the handler's own failure untouched", async () => {
+Scribe.test("withDeadline propagates the handler's own failure untouched", async () => {
   const boom = new TypeError("handler exploded");
 
-  const error = await assertRejects(() => withDeadline("broken", Duration.milliseconds(50), Promise.reject(boom)));
+  const error = await caught(() => withDeadline("broken", Duration.milliseconds(50), Promise.reject(boom)));
 
-  assertEquals(error, boom);
+  expect(error, equals(boom));
 });

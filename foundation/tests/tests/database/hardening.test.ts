@@ -32,9 +32,9 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
-import { assertEquals } from "@std/assert";
 import type { RequestUser } from "@scribe/alchemy/route";
 import { RequestIdentityCache } from "@scribe/runtime/http/accessors/identity.ts";
 import { RequestScope } from "@scribe/runtime/scope.ts";
@@ -105,18 +105,18 @@ function withIdentity<T>(identity: RequestUser | null, run: () => Promise<T>): P
 
 installDrivers();
 
-Deno.test("cross-owner: a caller reads no row of a table whose owning column never names it", async () => {
+Scribe.test("cross-owner: a caller reads no row of a table whose owning column never names it", async () => {
   const mock = installDatabaseMock({ [DEVICES]: [...SOME_DEVICES] });
   try {
     const rows = await withIdentity(USER, () => from<Device>(clientOf(mock), DEVICES).get());
 
-    assertEquals(rows.length, 0, "the read narrowed to the caller, and the caller owns none of it");
+    expect(rows.length, equals(0), "the read narrowed to the caller, and the caller owns none of it");
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("cross-owner: naming another owner in the predicate does not widen the read", async () => {
+Scribe.test("cross-owner: naming another owner in the predicate does not widen the read", async () => {
   const mock = installDatabaseMock({ [DEVICES]: [...SOME_DEVICES] });
   try {
     const rows = await withIdentity(
@@ -124,49 +124,49 @@ Deno.test("cross-owner: naming another owner in the predicate does not widen the
       () => from<Device>(clientOf(mock), DEVICES).where((f) => f.admin_id.eq("a2")).get(),
     );
 
-    assertEquals(rows.length, 0, "the scope narrows on top of the predicate, it is not replaced by it");
+    expect(rows.length, equals(0), "the scope narrows on top of the predicate, it is not replaced by it");
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("cross-owner: unscoped stays the deliberate way through", async () => {
+Scribe.test("cross-owner: unscoped stays the deliberate way through", async () => {
   const mock = installDatabaseMock({ [DEVICES]: [...SOME_DEVICES] });
   try {
     const rows = await withIdentity(USER, () => from<Device>(clientOf(mock), DEVICES).unscoped().get());
 
-    assertEquals(rows.length, 2);
+    expect(rows.length, equals(2));
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("cross-owner: the permission to read every row reaches a table the caller owns nothing of", async () => {
+Scribe.test("cross-owner: the permission to read every row reaches a table the caller owns nothing of", async () => {
   const mock = installDatabaseMock({
     [PREFERENCES]: [{ user_id: "u1", theme: "dark" }, { user_id: "u2", theme: "light" }],
   });
   try {
     const rows = await withIdentity(EVERY_ROW, () => from<Preference>(clientOf(mock), PREFERENCES).get());
 
-    assertEquals(rows.length, 2);
+    expect(rows.length, equals(2));
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("unbounded write: a table that declares no owner is not a free-for-all", async () => {
+Scribe.test("unbounded write: a table that declares no owner is not a free-for-all", async () => {
   const mock = installDatabaseMock({ [TEMPLATES]: [...SOME_TEMPLATES] });
   try {
     const outcome = await withIdentity(EVERY_ROW, () => from<Template>(clientOf(mock), TEMPLATES).delete());
 
-    assertEquals(outcome.ok, false);
-    assertEquals(mock.rows(TEMPLATES).length, 2, "nothing was removed");
+    expect(outcome.ok, equals(false));
+    expect(mock.rows(TEMPLATES).length, equals(2), "nothing was removed");
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("unbounded write: entireTable is the explicit opt-in", async () => {
+Scribe.test("unbounded write: entireTable is the explicit opt-in", async () => {
   const mock = installDatabaseMock({ [TEMPLATES]: [...SOME_TEMPLATES] });
   try {
     const outcome = await withIdentity(
@@ -174,14 +174,14 @@ Deno.test("unbounded write: entireTable is the explicit opt-in", async () => {
       () => from<Template>(clientOf(mock), TEMPLATES).entireTable().delete(),
     );
 
-    assertEquals(outcome.ok, true);
-    assertEquals(mock.rows(TEMPLATES).length, 0);
+    expect(outcome.ok, equals(true));
+    expect(mock.rows(TEMPLATES).length, equals(0));
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("unbounded write: deleteOne without a predicate is refused too", async () => {
+Scribe.test("unbounded write: deleteOne without a predicate is refused too", async () => {
   const mock = installDatabaseMock({ [TEMPLATES]: [...SOME_TEMPLATES] });
   try {
     const outcome = await withIdentity(
@@ -189,14 +189,14 @@ Deno.test("unbounded write: deleteOne without a predicate is refused too", async
       () => from<Template>(clientOf(mock), TEMPLATES).deleteOne(),
     );
 
-    assertEquals(outcome.ok, false);
-    assertEquals(mock.rows(TEMPLATES).length, 2);
+    expect(outcome.ok, equals(false));
+    expect(mock.rows(TEMPLATES).length, equals(2));
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("insert: an owner written as null is filled in from the caller, not written", async () => {
+Scribe.test("insert: an owner written as null is filled in from the caller, not written", async () => {
   const mock = installDatabaseMock({ [PREFERENCES]: [] });
   try {
     await withIdentity(
@@ -204,35 +204,35 @@ Deno.test("insert: an owner written as null is filled in from the caller, not wr
       () => from<Preference>(clientOf(mock), PREFERENCES).insert({ user_id: null } as never),
     );
 
-    assertEquals(mock.rows(PREFERENCES)[0]?.user_id, "u1");
+    expect(mock.rows(PREFERENCES)[0]?.user_id, equals("u1"));
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("a write says which of the four things happened, not just whether it happened", async () => {
+Scribe.test("a write says which of the four things happened, not just whether it happened", async () => {
   const mock = installDatabaseMock({ [TEMPLATES]: [...SOME_TEMPLATES] });
   try {
     const refused = await withIdentity(
       EVERY_ROW,
       () => from<Template>(clientOf(mock), TEMPLATES).delete(),
     );
-    assertEquals(refused.ok, false);
-    assertEquals(refused.ok === false && refused.error.kind, "denied");
+    expect(refused.ok, equals(false));
+    expect(refused.ok === false && refused.error.kind, equals("denied"));
 
     const removed = await withIdentity(
       EVERY_ROW,
       () => from<Template>(clientOf(mock), TEMPLATES).where((f) => f.id.eq("t1")).delete(),
     );
-    assertEquals(removed.ok, true);
-    assertEquals(removed.ok === true && removed.data, 1);
+    expect(removed.ok, equals(true));
+    expect(removed.ok === true && removed.data, equals(1));
 
     const none = await withIdentity(
       EVERY_ROW,
       () => from<Template>(clientOf(mock), TEMPLATES).where((f) => f.id.eq("nothing")).delete(),
     );
-    assertEquals(none.ok, true, "no row matched is not the same as refused");
-    assertEquals(none.ok === true && none.data, 0);
+    expect(none.ok, equals(true), "no row matched is not the same as refused");
+    expect(none.ok === true && none.data, equals(0));
   } finally {
     mock.restore();
   }

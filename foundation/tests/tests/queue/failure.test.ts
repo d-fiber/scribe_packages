@@ -32,10 +32,10 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import "../../testing/hand_backs.ts";
 import { installDrivers } from "../../testing/drivers.ts";
-import { assertEquals } from "@std/assert";
 import { Queue } from "../../../lib/src/queue/queue.ts";
 import { MessageDispatcher } from "../../../lib/src/queue/runner/message_dispatcher.ts";
 import { DrainTally } from "../../../lib/src/queue/runner/drain_tally.ts";
@@ -128,17 +128,17 @@ new Queue<{ id: string }>(
 
 installDrivers();
 
-Deno.test("a failed job is negatively acknowledged, never terminated", async () => {
+Scribe.test("a failed job is negatively acknowledged, never terminated", async () => {
   const messages = [message("q.test_failure_retry", { id: "a" }, 1)];
   const { result } = await dispatch(messages);
 
-  assertEquals(result.retried, 1);
-  assertEquals(messages[0].termed, false, "terminating would drop the job");
-  assertEquals(messages[0].acked, false);
-  assertEquals(typeof messages[0].nakedAfter, "number");
+  expect(result.retried, equals(1));
+  expect(messages[0].termed, equals(false), "terminating would drop the job");
+  expect(messages[0].acked, equals(false));
+  expect(typeof messages[0].nakedAfter, equals("number"));
 });
 
-Deno.test("the retry delay grows with the number of deliveries", async () => {
+Scribe.test("the retry delay grows with the number of deliveries", async () => {
   const first = [message("q.test_failure_retry", { id: "a" }, 1)];
   const third = [message("q.test_failure_retry", { id: "a" }, 3)];
 
@@ -147,35 +147,38 @@ Deno.test("the retry delay grows with the number of deliveries", async () => {
 
   const early = first[0].nakedAfter ?? 0;
   const late = third[0].nakedAfter ?? 0;
-  assertEquals(early > 0, true);
-  assertEquals(late > early, true, `${late} should exceed ${early}`);
+  expect(early > 0, equals(true));
+  expect(late > early, equals(true), `${late} should exceed ${early}`);
 });
 
-Deno.test("the last attempt goes to the dead letter and is terminated", async () => {
+Scribe.test("the last attempt goes to the dead letter and is terminated", async () => {
   const messages = [message("q.test_failure_retry", { id: "a" }, RETRY_QUEUE_MAX_DELIVERIES)];
   const { result, published } = await dispatch(messages);
 
-  assertEquals(result.dead, 1);
-  assertEquals(result.retried, 0);
-  assertEquals(messages[0].termed, true);
-  assertEquals(messages[0].nakedAfter, null, "a dead job must not come back");
-  assertEquals(published, [
-    { subject: "dead.test_failure_retry", data: { id: "a" } },
-  ]);
+  expect(result.dead, equals(1));
+  expect(result.retried, equals(0));
+  expect(messages[0].termed, equals(true));
+  expect(messages[0].nakedAfter, equals(null), "a dead job must not come back");
+  expect(
+    published,
+    equals([
+      { subject: "dead.test_failure_retry", data: { id: "a" } },
+    ]),
+  );
 });
 
-Deno.test("a failed batch sends every one of its messages through the policy", async () => {
+Scribe.test("a failed batch sends every one of its messages through the policy", async () => {
   const messages = [
     message("q.test_failure_batch", { id: "a" }, 1, 1),
     message("q.test_failure_batch", { id: "b" }, 1, 2),
   ];
   const { result } = await dispatch(messages);
 
-  assertEquals(result.retried, 2);
-  assertEquals(messages.every((m) => m.nakedAfter !== null), true);
+  expect(result.retried, equals(2));
+  expect(messages.every((m) => m.nakedAfter !== null), equals(true));
 });
 
-Deno.test("a batch carries each message's own delivery count", async () => {
+Scribe.test("a batch carries each message's own delivery count", async () => {
   const justArrived = message("q.test_failure_batch", { id: "a" }, 1, 1);
   const onItsLastAttempt = message(
     "q.test_failure_batch",
@@ -185,21 +188,21 @@ Deno.test("a batch carries each message's own delivery count", async () => {
   );
   const { result } = await dispatch([justArrived, onItsLastAttempt]);
 
-  assertEquals(result.retried, 1);
-  assertEquals(result.dead, 1);
-  assertEquals(
+  expect(result.retried, equals(1));
+  expect(result.dead, equals(1));
+  expect(
     justArrived.nakedAfter !== null,
-    true,
+    equals(true),
     "the message on its first delivery came back for another attempt",
   );
-  assertEquals(
+  expect(
     onItsLastAttempt.termed,
-    true,
+    equals(true),
     "the message that had used up its deliveries gave up, in the same batch",
   );
 });
 
-Deno.test("a payload published before the envelope shrank still decodes", async () => {
+Scribe.test("a payload published before the envelope shrank still decodes", async () => {
   const messages = [
     message(
       "q.test_failure_retry",
@@ -212,5 +215,5 @@ Deno.test("a payload published before the envelope shrank still decodes", async 
 
   const { result } = await dispatch(messages);
 
-  assertEquals(result.retried, 1, "an old message must not be lost on deploy");
+  expect(result.retried, equals(1), "an old message must not be lost on deploy");
 });

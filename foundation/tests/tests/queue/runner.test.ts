@@ -32,10 +32,10 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import "../../testing/hand_backs.ts";
 import { installDrivers } from "../../testing/drivers.ts";
-import { assertEquals } from "@std/assert";
 import { Queue } from "../../../lib/src/queue/queue.ts";
 import { MessageDispatcher } from "../../../lib/src/queue/runner/message_dispatcher.ts";
 import { DrainTally } from "../../../lib/src/queue/runner/drain_tally.ts";
@@ -89,7 +89,7 @@ function asJsMsgs(messages: readonly FakeMsg[]): readonly JsMsg[] {
 
 installDrivers();
 
-Deno.test("dispatch() calls the body job by job and acks", async () => {
+Scribe.test("dispatch() calls the body job by job and acks", async () => {
   const seen: string[] = [];
   new Queue<{ id: string }>({ name: "test:dispatch:immediate" }, (job) => {
     seen.push(job.id);
@@ -102,12 +102,12 @@ Deno.test("dispatch() calls the body job by job and acks", async () => {
   ];
   const result = await dispatch(asJsMsgs(messages));
 
-  assertEquals(seen, ["a", "b"]);
-  assertEquals(result.done, 2);
-  assertEquals(messages.every((m) => m.acked), true);
+  expect(seen, equals(["a", "b"]));
+  expect(result.done, equals(2));
+  expect(messages.every((m) => m.acked), equals(true));
 });
 
-Deno.test("dispatch() calls the body once with the whole batch in batch mode", async () => {
+Scribe.test("dispatch() calls the body once with the whole batch in batch mode", async () => {
   let calls = 0;
   let received: readonly unknown[] = [];
   new Queue<{ id: string }>(
@@ -126,12 +126,12 @@ Deno.test("dispatch() calls the body once with the whole batch in batch mode", a
   ];
   const result = await dispatch(asJsMsgs(messages));
 
-  assertEquals(calls, 1);
-  assertEquals(received.length, 3);
-  assertEquals(result.done, 3);
+  expect(calls, equals(1));
+  expect(received.length, equals(3));
+  expect(result.done, equals(3));
 });
 
-Deno.test("dispatch() splits a mixed batch by queue", async () => {
+Scribe.test("dispatch() splits a mixed batch by queue", async () => {
   const first: string[] = [];
   const second: string[] = [];
   new Queue<{ id: string }>({ name: "test:dispatch:mixed-a" }, (job) => {
@@ -151,17 +151,17 @@ Deno.test("dispatch() splits a mixed batch by queue", async () => {
     ]),
   );
 
-  assertEquals(first, ["a1", "a2"]);
-  assertEquals(second, ["b1"]);
+  expect(first, equals(["a1", "a2"]));
+  expect(second, equals(["b1"]));
 });
 
-Deno.test("dispatch() hands a subject this process does not declare back, it does not destroy it", async () => {
+Scribe.test("dispatch() hands a subject this process does not declare back, it does not destroy it", async () => {
   const messages = [message("q.owned_by_another_package", { id: "x" }, 1)];
 
   const result = await dispatch(asJsMsgs(messages));
 
-  assertEquals(messages[0].termed, false, "another replica may be the one that declares it");
-  assertEquals(messages[0].naked, true, "and it comes back rather than holding its slot");
-  assertEquals(messages[0].acked, false);
-  assertEquals(result.done, 0);
+  expect(messages[0].termed, equals(false), "another replica may be the one that declares it");
+  expect(messages[0].naked, equals(true), "and it comes back rather than holding its slot");
+  expect(messages[0].acked, equals(false));
+  expect(result.done, equals(0));
 });

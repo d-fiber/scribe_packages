@@ -32,16 +32,14 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, fail, FixedNow, isTrue, Scribe } from "@scribe/alchemy/test";
 import { DateTime, Duration, Now } from "@scribe/alchemy";
-import { FixedNow } from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
 import { encodeCacheEntry } from "../../../lib/src/cache/cache_entry.ts";
 import { DistributedLock } from "../../../lib/src/cache/lock/distributed_lock.ts";
 import { RedisCache, refreshesSettled } from "../../../lib/src/cache/redis_cache.ts";
 import { installFakeRedis } from "./support/redis.ts";
-import { assert, assertEquals } from "@std/assert";
-
 const FIVE_MINUTES = Duration.minutes(5);
 
 function leasesOf(commands: readonly { name: string; args: readonly unknown[] }[]): number[] {
@@ -50,58 +48,53 @@ function leasesOf(commands: readonly { name: string; args: readonly unknown[] }[
 
 installDrivers();
 
-Deno.test({
-  name: "the lease a fill takes is the caller's budget, which is a quarter of a second by default",
-  async fn() {
-    const redis = installFakeRedis();
+Scribe.test("the lease a fill takes is the caller's budget, which is a quarter of a second by default", async () => {
+  const redis = installFakeRedis();
 
-    try {
-      const cache = new RedisCache<string>({ key: "lease", ttl: FIVE_MINUTES });
-      await cache.upsert("k", () => Promise.resolve("v"));
+  try {
+    const cache = new RedisCache<string>({ key: "lease", ttl: FIVE_MINUTES });
+    await cache.upsert("k", () => Promise.resolve("v"));
 
-      assert(
-        leasesOf(redis.commands)[0] >= 1_000,
-        `the key was leased for ${leasesOf(redis.commands)[0]} ms, which is shorter than any computation ` +
-          "worth caching, so a second replica takes the key while the first is still working",
-      );
-    } finally {
-      redis.restore();
-    }
-  },
+    expect(
+      leasesOf(redis.commands)[0] >= 1_000,
+      isTrue,
+      `the key was leased for ${leasesOf(redis.commands)[0]} ms, which is shorter than any computation ` +
+        "worth caching, so a second replica takes the key while the first is still working",
+    );
+  } finally {
+    redis.restore();
+  }
 });
 
-Deno.test({
-  name: "one lock key is leased two different lengths depending on which path took it",
-  async fn() {
-    const redis = installFakeRedis();
+Scribe.test("one lock key is leased two different lengths depending on which path took it", async () => {
+  const redis = installFakeRedis();
 
-    try {
-      const cache = new RedisCache<string>({ key: "twoways", ttl: FIVE_MINUTES });
-      await cache.upsert("k", () => Promise.resolve("filled"));
-      const fill = leasesOf(redis.commands)[0];
+  try {
+    const cache = new RedisCache<string>({ key: "twoways", ttl: FIVE_MINUTES });
+    await cache.upsert("k", () => Promise.resolve("filled"));
+    const fill = leasesOf(redis.commands)[0];
 
-      redis.place(
-        "twoways/k",
-        encodeCacheEntry("stale", DateTime.now().millisecondsSinceEpoch + 5_000, 1_000_000),
-        60_000,
-      );
-      redis.clear();
-      await cache.upsert("k", () => Promise.resolve("refreshed"));
-      await refreshesSettled();
-      const refresh = leasesOf(redis.commands)[0];
+    redis.place(
+      "twoways/k",
+      encodeCacheEntry("stale", DateTime.now().millisecondsSinceEpoch + 5_000, 1_000_000),
+      60_000,
+    );
+    redis.clear();
+    await cache.upsert("k", () => Promise.resolve("refreshed"));
+    await refreshesSettled();
+    const refresh = leasesOf(redis.commands)[0];
 
-      assertEquals(
-        fill,
-        refresh,
-        "the same key, protecting the same computation, is held for two lengths nobody chose together",
-      );
-    } finally {
-      redis.restore();
-    }
-  },
+    expect(
+      fill,
+      equals(refresh),
+      "the same key, protecting the same computation, is held for two lengths nobody chose together",
+    );
+  } finally {
+    redis.restore();
+  }
 });
 
-Deno.test("a lease shorter than the work lets a second replica in while the first is still working", async () => {
+Scribe.test("a lease shorter than the work lets a second replica in while the first is still working", async () => {
   const redis = installFakeRedis();
   const held = Now.get();
   const at = new FixedNow(DateTime.parse("2026-01-01T00:00:00Z").millisecondsSinceEpoch);
@@ -110,14 +103,14 @@ Deno.test("a lease shorter than the work lets a second replica in while the firs
   try {
     const lock = new DistributedLock(() => {});
     const first = await lock.acquire("lock:held/k", Duration.milliseconds(250));
-    assertEquals(first.state, "acquired");
+    expect(first.state, equals("acquired"));
 
     at.pass(Duration.milliseconds(251));
     const second = await lock.acquire("lock:held/k", Duration.milliseconds(250));
 
-    assertEquals(
+    expect(
       second.state,
-      "acquired",
+      equals("acquired"),
       "the lease expires on its own length, and nothing asks whether the work behind it has finished",
     );
   } finally {
@@ -126,7 +119,7 @@ Deno.test("a lease shorter than the work lets a second replica in while the firs
   }
 });
 
-Deno.test("a release with a token the lock no longer holds frees nothing", async () => {
+Scribe.test("a release with a token the lock no longer holds frees nothing", async () => {
   const redis = installFakeRedis();
   const held = Now.get();
   const at = new FixedNow(DateTime.parse("2026-01-01T00:00:00Z").millisecondsSinceEpoch);
@@ -135,16 +128,16 @@ Deno.test("a release with a token the lock no longer holds frees nothing", async
   try {
     const lock = new DistributedLock(() => {});
     const overrun = await lock.acquire("lock:held/k", Duration.milliseconds(250));
-    assert(overrun.state === "acquired");
+    if (overrun.state !== "acquired") fail("the first caller on a free key must acquire it");
 
     at.pass(Duration.milliseconds(251));
     redis.place("lock:held/k", "the replica that came next", 250);
 
     await lock.release("lock:held/k", overrun.token);
 
-    assertEquals(
+    expect(
       redis.raw("lock:held/k"),
-      "the replica that came next",
+      equals("the replica that came next"),
       "a holder whose lease ran out must not free the key its successor is relying on",
     );
   } finally {
@@ -153,7 +146,7 @@ Deno.test("a release with a token the lock no longer holds frees nothing", async
   }
 });
 
-Deno.test("a lock that cannot be reached is told apart from one somebody holds", async () => {
+Scribe.test("a lock that cannot be reached is told apart from one somebody holds", async () => {
   const redis = installFakeRedis();
   const reported: string[] = [];
 
@@ -161,17 +154,17 @@ Deno.test("a lock that cannot be reached is told apart from one somebody holds",
     const lock = new DistributedLock((operation) => reported.push(operation));
 
     redis.place("lock:held/k", "somebody", 60_000);
-    assertEquals((await lock.acquire("lock:held/k")).state, "held");
+    expect((await lock.acquire("lock:held/k")).state, equals("held"));
 
     redis.failNext("set", new Error("no redis"));
-    assertEquals((await lock.acquire("lock:other")).state, "error");
-    assertEquals(reported, ["lock"]);
+    expect((await lock.acquire("lock:other")).state, equals("error"));
+    expect(reported, equals(["lock"]));
   } finally {
     redis.restore();
   }
 });
 
-Deno.test("a release that cannot reach Redis is reported, not raised", async () => {
+Scribe.test("a release that cannot reach Redis is reported, not raised", async () => {
   const redis = installFakeRedis();
   const reported: string[] = [];
 
@@ -181,13 +174,13 @@ Deno.test("a release that cannot reach Redis is reported, not raised", async () 
 
     await lock.release("lock:held/k", "a token");
 
-    assertEquals(reported, ["unlock"]);
+    expect(reported, equals(["unlock"]));
   } finally {
     redis.restore();
   }
 });
 
-Deno.test("a lock lives outside the namespace a sweep walks", async () => {
+Scribe.test("a lock lives outside the namespace a sweep walks", async () => {
   const redis = installFakeRedis();
 
   try {
@@ -197,10 +190,10 @@ Deno.test("a lock lives outside the namespace a sweep walks", async () => {
 
     await cache.clear();
 
-    assertEquals(await cache.get("a"), null);
-    assertEquals(
+    expect(await cache.get("a"), equals(null));
+    expect(
       redis.raw("lock:swept/k"),
-      "a replica computing right now",
+      equals("a replica computing right now"),
       "a sweep that took the lock with it would let a second replica in behind it",
     );
   } finally {
@@ -208,7 +201,7 @@ Deno.test("a lock lives outside the namespace a sweep walks", async () => {
   }
 });
 
-Deno.test("a lease is refused to a second taker for as long as it lasts", async () => {
+Scribe.test("a lease is refused to a second taker for as long as it lasts", async () => {
   const redis = installFakeRedis();
   const held = Now.get();
   const at = new FixedNow(DateTime.parse("2026-01-01T00:00:00Z").millisecondsSinceEpoch);
@@ -219,17 +212,17 @@ Deno.test("a lease is refused to a second taker for as long as it lasts", async 
     await lock.acquire("lock:held/k", Duration.seconds(10));
 
     at.pass(Duration.seconds(9));
-    assertEquals((await lock.acquire("lock:held/k", Duration.seconds(10))).state, "held");
+    expect((await lock.acquire("lock:held/k", Duration.seconds(10))).state, equals("held"));
 
     at.pass(Duration.seconds(2));
-    assertEquals((await lock.acquire("lock:held/k", Duration.seconds(10))).state, "acquired");
+    expect((await lock.acquire("lock:held/k", Duration.seconds(10))).state, equals("acquired"));
   } finally {
     Now.use(held);
     redis.restore();
   }
 });
 
-Deno.test("two takers of one key never both win", async () => {
+Scribe.test("two takers of one key never both win", async () => {
   const redis = installFakeRedis();
 
   try {
@@ -238,10 +231,10 @@ Deno.test("two takers of one key never both win", async () => {
       Array.from({ length: 50 }, () => lock.acquire("lock:held/k", Duration.seconds(10))),
     );
 
-    assertEquals(outcomes.filter((one) => one.state === "acquired").length, 1);
-    assertEquals(
+    expect(outcomes.filter((one) => one.state === "acquired").length, equals(1));
+    expect(
       new Set(outcomes.filter((one) => one.state === "acquired").map((one) => (one as { token: string }).token)).size,
-      1,
+      equals(1),
     );
   } finally {
     redis.restore();

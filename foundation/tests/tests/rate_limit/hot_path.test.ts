@@ -32,7 +32,8 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, isTrue, Scribe } from "@scribe/alchemy/test";
 import { Duration } from "@scribe/alchemy";
 import { installDrivers } from "../../testing/drivers.ts";
 import { kv } from "../../../lib/src/redis/kv.ts";
@@ -40,8 +41,6 @@ import { RateLimitBucket } from "../../../lib/src/rate_limit/rate_limit_bucket.t
 import type { RateLimitCommands } from "../../../lib/src/rate_limit/rate_limit_commands.ts";
 import { RedisRateLimiter } from "../../../lib/src/rate_limit/redis_rate_limiter.ts";
 import { installMock } from "../../testing/install.ts";
-import { assert, assertEquals } from "@std/assert";
-
 const POLICY = {
   limit: 5,
   window: Duration.minutes(1),
@@ -59,7 +58,7 @@ function nanosecondsPer(rounds: number, body: () => void): number {
 
 installDrivers();
 
-Deno.test("one hit costs one round trip, whether it is allowed or refused", async () => {
+Scribe.test("one hit costs one round trip, whether it is allowed or refused", async () => {
   const guard = new RedisRateLimiter({ key: "cost", ...POLICY });
   let reached = 0;
   const mock = installMock(
@@ -73,7 +72,7 @@ Deno.test("one hit costs one round trip, whether it is allowed or refused", asyn
 
   try {
     for (let round = 0; round < WARMUP; round++) await guard.check("api", "1.2.3.4");
-    assertEquals(reached, WARMUP);
+    expect(reached, equals(WARMUP));
 
     const started = performance.now();
     for (let round = 0; round < ROUNDS; round++) await guard.check("api", "1.2.3.4");
@@ -85,7 +84,7 @@ Deno.test("one hit costs one round trip, whether it is allowed or refused", asyn
   }
 });
 
-Deno.test("a peek costs one round trip and never the script", async () => {
+Scribe.test("a peek costs one round trip and never the script", async () => {
   const guard = new RedisRateLimiter({ key: "peek", ...POLICY });
   let peeked = 0;
   let scripted = 0;
@@ -105,10 +104,10 @@ Deno.test("a peek costs one round trip and never the script", async () => {
   try {
     for (let round = 0; round < 1_000; round++) await guard.isBlocked("api", "1.2.3.4");
 
-    assertEquals(peeked, 1_000);
-    assertEquals(
+    expect(peeked, equals(1_000));
+    expect(
       scripted,
-      0,
+      equals(0),
       "a peek that recorded a hit would make telling someone they are blocked " +
         "extend the block",
     );
@@ -118,35 +117,33 @@ Deno.test("a peek costs one round trip and never the script", async () => {
   }
 });
 
-Deno.test("naming a bucket costs three strings and one pass over three segments", () => {
+Scribe.test("naming a bucket costs three strings and one pass over three segments", () => {
   const built = nanosecondsPer(1_000_000, () => {
     new RateLimitBucket("api", "sign-in:email", "1.2.3.4");
   });
 
   console.log(`RateLimitBucket: ${built.toFixed(0)} ns per hit`);
-  assertEquals(
-    new RateLimitBucket("api", "sign-in:email", "1.2.3.4").arrivalKey,
-    "rl:tat:api:sign-in:email:1.2.3.4",
-  );
-  assert(built < 1_000, `naming a bucket took ${built} ns, which is paid on every hit of every endpoint`);
+  expect(new RateLimitBucket("api", "sign-in:email", "1.2.3.4").arrivalKey, equals("rl:tat:api:sign-in:email:1.2.3.4"));
+  expect(built < 1_000, isTrue, `naming a bucket took ${built} ns, which is paid on every hit of every endpoint`);
 });
 
-Deno.test("reading the four durations a hit hands the script costs nothing worth caching", () => {
+Scribe.test("reading the four durations a hit hands the script costs nothing worth caching", () => {
   const guard = new RedisRateLimiter({ key: "durations", ...POLICY });
   const read = nanosecondsPer(5_000_000, () => {
     void (guard.window.inSeconds + guard.penalty.inSeconds + guard.limit);
   });
 
   console.log(`three of the numbers a hit reads: ${read.toFixed(1)} ns`);
-  assert(read < 100, `${read} ns, which is why holding them as numbers on the declaration would buy nothing`);
+  expect(read < 100, isTrue, `${read} ns, which is why holding them as numbers on the declaration would buy nothing`);
 });
 
-Deno.test("the whole state of a bucket under its limit is one key", () => {
+Scribe.test("the whole state of a bucket under its limit is one key", () => {
   const bucket = new RateLimitBucket("", "sign-in:email", "1.2.3.4");
 
-  assertEquals(bucket.arrivalKey, "rl:tat:sign-in:email:1.2.3.4");
-  assert(
+  expect(bucket.arrivalKey, equals("rl:tat:sign-in:email:1.2.3.4"));
+  expect(
     bucket.blockedKey !== bucket.arrivalKey && bucket.strikesKey !== bucket.arrivalKey,
+    isTrue,
     "the other two are written only once somebody goes over, and they expire on their own",
   );
 });

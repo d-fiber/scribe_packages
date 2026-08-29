@@ -32,34 +32,44 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import {
+  allOf,
+  equals,
+  expect,
+  expectLater,
+  isA,
+  isFalse,
+  isTrue,
+  Scribe,
+  throwsA,
+  withMessage,
+} from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
 import { InlineChain } from "../../../lib/src/hook/inline_chain.ts";
 import { isRefusal } from "../../../lib/src/hook/is_refusal.ts";
-import { assert, assertEquals, assertFalse, assertRejects } from "@std/assert";
-
 installDrivers();
 
-Deno.test("isRefusal only recognises an object carrying ok:false", () => {
-  assert(isRefusal({ ok: false }));
-  assert(isRefusal({ ok: false, reason: "nope" }));
+Scribe.test("isRefusal only recognises an object carrying ok:false", () => {
+  expect(isRefusal({ ok: false }), isTrue);
+  expect(isRefusal({ ok: false, reason: "nope" }), isTrue);
 
-  assertFalse(isRefusal({ ok: true }));
-  assertFalse(isRefusal({}));
-  assertFalse(isRefusal(null));
-  assertFalse(isRefusal(undefined));
-  assertFalse(isRefusal(false));
-  assertFalse(isRefusal("ok"));
+  expect(isRefusal({ ok: true }), isFalse);
+  expect(isRefusal({}), isFalse);
+  expect(isRefusal(null), isFalse);
+  expect(isRefusal(undefined), isFalse);
+  expect(isRefusal(false), isFalse);
+  expect(isRefusal("ok"), isFalse);
 });
 
-Deno.test("InlineChain with no handler yields the fallback", async () => {
+Scribe.test("InlineChain with no handler yields the fallback", async () => {
   const chain = new InlineChain<string, string>("empty", "fallback");
 
-  assertEquals(await chain.run("payload"), "fallback");
-  assertEquals(chain.size, 0);
+  expect(await chain.run("payload"), equals("fallback"));
+  expect(chain.size, equals(0));
 });
 
-Deno.test("InlineChain runs handlers in order and keeps the last outcome", async () => {
+Scribe.test("InlineChain runs handlers in order and keeps the last outcome", async () => {
   const seen: string[] = [];
   const chain = new InlineChain<string, string>("ordered", "fallback");
 
@@ -72,12 +82,12 @@ Deno.test("InlineChain runs handlers in order and keeps the last outcome", async
     return "b";
   });
 
-  assertEquals(await chain.run("x"), "b");
-  assertEquals(seen, ["a:x", "b"]);
-  assertEquals(chain.size, 2);
+  expect(await chain.run("x"), equals("b"));
+  expect(seen, equals(["a:x", "b"]));
+  expect(chain.size, equals(2));
 });
 
-Deno.test("InlineChain short-circuits on the first refusal", async () => {
+Scribe.test("InlineChain short-circuits on the first refusal", async () => {
   const seen: string[] = [];
   const chain = new InlineChain<string, { ok: boolean }>("gate", { ok: true });
 
@@ -94,23 +104,23 @@ Deno.test("InlineChain short-circuits on the first refusal", async () => {
     return { ok: true };
   });
 
-  assertEquals(await chain.run("x"), { ok: false });
-  assertEquals(seen, ["first", "refuses"]);
+  expect(await chain.run("x"), equals({ ok: false }));
+  expect(seen, equals(["first", "refuses"]));
 });
 
-Deno.test("InlineChain lets a handler failure propagate", async () => {
+Scribe.test("InlineChain lets a handler failure propagate", async () => {
   const chain = new InlineChain<string, string>("boom", "fallback");
   chain.add(() => {
     throw new Error("handler exploded");
   });
   chain.add(() => "never reached");
 
-  await assertRejects(() => chain.run("x"), Error, "handler exploded");
+  await expectLater(() => chain.run("x"), throwsA(allOf(isA(Error), withMessage("handler exploded"))));
 });
 
-Deno.test("InlineChain awaits an asynchronous handler", async () => {
+Scribe.test("InlineChain awaits an asynchronous handler", async () => {
   const chain = new InlineChain<number, number>("async", 0);
   chain.add((n) => Promise.resolve(n * 2));
 
-  assertEquals(await chain.run(21), 42);
+  expect(await chain.run(21), equals(42));
 });

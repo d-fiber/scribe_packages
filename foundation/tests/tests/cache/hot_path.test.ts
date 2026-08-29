@@ -32,15 +32,14 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, isTrue, Scribe } from "@scribe/alchemy/test";
 import { DateTime, Duration } from "@scribe/alchemy";
 import { installDrivers } from "../../testing/drivers.ts";
 import { decodeCacheEntry, encodeCacheEntry } from "../../../lib/src/cache/cache_entry.ts";
 import { KeySpace } from "../../../lib/src/cache/key_space.ts";
 import { RedisCache } from "../../../lib/src/cache/redis_cache.ts";
 import { installFakeRedis } from "./support/redis.ts";
-import { assert, assertEquals } from "@std/assert";
-
 const FIVE_MINUTES = Duration.minutes(5);
 const WARMUP = 2_000;
 const ROUNDS = 20_000;
@@ -72,7 +71,7 @@ function nanosecondsPer(rounds: number, body: () => void): number {
 
 installDrivers();
 
-Deno.test("a warm read costs one round trip and nothing else", async () => {
+Scribe.test("a warm read costs one round trip and nothing else", async () => {
   const redis = installFakeRedis();
 
   try {
@@ -82,8 +81,8 @@ Deno.test("a warm read costs one round trip and nothing else", async () => {
 
     for (let round = 0; round < WARMUP; round++) await cache.get("k");
 
-    assertEquals(redis.roundTrips, WARMUP);
-    assertEquals(redis.countOf("get"), WARMUP);
+    expect(redis.roundTrips, equals(WARMUP));
+    expect(redis.countOf("get"), equals(WARMUP));
 
     const started = performance.now();
     for (let round = 0; round < ROUNDS; round++) await cache.get("k");
@@ -95,7 +94,7 @@ Deno.test("a warm read costs one round trip and nothing else", async () => {
   }
 });
 
-Deno.test("an upsert that hits costs one round trip, the same as a read", async () => {
+Scribe.test("an upsert that hits costs one round trip, the same as a read", async () => {
   const redis = installFakeRedis();
 
   try {
@@ -107,9 +106,9 @@ Deno.test("an upsert that hits costs one round trip, the same as a read", async 
       await cache.upsert("k", () => Promise.resolve({ n: 2 }));
     }
 
-    assertEquals(
+    expect(
       redis.roundTrips,
-      WARMUP,
+      equals(WARMUP),
       "an entry far from its expiry must not pay for the coordination it does not need",
     );
 
@@ -125,7 +124,7 @@ Deno.test("an upsert that hits costs one round trip, the same as a read", async 
   }
 });
 
-Deno.test("two hundred ids cost one round trip, not two hundred", async () => {
+Scribe.test("two hundred ids cost one round trip, not two hundred", async () => {
   const redis = installFakeRedis();
 
   try {
@@ -136,37 +135,34 @@ Deno.test("two hundred ids cost one round trip, not two hundred", async () => {
 
     await cache.getMany(ids);
 
-    assertEquals(redis.roundTrips, 1);
-    assertEquals(redis.countOf("mget"), 1);
+    expect(redis.roundTrips, equals(1));
+    expect(redis.countOf("mget"), equals(1));
   } finally {
     redis.restore();
   }
 });
 
-Deno.test({
-  name: "a batch read walks its ids twice, once for an answer it will not use",
-  async fn() {
-    const redis = installFakeRedis();
+Scribe.test("a batch read walks its ids twice, once for an answer it will not use", async () => {
+  const redis = installFakeRedis();
 
-    try {
-      const cache = new RedisCache<string>({ key: "walked", ttl: FIVE_MINUTES });
-      const counted = counting(Array.from({ length: 200 }, (_, at) => `u${at}`));
+  try {
+    const cache = new RedisCache<string>({ key: "walked", ttl: FIVE_MINUTES });
+    const counted = counting(Array.from({ length: 200 }, (_, at) => `u${at}`));
 
-      await cache.getMany(counted.list);
+    await cache.getMany(counted.list);
 
-      assertEquals(
-        counted.passes,
-        1,
-        "the fallback a failure would have needed is built on every call, so a page of two hundred ids " +
-          "allocates two hundred nulls that are thrown away",
-      );
-    } finally {
-      redis.restore();
-    }
-  },
+    expect(
+      counted.passes,
+      equals(1),
+      "the fallback a failure would have needed is built on every call, so a page of two hundred ids " +
+        "allocates two hundred nulls that are thrown away",
+    );
+  } finally {
+    redis.restore();
+  }
 });
 
-Deno.test("a batch write costs one pipeline, not one call per entry", async () => {
+Scribe.test("a batch write costs one pipeline, not one call per entry", async () => {
   const redis = installFakeRedis();
 
   try {
@@ -175,14 +171,14 @@ Deno.test("a batch write costs one pipeline, not one call per entry", async () =
 
     await cache.addMany(entries);
 
-    assertEquals(redis.countOf("pipeline.exec"), 1);
-    assertEquals(await cache.get("u199"), "v199");
+    expect(redis.countOf("pipeline.exec"), equals(1));
+    expect(await cache.get("u199"), equals("v199"));
   } finally {
     redis.restore();
   }
 });
 
-Deno.test("a sweep of a thousand keys costs one scan and one unlink", async () => {
+Scribe.test("a sweep of a thousand keys costs one scan and one unlink", async () => {
   const redis = installFakeRedis();
 
   try {
@@ -192,14 +188,14 @@ Deno.test("a sweep of a thousand keys costs one scan and one unlink", async () =
 
     await cache.clear();
 
-    assertEquals(redis.countOf("scan"), 1);
-    assertEquals(redis.countOf("unlink"), 1);
+    expect(redis.countOf("scan"), equals(1));
+    expect(redis.countOf("unlink"), equals(1));
   } finally {
     redis.restore();
   }
 });
 
-Deno.test("the envelope costs a third more than the value it wraps, and one pass either way", () => {
+Scribe.test("the envelope costs a third more than the value it wraps, and one pass either way", () => {
   const value = { id: "u1", name: "ada", roles: ["reader", "writer"], at: 1_700_000_000_000 };
   const raw = encodeCacheEntry(value, 1, 2);
 
@@ -216,11 +212,11 @@ Deno.test("the envelope costs a third more than the value it wraps, and one pass
   console.log(
     `encode ${wrapped.toFixed(0)} ns against ${bare.toFixed(0)} ns bare, decode ${read.toFixed(0)} ns`,
   );
-  assertEquals(JSON.parse(raw).v, value, "one pass in, one pass out, and no second stringify anywhere");
-  assert(wrapped < bare * 3, `wrapping cost ${wrapped} ns against ${bare} ns for the value alone`);
+  expect(JSON.parse(raw).v, equals(value), "one pass in, one pass out, and no second stringify anywhere");
+  expect(wrapped < bare * 3, isTrue, `wrapping cost ${wrapped} ns against ${bare} ns for the value alone`);
 });
 
-Deno.test("deriving a key costs a few nanoseconds and no lookup", () => {
+Scribe.test("deriving a key costs a few nanoseconds and no lookup", () => {
   const keys = new KeySpace("auth:device");
   const key = nanosecondsPer(2_000_000, () => {
     keys.keyOf("u1");
@@ -230,11 +226,11 @@ Deno.test("deriving a key costs a few nanoseconds and no lookup", () => {
   });
 
   console.log(`keyOf ${key.toFixed(1)} ns, lockKeyOf ${lockKey.toFixed(1)} ns`);
-  assertEquals(keys.keyOf("u1"), "auth:device/u1");
-  assert(key < 100, `keyOf took ${key} ns`);
+  expect(keys.keyOf("u1"), equals("auth:device/u1"));
+  expect(key < 100, isTrue, `keyOf took ${key} ns`);
 });
 
-Deno.test("the expiry a write stores costs one clock read and one addition", () => {
+Scribe.test("the expiry a write stores costs one clock read and one addition", () => {
   const built = nanosecondsPer(2_000_000, () => {
     DateTime.now().add(Duration.seconds(300)).millisecondsSinceEpoch;
   });
@@ -243,8 +239,9 @@ Deno.test("the expiry a write stores costs one clock read and one addition", () 
   });
 
   console.log(`through DateTime.add ${built.toFixed(1)} ns, by hand ${added.toFixed(1)} ns`);
-  assert(
+  expect(
     built < added * 2,
+    isTrue,
     `the two objects a write allocates cost ${built} ns against ${added} ns for the arithmetic alone`,
   );
 });

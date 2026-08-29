@@ -33,9 +33,9 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
-import { assertEquals } from "@std/assert";
 import type { Future } from "@scribe/alchemy";
 import { type InstalledMock, installMock } from "../../testing/install.ts";
 import { topology } from "../../../lib/src/queue/topology/topology.ts";
@@ -135,61 +135,61 @@ function left(): Future<number[]> {
   return triggerEvents().get().then((rows) => rows.map((one) => one.id));
 }
 
-Deno.test("a pass publishes every declaration a row concerns, then forgets the row", async () => {
+Scribe.test("a pass publishes every declaration a row concerns, then forgets the row", async () => {
   const db = installDatabaseFake({ __trigger_events__: [row()] });
   const wire = wireTopology();
   try {
-    assertEquals(await new TriggerRunner().drain(), 1);
-    assertEquals(wire.published, ["orders:update:1", "orders:status:1:status"]);
-    assertEquals(await left(), []);
+    expect(await new TriggerRunner().drain(), equals(1));
+    expect(wire.published, equals(["orders:update:1", "orders:status:1:status"]));
+    expect(await left(), equals([]));
   } finally {
     wire.restore();
     db.restore();
   }
 });
 
-Deno.test("a row nothing is declared for leaves the table rather than holding up what is behind it", async () => {
+Scribe.test("a row nothing is declared for leaves the table rather than holding up what is behind it", async () => {
   const db = installDatabaseFake({
     __trigger_events__: [row({ id: 1, table_name: "nobody_watches" }), row({ id: 2 })],
   });
   const wire = wireTopology();
   try {
-    assertEquals(await new TriggerRunner().drain(), 2);
-    assertEquals(await left(), []);
-    assertEquals(wire.published, ["orders:update:2", "orders:status:2:status"]);
+    expect(await new TriggerRunner().drain(), equals(2));
+    expect(await left(), equals([]));
+    expect(wire.published, equals(["orders:update:2", "orders:status:2:status"]));
   } finally {
     wire.restore();
     db.restore();
   }
 });
 
-Deno.test("a row whose operation cannot be read is dropped, and the batch carries on", async () => {
+Scribe.test("a row whose operation cannot be read is dropped, and the batch carries on", async () => {
   const db = installDatabaseFake({
     __trigger_events__: [row({ id: 1, op: "truncate" }), row({ id: 2 })],
   });
   const wire = wireTopology();
   try {
-    assertEquals(await new TriggerRunner().drain(), 2);
-    assertEquals(await left(), []);
+    expect(await new TriggerRunner().drain(), equals(2));
+    expect(await left(), equals([]));
   } finally {
     wire.restore();
     db.restore();
   }
 });
 
-Deno.test("a row the broker refused stays in the table, and nothing behind it is forgotten either", async () => {
+Scribe.test("a row the broker refused stays in the table, and nothing behind it is forgotten either", async () => {
   const db = installDatabaseFake({ __trigger_events__: [row({ id: 1 }), row({ id: 2 })] });
   const wire = wireTopology(() => Promise.reject(new Error("no stream")));
   try {
-    assertEquals(await new TriggerRunner().drain(), 0);
-    assertEquals(await left(), [1, 2], "a pass that published nothing forgets nothing");
+    expect(await new TriggerRunner().drain(), equals(0));
+    expect(await left(), equals([1, 2]), "a pass that published nothing forgets nothing");
   } finally {
     wire.restore();
     db.restore();
   }
 });
 
-Deno.test("a row published twice carries the same message identifier both times", async () => {
+Scribe.test("a row published twice carries the same message identifier both times", async () => {
   const db = installDatabaseFake({ __trigger_events__: [row({ id: 7 })] });
   const wire = wireTopology();
   try {
@@ -199,97 +199,88 @@ Deno.test("a row published twice carries the same message identifier both times"
     installDatabaseFake({ __trigger_events__: [row({ id: 7 })] });
     await new TriggerRunner().drain();
 
-    assertEquals(wire.published.slice(first.length), first, "the broker needs the same id to drop the copy");
+    expect(wire.published.slice(first.length), equals(first), "the broker needs the same id to drop the copy");
   } finally {
     wire.restore();
     db.restore();
   }
 });
 
-Deno.test("an empty outbox costs no provisioning call and no publish", async () => {
+Scribe.test("an empty outbox costs no provisioning call and no publish", async () => {
   const db = installDatabaseFake({ __trigger_events__: [] });
   const wire = wireTopology();
   try {
-    assertEquals(await new TriggerRunner().drain(), 0);
-    assertEquals(wire.published, []);
+    expect(await new TriggerRunner().drain(), equals(0));
+    expect(wire.published, equals([]));
   } finally {
     wire.restore();
     db.restore();
   }
 });
 
-Deno.test({
-  name: "DEFECT a row one declaration refuses republishes it to the other one at every pass",
-  async fn() {
-    const db = installDatabaseFake({ __trigger_events__: [row({ id: 1 })] });
-    const wire = wireTopology((msgID) =>
-      msgID.startsWith("orders:status") ? Promise.reject(new Error("too large")) : Promise.resolve("1")
+Scribe.test("DEFECT a row one declaration refuses republishes it to the other one at every pass", async () => {
+  const db = installDatabaseFake({ __trigger_events__: [row({ id: 1 })] });
+  const wire = wireTopology((msgID) =>
+    msgID.startsWith("orders:status") ? Promise.reject(new Error("too large")) : Promise.resolve("1")
+  );
+  try {
+    await new TriggerRunner().drain();
+    await new TriggerRunner().drain();
+    await new TriggerRunner().drain();
+
+    expect(
+      wire.published.filter((one) => one === "orders:update:1").length,
+      equals(1),
+      "a declaration that took the event must not be handed it again because another one refused it",
     );
-    try {
-      await new TriggerRunner().drain();
-      await new TriggerRunner().drain();
-      await new TriggerRunner().drain();
-
-      assertEquals(
-        wire.published.filter((one) => one === "orders:update:1").length,
-        1,
-        "a declaration that took the event must not be handed it again because another one refused it",
-      );
-    } finally {
-      wire.restore();
-      db.restore();
-    }
-  },
+  } finally {
+    wire.restore();
+    db.restore();
+  }
 });
 
-Deno.test({
-  name: "DEFECT a declaration after the one that refused is never handed the event at all",
-  async fn() {
-    const db = installDatabaseFake({ __trigger_events__: [row({ id: 1 })] });
-    const wire = wireTopology((msgID) =>
-      msgID.startsWith("orders:update") ? Promise.reject(new Error("too large")) : Promise.resolve("1")
+Scribe.test("DEFECT a declaration after the one that refused is never handed the event at all", async () => {
+  const db = installDatabaseFake({ __trigger_events__: [row({ id: 1 })] });
+  const wire = wireTopology((msgID) =>
+    msgID.startsWith("orders:update") ? Promise.reject(new Error("too large")) : Promise.resolve("1")
+  );
+  try {
+    await new TriggerRunner().drain();
+
+    expect(
+      wire.published.includes("orders:status:1:status"),
+      equals(true),
+      "one declaration refusing an event is not a reason to skip the next one",
     );
-    try {
-      await new TriggerRunner().drain();
-
-      assertEquals(
-        wire.published.includes("orders:status:1:status"),
-        true,
-        "one declaration refusing an event is not a reason to skip the next one",
-      );
-    } finally {
-      wire.restore();
-      db.restore();
-    }
-  },
+  } finally {
+    wire.restore();
+    db.restore();
+  }
 });
 
-Deno.test({
-  name: "DEFECT a pass that could not forget what it published reports the rows as drained",
-  async fn() {
-    const db = installForgetfulDatabase([row({ id: 1 })]);
-    const wire = wireTopology();
-    try {
-      assertEquals(
-        await new TriggerRunner().drain(),
-        0,
-        "a row still in the table at the end of the pass was not drained, whatever was published",
-      );
-    } finally {
-      wire.restore();
-      db.restore();
-    }
-  },
+Scribe.test("DEFECT a pass that could not forget what it published reports the rows as drained", async () => {
+  const db = installForgetfulDatabase([row({ id: 1 })]);
+  const wire = wireTopology();
+  try {
+    expect(
+      await new TriggerRunner().drain(),
+      equals(0),
+      "a row still in the table at the end of the pass was not drained, whatever was published",
+    );
+  } finally {
+    wire.restore();
+    db.restore();
+  }
 });
 
-Deno.test("a row that keeps failing stays in the table, which is what bounds a pass", async () => {
+Scribe.test("a row that keeps failing stays in the table, which is what bounds a pass", async () => {
   const db = installDatabaseFake({ __trigger_events__: [row({ id: 1 })] });
   const wire = wireTopology(() => Promise.reject(new Error("too large")));
   try {
     await new TriggerRunner().drain();
     await new TriggerRunner().drain();
 
-    assertEquals(await left(), [1], "nothing published means nothing forgotten");
+    expect(await left(), equals([1]), "nothing published means nothing forgotten");
   } finally {
     wire.restore();
     db.restore();

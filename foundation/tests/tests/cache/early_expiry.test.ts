@@ -32,12 +32,12 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, isTrue, Scribe } from "@scribe/alchemy/test";
 import "../../testing/settings.ts";
 
 import { shouldRefreshEarly } from "../../../lib/src/cache/early_expiry.ts";
 import type { CacheEntry } from "../../../lib/src/cache/cache_entry.ts";
-import { assert, assertEquals } from "@std/assert";
 
 function entry(computeMs: number, expiresInMs: number, now: number): CacheEntry<string> {
   return { value: "v", expiresAt: now + expiresInMs, computeMs };
@@ -53,46 +53,44 @@ function refreshRate(e: CacheEntry<string>, beta = 1, draws = 4_000): number {
   return refreshed / draws;
 }
 
-Deno.test("an entry whose computation was not measured never refreshes early", () => {
+Scribe.test("an entry whose computation was not measured never refreshes early", () => {
   const unmeasured = 0;
-  assertEquals(
+  expect(
     refreshRate(entry(unmeasured, 1_000, NOW)),
-    0,
+    equals(0),
     "an entry written before the field existed, or too fast to time, stays out of it",
   );
 });
 
-Deno.test("beta at zero turns refresh-ahead off", () => {
-  assertEquals(refreshRate(entry(500, 100, NOW), 0), 0);
+Scribe.test("beta at zero turns refresh-ahead off", () => {
+  expect(refreshRate(entry(500, 100, NOW), 0), equals(0));
 });
 
-Deno.test("an entry far from its expiry is almost never refreshed", () => {
+Scribe.test("an entry far from its expiry is almost never refreshed", () => {
   const anHourLeft = 3_600_000;
-  assert(
+  expect(
     refreshRate(entry(50, anHourLeft, NOW)) < 0.01,
+    isTrue,
     "a 50ms computation an hour from its expiry pulls fewer than one reader in a hundred",
   );
 });
 
-Deno.test("an entry past its expiry is always refreshed", () => {
-  assertEquals(refreshRate(entry(50, -1, NOW)), 1);
+Scribe.test("an entry past its expiry is always refreshed", () => {
+  expect(refreshRate(entry(50, -1, NOW)), equals(1));
 });
 
-Deno.test("the window widens with the cost of the computation", () => {
+Scribe.test("the window widens with the cost of the computation", () => {
   const remaining = 1_000;
   const cheap = refreshRate(entry(5, remaining, NOW));
   const costly = refreshRate(entry(500, remaining, NOW));
 
-  assert(
-    costly > cheap,
-    `a costly value should volunteer more often (${costly} vs ${cheap})`,
-  );
-  assert(cheap < 0.05, "a cheap value should behave as if this did not exist");
+  expect(costly > cheap, isTrue, `a costly value should volunteer more often (${costly} vs ${cheap})`);
+  expect(cheap < 0.05, isTrue, "a cheap value should behave as if this did not exist");
 });
 
-Deno.test("the closer the expiry, the more readers volunteer", () => {
+Scribe.test("the closer the expiry, the more readers volunteer", () => {
   const far = refreshRate(entry(200, 800, NOW));
   const near = refreshRate(entry(200, 100, NOW));
 
-  assert(near > far, `${near} should exceed ${far}`);
+  expect(near > far, isTrue, `${near} should exceed ${far}`);
 });

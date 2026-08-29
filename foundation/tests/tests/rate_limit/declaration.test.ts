@@ -32,72 +32,59 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, isNot, Scribe } from "@scribe/alchemy/test";
 import { Duration } from "@scribe/alchemy";
 import { RateLimitBucket } from "../../../lib/src/rate_limit/rate_limit_bucket.ts";
 import { RedisRateLimiter } from "../../../lib/src/rate_limit/redis_rate_limiter.ts";
-import { assertEquals, assertNotEquals } from "@std/assert";
-
 const POLICY = {
   limit: 10,
   window: Duration.minutes(1),
   penalty: Duration.minutes(5),
 };
 
-Deno.test("a bucket derives its three keys from the segments it was given", () => {
+Scribe.test("a bucket derives its three keys from the segments it was given", () => {
   const bucket = new RateLimitBucket("admin", "sign-in", "1.2.3.4");
 
-  assertEquals(bucket.blockedKey, "rl:blocked:admin:sign-in:1.2.3.4");
-  assertEquals(bucket.arrivalKey, "rl:tat:admin:sign-in:1.2.3.4");
-  assertEquals(bucket.strikesKey, "rl:strikes:admin:sign-in:1.2.3.4");
+  expect(bucket.blockedKey, equals("rl:blocked:admin:sign-in:1.2.3.4"));
+  expect(bucket.arrivalKey, equals("rl:tat:admin:sign-in:1.2.3.4"));
+  expect(bucket.strikesKey, equals("rl:strikes:admin:sign-in:1.2.3.4"));
 });
 
-Deno.test("a bucket drops the segments it was not given", () => {
-  assertEquals(
-    new RateLimitBucket("", "sign-in", "").blockedKey,
-    "rl:blocked:sign-in",
-  );
-  assertEquals(
-    new RateLimitBucket("", "sign-in", "1.2.3.4").blockedKey,
-    "rl:blocked:sign-in:1.2.3.4",
-  );
-  assertEquals(
-    new RateLimitBucket("admin", "sign-in", "").blockedKey,
-    "rl:blocked:admin:sign-in",
-  );
+Scribe.test("a bucket drops the segments it was not given", () => {
+  expect(new RateLimitBucket("", "sign-in", "").blockedKey, equals("rl:blocked:sign-in"));
+  expect(new RateLimitBucket("", "sign-in", "1.2.3.4").blockedKey, equals("rl:blocked:sign-in:1.2.3.4"));
+  expect(new RateLimitBucket("admin", "sign-in", "").blockedKey, equals("rl:blocked:admin:sign-in"));
 });
 
-Deno.test("two suffixes never share a bucket key", () => {
+Scribe.test("two suffixes never share a bucket key", () => {
   const one = new RateLimitBucket("", "sign-in", "1.2.3.4");
   const other = new RateLimitBucket("", "sign-in", "5.6.7.8");
 
-  assertNotEquals(one.blockedKey, other.blockedKey);
-  assertNotEquals(one.arrivalKey, other.arrivalKey);
-  assertNotEquals(one.strikesKey, other.strikesKey);
+  expect(one.blockedKey, isNot(equals(other.blockedKey)));
+  expect(one.arrivalKey, isNot(equals(other.arrivalKey)));
+  expect(one.strikesKey, isNot(equals(other.strikesKey)));
 });
 
-Deno.test("a declaration keeps the policy it was given", () => {
+Scribe.test("a declaration keeps the policy it was given", () => {
   const limit = new RedisRateLimiter({
     key: "sign-in:email",
     ...POLICY,
     failOpen: false,
   });
 
-  assertEquals(limit.key, "sign-in:email");
-  assertEquals(limit.limit, 10);
-  assertEquals(limit.window, Duration.minutes(1));
-  assertEquals(limit.penalty, Duration.minutes(5));
-  assertEquals(limit.failOpen, false);
+  expect(limit.key, equals("sign-in:email"));
+  expect(limit.limit, equals(10));
+  expect(limit.window, equals(Duration.minutes(1)));
+  expect(limit.penalty, equals(Duration.minutes(5)));
+  expect(limit.failOpen, equals(false));
 });
 
-Deno.test("a declaration that says nothing about an outage lets the caller through", () => {
-  assertEquals(
-    new RedisRateLimiter({ key: "discover:feed", ...POLICY }).failOpen,
-    true,
-  );
+Scribe.test("a declaration that says nothing about an outage lets the caller through", () => {
+  expect(new RedisRateLimiter({ key: "discover:feed", ...POLICY }).failOpen, equals(true));
 });
 
-Deno.test("a limit that cannot be measured answers what its declaration decided", () => {
+Scribe.test("a limit that cannot be measured answers what its declaration decided", () => {
   const open = new RedisRateLimiter({ key: "discover:feed", ...POLICY });
   const closed = new RedisRateLimiter({
     key: "sign-in:email",
@@ -105,6 +92,6 @@ Deno.test("a limit that cannot be measured answers what its declaration decided"
     failOpen: false,
   });
 
-  assertEquals(open.unmeasured(), { ok: true, remaining: 10 });
-  assertEquals(closed.unmeasured(), { ok: false, retryAfter: 60, strikes: 0 });
+  expect(open.unmeasured(), equals({ ok: true, remaining: 10 }));
+  expect(closed.unmeasured(), equals({ ok: false, retryAfter: 60, strikes: 0 }));
 });

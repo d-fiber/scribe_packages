@@ -32,12 +32,25 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import {
+  allOf,
+  caught,
+  equals,
+  expect,
+  expectLater,
+  having,
+  isA,
+  isNot,
+  isTrue,
+  same,
+  Scribe,
+  throwsA,
+  withMessage,
+} from "@scribe/alchemy/test";
 import { Bytes } from "@scribe/alchemy";
 import { BaseRequest, ByteStream, ClientException, HttpRequest } from "@scribe/alchemy/http";
 import { FetchClient, FetchClients } from "../../../lib/src/http/fetch_client.ts";
-import { assert, assertEquals, assertNotStrictEquals, assertRejects, assertStrictEquals } from "@std/assert";
-
 const SOMEWHERE = "https://example.test/a";
 
 interface Call {
@@ -93,7 +106,7 @@ class UnknownLength extends BaseRequest {
   }
 }
 
-Deno.test("two exchanges in flight on one client both answer", async () => {
+Scribe.test("two exchanges in flight on one client both answer", async () => {
   await withFetch(
     (call) => new globalThis.Response(String((call.input as URL).searchParams.get("n")), { status: 200 }),
     async (calls) => {
@@ -104,14 +117,14 @@ Deno.test("two exchanges in flight on one client both answer", async () => {
         client.send(new HttpRequest("GET", `${SOMEWHERE}?n=2`)),
       ]);
 
-      assertEquals(calls.length, 2);
-      assertEquals(await Promise.all(answered.map((one) => one.stream.bytesToString())), ["1", "2"]);
+      expect(calls.length, equals(2));
+      expect(await Promise.all(answered.map((one) => one.stream.bytesToString())), equals(["1", "2"]));
       client.close();
     },
   );
 });
 
-Deno.test("a hundred exchanges in flight all answer, and none is answered twice", async () => {
+Scribe.test("a hundred exchanges in flight all answer, and none is answered twice", async () => {
   await withFetch(
     (call) => new globalThis.Response(String((call.input as URL).searchParams.get("n")), { status: 200 }),
     async () => {
@@ -122,13 +135,13 @@ Deno.test("a hundred exchanges in flight all answer, and none is answered twice"
       );
       const read = await Promise.all(answered.map((one) => one.stream.bytesToString()));
 
-      assertEquals(new Set(read).size, 100);
+      expect(new Set(read).size, equals(100));
       client.close();
     },
   );
 });
 
-Deno.test("a client closed while an exchange is in flight still answers that exchange", async () => {
+Scribe.test("a client closed while an exchange is in flight still answers that exchange", async () => {
   let settle: ((answer: globalThis.Response) => void) | null = null;
 
   await withFetch(
@@ -141,53 +154,56 @@ Deno.test("a client closed while an exchange is in flight still answers that exc
       const flight = client.send(new HttpRequest("GET", SOMEWHERE));
 
       client.close();
-      assert(settle !== null);
+      expect(settle !== null, isTrue);
       (settle as (answer: globalThis.Response) => void)(new globalThis.Response("late", { status: 200 }));
 
-      assertEquals(await (await flight).stream.bytesToString(), "late");
-      await assertRejects(() => client.send(new HttpRequest("GET", SOMEWHERE)), ClientException, "already closed");
+      expect(await (await flight).stream.bytesToString(), equals("late"));
+      await expectLater(
+        () => client.send(new HttpRequest("GET", SOMEWHERE)),
+        throwsA(allOf(isA(ClientException), withMessage("already closed"))),
+      );
     },
   );
 });
 
-Deno.test("closing a client twice is closing it once", async () => {
+Scribe.test("closing a client twice is closing it once", async () => {
   await withFetch(() => new globalThis.Response("x", { status: 200 }), async (calls) => {
     const client = new FetchClient();
     client.close();
     client.close();
 
-    await assertRejects(() => client.send(new HttpRequest("GET", SOMEWHERE)), ClientException);
-    assertEquals(calls.length, 0, "a closed client must not reach the network");
+    await expectLater(() => client.send(new HttpRequest("GET", SOMEWHERE)), throwsA(isA(ClientException)));
+    expect(calls.length, equals(0), "a closed client must not reach the network");
   });
 });
 
-Deno.test("the driver opens a client of its own every time, so closing one leaves the others sending", async () => {
+Scribe.test("the driver opens a client of its own every time, so closing one leaves the others sending", async () => {
   await withFetch(() => new globalThis.Response("x", { status: 200 }), async () => {
     const driver = new FetchClients();
     const first = driver.open();
     const second = driver.open();
 
-    assertNotStrictEquals(first, second);
+    expect(first, isNot(same(second)));
     first.close();
 
-    assertEquals((await second.send(new HttpRequest("GET", SOMEWHERE))).statusCode, 200);
+    expect((await second.send(new HttpRequest("GET", SOMEWHERE))).statusCode, equals(200));
     second.close();
   });
 });
 
-Deno.test("a url of ten thousand characters reaches the network whole", async () => {
+Scribe.test("a url of ten thousand characters reaches the network whole", async () => {
   const long = `${SOMEWHERE}?q=${"x".repeat(10_000)}`;
 
   await withFetch(() => new globalThis.Response("x", { status: 200 }), async (calls) => {
     const client = new FetchClient();
     await client.send(new HttpRequest("GET", long));
 
-    assertEquals(String(calls[0].input), long);
+    expect(String(calls[0].input), equals(long));
     client.close();
   });
 });
 
-Deno.test("a header the caller set survives the one the client adds", async () => {
+Scribe.test("a header the caller set survives the one the client adds", async () => {
   await withFetch(() => new globalThis.Response("x", { status: 200 }), async (calls) => {
     const client = new FetchClient();
     const request = new HttpRequest("POST", SOMEWHERE);
@@ -197,46 +213,46 @@ Deno.test("a header the caller set survives the one the client adds", async () =
     await client.send(request);
 
     const sent = calls[0].init.headers as Headers;
-    assertEquals(sent.get("x-trace"), "abc");
-    assertEquals(sent.get("content-length"), "5");
+    expect(sent.get("x-trace"), equals("abc"));
+    expect(sent.get("content-length"), equals("5"));
     client.close();
   });
 });
 
-Deno.test("a request whose length is not known ahead of time announces none and still sends its bytes", async () => {
+Scribe.test("a request whose length is not known ahead of time announces none and still sends its bytes", async () => {
   await withFetch(() => new globalThis.Response("x", { status: 200 }), async (calls) => {
     const client = new FetchClient();
 
     await client.send(new UnknownLength("POST", SOMEWHERE));
 
-    assertEquals((calls[0].init.headers as Headers).get("content-length"), null);
-    assertEquals(new TextDecoder().decode(calls[0].init.body as Uint8Array), "abc");
+    expect((calls[0].init.headers as Headers).get("content-length"), equals(null));
+    expect(new TextDecoder().decode(calls[0].init.body as Uint8Array), equals("abc"));
     client.close();
   });
 });
 
-Deno.test("an answer carrying no body at all reads as empty rather than refusing", async () => {
+Scribe.test("an answer carrying no body at all reads as empty rather than refusing", async () => {
   await withFetch(() => new globalThis.Response(null, { status: 204 }), async () => {
     const client = new FetchClient();
     const answered = await client.send(new HttpRequest("GET", SOMEWHERE));
 
-    assertEquals(answered.statusCode, 204);
-    assertEquals(await answered.stream.toBytes(), new Uint8Array(0));
+    expect(answered.statusCode, equals(204));
+    expect(await answered.stream.toBytes(), equals(new Uint8Array(0)));
     client.close();
   });
 });
 
-Deno.test("an answer longer than the cap the caller reads with is refused as a client exception", async () => {
+Scribe.test("an answer longer than the cap the caller reads with is refused as a client exception", async () => {
   await withFetch(() => new globalThis.Response("abcdefghij", { status: 200 }), async () => {
     const client = new FetchClient();
     const answered = await client.send(new HttpRequest("GET", SOMEWHERE));
 
-    await assertRejects(() => answered.stream.toBytes(Bytes.of(3)), ClientException);
+    await expectLater(() => answered.stream.toBytes(Bytes.of(3)), throwsA(isA(ClientException)));
     client.close();
   });
 });
 
-Deno.test("a limit of zero milliseconds is a limit, not the absence of one", async () => {
+Scribe.test("a limit of zero milliseconds is a limit, not the absence of one", async () => {
   await withFetch(() => new globalThis.Response("x", { status: 200 }), async (calls) => {
     const client = new FetchClient();
     const request = new HttpRequest("GET", SOMEWHERE);
@@ -245,142 +261,129 @@ Deno.test("a limit of zero milliseconds is a limit, not the absence of one", asy
     await client.send(request);
     const signal = calls[0].init.signal as AbortSignal;
 
-    assert(signal !== undefined, "zero must not be read as no limit at all");
+    expect(signal !== undefined, isTrue, "zero must not be read as no limit at all");
     await new Promise((settle) => setTimeout(settle, 5));
-    assertEquals(signal.aborted, true);
+    expect(signal.aborted, equals(true));
     client.close();
   });
 });
 
-Deno.test("a limit the platform refuses arrives as one client exception like every other failure", async () => {
+Scribe.test("a limit the platform refuses arrives as one client exception like every other failure", async () => {
   await withFetch(() => new globalThis.Response("x", { status: 200 }), async (calls) => {
     const client = new FetchClient();
     const request = new HttpRequest("GET", SOMEWHERE);
     request.timeoutMs = -1;
 
-    await assertRejects(() => client.send(request), ClientException);
-    assertEquals(calls.length, 0);
+    await expectLater(() => client.send(request), throwsA(isA(ClientException)));
+    expect(calls.length, equals(0));
     client.close();
   });
 });
 
-Deno.test("a limit that is not a number arrives as one client exception too", async () => {
+Scribe.test("a limit that is not a number arrives as one client exception too", async () => {
   await withFetch(() => new globalThis.Response("x", { status: 200 }), async () => {
     const client = new FetchClient();
     const request = new HttpRequest("GET", SOMEWHERE);
     request.timeoutMs = Number.NaN;
 
-    await assertRejects(() => client.send(request), ClientException);
+    await expectLater(() => client.send(request), throwsA(isA(ClientException)));
     client.close();
   });
 });
 
-Deno.test("a client answers what the server sent, whatever the caller asked for", async () => {
+Scribe.test("a client answers what the server sent, whatever the caller asked for", async () => {
   await withFetch(() => new globalThis.Response("x", { status: 418, statusText: "I am a teapot" }), async () => {
     const client = new FetchClient();
     const answered = await client.send(new HttpRequest("GET", SOMEWHERE));
 
-    assertEquals(answered.statusCode, 418);
-    assertEquals(answered.reasonPhrase, "I am a teapot");
-    assertEquals(answered.ok, false);
+    expect(answered.statusCode, equals(418));
+    expect(answered.reasonPhrase, equals("I am a teapot"));
+    expect(answered.ok, equals(false));
     client.close();
   });
 });
 
-Deno.test("the request the answer names is the one that was sent", async () => {
+Scribe.test("the request the answer names is the one that was sent", async () => {
   await withFetch(() => new globalThis.Response("x", { status: 200 }), async () => {
     const client = new FetchClient();
     const request = new HttpRequest("GET", SOMEWHERE);
 
-    assertStrictEquals((await client.send(request)).request, request);
+    expect((await client.send(request)).request, same(request));
     client.close();
   });
 });
 
-Deno.test({
-  name: "a request sent twice is refused as a client exception, where today the seal escapes as something else",
-  async fn() {
-    await withFetch(() => new globalThis.Response("x", { status: 200 }), async () => {
+Scribe.test("a request sent twice is refused as a client exception, where today the seal escapes as something else", async () => {
+  await withFetch(() => new globalThis.Response("x", { status: 200 }), async () => {
+    const client = new FetchClient();
+    const request = new HttpRequest("GET", SOMEWHERE);
+    await client.send(request);
+
+    await expectLater(() => client.send(request), throwsA(isA(ClientException)));
+    client.close();
+  });
+});
+
+Scribe.test("a body that cannot be produced is refused as a client exception, where today it escapes untranslated", async () => {
+  await withFetch(() => new globalThis.Response("x", { status: 200 }), async () => {
+    const client = new FetchClient();
+
+    await expectLater(() => client.send(new RefusingBody("POST", SOMEWHERE)), throwsA(isA(ClientException)));
+    client.close();
+  });
+});
+
+Scribe.test("a length the server wrote as something other than a number is read as unknown, not as a number that is not one", async () => {
+  await withFetch(
+    () => new globalThis.Response("hello", { status: 200, headers: { "content-length": "not a number" } }),
+    async () => {
       const client = new FetchClient();
-      const request = new HttpRequest("GET", SOMEWHERE);
-      await client.send(request);
+      const answered = await client.send(new HttpRequest("GET", SOMEWHERE));
 
-      await assertRejects(() => client.send(request), ClientException);
+      expect(answered.contentLength, equals(null));
       client.close();
-    });
-  },
+    },
+  );
 });
 
-Deno.test({
-  name: "a body that cannot be produced is refused as a client exception, where today it escapes untranslated",
-  async fn() {
-    await withFetch(() => new globalThis.Response("x", { status: 200 }), async () => {
+Scribe.test("a length the server wrote as an empty string is read as unknown, not as zero bytes", async () => {
+  await withFetch(
+    () => new globalThis.Response("hello", { status: 200, headers: { "content-length": "" } }),
+    async () => {
       const client = new FetchClient();
+      const answered = await client.send(new HttpRequest("GET", SOMEWHERE));
 
-      await assertRejects(() => client.send(new RefusingBody("POST", SOMEWHERE)), ClientException);
+      expect(answered.contentLength, equals(null));
       client.close();
-    });
-  },
+    },
+  );
 });
 
-Deno.test({
-  name:
-    "a length the server wrote as something other than a number is read as unknown, not as a number that is not one",
-  async fn() {
-    await withFetch(
-      () => new globalThis.Response("hello", { status: 200, headers: { "content-length": "not a number" } }),
-      async () => {
-        const client = new FetchClient();
-        const answered = await client.send(new HttpRequest("GET", SOMEWHERE));
-
-        assertEquals(answered.contentLength, null);
-        client.close();
-      },
-    );
-  },
-});
-
-Deno.test({
-  name: "a length the server wrote as an empty string is read as unknown, not as zero bytes",
-  async fn() {
-    await withFetch(
-      () => new globalThis.Response("hello", { status: 200, headers: { "content-length": "" } }),
-      async () => {
-        const client = new FetchClient();
-        const answered = await client.send(new HttpRequest("GET", SOMEWHERE));
-
-        assertEquals(answered.contentLength, null);
-        client.close();
-      },
-    );
-  },
-});
-
-Deno.test("a network that refuses arrives as one client exception naming the address", async () => {
+Scribe.test("a network that refuses arrives as one client exception naming the address", async () => {
   const original = globalThis.fetch;
   globalThis.fetch = (() => Promise.reject(new TypeError("connection refused"))) as typeof globalThis.fetch;
 
   try {
     const client = new FetchClient();
-    const raised = await assertRejects(() => client.send(new HttpRequest("GET", SOMEWHERE)), ClientException);
+    const raised = await caught(() => client.send(new HttpRequest("GET", SOMEWHERE)));
 
-    assert(raised.message.includes("connection refused"));
+    expect(raised, having(isA(ClientException), (r) => r.message.includes("connection refused"), "message", isTrue));
     client.close();
   } finally {
     globalThis.fetch = original;
   }
 });
 
-Deno.test("a driver opened a thousand times hands out a thousand clients and keeps none", async () => {
+Scribe.test("a driver opened a thousand times hands out a thousand clients and keeps none", async () => {
   await withFetch(() => new globalThis.Response("x", { status: 200 }), async () => {
     const driver = new FetchClients();
     const opened = Array.from({ length: 1_000 }, () => driver.open());
 
-    assertEquals(new Set(opened).size, 1_000);
+    expect(new Set(opened).size, equals(1_000));
     for (const one of opened) one.close();
 
     const after = driver.open();
-    assertEquals((await after.send(new HttpRequest("GET", SOMEWHERE))).statusCode, 200);
+    expect((await after.send(new HttpRequest("GET", SOMEWHERE))).statusCode, equals(200));
     after.close();
   });
 });

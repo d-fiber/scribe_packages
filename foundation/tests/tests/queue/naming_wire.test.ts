@@ -32,7 +32,8 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, isNot, Scribe } from "@scribe/alchemy/test";
 import "../../testing/settings.ts";
 
 import {
@@ -45,53 +46,51 @@ import {
   subjectOf,
 } from "../../../lib/src/queue/queue_naming.ts";
 import { decode, encode } from "../../../lib/src/queue/wire_message.ts";
-import { assertEquals, assertNotEquals } from "@std/assert";
-
-Deno.test("sanitize keeps what NATS accepts and folds the rest", () => {
-  assertEquals(sanitize("mail-send_1"), "mail-send_1");
-  assertEquals(sanitize("mail.send"), "mail_send");
-  assertEquals(sanitize("mail send"), "mail_send");
-  assertEquals(sanitize("a>b*c"), "a_b_c");
+Scribe.test("sanitize keeps what NATS accepts and folds the rest", () => {
+  expect(sanitize("mail-send_1"), equals("mail-send_1"));
+  expect(sanitize("mail.send"), equals("mail_send"));
+  expect(sanitize("mail send"), equals("mail_send"));
+  expect(sanitize("a>b*c"), equals("a_b_c"));
 });
 
-Deno.test("sanitize collapses a run of forbidden characters into one separator", () => {
-  assertEquals(sanitize("a...b"), "a_b");
-  assertEquals(sanitize("a . * b"), "a_b");
+Scribe.test("sanitize collapses a run of forbidden characters into one separator", () => {
+  expect(sanitize("a...b"), equals("a_b"));
+  expect(sanitize("a . * b"), equals("a_b"));
 });
 
-Deno.test("subjectOf puts shared and dedicated queues on distinct prefixes", () => {
-  assertEquals(subjectOf("mail.send", false), "q.mail_send");
-  assertEquals(subjectOf("mail.send", true), "qd.mail_send");
-  assertNotEquals(subjectOf("x", false), subjectOf("x", true));
+Scribe.test("subjectOf puts shared and dedicated queues on distinct prefixes", () => {
+  expect(subjectOf("mail.send", false), equals("q.mail_send"));
+  expect(subjectOf("mail.send", true), equals("qd.mail_send"));
+  expect(subjectOf("x", false), isNot(equals(subjectOf("x", true))));
 });
 
-Deno.test("deadSubjectOf never collides with a live subject", () => {
-  assertEquals(deadSubjectOf("mail.send"), "dead.mail_send");
-  assertNotEquals(deadSubjectOf("x"), subjectOf("x", false));
-  assertNotEquals(deadSubjectOf("x"), subjectOf("x", true));
+Scribe.test("deadSubjectOf never collides with a live subject", () => {
+  expect(deadSubjectOf("mail.send"), equals("dead.mail_send"));
+  expect(deadSubjectOf("x"), isNot(equals(subjectOf("x", false))));
+  expect(deadSubjectOf("x"), isNot(equals(subjectOf("x", true))));
 });
 
-Deno.test("the four stream names stay distinct", () => {
+Scribe.test("the four stream names stay distinct", () => {
   const names = [
     SHARED_STREAM,
     DEDICATED_STREAM,
     DEAD_STREAM,
     SHARED_CONSUMER,
   ];
-  assertEquals(new Set(names).size, names.length);
+  expect(new Set(names).size, equals(names.length));
 });
 
-Deno.test("encode then decode round-trips the payload and the attempt count", () => {
+Scribe.test("encode then decode round-trips the payload and the attempt count", () => {
   const message = { data: { to: "a@b.c", subject: "hi" }, attempts: 2 };
 
-  assertEquals(decode<typeof message.data>(encode(message)), message);
+  expect(decode<typeof message.data>(encode(message)), equals(message));
 });
 
-Deno.test("the wire format survives unicode and nesting", () => {
+Scribe.test("the wire format survives unicode and nesting", () => {
   const message = {
     data: { name: "Émile ✉️", tags: ["a", "b"], nested: { deep: true } },
     attempts: 0,
   };
 
-  assertEquals(decode<typeof message.data>(encode(message)), message);
+  expect(decode<typeof message.data>(encode(message)), equals(message));
 });

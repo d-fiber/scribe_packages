@@ -32,56 +32,56 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { allOf, equals, expect, isA, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import "../../testing/settings.ts";
-
-import { assertEquals, assertThrows } from "@std/assert";
 import { parsePath } from "../../../lib/src/trigger/trigger_path.ts";
 
-Deno.test("a path names its table and the parameter its key is handed under", () => {
-  assertEquals(parsePath("orders/{orderId}"), {
-    table: "orders",
-    param: "orderId",
-    field: null,
-  });
+Scribe.test("a path names its table and the parameter its key is handed under", () => {
+  expect(
+    parsePath("orders/{orderId}"),
+    equals({
+      table: "orders",
+      param: "orderId",
+      field: null,
+    }),
+  );
 });
 
-Deno.test("a third segment is the column to watch", () => {
-  assertEquals(parsePath("orders/{orderId}/status"), {
-    table: "orders",
-    param: "orderId",
-    field: "status",
-  });
+Scribe.test("a third segment is the column to watch", () => {
+  expect(
+    parsePath("orders/{orderId}/status"),
+    equals({
+      table: "orders",
+      param: "orderId",
+      field: "status",
+    }),
+  );
 });
 
-Deno.test("a path that stops at the table is refused", () => {
-  assertThrows(
+Scribe.test("a path that stops at the table is refused", () => {
+  expect(
     () => parsePath("orders"),
-    Error,
-    "a path is written <table>/{<param>}[/<field>]",
+    throwsA(allOf(isA(Error), withMessage("a path is written <table>/{<param>}[/<field>]"))),
   );
 });
 
-Deno.test("a path with a fourth segment is refused", () => {
-  assertThrows(() => parsePath("orders/{orderId}/status/history"), Error);
+Scribe.test("a path with a fourth segment is refused", () => {
+  expect(() => parsePath("orders/{orderId}/status/history"), throwsA(isA(Error)));
 });
 
-Deno.test("a second segment without braces is not a parameter", () => {
-  assertThrows(
-    () => parsePath("orders/orderId"),
-    Error,
-    '"orderId" is not a parameter',
-  );
+Scribe.test("a second segment without braces is not a parameter", () => {
+  expect(() => parsePath("orders/orderId"), throwsA(allOf(isA(Error), withMessage('"orderId" is not a parameter'))));
 });
 
-Deno.test("an empty parameter is refused", () => {
-  assertThrows(() => parsePath("orders/{}"), Error);
+Scribe.test("an empty parameter is refused", () => {
+  expect(() => parsePath("orders/{}"), throwsA(isA(Error)));
 });
 
-Deno.test("a path without a table is refused", () => {
-  assertThrows(() => parsePath("/{orderId}"), Error, "the table is missing");
+Scribe.test("a path without a table is refused", () => {
+  expect(() => parsePath("/{orderId}"), throwsA(allOf(isA(Error), withMessage("the table is missing"))));
 });
 
-Deno.test("a path ending on a slash is refused", () => {
-  assertThrows(() => parsePath("orders/{orderId}/"), Error, "the field is empty");
+Scribe.test("a path ending on a slash is refused", () => {
+  expect(() => parsePath("orders/{orderId}/"), throwsA(allOf(isA(Error), withMessage("the field is empty"))));
 });

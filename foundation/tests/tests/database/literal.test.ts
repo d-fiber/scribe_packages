@@ -32,7 +32,8 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { allOf, equals, expect, isA, isFalse, isTrue, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import "../../testing/settings.ts";
 
 import {
@@ -43,67 +44,62 @@ import {
   quoteFilterLiteral,
   UnsafeFilterError,
 } from "../../../lib/src/database/query/filter_literal.ts";
-import { assert, assertEquals, assertThrows } from "@std/assert";
-
 const RESERVED = [",", ".", ":", "*", "(", ")"];
 
-Deno.test("every PostgREST reserved character survives inside the quotes", () => {
+Scribe.test("every PostgREST reserved character survives inside the quotes", () => {
   for (const char of RESERVED) {
     const quoted = quoteFilterLiteral(`a${char}b`);
 
-    assertEquals(quoted, `"a${char}b"`);
-    assert(quoted.startsWith('"') && quoted.endsWith('"'), char);
+    expect(quoted, equals(`"a${char}b"`));
+    expect(quoted.startsWith('"') && quoted.endsWith('"'), isTrue, char);
   }
 });
 
-Deno.test("a value cannot close the quotes and open a new filter term", () => {
-  assertEquals(
-    quoteFilterLiteral('paid",user_id.not.is.null,x."'),
-    '"paid\\",user_id.not.is.null,x.\\""',
-  );
+Scribe.test("a value cannot close the quotes and open a new filter term", () => {
+  expect(quoteFilterLiteral('paid",user_id.not.is.null,x."'), equals('"paid\\",user_id.not.is.null,x.\\""'));
 });
 
-Deno.test("a backslash cannot escape the closing quote", () => {
-  assertEquals(quoteFilterLiteral("a\\"), '"a\\\\"');
-  assertEquals(quoteFilterLiteral('a\\"b'), '"a\\\\\\"b"');
+Scribe.test("a backslash cannot escape the closing quote", () => {
+  expect(quoteFilterLiteral("a\\"), equals('"a\\\\"'));
+  expect(quoteFilterLiteral('a\\"b'), equals('"a\\\\\\"b"'));
 });
 
-Deno.test("a value cannot break out of the group to reach another parameter", () => {
+Scribe.test("a value cannot break out of the group to reach another parameter", () => {
   const hostile = "paid)&select=*,internal_t__app_users(*)&x=(";
 
-  assertEquals(quoteFilterLiteral(hostile), `"${hostile}"`);
+  expect(quoteFilterLiteral(hostile), equals(`"${hostile}"`));
 });
 
-Deno.test("numbers and booleans stay bare-typed rather than becoming strings", () => {
-  assertEquals(quoteFilterLiteral(42), "42");
-  assertEquals(quoteFilterLiteral(-1.5), "-1.5");
-  assertEquals(quoteFilterLiteral(NaN), '"NaN"');
-  assertEquals(quoteFilterLiteral(Infinity), '"Infinity"');
-  assertEquals(quoteFilterLiteral(true), "true");
-  assertEquals(quoteFilterLiteral(false), "false");
-  assertEquals(quoteFilterLiteral(null), "null");
-  assertEquals(quoteFilterLiteral(undefined), "null");
+Scribe.test("numbers and booleans stay bare-typed rather than becoming strings", () => {
+  expect(quoteFilterLiteral(42), equals("42"));
+  expect(quoteFilterLiteral(-1.5), equals("-1.5"));
+  expect(quoteFilterLiteral(NaN), equals('"NaN"'));
+  expect(quoteFilterLiteral(Infinity), equals('"Infinity"'));
+  expect(quoteFilterLiteral(true), equals("true"));
+  expect(quoteFilterLiteral(false), equals("false"));
+  expect(quoteFilterLiteral(null), equals("null"));
+  expect(quoteFilterLiteral(undefined), equals("null"));
 });
 
-Deno.test("a list keeps each element quoted so one member cannot add another", () => {
-  assertEquals(quoteFilterList(["a", "b"]), '("a","b")');
-  assertEquals(quoteFilterList(['a","b']), '("a\\",\\"b")');
-  assertEquals(quoteFilterList([]), "()");
+Scribe.test("a list keeps each element quoted so one member cannot add another", () => {
+  expect(quoteFilterList(["a", "b"]), equals('("a","b")'));
+  expect(quoteFilterList(['a","b']), equals('("a\\",\\"b")'));
+  expect(quoteFilterList([]), equals("()"));
 });
 
-Deno.test("the is operator keeps the bare keywords it is the only one to accept", () => {
-  assertEquals(keywordLiteral(null), "null");
-  assertEquals(keywordLiteral(true), "true");
-  assertEquals(keywordLiteral("NULL"), "null");
+Scribe.test("the is operator keeps the bare keywords it is the only one to accept", () => {
+  expect(keywordLiteral(null), equals("null"));
+  expect(keywordLiteral(true), equals("true"));
+  expect(keywordLiteral("NULL"), equals("null"));
 
-  assert(isFilterKeyword(null));
-  assert(isFilterKeyword("unknown"));
-  assert(!isFilterKeyword("paid"));
+  expect(isFilterKeyword(null), isTrue);
+  expect(isFilterKeyword("unknown"), isTrue);
+  expect(isFilterKeyword("paid"), isFalse);
 });
 
-Deno.test("a column name that is not a plain identifier is refused, not escaped", () => {
-  assertEquals(assertPlainColumn("user_id"), "user_id");
-  assertEquals(assertPlainColumn("_x9"), "_x9");
+Scribe.test("a column name that is not a plain identifier is refused, not escaped", () => {
+  expect(assertPlainColumn("user_id"), equals("user_id"));
+  expect(assertPlainColumn("_x9"), equals("_x9"));
 
   for (
     const hostile of [
@@ -115,35 +111,29 @@ Deno.test("a column name that is not a plain identifier is refused, not escaped"
       "user id",
     ]
   ) {
-    assertThrows(
-      () => assertPlainColumn(hostile),
-      UnsafeFilterError,
-      undefined,
-      hostile,
-    );
+    expect(() => assertPlainColumn(hostile), throwsA(isA(UnsafeFilterError)), hostile);
   }
 });
 
-Deno.test("a keyword the is operator does not accept is refused, not spliced in", () => {
+Scribe.test("a keyword the is operator does not accept is refused, not spliced in", () => {
   for (const hostile of ["null,id.gt.0", "null,or(role.eq.admin)", "anything at all", 42]) {
-    assertThrows(
+    expect(
       () => keywordLiteral(hostile),
-      UnsafeFilterError,
-      "is not one of null, true, false, unknown",
+      throwsA(allOf(isA(UnsafeFilterError), withMessage("is not one of null, true, false, unknown"))),
     );
   }
 });
 
-Deno.test("the four keywords the is operator accepts still answer, whatever their case", () => {
-  assertEquals(keywordLiteral(null), "null");
-  assertEquals(keywordLiteral(undefined), "null");
-  assertEquals(keywordLiteral(true), "true");
-  assertEquals(keywordLiteral("TRUE"), "true");
-  assertEquals(keywordLiteral("Unknown"), "unknown");
+Scribe.test("the four keywords the is operator accepts still answer, whatever their case", () => {
+  expect(keywordLiteral(null), equals("null"));
+  expect(keywordLiteral(undefined), equals("null"));
+  expect(keywordLiteral(true), equals("true"));
+  expect(keywordLiteral("TRUE"), equals("true"));
+  expect(keywordLiteral("Unknown"), equals("unknown"));
 });
 
-Deno.test("what keywordLiteral answers can never carry a term separator", () => {
+Scribe.test("what keywordLiteral answers can never carry a term separator", () => {
   for (const accepted of [null, true, false, "null", "TRUE", "unknown"]) {
-    assertEquals(`archived.is.${keywordLiteral(accepted)}`.split(",").length, 1);
+    expect(`archived.is.${keywordLiteral(accepted)}`.split(",").length, equals(1));
   }
 });

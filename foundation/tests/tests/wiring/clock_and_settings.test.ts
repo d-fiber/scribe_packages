@@ -32,16 +32,27 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import {
+  allOf,
+  equals,
+  expect,
+  FixedNow,
+  isA,
+  isNot,
+  isTrue,
+  same,
+  Scribe,
+  throwsA,
+  withMessage,
+} from "@scribe/alchemy/test";
 import "../../testing/settings.ts";
 import { DateTime, Duration, Now } from "@scribe/alchemy";
-import { FixedNow } from "@scribe/alchemy/test";
 import { SystemNow } from "../../../lib/src/observe/system_now.ts";
 import { cacheSettings } from "../../../lib/src/cache/cache_settings.ts";
 import { databaseSettings } from "../../../lib/src/database/database_settings.ts";
 import { queueSettings } from "../../../lib/src/queue/queue_settings.ts";
 import { PostgrestClients } from "../../../lib/src/database/postgrest_clients.ts";
-import { assert, assertEquals, assertNotStrictEquals, assertStrictEquals, assertThrows } from "@std/assert";
 
 function withNow<T>(source: { millisecondsSinceEpoch(): number }, body: () => T): T {
   const held = Now.configured ? Now.get() : null;
@@ -54,82 +65,75 @@ function withNow<T>(source: { millisecondsSinceEpoch(): number }, body: () => T)
   }
 }
 
-Deno.test("the system clock answers the machine, and never goes backwards on its own", () => {
+Scribe.test("the system clock answers the machine, and never goes backwards on its own", () => {
   const clock = new SystemNow();
   const first = clock.millisecondsSinceEpoch();
   const second = clock.millisecondsSinceEpoch();
 
-  assert(second >= first);
-  assert(Math.abs(first - Date.now()) < 1_000);
+  expect(second >= first, isTrue);
+  expect(Math.abs(first - Date.now()) < 1_000, isTrue);
 });
 
-Deno.test("a clock put in the slot is what the package reads, frozen included", () => {
+Scribe.test("a clock put in the slot is what the package reads, frozen included", () => {
   withNow(new FixedNow(1_700_000_000_000), () => {
-    assertEquals(DateTime.now().millisecondsSinceEpoch, 1_700_000_000_000);
-    assertEquals(DateTime.now().millisecondsSinceEpoch, 1_700_000_000_000);
+    expect(DateTime.now().millisecondsSinceEpoch, equals(1_700_000_000_000));
+    expect(DateTime.now().millisecondsSinceEpoch, equals(1_700_000_000_000));
   });
 });
 
-Deno.test("a clock moved ten years forward is read ten years forward", () => {
+Scribe.test("a clock moved ten years forward is read ten years forward", () => {
   const clock = new FixedNow(1_700_000_000_000);
 
   withNow(clock, () => {
     clock.pass(Duration.days(3653));
 
-    assertEquals(
-      DateTime.now().millisecondsSinceEpoch,
-      1_700_000_000_000 + 3653 * 24 * 60 * 60 * 1000,
-    );
+    expect(DateTime.now().millisecondsSinceEpoch, equals(1_700_000_000_000 + 3653 * 24 * 60 * 60 * 1000));
   });
 });
 
-Deno.test("a clock set before 1970 is read as the negative instant it is", () => {
+Scribe.test("a clock set before 1970 is read as the negative instant it is", () => {
   withNow(new FixedNow(-86_400_000), () => {
-    assertEquals(DateTime.now().millisecondsSinceEpoch, -86_400_000);
+    expect(DateTime.now().millisecondsSinceEpoch, equals(-86_400_000));
   });
 });
 
-Deno.test("a clock moved backwards is read backwards, since nothing here assumes it only advances", () => {
+Scribe.test("a clock moved backwards is read backwards, since nothing here assumes it only advances", () => {
   const clock = new FixedNow(1_700_000_000_000);
 
   withNow(clock, () => {
     clock.pass(Duration.minutes(-10));
 
-    assertEquals(DateTime.now().millisecondsSinceEpoch, 1_700_000_000_000 - 600_000);
+    expect(DateTime.now().millisecondsSinceEpoch, equals(1_700_000_000_000 - 600_000));
   });
 });
 
-Deno.test("each settings slot refuses a read before anything fills it, and names itself in the refusal", () => {
+Scribe.test("each settings slot refuses a read before anything fills it, and names itself in the refusal", () => {
   for (
     const [slot, name] of [[cacheSettings, "cache"], [queueSettings, "queue"], [databaseSettings, "database"]] as const
   ) {
     const held = slot.configured ? slot.get() : null;
     slot.clear();
 
-    assertThrows(() => slot.get(), Error, name);
+    expect(() => slot.get(), throwsA(allOf(isA(Error), withMessage(name))));
 
     if (held !== null) slot.use(held as never);
   }
 });
 
-Deno.test("the service client is one client for the whole process", () => {
-  assertStrictEquals(PostgrestClients.service(), PostgrestClients.service());
+Scribe.test("the service client is one client for the whole process", () => {
+  expect(PostgrestClients.service(), same(PostgrestClients.service()));
 });
 
-Deno.test({
-  name:
-    "clearing the database settings makes the next service client read them again, where today it answers the old one",
-  fn() {
-    const first = PostgrestClients.service();
-    const held = databaseSettings.get();
+Scribe.test("clearing the database settings makes the next service client read them again, where today it answers the old one", () => {
+  const first = PostgrestClients.service();
+  const held = databaseSettings.get();
 
-    try {
-      databaseSettings.clear();
-      databaseSettings.use({ restUrl: "http://elsewhere:3000", anonKey: "other", serviceRoleKey: "other" });
+  try {
+    databaseSettings.clear();
+    databaseSettings.use({ restUrl: "http://elsewhere:3000", anonKey: "other", serviceRoleKey: "other" });
 
-      assertNotStrictEquals(PostgrestClients.service(), first);
-    } finally {
-      databaseSettings.use(held);
-    }
-  },
+    expect(PostgrestClients.service(), isNot(same(first)));
+  } finally {
+    databaseSettings.use(held);
+  }
 });

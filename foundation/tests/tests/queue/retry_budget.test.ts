@@ -33,14 +33,13 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
 import type { MemoryLogger } from "../../testing/logger.ts";
 import { Queue } from "../../../lib/src/queue/queue.ts";
 import { Duration } from "@scribe/alchemy";
 import { dispatchProbes, type Probe, probe } from "./probe.ts";
-import { assertEquals } from "@std/assert";
-
 const logger: MemoryLogger = installDrivers();
 
 const RETRIES = 4;
@@ -86,7 +85,7 @@ function attempt(subject: string, deliveryCount: number): Probe {
   return probe({ subject, data: { id: "a" }, deliveryCount });
 }
 
-Deno.test("a body that refuses twice and then agrees is acknowledged on its third delivery", async () => {
+Scribe.test("a body that refuses twice and then agrees is acknowledged on its third delivery", async () => {
   refusals = 0;
   seen.length = 0;
 
@@ -98,13 +97,13 @@ Deno.test("a body that refuses twice and then agrees is acknowledged on its thir
   const two = await dispatchProbes([second]);
   const three = await dispatchProbes([third]);
 
-  assertEquals([one.result.retried, two.result.retried, three.result.done], [1, 1, 1]);
-  assertEquals([first.acked, second.acked, third.acked], [false, false, true]);
-  assertEquals(seen, [1, 2, 3], "the body reads the server's own delivery count as its attempt");
-  assertEquals(three.published, []);
+  expect([one.result.retried, two.result.retried, three.result.done], equals([1, 1, 1]));
+  expect([first.acked, second.acked, third.acked], equals([false, false, true]));
+  expect(seen, equals([1, 2, 3]), "the body reads the server's own delivery count as its attempt");
+  expect(three.published, equals([]));
 });
 
-Deno.test("a body that never agrees is refused up to its ceiling and then terminated", async () => {
+Scribe.test("a body that never agrees is refused up to its ceiling and then terminated", async () => {
   const answers: string[] = [];
   let dead = 0;
 
@@ -116,27 +115,27 @@ Deno.test("a body that never agrees is refused up to its ceiling and then termin
     answers.push(message.termed ? "term" : `nak:${message.nakedAfter}`);
   }
 
-  assertEquals(answers.slice(0, RETRIES - 1).every((one) => one.startsWith("nak:")), true);
-  assertEquals(answers.slice(RETRIES - 1).every((one) => one === "term"), true);
-  assertEquals(
+  expect(answers.slice(0, RETRIES - 1).every((one) => one.startsWith("nak:")), equals(true));
+  expect(answers.slice(RETRIES - 1).every((one) => one === "term"), equals(true));
+  expect(
     dead,
-    3,
+    equals(3),
     "term() is what stops the redelivery, so every delivery from maxRetries onwards writes " +
       "the payload to the dead letter again: a term the server never received duplicates it",
   );
 });
 
-Deno.test("a delivery count one past the ceiling still reaches the dead letter", async () => {
+Scribe.test("a delivery count one past the ceiling still reaches the dead letter", async () => {
   const message = attempt("q.test_budget_always", RETRIES + 1);
 
   const { result, published } = await dispatchProbes([message]);
 
-  assertEquals(result.dead, 1);
-  assertEquals(message.termed, true);
-  assertEquals(published.map((one) => one.subject), ["dead.test_budget_always"]);
+  expect(result.dead, equals(1));
+  expect(message.termed, equals(true));
+  expect(published.map((one) => one.subject), equals(["dead.test_budget_always"]));
 });
 
-Deno.test("a server that restarts the count at zero makes the job immortal", async () => {
+Scribe.test("a server that restarts the count at zero makes the job immortal", async () => {
   const answers: number[] = [];
 
   for (let round = 0; round < RETRIES + 3; round++) {
@@ -145,135 +144,129 @@ Deno.test("a server that restarts the count at zero makes the job immortal", asy
     answers.push(message.nakedAfter ?? -1);
   }
 
-  assertEquals(
+  expect(
     answers.every((one) => one > 0),
-    true,
+    equals(true),
     "the policy reads the count the server sends and has no memory of its own, so a count " +
       "stuck at zero never reaches the dead letter: max_deliver on the consumer is the only " +
       "thing that ever stops it",
   );
 });
 
-Deno.test("a body that never finishes is refused on the deadline, not left hanging", async () => {
+Scribe.test("a body that never finishes is refused on the deadline, not left hanging", async () => {
   const message = attempt("q.test_budget_endless", 1);
 
   const { result } = await dispatchProbes([message]);
 
-  assertEquals(result.retried, 1);
-  assertEquals(typeof message.nakedAfter, "number");
-  assertEquals(message.acked, false);
+  expect(result.retried, equals(1));
+  expect(typeof message.nakedAfter, equals("number"));
+  expect(message.acked, equals(false));
 });
 
-Deno.test("a body that writes before it refuses is asked to write again", async () => {
+Scribe.test("a body that writes before it refuses is asked to write again", async () => {
   writes = 0;
 
   await dispatchProbes([attempt("q.test_budget_writes", 1)]);
   await dispatchProbes([attempt("q.test_budget_writes", 2)]);
 
-  assertEquals(
+  expect(
     writes,
-    2,
+    equals(2),
     "delivery is at least once and a refusal does not undo what the body already did, which " +
       "is the whole reason a body has to be idempotent",
   );
 });
 
-Deno.test("the retry delay stops doubling at the declared ceiling", async () => {
+Scribe.test("the retry delay stops doubling at the declared ceiling", async () => {
   const early = attempt("q.test_budget_always", 1);
   const late = attempt("q.test_budget_always", 3);
 
   await dispatchProbes([early]);
   await dispatchProbes([late]);
 
-  assertEquals(early.nakedAfter, 1_000);
-  assertEquals(late.nakedAfter, 4_000);
+  expect(early.nakedAfter, equals(1_000));
+  expect(late.nakedAfter, equals(4_000));
 });
 
-Deno.test("a subject nothing declares is refused with a delay, never terminated", async () => {
+Scribe.test("a subject nothing declares is refused with a delay, never terminated", async () => {
   const message = probe({ subject: "q.test_budget_nobody", data: { id: "a" } });
 
   const { result } = await dispatchProbes([message]);
 
-  assertEquals(message.termed, false);
-  assertEquals(message.acked, false);
-  assertEquals(message.nakedAfter, 30_000);
-  assertEquals(result, { done: 0, retried: 1, dead: 0, promoted: 0 });
+  expect(message.termed, equals(false));
+  expect(message.acked, equals(false));
+  expect(message.nakedAfter, equals(30_000));
+  expect(result, equals({ done: 0, retried: 1, dead: 0, promoted: 0 }));
 });
 
-Deno.test({
-  name: "a hand-back is counted nowhere, so a process refusing all of its traffic reports an idle drain",
-  fn: async () => {
-    const messages = [
-      probe({ subject: "q.test_budget_nobody", data: { id: "a" }, seq: 1 }),
-      probe({ subject: "q.test_budget_nobody", data: { id: "b" }, seq: 2 }),
-    ];
+Scribe.test("a hand-back is counted nowhere, so a process refusing all of its traffic reports an idle drain", async () => {
+  const messages = [
+    probe({ subject: "q.test_budget_nobody", data: { id: "a" }, seq: 1 }),
+    probe({ subject: "q.test_budget_nobody", data: { id: "b" }, seq: 2 }),
+  ];
 
-    const { result } = await dispatchProbes(messages);
+  const { result } = await dispatchProbes(messages);
 
-    assertEquals(
-      result.retried,
-      2,
-      "a drain that refused everything it was handed answers the same four zeros as a drain " +
-        "that was handed nothing, so nothing an operator watches can tell the two apart",
-    );
-  },
+  expect(
+    result.retried,
+    equals(2),
+    "a drain that refused everything it was handed answers the same four zeros as a drain " +
+      "that was handed nothing, so nothing an operator watches can tell the two apart",
+  );
 });
 
-Deno.test({
-  name: "hand-backs spend the retry budget of the process that does know the subject",
-  fn: async () => {
-    const handedBack = 3;
+Scribe.test("hand-backs spend the retry budget of the process that does know the subject", async () => {
+  const handedBack = 3;
 
-    for (let delivery = 1; delivery <= handedBack; delivery++) {
-      const refused = probe({
-        subject: "q.test_budget_handover",
-        data: { id: "a" },
-        deliveryCount: delivery,
-      });
-      await dispatchProbes([refused]);
-      assertEquals(refused.nakedAfter, 30_000);
-    }
-
-    new Queue<{ id: string }>(
-      { name: "test:budget:handover", options: { maxRetries: RETRIES } },
-      () => Promise.reject(new Error("transient")),
-    );
-
-    const arriving = probe({
+  for (let delivery = 1; delivery <= handedBack; delivery++) {
+    const refused = probe({
       subject: "q.test_budget_handover",
       data: { id: "a" },
-      deliveryCount: handedBack + 1,
+      deliveryCount: delivery,
     });
-    const { result } = await dispatchProbes([arriving]);
+    await dispatchProbes([refused]);
+    expect(refused.nakedAfter, equals(30_000));
+  }
 
-    assertEquals(
-      result.dead,
-      0,
-      "the deliveries a replica spent refusing a subject it does not declare are read by the " +
-        "replica that does declare it as attempts its body already made, so a job entitled " +
-        `to ${RETRIES} tries is buried after one`,
-    );
-    assertEquals(arriving.termed, false);
-  },
+  new Queue<{ id: string }>(
+    { name: "test:budget:handover", options: { maxRetries: RETRIES } },
+    () => Promise.reject(new Error("transient")),
+  );
+
+  const arriving = probe({
+    subject: "q.test_budget_handover",
+    data: { id: "a" },
+    deliveryCount: handedBack + 1,
+  });
+  const { result } = await dispatchProbes([arriving]);
+
+  expect(
+    result.dead,
+    equals(0),
+    "the deliveries a replica spent refusing a subject it does not declare are read by the " +
+      "replica that does declare it as attempts its body already made, so a job entitled " +
+      `to ${RETRIES} tries is buried after one`,
+  );
+  expect(arriving.termed, equals(false));
 });
 
-Deno.test("the same message delivered twice inside one fetch is answered twice", async () => {
+Scribe.test("the same message delivered twice inside one fetch is answered twice", async () => {
   const twin = () => probe({ subject: "q.test_budget_always", data: { id: "a" }, deliveryCount: RETRIES, seq: 7 });
   const first = twin();
   const second = twin();
 
   const { result, published } = await dispatchProbes([first, second]);
 
-  assertEquals(result.dead, 2);
-  assertEquals(
+  expect(result.dead, equals(2));
+  expect(
     published.length,
-    2,
+    equals(2),
     "one job reaches the dead letter twice, which is the price of at-least-once delivery and " +
       "the reason a dead-letter reader has to key on the payload rather than count rows",
   );
 });
 
-Deno.test("a hand-back says on the log which subject it refused and how many it held", async () => {
+Scribe.test("a hand-back says on the log which subject it refused and how many it held", async () => {
   logger.clear();
 
   await dispatchProbes([
@@ -284,7 +277,7 @@ Deno.test("a hand-back says on the log which subject it refused and how many it 
   const line = logger.lines.find((one) => one.action === "queue.subject_undeclared");
   const metadata = line?.input?.metadata as Record<string, unknown> | undefined;
 
-  assertEquals(line?.level, "warn");
-  assertEquals(metadata?.subject, "q.test_budget_nobody");
-  assertEquals(metadata?.handedBack, 2);
+  expect(line?.level, equals("warn"));
+  expect(metadata?.subject, equals("q.test_budget_nobody"));
+  expect(metadata?.handedBack, equals(2));
 });

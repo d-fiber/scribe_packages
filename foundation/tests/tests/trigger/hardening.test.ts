@@ -33,10 +33,9 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { allOf, equals, expect, isA, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import "../../testing/settings.ts";
-
-import { assertEquals, assertThrows } from "@std/assert";
 import { matchesOf } from "../../../lib/src/trigger/trigger_match.ts";
 import type { RegisteredTrigger } from "../../../lib/src/trigger/trigger_registry.ts";
 import { TriggerRegistry } from "../../../lib/src/trigger/trigger_registry.ts";
@@ -85,57 +84,41 @@ function nested(depth: number): unknown {
   return node;
 }
 
-Deno.test({
-  name: "DEFECT a structured column whose keys arrive in another order reads as a change",
-  fn() {
-    const matches = matchesOf(
-      [trigger({ name: "orders:meta", fields: ["meta"] })],
-      event({
-        before: { meta: { total: 10, currency: "EUR" } },
-        after: { meta: { currency: "EUR", total: 10 } },
-      }),
-    );
+Scribe.test("DEFECT a structured column whose keys arrive in another order reads as a change", () => {
+  const matches = matchesOf(
+    [trigger({ name: "orders:meta", fields: ["meta"] })],
+    event({
+      before: { meta: { total: 10, currency: "EUR" } },
+      after: { meta: { currency: "EUR", total: 10 } },
+    }),
+  );
 
-    assertEquals(matches, [], "the column holds what it held, whatever order the two came out in");
-  },
+  expect(matches, equals([]), "the column holds what it held, whatever order the two came out in");
 });
 
-Deno.test({
-  name: "DEFECT a transition whose two bounds name the same value can never fire",
-  fn() {
-    assertThrows(
-      () => orders.onFieldChange({ path: "invoices/{invoiceId}/status", when: { from: "paid", to: "paid" } }, noop),
-      Error,
-      "cannot",
-    );
-  },
+Scribe.test("DEFECT a transition whose two bounds name the same value can never fire", () => {
+  expect(
+    () => orders.onFieldChange({ path: "invoices/{invoiceId}/status", when: { from: "paid", to: "paid" } }, noop),
+    throwsA(allOf(isA(Error), withMessage("cannot"))),
+  );
 });
 
-Deno.test({
-  name: "DEFECT a table name carrying a separator is taken as a table name",
-  fn() {
-    for (const hostile of ["orders,secrets", "orders&x", "orders/", " "]) {
-      assertThrows(() => parsePath(`${hostile}/{orderId}`), Error, hostile);
-    }
-  },
+Scribe.test("DEFECT a table name carrying a separator is taken as a table name", () => {
+  for (const hostile of ["orders,secrets", "orders&x", "orders/", " "]) {
+    expect(() => parsePath(`${hostile}/{orderId}`), throwsA(allOf(isA(Error), withMessage(hostile))));
+  }
 });
 
-Deno.test({
-  name: "DEFECT a parameter made of blanks is taken as a parameter name",
-  fn() {
-    assertThrows(() => parsePath("orders/{ }"), Error, "is not a parameter");
-    assertThrows(() => parsePath("orders/{orderId}/ "), Error, "the field is empty");
-  },
+Scribe.test("DEFECT a parameter made of blanks is taken as a parameter name", () => {
+  expect(() => parsePath("orders/{ }"), throwsA(allOf(isA(Error), withMessage("is not a parameter"))));
+  expect(() => parsePath("orders/{orderId}/ "), throwsA(allOf(isA(Error), withMessage("the field is empty"))));
 });
 
-Deno.test({
-  name: "DEFECT a parameter written with the braces doubled keeps the inner braces in its name",
-  fn() {
-    assertThrows(() => parsePath("orders/{{orderId}}"), Error, "is not a parameter");
-  },
+Scribe.test("DEFECT a parameter written with the braces doubled keeps the inner braces in its name", () => {
+  expect(() => parsePath("orders/{{orderId}}"), throwsA(allOf(isA(Error), withMessage("is not a parameter"))));
 });
 
-Deno.test("a transition whose bounds name the same value delivers nothing, whatever the write did", () => {
+Scribe.test("a transition whose bounds name the same value delivers nothing, whatever the write did", () => {
   for (
     const [before, after] of [["paid", "paid"], ["pending", "paid"], ["paid", "pending"]] as const
   ) {
@@ -144,67 +127,70 @@ Deno.test("a transition whose bounds name the same value delivers nothing, whate
       event({ before: { status: before }, after: { status: after } }),
     );
 
-    assertEquals(matches, [], `${before} to ${after} reached a body that can never be right`);
+    expect(matches, equals([]), `${before} to ${after} reached a body that can never be right`);
   }
 });
 
-Deno.test("a watched column no row carries is delivered to nobody, silently", () => {
+Scribe.test("a watched column no row carries is delivered to nobody, silently", () => {
   const matches = matchesOf([trigger({ fields: ["statuz"] })], event());
 
-  assertEquals(matches, [], "a column that is in no row moved from nothing to nothing");
+  expect(matches, equals([]), "a column that is in no row moved from nothing to nothing");
 });
 
-Deno.test("a row-watching declaration is delivered even when the write left the row alone", () => {
+Scribe.test("a row-watching declaration is delivered even when the write left the row alone", () => {
   const matches = matchesOf(
     [trigger()],
     event({ before: { id: "order-1", status: "paid" }, after: { id: "order-1", status: "paid" } }),
   );
 
-  assertEquals(matches.length, 1, "onUpdate answers to the write, and onFieldChange answers to the change");
+  expect(matches.length, equals(1), "onUpdate answers to the write, and onFieldChange answers to the change");
 });
 
-Deno.test("a column nested far deeper than any row is compared without raising", () => {
+Scribe.test("a column nested far deeper than any row is compared without raising", () => {
   const matches = matchesOf(
     [trigger({ fields: ["meta"] })],
     event({ before: { meta: nested(20_000) }, after: { meta: nested(20_000) } }),
   );
 
-  assertEquals(matches, [], "depth alone is not what breaks the comparison");
+  expect(matches, equals([]), "depth alone is not what breaks the comparison");
 });
 
-Deno.test("a table declared under two key columns is refused before a row is written", () => {
+Scribe.test("a table declared under two key columns is refused before a row is written", () => {
   const registry = registered([
     trigger({ name: "orders:insert", op: "insert" }),
     trigger({ name: "orders:delete", op: "delete", key: "reference" }),
   ]);
 
-  assertThrows(() => registry.sources(), Error, "the table is declared with two key columns");
+  expect(
+    () => registry.sources(),
+    throwsA(allOf(isA(Error), withMessage("the table is declared with two key columns"))),
+  );
 });
 
-Deno.test("a table declared twice under the one key writes one row", () => {
+Scribe.test("a table declared twice under the one key writes one row", () => {
   const registry = registered([
     trigger({ name: "orders:insert", op: "insert" }),
     trigger({ name: "orders:delete", op: "delete" }),
   ]);
 
-  assertEquals(registry.sources(), [{ table_name: "orders", key_column: "id" }]);
+  expect(registry.sources(), equals([{ table_name: "orders", key_column: "id" }]));
 });
 
-Deno.test("two declarations that would share a queue are refused at the second one", () => {
+Scribe.test("two declarations that would share a queue are refused at the second one", () => {
   const registry = registered([trigger()]);
 
-  assertThrows(() => registry.add(trigger()), Error, "is already declared");
+  expect(() => registry.add(trigger()), throwsA(allOf(isA(Error), withMessage("is already declared"))));
 });
 
-Deno.test("a name given by hand is what tells two declarations on one table and one operation apart", () => {
+Scribe.test("a name given by hand is what tells two declarations on one table and one operation apart", () => {
   const registry = registered([trigger(), trigger({ name: "orders:update:shipping" })]);
 
-  assertEquals(registry.list().map((one) => one.name), ["orders:update", "orders:update:shipping"]);
+  expect(registry.list().map((one) => one.name), equals(["orders:update", "orders:update:shipping"]));
 });
 
-Deno.test("an operation the outbox should never hold cannot be read into an event", () => {
+Scribe.test("an operation the outbox should never hold cannot be read into an event", () => {
   for (const op of ["truncate", "INSERT", "", "insert "]) {
-    assertEquals(
+    expect(
       eventFrom({
         id: 1,
         table_name: "orders",
@@ -214,32 +200,32 @@ Deno.test("an operation the outbox should never hold cannot be read into an even
         after: { id: "order-1" },
         occurred_at: AT,
       }),
-      null,
+      equals(null),
       `${JSON.stringify(op)} was read as an operation`,
     );
   }
 });
 
-Deno.test("a path that stops at the row and one that ends on a column are told apart", () => {
-  assertEquals(parsePath("orders/{orderId}"), { table: "orders", param: "orderId", field: null });
-  assertEquals(parsePath("orders/{orderId}/status"), { table: "orders", param: "orderId", field: "status" });
+Scribe.test("a path that stops at the row and one that ends on a column are told apart", () => {
+  expect(parsePath("orders/{orderId}"), equals({ table: "orders", param: "orderId", field: null }));
+  expect(parsePath("orders/{orderId}/status"), equals({ table: "orders", param: "orderId", field: "status" }));
 });
 
-Deno.test("a declaration under a name of its own does not take the derived one", () => {
+Scribe.test("a declaration under a name of its own does not take the derived one", () => {
   const named = orders.onUpdate({ path: "quotes/{quoteId}", name: "quotes:renewal" }, noop);
   const derived = orders.onUpdate("quotes/{quoteId}", noop);
 
-  assertEquals(named.name, "quotes:renewal");
-  assertEquals(derived.name, "quotes:update");
+  expect(named.name, equals("quotes:renewal"));
+  expect(derived.name, equals("quotes:update"));
 });
 
-Deno.test("watching several columns and watching one of them are two declarations, not one", () => {
+Scribe.test("watching several columns and watching one of them are two declarations, not one", () => {
   const several = orders.onFieldsChange({ path: "carts/{cartId}", observe: ["status", "meta"] }, noop);
 
-  assertEquals(
+  expect(
     several.name,
-    "carts:meta+status",
+    equals("carts:meta+status"),
     "the derived name is the sorted list, so the order of observe is not it",
   );
-  assertEquals(several.fields, ["status", "meta"], "the order the caller wrote is the order the deliveries come in");
+  expect(several.fields, equals(["status", "meta"]), "the order the caller wrote is the order the deliveries come in");
 });

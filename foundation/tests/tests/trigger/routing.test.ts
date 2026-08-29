@@ -32,10 +32,9 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import "../../testing/settings.ts";
-
-import { assertEquals } from "@std/assert";
 import { matchesOf } from "../../../lib/src/trigger/trigger_match.ts";
 import type { RegisteredTrigger } from "../../../lib/src/trigger/trigger_registry.ts";
 import { eventFrom, type TriggerEvent } from "../../../lib/src/trigger/trigger_event.ts";
@@ -82,88 +81,91 @@ function row(over: Partial<TriggerEventRow> = {}): TriggerEventRow {
   };
 }
 
-Deno.test("a declaration on another table is not delivered", () => {
-  assertEquals(matchesOf([trigger({ table: "invoices" })], event()), []);
+Scribe.test("a declaration on another table is not delivered", () => {
+  expect(matchesOf([trigger({ table: "invoices" })], event()), equals([]));
 });
 
-Deno.test("a declaration on another operation is not delivered", () => {
-  assertEquals(matchesOf([trigger({ op: "insert" })], event()), []);
+Scribe.test("a declaration on another operation is not delivered", () => {
+  expect(matchesOf([trigger({ op: "insert" })], event()), equals([]));
 });
 
-Deno.test("a declaration watching the row is delivered once, without a column", () => {
+Scribe.test("a declaration watching the row is delivered once, without a column", () => {
   const matches = matchesOf([trigger()], event());
 
-  assertEquals(matches.length, 1);
-  assertEquals(matches[0].field, null);
+  expect(matches.length, equals(1));
+  expect(matches[0].field, equals(null));
 });
 
-Deno.test("the row and one of its columns are both delivered by one write", () => {
+Scribe.test("the row and one of its columns are both delivered by one write", () => {
   const matches = matchesOf(
     [trigger(), trigger({ name: "orders:status", fields: ["status"] })],
     event(),
   );
 
-  assertEquals(matches.map((match) => [match.trigger.name, match.field]), [
-    ["orders:update", null],
-    ["orders:status", "status"],
-  ]);
+  expect(
+    matches.map((match) => [match.trigger.name, match.field]),
+    equals([
+      ["orders:update", null],
+      ["orders:status", "status"],
+    ]),
+  );
 });
 
-Deno.test("a column that holds the value it held is not delivered", () => {
+Scribe.test("a column that holds the value it held is not delivered", () => {
   const matches = matchesOf(
     [trigger({ name: "orders:total", fields: ["total"] })],
     event(),
   );
 
-  assertEquals(matches, []);
+  expect(matches, equals([]));
 });
 
-Deno.test("a declaration watching two columns is delivered once per column that moved", () => {
+Scribe.test("a declaration watching two columns is delivered once per column that moved", () => {
   const matches = matchesOf(
     [trigger({ name: "orders:status+total", fields: ["status", "total"] })],
     event({ after: { id: "order-1", status: "paid", total: 25 } }),
   );
 
-  assertEquals(matches.map((match) => match.field), ["status", "total"]);
+  expect(matches.map((match) => match.field), equals(["status", "total"]));
 });
 
-Deno.test("a transition is delivered when both of its bounds are met", () => {
+Scribe.test("a transition is delivered when both of its bounds are met", () => {
   const matches = matchesOf(
     [trigger({ fields: ["status"], when: { from: "pending", to: "paid" } })],
     event(),
   );
 
-  assertEquals(matches.length, 1);
+  expect(matches.length, equals(1));
 });
 
-Deno.test("a transition leaving another value is not delivered", () => {
+Scribe.test("a transition leaving another value is not delivered", () => {
   const matches = matchesOf(
     [trigger({ fields: ["status"], when: { from: "draft", to: "paid" } })],
     event(),
   );
 
-  assertEquals(matches, []);
+  expect(matches, equals([]));
 });
 
-Deno.test("a transition naming only what it reaches ignores where the column came from", () => {
+Scribe.test("a transition naming only what it reaches ignores where the column came from", () => {
   const matches = matchesOf(
     [trigger({ fields: ["status"], when: { to: "paid" } })],
     event({ before: { id: "order-1", status: "draft", total: 10 } }),
   );
 
-  assertEquals(matches.length, 1);
+  expect(matches.length, equals(1));
 });
 
-Deno.test("a column that gained a value is delivered, and its absence reads as null", () => {
+Scribe.test("a column that gained a value is delivered, and its absence reads as null", () => {
   const matches = matchesOf(
     [trigger({ fields: ["status"], when: { from: null, to: "paid" } })],
     event({ before: { id: "order-1", total: 10 } }),
   );
 
-  assertEquals(matches.length, 1);
+  expect(matches.length, equals(1));
 });
 
-Deno.test("a structured column is compared on what it holds, not on its identity", () => {
+Scribe.test("a structured column is compared on what it holds, not on its identity", () => {
   const matches = matchesOf(
     [trigger({ name: "orders:lines", fields: ["lines"] })],
     event({
@@ -172,18 +174,18 @@ Deno.test("a structured column is compared on what it holds, not on its identity
     }),
   );
 
-  assertEquals(matches, []);
+  expect(matches, equals([]));
 });
 
-Deno.test("a deletion is read with the row it removed and no row after it", () => {
+Scribe.test("a deletion is read with the row it removed and no row after it", () => {
   const read = eventFrom(row({ op: "delete", before: { id: "order-1" }, after: null }));
 
-  assertEquals(read?.op, "delete");
-  assertEquals(read?.key, "order-1");
-  assertEquals(read?.after, null);
-  assertEquals(read?.at, PAID);
+  expect(read?.op, equals("delete"));
+  expect(read?.key, equals("order-1"));
+  expect(read?.after, equals(null));
+  expect(read?.at, equals(PAID));
 });
 
-Deno.test("a row whose operation is none of the three cannot be read", () => {
-  assertEquals(eventFrom(row({ op: "truncate" })), null);
+Scribe.test("a row whose operation is none of the three cannot be read", () => {
+  expect(eventFrom(row({ op: "truncate" })), equals(null));
 });

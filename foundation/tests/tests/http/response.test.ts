@@ -32,26 +32,36 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { allOf, equals, expect, fail, having, isA, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import { ByteStream } from "@scribe/alchemy/http";
 import { ClientException } from "@scribe/alchemy/http";
 import { HttpRequest } from "@scribe/alchemy/http";
 import { HttpResponse } from "@scribe/alchemy/http";
 import { StreamedResponse } from "@scribe/alchemy/http";
-import { assertEquals, assertThrows } from "@std/assert";
 
 function typed(value: string): Headers {
   return new Headers({ "content-type": value });
 }
 
-Deno.test("a response built from text announces its length in bytes", () => {
+/** Calls `body`, and answers what it raised. */
+function caughtSync(body: () => unknown): unknown {
+  try {
+    body();
+  } catch (raised) {
+    return raised;
+  }
+  fail("it returned instead of raising");
+}
+
+Scribe.test("a response built from text announces its length in bytes", () => {
   const response = new HttpResponse("héllo", 200);
 
-  assertEquals(response.contentLength, 6);
-  assertEquals(response.body, "héllo");
+  expect(response.contentLength, equals(6));
+  expect(response.body, equals("héllo"));
 });
 
-Deno.test("the charset of content-type decides how the body reads", () => {
+Scribe.test("the charset of content-type decides how the body reads", () => {
   const latin = new HttpResponse(new Uint8Array([0xe9]), 200, {
     headers: typed("text/plain; charset=latin1"),
   });
@@ -59,23 +69,23 @@ Deno.test("the charset of content-type decides how the body reads", () => {
     headers: typed("text/plain"),
   });
 
-  assertEquals(latin.body, "é");
-  assertEquals(utf8.body, "é");
+  expect(latin.body, equals("é"));
+  expect(utf8.body, equals("é"));
 });
 
-Deno.test(
+Scribe.test(
   "a charset the platform does not know falls back to utf-8 instead of throwing",
   () => {
     const response = new HttpResponse(new Uint8Array([0xc3, 0xa9]), 200, {
       headers: typed("text/plain; charset=not-a-charset"),
     });
 
-    assertEquals(response.body, "é");
-    assertEquals(response.bodyBytes, new Uint8Array([0xc3, 0xa9]));
+    expect(response.body, equals("é"));
+    expect(response.bodyBytes, equals(new Uint8Array([0xc3, 0xa9])));
   },
 );
 
-Deno.test("ok is the 2xx window, and nothing else", () => {
+Scribe.test("ok is the 2xx window, and nothing else", () => {
   const statuses: Array<[number, boolean]> = [
     [199, false],
     [200, true],
@@ -87,30 +97,29 @@ Deno.test("ok is the 2xx window, and nothing else", () => {
   ];
 
   for (const [status, expected] of statuses) {
-    assertEquals(new HttpResponse("", status).ok, expected, `status ${status}`);
+    expect(new HttpResponse("", status).ok, equals(expected), `status ${status}`);
   }
 });
 
-Deno.test("a status below 100 is refused", () => {
-  assertThrows(
+Scribe.test("a status below 100 is refused", () => {
+  expect(
     () => new HttpResponse("", 99),
-    Error,
-    "A status code is three digits from 100 to 599, and 99 is not one.",
+    throwsA(allOf(isA(Error), withMessage("A status code is three digits from 100 to 599, and 99 is not one."))),
   );
-  assertEquals(new HttpResponse("", 100).statusCode, 100);
+  expect(new HttpResponse("", 100).statusCode, equals(100));
 });
 
-Deno.test("a response says nothing it was not told", () => {
+Scribe.test("a response says nothing it was not told", () => {
   const response = new HttpResponse("", 200);
 
-  assertEquals(response.request, null);
-  assertEquals(response.reasonPhrase, null);
-  assertEquals(response.isRedirect, false);
-  assertEquals(response.persistentConnection, true);
-  assertEquals([...response.headers], []);
+  expect(response.request, equals(null));
+  expect(response.reasonPhrase, equals(null));
+  expect(response.isRedirect, equals(false));
+  expect(response.persistentConnection, equals(true));
+  expect([...response.headers], equals([]));
 });
 
-Deno.test(
+Scribe.test(
   "fromStream drains the body and keeps everything the headers said",
   async () => {
     const request = new HttpRequest("GET", "https://example.test/a");
@@ -128,57 +137,57 @@ Deno.test(
 
     const whole = await HttpResponse.fromStream(streamed);
 
-    assertEquals(whole.body, "hello");
-    assertEquals(whole.statusCode, 301);
-    assertEquals(whole.request, request);
-    assertEquals(whole.reasonPhrase, "Moved Permanently");
-    assertEquals(whole.isRedirect, true);
-    assertEquals(whole.persistentConnection, false);
-    assertEquals(whole.headers.get("content-type"), "text/plain");
+    expect(whole.body, equals("hello"));
+    expect(whole.statusCode, equals(301));
+    expect(whole.request, equals(request));
+    expect(whole.reasonPhrase, equals("Moved Permanently"));
+    expect(whole.isRedirect, equals(true));
+    expect(whole.persistentConnection, equals(false));
+    expect(whole.headers.get("content-type"), equals("text/plain"));
   },
 );
 
-Deno.test("json reads the body a server announced as JSON", () => {
+Scribe.test("json reads the body a server announced as JSON", () => {
   const response = new HttpResponse('{"name":"ada","tags":[1,2]}', 200, {
     headers: typed("application/json"),
   });
 
-  assertEquals(response.json<{ name: string; tags: number[] }>(), {
-    name: "ada",
-    tags: [1, 2],
-  });
+  expect(
+    response.json<{ name: string; tags: number[] }>(),
+    equals({
+      name: "ada",
+      tags: [1, 2],
+    }),
+  );
 });
 
-Deno.test("json reads a body the caller is free to have refused first", () => {
+Scribe.test("json reads a body the caller is free to have refused first", () => {
   const response = new HttpResponse('{"code":"not_found"}', 404, {
     headers: typed("application/json"),
   });
 
-  assertEquals(response.statusCode, 404);
-  assertEquals(
+  expect(response.statusCode, equals(404));
+  expect(
     response.json<{ code: string }>(),
-    { code: "not_found" },
+    equals({ code: "not_found" }),
     "a refused answer still hands over its JSON error payload, which is what the " +
       "client-level readJson cannot do",
   );
 });
 
-Deno.test("a body that is not JSON is an exception, not a value", () => {
+Scribe.test("a body that is not JSON is an exception, not a value", () => {
   const request = new HttpRequest("GET", "https://example.test/a");
   const response = new HttpResponse("<html>gateway timeout</html>", 504, {
     request,
   });
 
-  const raised = assertThrows(
-    () => response.json(),
-    ClientException,
-    "Answer from https://example.test/a is not JSON.",
-  ) as ClientException;
+  const raised = caughtSync(() => response.json());
 
-  assertEquals(raised.uri?.href, "https://example.test/a");
+  expect(raised, allOf(isA(ClientException), withMessage("Answer from https://example.test/a is not JSON.")));
+  expect(raised, having(isA(ClientException), (r) => r.uri?.href, "uri", equals("https://example.test/a")));
 });
 
-Deno.test(
+Scribe.test(
   "a drained response announces what arrived, not what the server claimed",
   async () => {
     const streamed = new StreamedResponse(
@@ -187,6 +196,6 @@ Deno.test(
       { contentLength: 900 },
     );
 
-    assertEquals((await HttpResponse.fromStream(streamed)).contentLength, 2);
+    expect((await HttpResponse.fromStream(streamed)).contentLength, equals(2));
   },
 );

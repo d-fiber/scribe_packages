@@ -32,11 +32,22 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import {
+  allOf,
+  caught,
+  equals,
+  expect,
+  expectLater,
+  having,
+  isA,
+  Scribe,
+  throwsA,
+  withMessage,
+} from "@scribe/alchemy/test";
 import { Duration } from "@scribe/alchemy";
 import { ClientException, DEFAULT_REQUEST_TIMEOUT } from "@scribe/alchemy/http";
 import type { HttpRequest } from "@scribe/alchemy/http";
-import { assertEquals, assertRejects } from "@std/assert";
 import { MemoryClient } from "@scribe/alchemy/test";
 
 const URL_UNDER_TEST = "https://example.test/a";
@@ -50,7 +61,7 @@ async function sent(
   return client.only as HttpRequest;
 }
 
-Deno.test("each convenience method sends its own verb", async () => {
+Scribe.test("each convenience method sends its own verb", async () => {
   const client = new MemoryClient();
 
   await client.head(URL_UNDER_TEST);
@@ -60,143 +71,132 @@ Deno.test("each convenience method sends its own verb", async () => {
   await client.patch(URL_UNDER_TEST);
   await client.delete(URL_UNDER_TEST);
 
-  assertEquals(client.seen.map((request) => request.method), [
-    "HEAD",
-    "GET",
-    "POST",
-    "PUT",
-    "PATCH",
-    "DELETE",
-  ]);
+  expect(
+    client.seen.map((request) => request.method),
+    equals([
+      "HEAD",
+      "GET",
+      "POST",
+      "PUT",
+      "PATCH",
+      "DELETE",
+    ]),
+  );
 });
 
-Deno.test("no body at all is an empty body", async () => {
+Scribe.test("no body at all is an empty body", async () => {
   const request = await sent(undefined);
 
-  assertEquals(request.contentLength, 0);
-  assertEquals(request.headers.get("content-type"), null);
+  expect(request.contentLength, equals(0));
+  expect(request.headers.get("content-type"), equals(null));
 });
 
-Deno.test("a record body goes as a url-encoded form", async () => {
+Scribe.test("a record body goes as a url-encoded form", async () => {
   const request = await sent({ body: { name: "ada", city: "lovelace lane" } });
 
-  assertEquals(request.body, "name=ada&city=lovelace+lane");
-  assertEquals(
-    request.headers.get("content-type"),
-    "application/x-www-form-urlencoded; charset=utf-8",
-  );
+  expect(request.body, equals("name=ada&city=lovelace+lane"));
+  expect(request.headers.get("content-type"), equals("application/x-www-form-urlencoded; charset=utf-8"));
 });
 
-Deno.test("text goes as text", async () => {
+Scribe.test("text goes as text", async () => {
   const request = await sent({ body: "hello" });
 
-  assertEquals(request.body, "hello");
-  assertEquals(
-    request.headers.get("content-type"),
-    "text/plain; charset=utf-8",
-  );
+  expect(request.body, equals("hello"));
+  expect(request.headers.get("content-type"), equals("text/plain; charset=utf-8"));
 });
 
-Deno.test("bytes go as they are, and claim no type", async () => {
+Scribe.test("bytes go as they are, and claim no type", async () => {
   const request = await sent({ body: new Uint8Array([1, 2, 3]) });
 
-  assertEquals(request.bodyBytes, new Uint8Array([1, 2, 3]));
-  assertEquals(request.headers.get("content-type"), null);
+  expect(request.bodyBytes, equals(new Uint8Array([1, 2, 3])));
+  expect(request.headers.get("content-type"), equals(null));
 });
 
-Deno.test("the encoding of the call reaches the content-type of the body", async () => {
+Scribe.test("the encoding of the call reaches the content-type of the body", async () => {
   const request = await sent({ body: "x", encoding: "latin1" });
 
-  assertEquals(request.encoding, "latin1");
-  assertEquals(
-    request.headers.get("content-type"),
-    "text/plain; charset=latin1",
-  );
+  expect(request.encoding, equals("latin1"));
+  expect(request.headers.get("content-type"), equals("text/plain; charset=latin1"));
 });
 
-Deno.test("the timeout of the call reaches the request", async () => {
-  assertEquals(
-    (await sent({ timeout: Duration.milliseconds(2_500) })).timeoutMs,
-    2_500,
-  );
-  assertEquals(
-    (await sent({})).timeoutMs,
-    DEFAULT_REQUEST_TIMEOUT.inMilliseconds,
-  );
+Scribe.test("the timeout of the call reaches the request", async () => {
+  expect((await sent({ timeout: Duration.milliseconds(2_500) })).timeoutMs, equals(2_500));
+  expect((await sent({})).timeoutMs, equals(DEFAULT_REQUEST_TIMEOUT.inMilliseconds));
 });
 
-Deno.test("the headers of the call reach the request", async () => {
+Scribe.test("the headers of the call reach the request", async () => {
   const request = await sent({ headers: { "x-key": "value" }, body: "x" });
 
-  assertEquals(request.headers.get("x-key"), "value");
+  expect(request.headers.get("x-key"), equals("value"));
 });
 
-Deno.test("a header given by the caller wins over the one a body would set", async () => {
+Scribe.test("a header given by the caller wins over the one a body would set", async () => {
   const request = await sent({
     headers: { "content-type": "application/json" },
     body: "{}",
   });
 
-  assertEquals(request.headers.get("content-type"), "application/json");
+  expect(request.headers.get("content-type"), equals("application/json"));
 });
 
-Deno.test("read and readBytes answer the body of a 2xx", async () => {
+Scribe.test("read and readBytes answer the body of a 2xx", async () => {
   const client = new MemoryClient({ status: 204, body: "hello" });
 
-  assertEquals(await client.read(URL_UNDER_TEST), "hello");
-  assertEquals(
-    await client.readBytes(URL_UNDER_TEST),
-    new TextEncoder().encode("hello"),
-  );
+  expect(await client.read(URL_UNDER_TEST), equals("hello"));
+  expect(await client.readBytes(URL_UNDER_TEST), equals(new TextEncoder().encode("hello")));
 });
 
-Deno.test("read refuses any status but a 2xx", async () => {
+Scribe.test("read refuses any status but a 2xx", async () => {
   const client = new MemoryClient({
     status: 404,
     body: "<html>not found</html>",
   });
 
-  const raised = await assertRejects(
-    () => client.read(URL_UNDER_TEST),
-    ClientException,
-    "The call to https://example.test/a failed with status 404.",
+  const raised = await caught(() => client.read(URL_UNDER_TEST));
+  expect(
+    raised,
+    allOf(isA(ClientException), withMessage("The call to https://example.test/a failed with status 404.")),
   );
-
-  assertEquals(raised.uri?.href, URL_UNDER_TEST);
-  assertEquals(
-    String(raised),
-    "ClientException: The call to https://example.test/a failed with status 404., uri=https://example.test/a",
+  expect(raised, having(isA(ClientException), (r) => r.uri?.href, "uri", equals(URL_UNDER_TEST)));
+  expect(
+    raised,
+    having(
+      isA(ClientException),
+      (r) => String(r),
+      "string form",
+      equals("ClientException: The call to https://example.test/a failed with status 404., uri=https://example.test/a"),
+    ),
   );
 });
 
-Deno.test("readBytes refuses any status but a 2xx", async () => {
+Scribe.test("readBytes refuses any status but a 2xx", async () => {
   const client = new MemoryClient({ status: 500 });
 
-  await assertRejects(() => client.readBytes(URL_UNDER_TEST), ClientException);
+  await expectLater(() => client.readBytes(URL_UNDER_TEST), throwsA(isA(ClientException)));
 });
 
-Deno.test("a status the caller asked for is a response, not an exception", async () => {
+Scribe.test("a status the caller asked for is a response, not an exception", async () => {
   const client = new MemoryClient({ status: 404, body: "gone" });
 
   const response = await client.get(URL_UNDER_TEST);
 
-  assertEquals(response.statusCode, 404);
-  assertEquals(response.body, "gone");
-  assertEquals(response.request?.url.href, URL_UNDER_TEST);
+  expect(response.statusCode, equals(404));
+  expect(response.body, equals("gone"));
+  expect(response.request?.url.href, equals(URL_UNDER_TEST));
 });
 
-Deno.test("an exception with no url reads without one", () => {
+Scribe.test("an exception with no url reads without one", () => {
   const raised = new ClientException("nothing answered");
 
-  assertEquals(raised.uri, null);
-  assertEquals(raised.name, "ClientException");
-  assertEquals(String(raised), "ClientException: nothing answered");
+  expect(raised.uri, equals(null));
+  expect(raised.name, equals("ClientException"));
+  expect(String(raised), equals("ClientException: nothing answered"));
 });
 
-Deno.test("a url given as a URL is sent as it is", async () => {
+Scribe.test("a url given as a URL is sent as it is", async () => {
   const client = new MemoryClient();
 
   await client.get(new URL(URL_UNDER_TEST));
 
-  assertEquals(client.only.url.href, URL_UNDER_TEST);
+  expect(client.only.url.href, equals(URL_UNDER_TEST));
 });

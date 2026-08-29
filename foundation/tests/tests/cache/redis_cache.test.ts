@@ -33,21 +33,37 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
+import "@scribe/testing/runner.ts";
 import { installDrivers } from "../../testing/drivers.ts";
 import "../../testing/settings.ts";
 
+import { equals, expect, fail, isTrue, Scribe } from "@scribe/alchemy/test";
 import { Duration } from "@scribe/alchemy";
 import { kv } from "../../../lib/src/redis/kv.ts";
 import { installValkeryMock } from "../../testing/cache.ts";
 import { encodeCacheEntry } from "../../../lib/src/cache/cache_entry.ts";
 import { RedisCache, refreshesSettled } from "../../../lib/src/cache/redis_cache.ts";
-import { assert, assertEquals } from "@std/assert";
-import { spy, stub } from "@std/testing/mock";
+import { installMock } from "@scribe/testing/install.ts";
 
 function deferred<T>(): { promise: Promise<T>; resolve: (v: T) => void } {
   let resolve!: (v: T) => void;
   const promise = new Promise<T>((r) => (resolve = r));
   return { promise, resolve };
+}
+
+/** Wraps `target[method]` to record every call it receives while still answering it for real. */
+function spyOn<T extends object, K extends keyof T>(target: T, method: K) {
+  const calls: unknown[][] = [];
+  const original = (target[method] as (...args: unknown[]) => unknown).bind(target);
+  const installed = installMock(
+    target,
+    method,
+    ((...args: unknown[]) => {
+      calls.push(args);
+      return original(...args);
+    }) as T[K],
+  );
+  return { calls, restore: installed.restore };
 }
 
 function seed(key: string, value: unknown, expiresInMs: number, computeMs: number) {
@@ -60,7 +76,7 @@ function seed(key: string, value: unknown, expiresInMs: number, computeMs: numbe
 
 const logged = installDrivers();
 
-Deno.test("upsert computes once and serves the cached value afterwards", async () => {
+Scribe.test("upsert computes once and serves the cached value afterwards", async () => {
   const mock = installValkeryMock();
   const cache = new RedisCache<number>({ key: "test", ttl: Duration.minutes(5) });
   let computed = 0;
@@ -68,19 +84,19 @@ Deno.test("upsert computes once and serves the cached value afterwards", async (
   try {
     const compute = () => Promise.resolve(++computed);
 
-    assertEquals(await cache.upsert("k", compute), 1);
-    assertEquals(await cache.upsert("k", compute), 1);
-    assertEquals(computed, 1);
+    expect(await cache.upsert("k", compute), equals(1));
+    expect(await cache.upsert("k", compute), equals(1));
+    expect(computed, equals(1));
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("upsert collapses concurrent callers before it touches Redis", async () => {
+Scribe.test("upsert collapses concurrent callers before it touches Redis", async () => {
   const mock = installValkeryMock();
   const cache = new RedisCache<string>({ key: "test", ttl: Duration.minutes(5) });
   const gate = deferred<string>();
-  const get = spy(kv(), "get");
+  const get = spyOn(kv(), "get");
   let computed = 0;
 
   try {
@@ -97,11 +113,11 @@ Deno.test("upsert collapses concurrent callers before it touches Redis", async (
     ]);
 
     gate.resolve("value");
-    assertEquals(await all, ["value", "value", "value", "value"]);
-    assertEquals(computed, 1, "four callers of one key must produce one computation");
-    assertEquals(
+    expect(await all, equals(["value", "value", "value", "value"]));
+    expect(computed, equals(1), "four callers of one key must produce one computation");
+    expect(
       get.calls.length,
-      1,
+      equals(1),
       "four callers of one key must cost one read: the distributed lock alone would have " +
         "collapsed them too, but only after a read and a poll each",
     );
@@ -111,7 +127,7 @@ Deno.test("upsert collapses concurrent callers before it touches Redis", async (
   }
 });
 
-Deno.test("upsert refreshes ahead of the expiry and answers what it already held", async () => {
+Scribe.test("upsert refreshes ahead of the expiry and answers what it already held", async () => {
   const mock = installValkeryMock();
   const cache = new RedisCache<string>({ key: "test", ttl: Duration.minutes(5) });
 
@@ -120,20 +136,20 @@ Deno.test("upsert refreshes ahead of the expiry and answers what it already held
     const costlyToProduce = 1_000_000;
     await seed("test/k", "stale", secondsLeft, costlyToProduce);
 
-    assertEquals(
+    expect(
       await cache.upsert("k", () => Promise.resolve("fresh")),
-      "stale",
+      equals("stale"),
       "the reader that drew the refresh has an answer in hand and must not wait for the new one",
     );
 
     await refreshesSettled();
-    assertEquals(await cache.get("k"), "fresh", "and the refreshed value was written back");
+    expect(await cache.get("k"), equals("fresh"), "and the refreshed value was written back");
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("upsert serves the cached value rather than recomputing far from the expiry", async () => {
+Scribe.test("upsert serves the cached value rather than recomputing far from the expiry", async () => {
   const mock = installValkeryMock();
   const cache = new RedisCache<string>({ key: "test", ttl: Duration.minutes(5) });
   let computed = 0;
@@ -141,29 +157,29 @@ Deno.test("upsert serves the cached value rather than recomputing far from the e
   try {
     await seed("test/k", "cached", 1_000_000_000, 1);
 
-    assertEquals(
+    expect(
       await cache.upsert("k", () => {
         computed++;
         return Promise.resolve("recomputed");
       }),
-      "cached",
+      equals("cached"),
     );
-    assertEquals(computed, 0);
+    expect(computed, equals(0));
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("a refresh that throws still serves the value the cache already holds", async () => {
+Scribe.test("a refresh that throws still serves the value the cache already holds", async () => {
   const mock = installValkeryMock();
   const cache = new RedisCache<string>({ key: "test", ttl: Duration.minutes(5) });
 
   try {
     await seed("test/k", "stale", 5_000, 1_000_000);
 
-    assertEquals(
+    expect(
       await cache.upsert("k", () => Promise.reject(new Error("origin down"))),
-      "stale",
+      equals("stale"),
       "a flaky origin must not turn into an error when an answer is in hand",
     );
 
@@ -173,53 +189,53 @@ Deno.test("a refresh that throws still serves the value the cache already holds"
   }
 });
 
-Deno.test("getMany reads every id in a single round trip", async () => {
+Scribe.test("getMany reads every id in a single round trip", async () => {
   const mock = installValkeryMock();
   const cache = new RedisCache<number>({ key: "test", ttl: Duration.minutes(5) });
-  const mget = spy(kv(), "mget");
+  const mget = spyOn(kv(), "mget");
 
   try {
     await cache.add("a", 1);
     await cache.add("c", 3);
 
-    assertEquals(await cache.getMany(["a", "b", "c"]), [1, null, 3]);
-    assertEquals(mget.calls.length, 1, "three ids must cost one call");
-    assertEquals([...mget.calls[0].args], ["test/a", "test/b", "test/c"]);
+    expect(await cache.getMany(["a", "b", "c"]), equals([1, null, 3]));
+    expect(mget.calls.length, equals(1), "three ids must cost one call");
+    expect([...mget.calls[0]], equals(["test/a", "test/b", "test/c"]));
   } finally {
     mget.restore();
     mock.restore();
   }
 });
 
-Deno.test("getMany on an empty list does not touch Redis at all", async () => {
+Scribe.test("getMany on an empty list does not touch Redis at all", async () => {
   const mock = installValkeryMock();
   const cache = new RedisCache<string>({ key: "test", ttl: Duration.minutes(5) });
-  const mget = spy(kv(), "mget");
+  const mget = spyOn(kv(), "mget");
 
   try {
-    assertEquals(await cache.getMany([]), []);
-    assertEquals(mget.calls.length, 0);
+    expect(await cache.getMany([]), equals([]));
+    expect(mget.calls.length, equals(0));
   } finally {
     mget.restore();
     mock.restore();
   }
 });
 
-Deno.test("clear removes a namespace with UNLINK, never DEL", async () => {
+Scribe.test("clear removes a namespace with UNLINK, never DEL", async () => {
   const mock = installValkeryMock();
   const cache = new RedisCache<number>({ key: "test", ttl: Duration.minutes(5) });
-  const unlink = spy(kv(), "unlink");
-  const del = spy(kv(), "del");
+  const unlink = spyOn(kv(), "unlink");
+  const del = spyOn(kv(), "del");
 
   try {
     await cache.add("a", 1);
     await cache.add("b", 2);
     await cache.clear();
 
-    assertEquals(await cache.get("a"), null);
-    assertEquals(await cache.get("b"), null);
-    assert(unlink.calls.length > 0, "the sweep must unlink");
-    assertEquals(del.calls.length, 0, "DEL holds the single Redis thread");
+    expect(await cache.get("a"), equals(null));
+    expect(await cache.get("b"), equals(null));
+    expect(unlink.calls.length > 0, isTrue, "the sweep must unlink");
+    expect(del.calls.length, equals(0), "DEL holds the single Redis thread");
   } finally {
     del.restore();
     unlink.restore();
@@ -227,36 +243,37 @@ Deno.test("clear removes a namespace with UNLINK, never DEL", async () => {
   }
 });
 
-Deno.test("delete removes a single entry with UNLINK", async () => {
+Scribe.test("delete removes a single entry with UNLINK", async () => {
   const mock = installValkeryMock();
   const cache = new RedisCache<number>({ key: "test", ttl: Duration.minutes(5) });
-  const unlink = spy(kv(), "unlink");
+  const unlink = spyOn(kv(), "unlink");
 
   try {
     await cache.add("a", 1);
     await cache.delete("a");
 
-    assertEquals(await cache.get("a"), null);
-    assertEquals([...unlink.calls[0].args], ["test/a"]);
+    expect(await cache.get("a"), equals(null));
+    expect([...unlink.calls[0]], equals(["test/a"]));
   } finally {
     unlink.restore();
     mock.restore();
   }
 });
 
-Deno.test("a cache stays usable when Redis is down", async () => {
+Scribe.test("a cache stays usable when Redis is down", async () => {
   const cache = new RedisCache<string>({ key: "test", ttl: Duration.minutes(5) });
-  const broken = stub(kv(), "get", () => Promise.reject(new Error("no redis")));
+  const broken = installMock(kv(), "get", () => Promise.reject(new Error("no redis")));
   logged.clear();
 
   try {
-    assertEquals(await cache.get("k"), null, "an unreachable cache reads as a miss");
+    expect(await cache.get("k"), equals(null), "an unreachable cache reads as a miss");
 
     const failure = logged.lines.find((line) => line.action === "cache.operation_failed");
-    assert(failure !== undefined, "the bypass should have been recorded, not swallowed");
-    assertEquals(failure.level, "error");
-    assertEquals((failure.input?.metadata as { cache: string; operation: string }).cache, "test");
-    assertEquals((failure.input?.metadata as { cache: string; operation: string }).operation, "get");
+    if (!failure) fail("the bypass should have been recorded, not swallowed");
+
+    expect(failure.level, equals("error"));
+    expect((failure.input?.metadata as { cache: string; operation: string }).cache, equals("test"));
+    expect((failure.input?.metadata as { cache: string; operation: string }).operation, equals("get"));
   } finally {
     broken.restore();
   }

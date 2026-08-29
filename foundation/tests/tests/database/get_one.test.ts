@@ -32,13 +32,13 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, expectLater, isA, isFalse, isTrue, Scribe, throwsA } from "@scribe/alchemy/test";
 import "../../testing/settings.ts";
 
 import { PostgrestClient } from "@supabase/postgrest-js";
 import { DatabaseQueryError, TypedQueryBuilder } from "../../../lib/src/database/query/typed_query_builder.ts";
 import { AMBIGUITY_PROBE, atMostOneRow, DEFAULT_STATE } from "../../../lib/src/database/query/query_state.ts";
-import { assert, assertEquals, assertRejects } from "@std/assert";
 
 interface Probe {
   readonly builder: TypedQueryBuilder<{ id: string; user_id: string }>;
@@ -65,55 +65,54 @@ function probe(rows: unknown[]): Probe {
   };
 }
 
-Deno.test("getOne asks the database for two rows, never for the whole match set", async () => {
+Scribe.test("getOne asks the database for two rows, never for the whole match set", async () => {
   const { builder, sent } = probe([{ id: "r0", user_id: "u1" }]);
 
   await builder.where((f) => f.user_id.eq("u1")).getOne();
 
-  assert(
-    sent[0].includes(`limit=${AMBIGUITY_PROBE}`),
-    `the query must be bounded, got ${sent[0]}`,
-  );
+  expect(sent[0].includes(`limit=${AMBIGUITY_PROBE}`), isTrue, `the query must be bounded, got ${sent[0]}`);
 });
 
-Deno.test("getOne keeps the three outcomes it had before the bound", async () => {
+Scribe.test("getOne keeps the three outcomes it had before the bound", async () => {
   const none = probe([]);
-  assertEquals(await none.builder.where((f) => f.user_id.eq("u1")).getOne(), null);
+  expect(await none.builder.where((f) => f.user_id.eq("u1")).getOne(), equals(null));
 
   const one = probe([{ id: "r0", user_id: "u1" }]);
-  assertEquals(await one.builder.where((f) => f.user_id.eq("u1")).getOne(), {
-    id: "r0",
-    user_id: "u1",
-  });
+  expect(
+    await one.builder.where((f) => f.user_id.eq("u1")).getOne(),
+    equals({
+      id: "r0",
+      user_id: "u1",
+    }),
+  );
 
   const many = probe([{ id: "r0", user_id: "u1" }, { id: "r1", user_id: "u1" }]);
-  await assertRejects(
+  await expectLater(
     () => many.builder.where((f) => f.user_id.eq("u1")).getOne(),
-    DatabaseQueryError,
-    undefined,
+    throwsA(isA(DatabaseQueryError)),
     "an ambiguous match must still be an error, not a silent first row",
   );
 });
 
-Deno.test("a caller who set their own bound keeps it", () => {
-  assertEquals(
+Scribe.test("a caller who set their own bound keeps it", () => {
+  expect(
     atMostOneRow({ ...DEFAULT_STATE, limitCount: 10 }).limitCount,
-    10,
+    equals(10),
     "an explicit limit is the caller's decision",
   );
-  assertEquals(
+  expect(
     atMostOneRow({ ...DEFAULT_STATE, rangeVal: [0, 4] }).limitCount,
-    null,
+    equals(null),
     "a range already bounds the read, adding a limit would fight it",
   );
 });
 
-Deno.test("an unbounded read gets the ambiguity probe and nothing more", () => {
-  assertEquals(atMostOneRow(DEFAULT_STATE).limitCount, AMBIGUITY_PROBE);
-  assertEquals(atMostOneRow(DEFAULT_STATE).rangeVal, null);
+Scribe.test("an unbounded read gets the ambiguity probe and nothing more", () => {
+  expect(atMostOneRow(DEFAULT_STATE).limitCount, equals(AMBIGUITY_PROBE));
+  expect(atMostOneRow(DEFAULT_STATE).rangeVal, equals(null));
 });
 
-Deno.test("get stays unbounded, the probe belongs to getOne alone", async () => {
+Scribe.test("get stays unbounded, the probe belongs to getOne alone", async () => {
   const { builder, sent } = probe([
     { id: "r0", user_id: "u1" },
     { id: "r1", user_id: "u1" },
@@ -122,9 +121,6 @@ Deno.test("get stays unbounded, the probe belongs to getOne alone", async () => 
 
   const rows = await builder.where((f) => f.user_id.eq("u1")).get();
 
-  assertEquals(rows.length, 3, "a list read must not be truncated to the probe");
-  assert(
-    !sent[0].includes("limit="),
-    `a list read must carry no limit of its own, got ${sent[0]}`,
-  );
+  expect(rows.length, equals(3), "a list read must not be truncated to the probe");
+  expect(sent[0].includes("limit="), isFalse, `a list read must carry no limit of its own, got ${sent[0]}`);
 });

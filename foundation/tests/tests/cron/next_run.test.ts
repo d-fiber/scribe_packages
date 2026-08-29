@@ -32,16 +32,15 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import "../../testing/settings.ts";
 
 import { nextRun, nextRunAfterSlot } from "../../../lib/src/cron/next_run.ts";
 import { at, cronExpression, every } from "../../../lib/src/cron/schedule.ts";
 import { Duration } from "@scribe/alchemy";
 import { CronTimezone } from "../../../lib/src/cron/cron_timezone.ts";
-import { assertEquals } from "@std/assert";
-
-Deno.test(
+Scribe.test(
   "nextRun() for an interval schedule adds the interval to `after`, no wall-clock involved",
   () => {
     const schedule = every(Duration.minutes(5));
@@ -49,11 +48,11 @@ Deno.test(
 
     const next = nextRun(schedule, after);
 
-    assertEquals(next.getTime(), after.getTime() + 5 * 60_000);
+    expect(next.getTime(), equals(after.getTime() + 5 * 60_000));
   },
 );
 
-Deno.test(
+Scribe.test(
   "nextRun() for a daily schedule picks the earliest upcoming time among several",
   () => {
     const schedule = at(CronTimezone.Utc, "00:00", "12:00");
@@ -61,11 +60,11 @@ Deno.test(
 
     const next = nextRun(schedule, after);
 
-    assertEquals(next.toISOString(), "2026-01-01T12:00:00.000Z");
+    expect(next.toISOString(), equals("2026-01-01T12:00:00.000Z"));
   },
 );
 
-Deno.test(
+Scribe.test(
   "nextRun() for a daily schedule wraps to tomorrow once today has passed",
   () => {
     const schedule = at(CronTimezone.Utc, "00:00", "12:00");
@@ -73,11 +72,11 @@ Deno.test(
 
     const next = nextRun(schedule, after);
 
-    assertEquals(next.toISOString(), "2026-01-02T00:00:00.000Z");
+    expect(next.toISOString(), equals("2026-01-02T00:00:00.000Z"));
   },
 );
 
-Deno.test(
+Scribe.test(
   "nextRun() for a cron schedule delegates to croner and respects the given timezone",
   () => {
     const schedule = cronExpression("0 3 * * *", CronTimezone.Utc);
@@ -85,11 +84,11 @@ Deno.test(
 
     const next = nextRun(schedule, after);
 
-    assertEquals(next.toISOString(), "2026-01-01T03:00:00.000Z");
+    expect(next.toISOString(), equals("2026-01-01T03:00:00.000Z"));
   },
 );
 
-Deno.test(
+Scribe.test(
   "nextRun() for a cron schedule rolls over to the next day once today's occurrence has passed",
   () => {
     const schedule = cronExpression("0 3 * * *", CronTimezone.Utc);
@@ -97,50 +96,50 @@ Deno.test(
 
     const next = nextRun(schedule, after);
 
-    assertEquals(next.toISOString(), "2026-01-02T03:00:00.000Z");
+    expect(next.toISOString(), equals("2026-01-02T03:00:00.000Z"));
   },
 );
 
-Deno.test(
+Scribe.test(
   "nextRunAfterSlot() anchors an interval on the grid, not on the firing instant",
   () => {
     const schedule = every(Duration.minutes(1));
     const slot = new Date("2026-01-01T00:00:00.000Z");
     const firedFifteenSecondsLate = new Date("2026-01-01T00:00:15.000Z");
 
-    assertEquals(
+    expect(
       nextRunAfterSlot(schedule, slot, firedFifteenSecondsLate).toISOString(),
-      "2026-01-01T00:01:00.000Z",
+      equals("2026-01-01T00:01:00.000Z"),
       "the next run landed on the grid, so the 15s of lag does not carry over to every round",
     );
   },
 );
 
-Deno.test(
+Scribe.test(
   "nextRunAfterSlot() jumps to the next future slot after a long outage",
   () => {
     const schedule = every(Duration.minutes(1));
     const slot = new Date("2026-01-01T00:00:00.000Z");
     const nineSlotsLater = new Date("2026-01-01T00:09:30.000Z");
 
-    assertEquals(
+    expect(
       nextRunAfterSlot(schedule, slot, nineSlotsLater).toISOString(),
-      "2026-01-01T00:10:00.000Z",
+      equals("2026-01-01T00:10:00.000Z"),
       "the nine missed slots were dropped rather than fired back to back",
     );
   },
 );
 
-Deno.test(
+Scribe.test(
   "nextRunAfterSlot() leaves wall-clock schedules to croner",
   () => {
     const schedule = cronExpression("0 3 * * *", CronTimezone.EuropeParis);
     const slot = new Date("2026-01-01T02:00:00.000Z");
     const now = new Date("2026-01-01T02:05:00.000Z");
 
-    assertEquals(
+    expect(
       nextRunAfterSlot(schedule, slot, now).getTime(),
-      nextRun(schedule, now).getTime(),
+      equals(nextRun(schedule, now).getTime()),
       "croner recomputed the occurrence from now, and the slot it drifted from played no part",
     );
   },

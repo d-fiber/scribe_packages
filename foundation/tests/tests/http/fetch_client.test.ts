@@ -32,13 +32,25 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/testing/runner.ts";
+import {
+  allOf,
+  caught,
+  equals,
+  expect,
+  expectLater,
+  fail,
+  having,
+  isA,
+  isTrue,
+  Scribe,
+  throwsA,
+  withMessage,
+} from "@scribe/alchemy/test";
 import { Duration } from "@scribe/alchemy";
 import { ClientException } from "@scribe/alchemy/http";
 import { FetchClient } from "../../../lib/src/http/fetch_client.ts";
 import { HttpRequest } from "@scribe/alchemy/http";
-import { assert, assertEquals, assertRejects } from "@std/assert";
-
 const URL_UNDER_TEST = "https://example.test/a";
 
 interface Call {
@@ -70,54 +82,48 @@ function ok(): globalThis.Response {
   return new globalThis.Response("hello", { status: 200 });
 }
 
-Deno.test("a closed client refuses to send", async () => {
+Scribe.test("a closed client refuses to send", async () => {
   const client = new FetchClient();
   client.close();
 
-  const raised = await assertRejects(
-    () => client.get(URL_UNDER_TEST),
-    ClientException,
-    "HTTP request failed. Client is already closed.",
-  );
-
-  assertEquals(raised.uri?.href, URL_UNDER_TEST);
+  const raised = await caught(() => client.get(URL_UNDER_TEST));
+  expect(raised, allOf(isA(ClientException), withMessage("HTTP request failed. Client is already closed.")));
+  expect(raised, having(isA(ClientException), (r) => r.uri?.href, "uri", equals(URL_UNDER_TEST)));
 });
 
-Deno.test("every way of never reaching the server arrives as one exception", async () => {
+Scribe.test("every way of never reaching the server arrives as one exception", async () => {
   const cause = new TypeError("error sending request for url");
   const original = globalThis.fetch;
   globalThis.fetch = (() => Promise.reject(cause)) as typeof globalThis.fetch;
 
   try {
-    const raised = await assertRejects(
-      () => new FetchClient().get(URL_UNDER_TEST),
-      ClientException,
-      "HTTP request failed. error sending request for url",
+    const raised = await caught(() => new FetchClient().get(URL_UNDER_TEST));
+    expect(
+      raised,
+      allOf(isA(ClientException), withMessage("HTTP request failed. error sending request for url")),
     );
-
-    assertEquals(raised.cause, cause);
-    assertEquals(raised.uri?.href, URL_UNDER_TEST);
+    expect(raised, having(isA(ClientException), (r) => r.cause, "cause", equals(cause)));
+    expect(raised, having(isA(ClientException), (r) => r.uri?.href, "uri", equals(URL_UNDER_TEST)));
   } finally {
     globalThis.fetch = original;
   }
 });
 
-Deno.test("a failure that is not an Error is still described", async () => {
+Scribe.test("a failure that is not an Error is still described", async () => {
   const original = globalThis.fetch;
   globalThis.fetch = (() => Promise.reject("gave up")) as typeof globalThis.fetch;
 
   try {
-    await assertRejects(
+    await expectLater(
       () => new FetchClient().get(URL_UNDER_TEST),
-      ClientException,
-      "HTTP request failed. gave up",
+      throwsA(allOf(isA(ClientException), withMessage("HTTP request failed. gave up"))),
     );
   } finally {
     globalThis.fetch = original;
   }
 });
 
-Deno.test("GET and HEAD send no body and announce no length", async () => {
+Scribe.test("GET and HEAD send no body and announce no length", async () => {
   await withFetch(ok, async (calls) => {
     const client = new FetchClient();
 
@@ -127,41 +133,37 @@ Deno.test("GET and HEAD send no body and announce no length", async () => {
     await client.head(URL_UNDER_TEST);
 
     for (const call of calls) {
-      assertEquals(
+      expect(
         call.init.body,
-        undefined,
+        equals(undefined),
         "a body set on a GET is dropped, since the platform refuses to send one at all",
       );
-      assertEquals(new Headers(call.init.headers).get("content-length"), null);
+      expect(new Headers(call.init.headers).get("content-length"), equals(null));
     }
   });
 });
 
-Deno.test("a verb that may carry a body but carries none sends nothing", async () => {
+Scribe.test("a verb that may carry a body but carries none sends nothing", async () => {
   await withFetch(ok, async (calls) => {
     await new FetchClient().post(URL_UNDER_TEST);
 
-    assertEquals(calls[0].init.method, "POST");
-    assertEquals(
-      calls[0].init.body,
-      undefined,
-      "an empty body is no body, not an empty buffer",
-    );
+    expect(calls[0].init.method, equals("POST"));
+    expect(calls[0].init.body, equals(undefined), "an empty body is no body, not an empty buffer");
   });
 });
 
-Deno.test("a body is sent as bytes, with its length announced", async () => {
+Scribe.test("a body is sent as bytes, with its length announced", async () => {
   await withFetch(ok, async (calls) => {
     await new FetchClient().post(URL_UNDER_TEST, { body: "héllo" });
 
     const [call] = calls;
-    assertEquals(call.init.method, "POST");
-    assertEquals(call.init.body, new TextEncoder().encode("héllo"));
-    assertEquals(new Headers(call.init.headers).get("content-length"), "6");
+    expect(call.init.method, equals("POST"));
+    expect(call.init.body, equals(new TextEncoder().encode("héllo")));
+    expect(new Headers(call.init.headers).get("content-length"), equals("6"));
   });
 });
 
-Deno.test("the redirect mode of the request reaches fetch, all three of them", async () => {
+Scribe.test("the redirect mode of the request reaches fetch, all three of them", async () => {
   await withFetch(ok, async (calls) => {
     const client = new FetchClient();
 
@@ -172,24 +174,24 @@ Deno.test("the redirect mode of the request reaches fetch, all three of them", a
     manual.redirect = "manual";
     await client.send(manual);
 
-    assertEquals(calls.map((call) => call.init.redirect), [
-      "error",
-      "follow",
-      "manual",
-    ]);
+    expect(
+      calls.map((call) => call.init.redirect),
+      equals<(RequestRedirect | undefined)[]>(["error", "follow", "manual"]),
+    );
   });
 });
 
-Deno.test("the url goes over as the URL the request parsed", async () => {
+Scribe.test("the url goes over as the URL the request parsed", async () => {
   await withFetch(ok, async (calls) => {
     await new FetchClient().get("https://example.test/a?b=1");
 
-    assert(calls[0].input instanceof URL);
-    assertEquals(calls[0].input.href, "https://example.test/a?b=1");
+    if (!(calls[0].input instanceof URL)) fail("the url must go over as a URL, not a string or a Request");
+
+    expect(calls[0].input.href, equals("https://example.test/a?b=1"));
   });
 });
 
-Deno.test("the answered status, reason, headers and length reach the response", async () => {
+Scribe.test("the answered status, reason, headers and length reach the response", async () => {
   await withFetch(
     () =>
       new globalThis.Response("nope", {
@@ -200,41 +202,38 @@ Deno.test("the answered status, reason, headers and length reach the response", 
     async () => {
       const response = await new FetchClient().get(URL_UNDER_TEST);
 
-      assertEquals(response.statusCode, 418);
-      assertEquals(response.reasonPhrase, "I'm a teapot");
-      assertEquals(response.contentLength, 4);
-      assertEquals(response.headers.get("x-brew"), "tea");
-      assertEquals(response.body, "nope");
-      assertEquals(response.request?.url.href, URL_UNDER_TEST);
+      expect(response.statusCode, equals(418));
+      expect(response.reasonPhrase, equals("I'm a teapot"));
+      expect(response.contentLength, equals(4));
+      expect(response.headers.get("x-brew"), equals("tea"));
+      expect(response.body, equals("nope"));
+      expect(response.request?.url.href, equals(URL_UNDER_TEST));
     },
   );
 });
 
-Deno.test("a status the server sent no text for has no reason phrase", async () => {
+Scribe.test("a status the server sent no text for has no reason phrase", async () => {
   await withFetch(
     () => new globalThis.Response("x", { status: 200, statusText: "" }),
     async () => {
-      assertEquals(
-        (await new FetchClient().get(URL_UNDER_TEST)).reasonPhrase,
-        null,
-      );
+      expect((await new FetchClient().get(URL_UNDER_TEST)).reasonPhrase, equals(null));
     },
   );
 });
 
-Deno.test("an answer without a body reads as empty rather than throwing", async () => {
+Scribe.test("an answer without a body reads as empty rather than throwing", async () => {
   await withFetch(
     () => new globalThis.Response(null, { status: 204 }),
     async () => {
       const response = await new FetchClient().get(URL_UNDER_TEST);
 
-      assertEquals(response.statusCode, 204);
-      assertEquals(response.body, "");
+      expect(response.statusCode, equals(204));
+      expect(response.body, equals(""));
     },
   );
 });
 
-Deno.test("a server that says nothing about the length leaves it unknown", async () => {
+Scribe.test("a server that says nothing about the length leaves it unknown", async () => {
   await withFetch(
     () => {
       const answered = new globalThis.Response("hello", { status: 200 });
@@ -246,9 +245,9 @@ Deno.test("a server that says nothing about the length leaves it unknown", async
         new HttpRequest("GET", URL_UNDER_TEST),
       );
 
-      assertEquals(
+      expect(
         streamed.contentLength,
-        null,
+        equals(null),
         "the streamed response carries the server's claim, and the server made none: the " +
           "count of what actually arrived only exists once the stream is drained",
       );
@@ -256,25 +255,25 @@ Deno.test("a server that says nothing about the length leaves it unknown", async
   );
 });
 
-Deno.test("a call that names no timeout still carries the default one", async () => {
+Scribe.test("a call that names no timeout still carries the default one", async () => {
   await withFetch(ok, async (calls) => {
     await new FetchClient().get(URL_UNDER_TEST);
 
-    assert(calls[0].init.signal instanceof AbortSignal);
+    expect(calls[0].init.signal instanceof AbortSignal, isTrue);
   });
 });
 
-Deno.test("a timeout reaches fetch as a signal", async () => {
+Scribe.test("a timeout reaches fetch as a signal", async () => {
   await withFetch(ok, async (calls) => {
     await new FetchClient().get(URL_UNDER_TEST, {
       timeout: Duration.seconds(5),
     });
 
-    assert(calls[0].init.signal instanceof AbortSignal);
+    expect(calls[0].init.signal instanceof AbortSignal, isTrue);
   });
 });
 
-Deno.test("an exchange that runs out of time names the limit it reached", async () => {
+Scribe.test("an exchange that runs out of time names the limit it reached", async () => {
   const original = globalThis.fetch;
   globalThis.fetch = ((_input: URL | RequestInfo, init: RequestInit = {}) =>
     new Promise((_resolve, reject) => {
@@ -285,42 +284,39 @@ Deno.test("an exchange that runs out of time names the limit it reached", async 
     })) as typeof globalThis.fetch;
 
   try {
-    const raised = await assertRejects(
-      () =>
-        new FetchClient().get(URL_UNDER_TEST, {
-          timeout: Duration.milliseconds(20),
-        }),
-      ClientException,
-      "HTTP request failed. Timed out after 20 ms.",
+    const raised = await caught(() =>
+      new FetchClient().get(URL_UNDER_TEST, {
+        timeout: Duration.milliseconds(20),
+      })
     );
-
-    assertEquals(raised.uri?.href, URL_UNDER_TEST);
+    expect(raised, allOf(isA(ClientException), withMessage("HTTP request failed. Timed out after 20 ms.")));
+    expect(raised, having(isA(ClientException), (r) => r.uri?.href, "uri", equals(URL_UNDER_TEST)));
   } finally {
     globalThis.fetch = original;
   }
 });
 
-Deno.test("a request that answers in time is not cut short", async () => {
+Scribe.test("a request that answers in time is not cut short", async () => {
   await withFetch(
     () => new Promise((resolve) => setTimeout(() => resolve(ok()), 5)),
     async () => {
-      assertEquals(
+      expect(
         (await new FetchClient().get(URL_UNDER_TEST, {
           timeout: Duration.seconds(2),
         })).body,
-        "hello",
+        equals("hello"),
       );
     },
   );
 });
 
-Deno.test("a client that was never closed keeps sending", async () => {
+Scribe.test("a client that was never closed keeps sending", async () => {
   await withFetch(ok, async (calls) => {
     const client = new FetchClient();
 
     await client.get(URL_UNDER_TEST);
     await client.get(URL_UNDER_TEST);
 
-    assertEquals(calls.length, 2);
+    expect(calls.length, equals(2));
   });
 });
