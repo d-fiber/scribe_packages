@@ -35,7 +35,10 @@ tests/testing/  is not a test at all         it is what a consumer stubs you wit
 ```
 
 `tests/tests/` is where most of the proof belongs: a declaration, a key, a mapper, a refusal. No container, no clock, no
-network.
+network. It is written against `@scribe/alchemy/test`, never against Deno directly: `Scribe.test` and `Scribe.group`
+declare a case, `expect` and a matcher assert on it, `mock`/`when`/`verify` and the `Memory*` doubles stand in for a
+port. A lint rule in the framework refuses `Deno.*`, `@std/*`, `node:*` and `npm:*` here, because the whole point of
+that layer is that a package's tests never have to name what they are running on.
 
 `tests/e2e/` is for what only the real stack can answer: an object that actually lands in the bucket, an index that
 actually returns a hit, a schema that actually applies to a live Postgres. Every package has a `scenario.sh` that starts
@@ -91,11 +94,11 @@ genuinely depends on the real thing being there.
 
 ```ts
 // No: a container brought up to prove that a key is built from a name and a scope.
-Deno.test("e2e: a keyed audience builds its key", async () => { ... });
+Scribe.test("e2e: a keyed audience builds its key", async () => { ... });
 
 // Yes: the same proof, with nothing running.
-Deno.test("a keyed audience narrows its key by the scope it was given", () => {
-  assertEquals(keyOf("project-editors", "p1"), "audience:project-editors:p1");
+Scribe.test("a keyed audience narrows its key by the scope it was given", () => {
+  expect(keyOf("project-editors", "p1"), equals("audience:project-editors:p1"));
 });
 ```
 
@@ -123,14 +126,14 @@ They are what shows up when the suite is red. A comment shows up nowhere, so a t
 
 ```ts
 // No
-Deno.test("audience", async () => {
+Scribe.test("audience", async () => {
   // somebody who joined should belong
   ...
 });
 
 // Yes
-Deno.test("somebody who joined an audience belongs to it", async () => {
-  assert(await belongs("beta", "ada"), "ada joined beta and does not belong to it");
+Scribe.test("somebody who joined an audience belongs to it", async () => {
+  expect(await belongs("beta", "ada"), isTrue, "ada joined beta and does not belong to it");
 });
 ```
 
@@ -145,10 +148,10 @@ Otherwise every reword turns the suite red for nothing, and teaches nobody anyth
 
 ```ts
 // No
-assertEquals(error.message, "This audience does not hold that member, so there is nothing to take out.");
+expect(error.message, equals("This audience does not hold that member, so there is nothing to take out."));
 
 // Yes
-assertEquals(error.kind, AudienceError.NotFound, "the refusal is not the one that was expected");
+expect(error.kind, equals(AudienceError.NotFound), "the refusal is not the one that was expected");
 ```
 
 ---
