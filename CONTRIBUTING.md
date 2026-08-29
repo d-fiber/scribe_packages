@@ -103,26 +103,41 @@ those paths are never walked by ordinary use, so nothing will report the day the
 
 ## Adding a package
 
-A package is a directory carrying a `package.yaml`, and nothing else says so. `scribedev pkg create <name> --in .`
-writes the mandatory layout, and `scribedev pkg analyze .` reads every package here and reports what is wrong with each.
+A package is a directory carrying a `package.yaml`, and nothing else says so. `scribe create --package <name>` writes the
+mandatory layout, and `scribe analyze .` reads every package here and reports what is wrong with each.
 
 ```
 <name>/package.yaml   the name, the version, the framework it accepts, what it hands the stack
 <name>/.gitignore     what the tools write, kept out of your commits
 <name>/lib/<name>.ts  a list of re-exports, plus the `scribe` lifecycle
+<name>/lib/contracts/ the types that cross the boundary, no behaviour
 <name>/lib/src/       the code
-<name>/tests/         the cases that need nothing running, plus tests/e2e/
+<name>/tests/         the cases that need nothing running, plus tests/testing/ and tests/e2e/
+<name>/deploy/        everything the stack reads, and nothing lives anywhere else
 CHANGELOG.md          nothing to write, the CI writes it from your commit messages
 ```
 
-Fill in `description:`, which the skeleton leaves as an instruction, then the dependencies and the `scribe:` block,
-which is written commented out.
+Everything the stack consumes sits under `deploy/`, and only there:
+
+```
+deploy/
+  configuration.yaml   the settings a project tunes, and the resources it requires
+  db/{provisioning,init,migrations}/   the SQL, each played at its own moment
+  services/<service>/   a service's compose fragments: docker-compose.yaml, capacity.yaml, resources.yaml, ...
+  recipes/<type>/<class>.yaml   what answers a resource this package requires
+  overlay.yaml          the minimal case: mounts db/ into a socle service
+```
+
+Fill in `description:`, which the skeleton leaves as an instruction, then the dependencies and the `scribe:` block. Its
+paths point into `deploy/`: `db.init: ./deploy/db/init/`, and `services: [./deploy/services/<service>/]` for a package
+that starts a container. `configuration.yaml`, `recipes/` and `overlay.yaml` are found where they sit and are not
+declared.
 
 Then, in the scribe checkout, the package gets one `imports` entry mapping `@scribe/<name>/` to its directory. It is not
 a `workspace` member: a member needs a `deno.json`, and a package carries none.
 
-A package that starts a container also adds its fragment under `ops/`, declares it under `scribe: ops:`, puts its
-compose override under `tests/e2e/`, and adds its name to the list `tool/e2e/stack.sh` accepts.
+A package that starts a container also puts its compose override under `tests/e2e/`, and adds its name to the list
+`tool/e2e/stack.sh` accepts.
 
 ## Commit messages
 

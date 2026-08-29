@@ -14,8 +14,8 @@ dev_dependencies:
 
 scribe:
   db:
-    init: ./db/init/
-    provisioning: ./db/provisioning/
+    init: ./deploy/db/init/
+    provisioning: ./deploy/db/provisioning/
   protocol: ./protocol/
-  ops:
-    - ./ops/
+  services:
+    - ./deploy/services/realtime/

@@ -1,0 +1,4 @@
+services:
+  provision:
+    volumes:
+      - "{{sdk_root}}/packages/realtime/deploy/db/provisioning/realtime.sql:/provision/setup/50-realtime.sql:ro"

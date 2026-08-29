@@ -4,7 +4,7 @@ services:
     cap_drop: ["ALL"]
     networks: ["app", "data"]
     build:
-      context: "{{sdk_root}}/packages/storage/ops"
+      context: "{{sdk_root}}/packages/storage/deploy/services/storage"
       dockerfile: "Dockerfile.storage"
     restart: "unless-stopped"
     volumes:
@@ -62,7 +62,7 @@ services:
     environment:
       PGPASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - "{{sdk_root}}/packages/storage/db/init/storage.sql:/storage-init.sql:ro,Z"
+      - "{{sdk_root}}/packages/storage/deploy/db/init/storage.sql:/storage-init.sql:ro,Z"
     command:
       [
         "psql",

@@ -1,6 +1,0 @@
-services:
-  provision:
-    environment:
-      STORAGE_ADMIN_PASSWORD: "${STORAGE_ADMIN_PASSWORD}"
-    volumes:
-      - "{{sdk_root}}/packages/storage/db/provisioning/roles.sql:/provision/setup/50-storage-roles.sql:ro"

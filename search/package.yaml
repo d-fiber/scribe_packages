@@ -17,9 +17,9 @@ dev_dependencies:
 
 scribe:
   db:
-    init: ./db/init/
+    init: ./deploy/db/init/
   protocol: ./protocol/
-  ops:
-    - ./ops/
+  services:
+    - ./deploy/services/search/
   declarations:
     searchers: Search

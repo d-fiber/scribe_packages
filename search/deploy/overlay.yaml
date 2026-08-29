@@ -1,0 +1,4 @@
+services:
+  provision:
+    volumes:
+      - "{{sdk_root}}/packages/search/deploy/db/init:/provision/modules/search:ro"

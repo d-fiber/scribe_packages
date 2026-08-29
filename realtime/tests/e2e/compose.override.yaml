@@ -3,7 +3,7 @@ name: scribe-realtime-e2e
 services:
   db:
     volumes:
-      - "../../realtime/db/provisioning/realtime.sql:/docker-entrypoint-initdb.d/init-scripts/96-realtime.sql:Z"
+      - "../../realtime/deploy/db/provisioning/realtime.sql:/docker-entrypoint-initdb.d/init-scripts/96-realtime.sql:Z"
       - "./.postgres:/var/lib/postgresql/data:Z"
     command:
       [
@@ -28,7 +28,7 @@ services:
 
   realtime-init:
     volumes:
-      - "../db/init/realtime.sql:/realtime-init-project.sql:ro,Z"
+      - "../deploy/db/init/realtime.sql:/realtime-init-project.sql:ro,Z"
 
 volumes:
   db-config: null

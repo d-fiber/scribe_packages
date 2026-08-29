@@ -1,4 +1,0 @@
-services:
-  provision:
-    volumes:
-      - "{{sdk_root}}/packages/remote_configs/db/init:/provision/modules/remote_configs:ro"

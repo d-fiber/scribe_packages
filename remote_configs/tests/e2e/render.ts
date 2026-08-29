@@ -56,7 +56,7 @@
 const FRAGMENTS: readonly { readonly from: string; readonly as: string }[] = [
   { from: "../../../foundation/ops/valkery/docker-compose.yaml", as: "valkery" },
   { from: "../../../foundation/ops/database/docker-compose.yaml", as: "database" },
-  { from: "../../ops/overlay.yaml", as: "remote_configs_overlay" },
+  { from: "../../deploy/overlay.yaml", as: "remote_configs_overlay" },
 ];
 
 /** What the CLI would substitute, and what it becomes for a run of the suite. */

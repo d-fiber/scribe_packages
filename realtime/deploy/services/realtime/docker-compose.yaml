@@ -58,7 +58,7 @@ services:
     environment:
       PGPASSWORD: ${POSTGRES_PASSWORD}
     volumes:
-      - "{{sdk_root}}/packages/realtime/db/init/realtime.sql:/realtime-init.sql:ro,Z"
+      - "{{sdk_root}}/packages/realtime/deploy/db/init/realtime.sql:/realtime-init.sql:ro,Z"
       - "{{project_db_init}}:/project-db-init:ro,Z"
     command:
       [

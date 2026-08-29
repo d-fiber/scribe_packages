@@ -18,7 +18,7 @@ dev_dependencies:
 
 scribe:
   db:
-    init: ./db/init/
+    init: ./deploy/db/init/
   protocol: ./protocol/
   declarations:
     accounts: Account

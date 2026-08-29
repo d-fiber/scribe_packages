@@ -54,7 +54,7 @@
 /** The fragments a deployment mounts, in the order Compose reads them. */
 const FRAGMENTS: readonly { readonly from: string; readonly as: string }[] = [
   { from: "../../../foundation/ops/database/docker-compose.yaml", as: "database" },
-  { from: "../../ops/docker-compose.yaml", as: "storage" },
+  { from: "../../deploy/services/storage/docker-compose.yaml", as: "storage" },
 ];
 
 /** What the CLI would substitute, and what it becomes for a run of the suite. */
