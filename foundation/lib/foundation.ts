@@ -52,7 +52,18 @@
  * needs to happen at import or after boot.
  */
 
-import { Caches, Claims, Crons, Databases, FileSystems, Hooks, Queues, RateLimiters, Triggers } from "@scribe/alchemy";
+import {
+  Caches,
+  Claims,
+  Crons,
+  Databases,
+  Environments,
+  FileSystems,
+  Hooks,
+  Queues,
+  RateLimiters,
+  Triggers,
+} from "@scribe/alchemy";
 import { Clients } from "@scribe/alchemy/http";
 import { Loggers } from "@scribe/alchemy/observe";
 import { Now } from "@scribe/alchemy";
@@ -71,12 +82,13 @@ import { ScheduledCrons } from "./src/cron/scheduled_crons.ts";
 import { OutboxTriggers } from "./src/trigger/outbox_triggers.ts";
 import { PostgrestDatabases } from "./src/database/postgrest_databases.ts";
 import { LocalFileSystems } from "./src/files/local_files.ts";
+import { ProcessEnvironment } from "./src/environment.ts";
 import { RedisRateLimiters } from "./src/rate_limit/redis_rate_limiter.ts";
 import { ConsoleLogger } from "./src/observe/console_logger.ts";
 import { SystemNow } from "./src/observe/system_now.ts";
 
 export type { CacheSettings, DatabaseSettings, QueueSettings } from "./src/settings.ts";
-export { optional, required } from "./src/environment.ts";
+export { environment, optional, ProcessEnvironment, required } from "./src/environment.ts";
 
 /**
  * The kinds a project may declare against this package, bucket to the symbol it imports.
@@ -121,6 +133,7 @@ export const scribe: LifecycleSteps = {
     if (!Triggers.configured) Triggers.use(new OutboxTriggers());
     if (!Databases.configured) Databases.use(new PostgrestDatabases());
     if (!FileSystems.configured) FileSystems.use(new LocalFileSystems());
+    if (!Environments.configured) Environments.use(new ProcessEnvironment());
   },
 
   starts: async () => {

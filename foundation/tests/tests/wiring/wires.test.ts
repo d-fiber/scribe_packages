@@ -39,6 +39,7 @@ import {
   Crons,
   Databases,
   Duration,
+  Environments,
   FileSystems,
   Hooks,
   Now,
@@ -66,6 +67,7 @@ const PORTS: readonly Slot<unknown>[] = [
   Triggers,
   Databases,
   FileSystems,
+  Environments,
 ];
 
 const NAMES: readonly string[] = [
@@ -80,6 +82,7 @@ const NAMES: readonly string[] = [
   "Triggers",
   "Databases",
   "FileSystems",
+  "Environments",
 ];
 
 function held(): (unknown | null)[] {
@@ -124,7 +127,7 @@ Scribe.test("a slot the host filled is left standing, one slot at a time", () =>
       scribe.wires?.();
 
       expect(slot.get(), same(stand), `${NAMES[at]} was written over`);
-      expect(PORTS.every((one) => one.configured), equals(true), `the ten slots beside ${NAMES[at]} were left empty`);
+      expect(PORTS.every((one) => one.configured), equals(true), `the slots beside ${NAMES[at]} were left empty`);
     });
   });
 });
@@ -209,6 +212,7 @@ Scribe.test("every mounted driver answers the members its port declares", () => 
       Triggers: ["watch"],
       Databases: ["table"],
       FileSystems: ["open"],
+      Environments: ["get", "toObject"],
     };
 
     PORTS.forEach((slot, at) => {
