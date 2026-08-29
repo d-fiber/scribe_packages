@@ -46,7 +46,7 @@ async function inADirectory(body: (disk: LocalFiles, root: string) => Promise<vo
   try {
     await body(disk, root);
   } finally {
-    await Deno.remove(root, { recursive: true }).catch(() => {});
+    await disk.remove(root).catch(() => {});
   }
 }
 
