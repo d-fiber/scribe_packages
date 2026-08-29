@@ -7,11 +7,5 @@ environment:
 
 dependencies:
   foundation: ^1.0.0
-  "@scribe/contracts/": any
-  "@scribe/runtime/": any
-  "libphonenumber-js": any
 
 dev_dependencies:
-  "@scribe/testing/": any
-  "@std/testing/time": any
-  "@supabase/postgrest-js": any

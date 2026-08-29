@@ -6,14 +6,5 @@ environment:
   scribe: "^1.0.0"
 
 dependencies:
-  "@scribe/contracts/": any
-  "@nats-io/jetstream": any
-  "@nats-io/transport-deno": any
-  "@scribe/runtime/": any
-  "@supabase/postgrest-js": any
-  croner: any
-  ioredis: any
 
 dev_dependencies:
-  "@std/testing/mock": any
-  "@std/testing/time": any
