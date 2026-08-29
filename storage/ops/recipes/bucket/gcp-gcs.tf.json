@@ -1,0 +1,65 @@
+{
+  "terraform": {
+    "required_providers": {
+      "google": {
+        "source": "hashicorp/google",
+        "version": "6.14.1"
+      }
+    }
+  },
+  "provider": {
+    "google": {
+      "project": "{{project}}",
+      "region": "{{region}}"
+    }
+  },
+  "resource": {
+    "google_storage_bucket": {
+      "bucket": {
+        "name": "{{name}}",
+        "location": "{{location}}",
+        "force_destroy": false,
+        "uniform_bucket_level_access": true
+      }
+    },
+    "google_service_account": {
+      "bucket": {
+        "account_id": "${substr(\"scribe-{{name}}\", 0, 30)}",
+        "display_name": "{{name}}"
+      }
+    },
+    "google_storage_bucket_iam_member": {
+      "bucket": {
+        "bucket": "${google_storage_bucket.bucket.name}",
+        "role": "roles/storage.objectAdmin",
+        "member": "serviceAccount:${google_service_account.bucket.email}"
+      }
+    },
+    "google_storage_hmac_key": {
+      "bucket": {
+        "service_account_email": "${google_service_account.bucket.email}"
+      }
+    }
+  },
+  "output": {
+    "backend": {
+      "value": "s3"
+    },
+    "name": {
+      "value": "${google_storage_bucket.bucket.name}"
+    },
+    "endpoint": {
+      "value": "https://storage.googleapis.com"
+    },
+    "region": {
+      "value": "{{location}}"
+    },
+    "access_key": {
+      "value": "${google_storage_hmac_key.bucket.access_id}"
+    },
+    "secret_key": {
+      "value": "${google_storage_hmac_key.bucket.secret}",
+      "sensitive": true
+    }
+  }
+}
