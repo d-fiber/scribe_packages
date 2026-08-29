@@ -11,11 +11,3 @@ dependencies:
 dev_dependencies:
   "@scribe/testing/": any
   "@supabase/postgrest-js": any
-
-scribe:
-  db:
-    init: ./deploy/db/init/
-    provisioning: ./deploy/db/provisioning/
-  protocol: ./protocol/
-  services:
-    - ./deploy/services/realtime/

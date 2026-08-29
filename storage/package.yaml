@@ -17,10 +17,3 @@ dev_dependencies:
   "@scribe/testing/": any
   "@jsquash/webp/encode": any
   "@supabase/postgrest-js": any
-
-scribe:
-  db:
-    init: ./deploy/db/init/
-  protocol: ./protocol/
-  services:
-    - ./deploy/services/storage/

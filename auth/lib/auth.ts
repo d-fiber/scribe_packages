@@ -54,6 +54,7 @@ import { extensions, OptionalExtension, runDeclarations } from "@scribe/runtime/
 import { optional, required } from "@scribe/foundation";
 import { AUTH_EXTENSION } from "./src/declaration/registry.ts";
 import { authSettings } from "./src/settings.ts";
+import { Account } from "./src/declaration/account.ts";
 
 export { SignOutScope } from "./contracts/account.ts";
 export type {
@@ -69,6 +70,16 @@ export { Channel } from "./contracts/channel.ts";
 export type { AccountDevice } from "./contracts/device.ts";
 export type { AccountRole } from "./contracts/role.ts";
 export type { AuthSettings } from "./contracts/settings.ts";
+
+/**
+ * The kinds a project may declare against this package, bucket to the symbol it imports.
+ *
+ * @remarks
+ * Read by `scribe gen code`, which is the only reader: it is what tells the tool that mounting
+ * "auth" gives a project an "accounts" bucket to write into, without either the framework or the
+ * tool ever naming this package.
+ */
+export const declares = { accounts: Account };
 
 /**
  * When this package runs, which is once, at import, to fill what a mounted module needs.

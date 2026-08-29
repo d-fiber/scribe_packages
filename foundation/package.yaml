@@ -17,11 +17,3 @@ dependencies:
 dev_dependencies:
   "@std/testing/mock": any
   "@std/testing/time": any
-
-scribe:
-  db:
-    init: ./deploy/db/init/
-  protocol: ./protocol/
-  declarations:
-    queues: Queue
-    crons: Cron

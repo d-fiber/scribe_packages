@@ -11,7 +11,3 @@ dependencies:
 dev_dependencies:
   "@scribe/testing/": any
   "@supabase/postgrest-js": any
-
-scribe:
-  db:
-    init: ./deploy/db/init/

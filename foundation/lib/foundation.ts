@@ -58,8 +58,8 @@ import { Loggers } from "@scribe/alchemy/observe";
 import { Now } from "@scribe/alchemy";
 import type { LifecycleSteps } from "@scribe/alchemy";
 import { EXTENSION_CRON, EXTENSION_QUEUE } from "@scribe/contracts/extensions.ts";
-import { cronRegistry, cronRunner } from "./cron.ts";
-import { queueRunner } from "./queue.ts";
+import { Cron, cronRegistry, cronRunner } from "./cron.ts";
+import { Queue, queueRunner } from "./queue.ts";
 import { syncDeclaredSources, triggerRegistry, triggerRunner } from "./trigger.ts";
 import { extensions, OptionalExtension, runDeclarations } from "@scribe/runtime/support/extensions/mod.ts";
 import { FetchClients } from "./src/http/fetch_client.ts";
@@ -77,6 +77,16 @@ import { SystemNow } from "./src/observe/system_now.ts";
 
 export type { CacheSettings, DatabaseSettings, QueueSettings } from "./src/settings.ts";
 export { optional, required } from "./src/environment.ts";
+
+/**
+ * The kinds a project may declare against this package, bucket to the symbol it imports.
+ *
+ * @remarks
+ * Read by `scribe gen code`, which is the only reader: it is what tells the tool that mounting
+ * "foundation" gives a project a "queues" and a "crons" bucket to write into, without either the
+ * framework or the tool ever naming this package.
+ */
+export const declares = { queues: Queue, crons: Cron };
 
 /**
  * When this package runs, which is once, at import, to answer the slots its drivers are for.

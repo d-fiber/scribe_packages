@@ -15,10 +15,3 @@ dev_dependencies:
   "@scribe/testing/": any
   "@std/testing/time": any
   "@supabase/postgrest-js": any
-
-scribe:
-  db:
-    init: ./deploy/db/init/
-  protocol: ./protocol/
-  declarations:
-    accounts: Account
