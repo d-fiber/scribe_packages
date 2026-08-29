@@ -33,8 +33,8 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
-import { assertEquals } from "@std/assert";
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { installValkeryMock } from "@scribe/foundation/testing";
 import type { SearchParams } from "../../lib/contracts/definition.ts";
 import { installSearchMock } from "../testing/mock.ts";
@@ -77,88 +77,91 @@ function harness() {
   };
 }
 
-Deno.test("a search asks the cluster for the declared index, with the plan it compiled", async () => {
+Scribe.test("a search asks the cluster for the declared index, with the plan it compiled", async () => {
   const { transport, restore } = harness();
 
   try {
     transport.answer(["a"]);
     await stores.search({ text: "rosa" });
 
-    assertEquals(transport.lastRequest?.index, "answer_stores");
-    assertEquals(transport.lastRequest?.key, "store_id");
-    assertEquals(transport.lastRequest?.plan, stores.plan({ text: "rosa" }));
+    expect(transport.lastRequest?.index, equals("answer_stores"));
+    expect(transport.lastRequest?.key, equals("store_id"));
+    expect(transport.lastRequest?.plan, equals(stores.plan({ text: "rosa" })));
   } finally {
     restore();
   }
 });
 
-Deno.test("a caller asking for no size gets the page size the declaration named", async () => {
+Scribe.test("a caller asking for no size gets the page size the declaration named", async () => {
   const { transport, restore } = harness();
 
   try {
     transport.answer([]);
     await stores.search({});
-    assertEquals(transport.lastRequest?.size, 2);
+    expect(transport.lastRequest?.size, equals(2));
 
     await stores.search({ page: { size: 50, from: 10 } });
-    assertEquals(transport.lastRequest?.size, 50);
-    assertEquals(transport.lastRequest?.from, 10);
+    expect(transport.lastRequest?.size, equals(50));
+    expect(transport.lastRequest?.from, equals(10));
   } finally {
     restore();
   }
 });
 
-Deno.test("the previews answered are the rows the cluster ranked, in the order it ranked them", async () => {
+Scribe.test("the previews answered are the rows the cluster ranked, in the order it ranked them", async () => {
   const { transport, restore } = harness();
 
   try {
     transport.answer(["b", "a"]);
     const answered = await stores.search({});
 
-    assertEquals(answered.ok, true);
-    assertEquals(answered.ok && answered.data.items, [
-      { store_id: "b", name: "Chez Lino" },
-      { store_id: "a", name: "Chez Rosa" },
-    ]);
+    expect(answered.ok, equals(true));
+    expect(
+      answered.ok && answered.data.items,
+      equals([
+        { store_id: "b", name: "Chez Lino" },
+        { store_id: "a", name: "Chez Rosa" },
+      ]),
+    );
   } finally {
     restore();
   }
 });
 
-Deno.test("a page that does not reach the total says there is more to read", async () => {
+Scribe.test("a page that does not reach the total says there is more to read", async () => {
   const { transport, restore } = harness();
 
   try {
     transport.answer(["a", "b"]);
     const answered = await stores.search({});
 
-    assertEquals(answered.ok && answered.data.offset, 2);
-    assertEquals(answered.ok && answered.data.hasMore, false);
+    expect(answered.ok && answered.data.offset, equals(2));
+    expect(answered.ok && answered.data.hasMore, equals(false));
   } finally {
     restore();
   }
 });
 
-Deno.test("a cluster that answers nothing yields a failure rather than an empty page", async () => {
+Scribe.test("a cluster that answers nothing yields a failure rather than an empty page", async () => {
   const { transport, restore } = harness();
 
   try {
     transport.answerNothing();
     const answered = await stores.search({ text: "unreachable" });
 
-    assertEquals(answered.ok, false);
+    expect(answered.ok, equals(false));
   } finally {
     restore();
   }
 });
 
-Deno.test("an index queued for a rebuild writes it into the outbox, never into the cluster", async () => {
+Scribe.test("an index queued for a rebuild writes it into the outbox, never into the cluster", async () => {
   const { transport, restore } = harness();
 
   try {
     await stores.add("a");
 
-    assertEquals(transport.held("answer_stores"), []);
+    expect(transport.held("answer_stores"), equals([]));
   } finally {
     restore();
   }

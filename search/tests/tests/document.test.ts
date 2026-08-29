@@ -33,8 +33,8 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
-import { assertEquals } from "@std/assert";
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { compileDocument, readDocument } from "../../lib/src/document/projection.ts";
 import type { DocumentSelector } from "../../lib/src/document/selector.ts";
 import { documentSelector } from "../../lib/src/document/selector.ts";
@@ -57,17 +57,17 @@ interface BrandRow {
 
 const s = documentSelector<StoreRow>();
 
-Deno.test("the select list carries the key first and aliases every field to its own name", () => {
+Scribe.test("the select list carries the key first and aliases every field to its own name", () => {
   const compiled = compileDocument("stores", "store_id", {
     name: Field.text(s.name),
     tagline: Field.text(s.headline),
     open: Field.bool(s.is_open),
   });
 
-  assertEquals(compiled.columns, "store_id, name, tagline:headline, open:is_open");
+  expect(compiled.columns, equals("store_id, name, tagline:headline, open:is_open"));
 });
 
-Deno.test("the mapping names one entry per declared field, under the field name", () => {
+Scribe.test("the mapping names one entry per declared field, under the field name", () => {
   const compiled = compileDocument("stores", "store_id", {
     name: Field.text(s.name),
     open: Field.bool(s.is_open),
@@ -75,53 +75,62 @@ Deno.test("the mapping names one entry per declared field, under the field name"
     location: Field.geo(s.location),
   });
 
-  assertEquals(compiled.mappings.open, { type: "boolean" });
-  assertEquals(compiled.mappings.opened_at, { type: "long" });
-  assertEquals(compiled.mappings.location, { type: "geo_point" });
+  expect(compiled.mappings.open, equals({ type: "boolean" }));
+  expect(compiled.mappings.opened_at, equals({ type: "long" }));
+  expect(compiled.mappings.location, equals({ type: "geo_point" }));
 });
 
-Deno.test("a sortable text field carries the folded keyword a sort compares beside it", () => {
+Scribe.test("a sortable text field carries the folded keyword a sort compares beside it", () => {
   const compiled = compileDocument("stores", "store_id", {
     name: Field.text(s.name, { sortable: true }),
   });
 
-  assertEquals(compiled.mappings.name, {
-    type: "text",
-    fields: { keyword: { type: "keyword", normalizer: SORT_NORMALIZER } },
-  });
+  expect(
+    compiled.mappings.name,
+    equals({
+      type: "text",
+      fields: { keyword: { type: "keyword", normalizer: SORT_NORMALIZER } },
+    }),
+  );
 });
 
-Deno.test("the normalizer a sortable field names is the one the default analysis declares", () => {
-  assertEquals(Object.keys(DEFAULT_SETTINGS.analysis?.normalizer ?? {}), [SORT_NORMALIZER]);
+Scribe.test("the normalizer a sortable field names is the one the default analysis declares", () => {
+  expect(Object.keys(DEFAULT_SETTINGS.analysis?.normalizer ?? {}), equals([SORT_NORMALIZER]));
 });
 
-Deno.test("the text fields a free-text query looks in come out of the declaration with their weights", () => {
+Scribe.test("the text fields a free-text query looks in come out of the declaration with their weights", () => {
   const compiled = compileDocument("stores", "store_id", {
     name: Field.text(s.name, { boost: 3 }),
     tagline: Field.text(s.headline),
     open: Field.bool(s.is_open),
   });
 
-  assertEquals(compiled.textFields, [
-    { path: "name", boost: 3 },
-    { path: "tagline", boost: null },
-  ]);
+  expect(
+    compiled.textFields,
+    equals([
+      { path: "name", boost: 3 },
+      { path: "tagline", boost: null },
+    ]),
+  );
 });
 
-Deno.test("a folded relation reads as a sub-select and its text fields are dotted", () => {
+Scribe.test("a folded relation reads as a sub-select and its text fields are dotted", () => {
   const compiled = compileDocument("stores", "store_id", {
     name: Field.text(s.name),
     brand: s.embed("brands", (b: DocumentSelector<BrandRow>) => ({ label: Field.text(b.label) })),
   });
 
-  assertEquals(compiled.columns, "store_id, name, brand:brands(label)");
-  assertEquals(compiled.textFields, [
-    { path: "name", boost: null },
-    { path: "brand.label", boost: null },
-  ]);
+  expect(compiled.columns, equals("store_id, name, brand:brands(label)"));
+  expect(
+    compiled.textFields,
+    equals([
+      { path: "name", boost: null },
+      { path: "brand.label", boost: null },
+    ]),
+  );
 });
 
-Deno.test("a relation folded as nested is mapped as nested, and as an object otherwise", () => {
+Scribe.test("a relation folded as nested is mapped as nested, and as an object otherwise", () => {
   const flat = compileDocument("stores", "store_id", {
     brand: s.embed("brands", (b: DocumentSelector<BrandRow>) => ({ label: Field.text(b.label) })),
   });
@@ -133,11 +142,11 @@ Deno.test("a relation folded as nested is mapped as nested, and as an object oth
     ),
   });
 
-  assertEquals((flat.mappings.brand as { type: string }).type, "object");
-  assertEquals((nested.mappings.brands as { type: string }).type, "nested");
+  expect((flat.mappings.brand as { type: string }).type, equals("object"));
+  expect((nested.mappings.brands as { type: string }).type, equals("nested"));
 });
 
-Deno.test("a relation declared inner is selected as inner, so a document with no row is dropped", () => {
+Scribe.test("a relation declared inner is selected as inner, so a document with no row is dropped", () => {
   const compiled = compileDocument("stores", "store_id", {
     brand: s.embed(
       "brands",
@@ -146,22 +155,25 @@ Deno.test("a relation declared inner is selected as inner, so a document with no
     ),
   });
 
-  assertEquals(compiled.columns, "store_id, brand:brands!inner(label)");
+  expect(compiled.columns, equals("store_id, brand:brands!inner(label)"));
 });
 
-Deno.test("a read row lands under the declared field names, whatever column it came from", () => {
+Scribe.test("a read row lands under the declared field names, whatever column it came from", () => {
   const compiled = compileDocument("stores", "store_id", {
     name: Field.text(s.name),
     open: Field.bool(s.is_open),
   });
 
-  assertEquals(readDocument(compiled.shape, { store_id: "a", name: "Chez Rosa", open: true }), {
-    name: "Chez Rosa",
-    open: true,
-  });
+  expect(
+    readDocument(compiled.shape, { store_id: "a", name: "Chez Rosa", open: true }),
+    equals({
+      name: "Chez Rosa",
+      open: true,
+    }),
+  );
 });
 
-Deno.test("a relation answering one row is unwrapped, and a nested one keeps its list", () => {
+Scribe.test("a relation answering one row is unwrapped, and a nested one keeps its list", () => {
   const one = compileDocument("stores", "store_id", {
     brand: s.embed("brands", (b: DocumentSelector<BrandRow>) => ({ label: Field.text(b.label) })),
   });
@@ -173,16 +185,22 @@ Deno.test("a relation answering one row is unwrapped, and a nested one keeps its
     ),
   });
 
-  assertEquals(readDocument(one.shape, { brand: [{ label: "Rosa" }] }), { brand: { label: "Rosa" } });
-  assertEquals(readDocument(many.shape, { brands: [{ label: "Rosa" }, { label: "Lino" }] }), {
-    brands: [{ label: "Rosa" }, { label: "Lino" }],
-  });
+  expect(readDocument(one.shape, { brand: [{ label: "Rosa" }] }), equals({ brand: { label: "Rosa" } }));
+  expect(
+    readDocument(many.shape, { brands: [{ label: "Rosa" }, { label: "Lino" }] }),
+    equals({
+      brands: [{ label: "Rosa" }, { label: "Lino" }],
+    }),
+  );
 });
 
-Deno.test("a geo column is read under the spelling the cluster wants, from either of the two", () => {
+Scribe.test("a geo column is read under the spelling the cluster wants, from either of the two", () => {
   const compiled = compileDocument("stores", "store_id", { location: Field.geo(s.location) });
 
-  assertEquals(readDocument(compiled.shape, { location: { lat: 48.85, lng: 2.35 } }), {
-    location: { lat: 48.85, lon: 2.35 },
-  });
+  expect(
+    readDocument(compiled.shape, { location: { lat: 48.85, lng: 2.35 } }),
+    equals({
+      location: { lat: 48.85, lon: 2.35 },
+    }),
+  );
 });

@@ -33,47 +33,44 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
-import { assertEquals, assertNotEquals } from "@std/assert";
+import "@scribe/testing/runner.ts";
+import { equals, expect, isNot, Scribe } from "@scribe/alchemy/test";
 import { digest, roundCoord, stableKey, timeBucket } from "@scribe/search";
 
-Deno.test("two objects meaning the same thing write the same key whatever their field order", () => {
-  assertEquals(stableKey({ a: 1, b: 2 }), stableKey({ b: 2, a: 1 }));
+Scribe.test("two objects meaning the same thing write the same key whatever their field order", () => {
+  expect(stableKey({ a: 1, b: 2 }), equals(stableKey({ b: 2, a: 1 })));
 });
 
-Deno.test("the key is sorted at every depth, not only at the top", () => {
-  assertEquals(stableKey({ outer: { a: 1, b: 2 } }), stableKey({ outer: { b: 2, a: 1 } }));
+Scribe.test("the key is sorted at every depth, not only at the top", () => {
+  expect(stableKey({ outer: { a: 1, b: 2 } }), equals(stableKey({ outer: { b: 2, a: 1 } })));
 });
 
-Deno.test("a list of scalars means the same whichever order a caller passed it in", () => {
-  assertEquals(stableKey({ status: ["open", "closed"] }), stableKey({ status: ["closed", "open"] }));
+Scribe.test("a list of scalars means the same whichever order a caller passed it in", () => {
+  expect(stableKey({ status: ["open", "closed"] }), equals(stableKey({ status: ["closed", "open"] })));
 });
 
-Deno.test("a list of objects keeps its order, since there the order is the meaning", () => {
-  assertNotEquals(
-    stableKey([{ rank: "desc" }, { name: "asc" }]),
-    stableKey([{ name: "asc" }, { rank: "desc" }]),
-  );
+Scribe.test("a list of objects keeps its order, since there the order is the meaning", () => {
+  expect(stableKey([{ rank: "desc" }, { name: "asc" }]), isNot(equals(stableKey([{ name: "asc" }, { rank: "desc" }]))));
 });
 
-Deno.test("two values that differ get different keys", () => {
-  assertNotEquals(stableKey({ text: "rosa" }), stableKey({ text: "lino" }));
+Scribe.test("two values that differ get different keys", () => {
+  expect(stableKey({ text: "rosa" }), isNot(equals(stableKey({ text: "lino" }))));
 });
 
-Deno.test("a digest is eight hexadecimal characters, and follows what the value means", () => {
-  assertEquals(digest({ a: 1 }).length, 8);
-  assertEquals(digest({ a: 1, b: 2 }), digest({ b: 2, a: 1 }));
-  assertNotEquals(digest({ a: 1 }), digest({ a: 2 }));
+Scribe.test("a digest is eight hexadecimal characters, and follows what the value means", () => {
+  expect(digest({ a: 1 }).length, equals(8));
+  expect(digest({ a: 1, b: 2 }), equals(digest({ b: 2, a: 1 })));
+  expect(digest({ a: 1 }), isNot(equals(digest({ a: 2 }))));
 });
 
-Deno.test("every moment inside one bucket rounds down to the same start", () => {
-  assertEquals(timeBucket(1_000, 60_000), 0);
-  assertEquals(timeBucket(59_999, 60_000), 0);
-  assertEquals(timeBucket(60_000, 60_000), 60_000);
-  assertEquals(timeBucket(119_999, 60_000), 60_000);
+Scribe.test("every moment inside one bucket rounds down to the same start", () => {
+  expect(timeBucket(1_000, 60_000), equals(0));
+  expect(timeBucket(59_999, 60_000), equals(0));
+  expect(timeBucket(60_000, 60_000), equals(60_000));
+  expect(timeBucket(119_999, 60_000), equals(60_000));
 });
 
-Deno.test("two nearby callers round onto one coordinate, and distant ones do not", () => {
-  assertEquals(roundCoord(48.8564, 2), roundCoord(48.8576, 2));
-  assertNotEquals(roundCoord(48.8564, 3), roundCoord(48.8576, 3));
+Scribe.test("two nearby callers round onto one coordinate, and distant ones do not", () => {
+  expect(roundCoord(48.8564, 2), equals(roundCoord(48.8576, 2)));
+  expect(roundCoord(48.8564, 3), isNot(equals(roundCoord(48.8576, 3))));
 });

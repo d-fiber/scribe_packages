@@ -33,8 +33,8 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
-import { assertEquals } from "@std/assert";
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { compilePreview } from "../../lib/src/document/preview.ts";
 import type { PreviewSelector } from "../../lib/src/document/selector.ts";
 import { previewSelector } from "../../lib/src/document/selector.ts";
@@ -53,80 +53,89 @@ interface BrandRow {
 
 const s = previewSelector<StoreRow>();
 
-Deno.test("a flat preview selects its columns with the key in front", () => {
+Scribe.test("a flat preview selects its columns with the key in front", () => {
   const compiled = compilePreview({ id: s.store_id, name: s.name }, ["store_id"]);
 
-  assertEquals(compiled.columns, "store_id, id:store_id, name");
+  expect(compiled.columns, equals("store_id, id:store_id, name"));
 });
 
-Deno.test("a grouped preview aliases each leaf to the path that leads to it", () => {
+Scribe.test("a grouped preview aliases each leaf to the path that leads to it", () => {
   const compiled = compilePreview({
     name: s.name,
     cover: { url: s.cover_url, caption: s.headline },
   }, ["store_id"]);
 
-  assertEquals(compiled.columns, "store_id, name, cover__url:cover_url, cover__caption:headline");
+  expect(compiled.columns, equals("store_id, name, cover__url:cover_url, cover__caption:headline"));
 });
 
-Deno.test("a grouped preview puts every answered column back where the declaration wrote it", () => {
+Scribe.test("a grouped preview puts every answered column back where the declaration wrote it", () => {
   const compiled = compilePreview({
     name: s.name,
     cover: { url: s.cover_url, caption: s.headline },
   }, ["store_id"]);
 
-  assertEquals(
+  expect(
     compiled.build({ store_id: "a", name: "Chez Rosa", cover__url: "u", cover__caption: "c" }),
-    { name: "Chez Rosa", cover: { url: "u", caption: "c" } },
+    equals({ name: "Chez Rosa", cover: { url: "u", caption: "c" } }),
   );
 });
 
-Deno.test("a leaf the row does not carry reads as nothing rather than as undefined", () => {
+Scribe.test("a leaf the row does not carry reads as nothing rather than as undefined", () => {
   const compiled = compilePreview({ name: s.name, tagline: s.headline }, ["store_id"]);
 
-  assertEquals(compiled.build({ store_id: "a", name: "Chez Rosa" }), {
-    name: "Chez Rosa",
-    tagline: null,
-  });
+  expect(
+    compiled.build({ store_id: "a", name: "Chez Rosa" }),
+    equals({
+      name: "Chez Rosa",
+      tagline: null,
+    }),
+  );
 });
 
-Deno.test("a folded relation reads as a sub-select under the name the preview gave it", () => {
+Scribe.test("a folded relation reads as a sub-select under the name the preview gave it", () => {
   const compiled = compilePreview({
     name: s.name,
     brand: s.embed("brands", (b: PreviewSelector<BrandRow>) => ({ label: b.label })),
   }, ["store_id"]);
 
-  assertEquals(compiled.columns, "store_id, name, brand:brands(label)");
+  expect(compiled.columns, equals("store_id, name, brand:brands(label)"));
 });
 
-Deno.test("a relation answering one row builds an object, and nothing when it answered none", () => {
+Scribe.test("a relation answering one row builds an object, and nothing when it answered none", () => {
   const compiled = compilePreview({
     brand: s.embed("brands", (b: PreviewSelector<BrandRow>) => ({ label: b.label })),
   }, ["store_id"]);
 
-  assertEquals(compiled.build({ brand: [{ label: "Rosa" }] }), { brand: { label: "Rosa" } });
-  assertEquals(compiled.build({}), { brand: null });
+  expect(compiled.build({ brand: [{ label: "Rosa" }] }), equals({ brand: { label: "Rosa" } }));
+  expect(compiled.build({}), equals({ brand: null }));
 });
 
-Deno.test("a relation declared many builds a list, empty when it answered none", () => {
+Scribe.test("a relation declared many builds a list, empty when it answered none", () => {
   const compiled = compilePreview({
     brands: s.embed("brands", (b: PreviewSelector<BrandRow>) => ({ label: b.label }), { many: true }),
   }, ["store_id"]);
 
-  assertEquals(compiled.build({ brands: [{ label: "Rosa" }, { label: "Lino" }] }), {
-    brands: [{ label: "Rosa" }, { label: "Lino" }],
-  });
-  assertEquals(compiled.build({}), { brands: [] });
+  expect(
+    compiled.build({ brands: [{ label: "Rosa" }, { label: "Lino" }] }),
+    equals({
+      brands: [{ label: "Rosa" }, { label: "Lino" }],
+    }),
+  );
+  expect(compiled.build({}), equals({ brands: [] }));
 });
 
-Deno.test("two branches reading the same column each keep their own alias", () => {
+Scribe.test("two branches reading the same column each keep their own alias", () => {
   const compiled = compilePreview({
     header: { title: s.name },
     card: { title: s.name },
   }, ["store_id"]);
 
-  assertEquals(compiled.columns, "store_id, header__title:name, card__title:name");
-  assertEquals(compiled.build({ header__title: "a", card__title: "a" }), {
-    header: { title: "a" },
-    card: { title: "a" },
-  });
+  expect(compiled.columns, equals("store_id, header__title:name, card__title:name"));
+  expect(
+    compiled.build({ header__title: "a", card__title: "a" }),
+    equals({
+      header: { title: "a" },
+      card: { title: "a" },
+    }),
+  );
 });

@@ -33,22 +33,22 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
-import { assertEquals } from "@std/assert";
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { installSearchMock } from "../testing/mock.ts";
 import { searchTransport } from "../../lib/src/transport/registry.ts";
 import { SearchTransports } from "@scribe/search";
 
-Deno.test("installing the mock replaces the transport, and restoring puts the previous one back", () => {
+Scribe.test("installing the mock replaces the transport, and restoring puts the previous one back", () => {
   const before = searchTransport();
   const recording = installSearchMock();
 
-  assertEquals(searchTransport(), recording);
+  expect(searchTransport(), equals(recording));
   recording.restore();
-  assertEquals(searchTransport(), before);
+  expect(searchTransport(), equals(before));
 });
 
-Deno.test("what an index writes is held per index, and read back in the order it was written", async () => {
+Scribe.test("what an index writes is held per index, and read back in the order it was written", async () => {
   const recording = installSearchMock();
 
   try {
@@ -57,72 +57,72 @@ Deno.test("what an index writes is held per index, and read back in the order it
       { id: "b", source: { name: "Chez Lino" } },
     ]);
 
-    assertEquals(recording.held("stores"), [{ name: "Chez Rosa" }, { name: "Chez Lino" }]);
-    assertEquals(recording.held("brands"), []);
+    expect(recording.held("stores"), equals([{ name: "Chez Rosa" }, { name: "Chez Lino" }]));
+    expect(recording.held("brands"), equals([]));
   } finally {
     recording.restore();
   }
 });
 
-Deno.test("a document written twice under one identifier is held once, with the last shape", async () => {
+Scribe.test("a document written twice under one identifier is held once, with the last shape", async () => {
   const recording = installSearchMock();
 
   try {
     await recording.index("stores", [{ id: "a", source: { name: "Chez Rosa" } }]);
     await recording.index("stores", [{ id: "a", source: { name: "Chez Ada" } }]);
 
-    assertEquals(recording.held("stores"), [{ name: "Chez Ada" }]);
+    expect(recording.held("stores"), equals([{ name: "Chez Ada" }]));
   } finally {
     recording.restore();
   }
 });
 
-Deno.test("removing answers how many identifiers were actually held", async () => {
+Scribe.test("removing answers how many identifiers were actually held", async () => {
   const recording = installSearchMock();
 
   try {
     await recording.index("stores", [{ id: "a", source: {} }]);
 
-    assertEquals(await recording.remove("stores", ["a", "gone"]), 1);
-    assertEquals(recording.held("stores"), []);
+    expect(await recording.remove("stores", ["a", "gone"]), equals(1));
+    expect(recording.held("stores"), equals([]));
   } finally {
     recording.restore();
   }
 });
 
-Deno.test("the configuration an index was last asked to match is kept under its name", async () => {
+Scribe.test("the configuration an index was last asked to match is kept under its name", async () => {
   const recording = installSearchMock();
 
   try {
     await recording.ensure("stores", { mappings: { properties: { name: { type: "text" } } } });
 
-    assertEquals(recording.ensured.get("stores")?.mappings.properties, { name: { type: "text" } });
+    expect(recording.ensured.get("stores")?.mappings.properties, equals({ name: { type: "text" } }));
   } finally {
     recording.restore();
   }
 });
 
-Deno.test("a mock that was told to answer nothing is how an unreachable cluster is exercised", async () => {
+Scribe.test("a mock that was told to answer nothing is how an unreachable cluster is exercised", async () => {
   const recording = installSearchMock();
 
   try {
     recording.answerNothing();
 
-    assertEquals(
+    expect(
       await recording.search({ index: "stores", plan: { bool: {}, sort: [] }, key: "id", from: 0, size: 10 }),
-      null,
+      equals(null),
     );
   } finally {
     recording.restore();
   }
 });
 
-Deno.test("restoring twice leaves no transport behind, since the first put the previous one back", () => {
+Scribe.test("restoring twice leaves no transport behind, since the first put the previous one back", () => {
   const first = installSearchMock();
   const second = installSearchMock();
 
   second.restore();
-  assertEquals(searchTransport(), first);
+  expect(searchTransport(), equals(first));
 
   first.restore();
   SearchTransports.use(null);
