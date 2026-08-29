@@ -33,16 +33,15 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, isFalse, isTrue, Scribe } from "@scribe/alchemy/test";
 import { Audience } from "../../lib/src/core/declaration.ts";
 import { audiencesOf, forgetMember } from "../../lib/src/core/member.ts";
 import { installAudienceMock } from "../testing/mock.ts";
-import { assert, assertEquals, assertFalse } from "@std/assert";
-
 const banned = Audience.plain("member-banned");
 const editors = Audience.keyed("member-editors");
 
-Deno.test("a member is listed under every audience it belongs to", async () => {
+Scribe.test("a member is listed under every audience it belongs to", async () => {
   const audiences = installAudienceMock();
 
   try {
@@ -50,31 +49,31 @@ Deno.test("a member is listed under every audience it belongs to", async () => {
     await editors.in("p1").add("a1");
     await editors.in("p2").add("a2");
 
-    assertEquals(await audiencesOf("a1"), ["member-banned", "member-editors:p1"]);
+    expect(await audiencesOf("a1"), equals(["member-banned", "member-editors:p1"]));
   } finally {
     audiences.restore();
   }
 });
 
-Deno.test("a member that is forgotten belongs nowhere, cache included", async () => {
+Scribe.test("a member that is forgotten belongs nowhere, cache included", async () => {
   const audiences = installAudienceMock();
 
   try {
     await banned.add("a1");
     await editors.in("p1").add("a1");
-    assert(await banned.has("a1"));
-    assert(await editors.in("p1").has("a1"));
+    expect(await banned.has("a1"), isTrue);
+    expect(await editors.in("p1").has("a1"), isTrue);
 
-    assert((await forgetMember("a1")).ok);
-    assertFalse(await banned.has("a1"), "forgetting must drop what the cache holds");
-    assertFalse(await editors.in("p1").has("a1"));
-    assertEquals(await audiencesOf("a1"), []);
+    expect((await forgetMember("a1")).ok, isTrue);
+    expect(await banned.has("a1"), isFalse);
+    expect(await editors.in("p1").has("a1"), isFalse);
+    expect(await audiencesOf("a1"), equals([]));
   } finally {
     audiences.restore();
   }
 });
 
-Deno.test("forgetting a member leaves the others where they are", async () => {
+Scribe.test("forgetting a member leaves the others where they are", async () => {
   const audiences = installAudienceMock();
 
   try {
@@ -82,7 +81,7 @@ Deno.test("forgetting a member leaves the others where they are", async () => {
     await editors.in("p1").add("a2");
 
     await forgetMember("a1");
-    assertEquals(await editors.in("p1").members(), ["a2"]);
+    expect(await editors.in("p1").members(), equals(["a2"]));
   } finally {
     audiences.restore();
   }

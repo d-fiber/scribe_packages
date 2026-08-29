@@ -33,66 +33,65 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { expect, isFalse, isTrue, Scribe } from "@scribe/alchemy/test";
 import { Audience } from "../../lib/src/core/declaration.ts";
 import { forgetMembership } from "../../lib/src/runtime/cache.ts";
 import { installAudienceMock } from "../testing/mock.ts";
-import { assert, assertFalse } from "@std/assert";
-
 const editors = Audience.keyed("cache-editors");
 
-Deno.test("a membership asked about once is answered from the cache until something drops it", async () => {
+Scribe.test("a membership asked about once is answered from the cache until something drops it", async () => {
   const audiences = installAudienceMock();
 
   try {
-    assertFalse(await editors.in("p1").has("a1"));
+    expect(await editors.in("p1").has("a1"), isFalse);
 
     audiences.seed([{ audience: "cache-editors:p1", member: "a1", created_at: 1, expires_at: null }]);
-    assertFalse(await editors.in("p1").has("a1"), "a row written behind the package must not be seen at once");
+    expect(await editors.in("p1").has("a1"), isFalse);
 
     await forgetMembership("cache-editors:p1", "a1");
-    assert(await editors.in("p1").has("a1"));
+    expect(await editors.in("p1").has("a1"), isTrue);
   } finally {
     audiences.restore();
   }
 });
 
-Deno.test("putting a member in is seen by the next question", async () => {
+Scribe.test("putting a member in is seen by the next question", async () => {
   const audiences = installAudienceMock();
 
   try {
-    assertFalse(await editors.in("p1").has("a1"));
+    expect(await editors.in("p1").has("a1"), isFalse);
 
     await editors.in("p1").add("a1");
-    assert(await editors.in("p1").has("a1"), "putting a member in must drop what the cache holds");
+    expect(await editors.in("p1").has("a1"), isTrue, "putting a member in must drop what the cache holds");
   } finally {
     audiences.restore();
   }
 });
 
-Deno.test("taking a member out is seen by the next question", async () => {
+Scribe.test("taking a member out is seen by the next question", async () => {
   const audiences = installAudienceMock();
 
   try {
     await editors.in("p1").add("a1");
-    assert(await editors.in("p1").has("a1"));
+    expect(await editors.in("p1").has("a1"), isTrue);
 
     await editors.in("p1").remove("a1");
-    assertFalse(await editors.in("p1").has("a1"), "taking a member out must drop what the cache holds");
+    expect(await editors.in("p1").has("a1"), isFalse);
   } finally {
     audiences.restore();
   }
 });
 
-Deno.test("emptying an audience is seen by the next question", async () => {
+Scribe.test("emptying an audience is seen by the next question", async () => {
   const audiences = installAudienceMock();
 
   try {
     await editors.in("p1").add("a1");
-    assert(await editors.in("p1").has("a1"));
+    expect(await editors.in("p1").has("a1"), isTrue);
 
     await editors.in("p1").clear();
-    assertFalse(await editors.in("p1").has("a1"), "emptying must drop what the cache holds");
+    expect(await editors.in("p1").has("a1"), isFalse);
   } finally {
     audiences.restore();
   }
