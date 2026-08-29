@@ -41,6 +41,11 @@ source "$(dirname "${BASH_SOURCE[0]}")/stack.sh"
 
 resolve_package "$@"
 
+if [ -f "$E2E/scenario.sh" ]; then
+  echo "[e2e] $PACKAGE runs bash $PACKAGE/tests/e2e/scenario.sh, which brings its own stack up and down."
+  exit 0
+fi
+
 if rendered; then
   echo "[e2e:reset] stopping the $PACKAGE stack and dropping its volumes"
   compose down -v

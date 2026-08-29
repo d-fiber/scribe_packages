@@ -7,3 +7,5 @@ node_modules/
 .vscode/
 tests/e2e/.generated/
 tests/e2e/.postgres/
+tests/e2e/.e2e/
+!tests/e2e/fixtures/*/.env

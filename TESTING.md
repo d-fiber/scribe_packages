@@ -29,8 +29,8 @@ you are done.
 ## 2. Three kinds of test live here, and they are not reached the same way
 
 ```
-tests/tests/    needs nothing running        scribedev pkg test, from the package
-tests/e2e/      needs the containers up      deno task test:e2e:<package>, in scribe/engine
+tests/tests/    needs nothing running        scribe test, from the package
+tests/e2e/      needs the containers up      a shell scenario, or a Deno suite against a rendered stack
 tests/testing/  is not a test at all         it is what a consumer stubs you with
 ```
 
@@ -38,7 +38,8 @@ tests/testing/  is not a test at all         it is what a consumer stubs you wit
 network.
 
 `tests/e2e/` is for what only the real stack can answer: a notification that actually crosses Postgres, an object that
-actually lands in the bucket, an index that actually returns a hit. Its files end in `.e2e.ts`, so `scribedev pkg test`
+actually lands in the bucket, an index that actually returns a hit. `storage`, `search` and `realtime` carry a
+`scenario.sh` that does the whole thing; the others carry a Deno suite whose files end in `.e2e.ts`, so `scribe test`
 walks past them.
 
 `tests/testing/` is a published surface. It is documented like the rest, and its own correctness is proved by a case in
@@ -46,23 +47,21 @@ walks past them.
 
 ---
 
-## 3. Bringing the stack up is one command per package
+## 3. Bringing the stack up
+
+For `storage`, `search` and `realtime`, one command does everything, the scenario brings its own stack up and down:
 
 ```sh
-bash tool/e2e/up.sh realtime
+bash storage/tests/e2e/scenario.sh
 ```
 
-Then run the suite from the scribe checkout:
+For the others, render the stack, run the Deno suite from the scribe checkout, and take it down when you are done:
 
 ```sh
-deno task test:e2e:realtime
-```
-
-And take it down when you are done, because a stack left running is a stack the next suite inherits:
-
-```sh
-bash tool/e2e/down.sh realtime
-bash tool/e2e/reset.sh realtime     # and forget what Postgres kept
+bash tool/e2e/up.sh audience
+deno task test:e2e:audience
+bash tool/e2e/down.sh audience
+bash tool/e2e/reset.sh audience     # and forget what Postgres kept
 ```
 
 An end to end test that passes against a stack somebody else left up has proved nothing about a fresh one.
@@ -222,7 +221,8 @@ bash tool/test.sh                    # headers, version, then the framework's ch
 bash .github/headers/check.sh        # the licence notice on every source file
 bash .github/version/check.sh 1.1.0  # whether that version is free to cut
 
-bash tool/e2e/up.sh <package>        # the containers one package needs
+bash storage/tests/e2e/scenario.sh   # the whole scenario for storage, search or realtime
+bash tool/e2e/up.sh <package>        # the containers the others need, then deno task test:e2e:<package>
 bash tool/e2e/down.sh <package>
 ```
 

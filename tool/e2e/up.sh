@@ -41,6 +41,11 @@ source "$(dirname "${BASH_SOURCE[0]}")/stack.sh"
 
 resolve_package "$@"
 
+if [ -f "$E2E/scenario.sh" ]; then
+  echo "[e2e:up] $PACKAGE carries a self-contained scenario, running it"
+  exec bash "$E2E/scenario.sh"
+fi
+
 echo "[e2e:up] rendering the ops fragments of $PACKAGE"
 render
 

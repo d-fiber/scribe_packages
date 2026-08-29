@@ -5,5 +5,3 @@ node_modules/
 
 __pycache__/
 
-/e2e_tests/.e2e/
-!/e2e_tests/fixtures/*/.env

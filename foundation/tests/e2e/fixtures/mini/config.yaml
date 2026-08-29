@@ -1,0 +1,48 @@
+name: mini_api
+description: The smallest project that mounts every package, so a scenario has an api to call.
+version: 1.0.0
+
+environment:
+  scribe: "^1.0.0"
+
+dependencies:
+  - auth
+  - realtime
+  - storage
+  - search
+  - audience
+  - dynamic_links
+  - remote_configs
+
+dashboard: "https://dash.fixture.example.com"
+
+targets:
+  local:
+    kind: dev
+    machine: host
+  vps:
+    kind: machine
+    machine:
+      cores: 4
+      threads: 8
+      memory: 8g
+    cpu_cap: true
+
+api:
+  url: "https://fixture.example.com"
+  cors:
+    - "https://fixture.example.com"
+  nodes:
+    example:
+      description: "A node taking every default."
+    guarded:
+      description: "A node asking for a key, so key-auth and acl are rendered."
+      api_key: true
+      rate_limit:
+        sec: 5
+        min: 60
+      max_body_mb: 2
+      timeout_sec: 10
+    internal:
+      description: "A node facing inward, which the gateway must not route."
+      public: false
