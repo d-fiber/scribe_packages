@@ -33,11 +33,11 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { installStorageTestSettings } from "../testing/settings.ts";
 
 installStorageTestSettings();
-import { assertEquals } from "@std/assert";
 import { Bytes, Storage, StorageVisibility } from "@scribe/storage";
 import type { FakePostgrestSeed } from "@scribe/foundation/testing";
 import { installStorageMock } from "../testing/mock.ts";
@@ -61,21 +61,24 @@ function seededWith(paths: readonly string[]): FakePostgrestSeed {
   return { __storage_objects__: paths.map((path) => storedAt(path)) };
 }
 
-Deno.test("list: a folder answers what the index holds under it, in path order", async () => {
+Scribe.test("list: a folder answers what the index holds under it, in path order", async () => {
   const database = installDatabaseFake(seededWith(["shelves/s1/b", "shelves/s1/a"]));
 
   const result = await shelves.list("s1");
 
-  assertEquals(result.ok, true);
-  assertEquals(result.ok && result.data.map((object) => object.path), [
-    "shelves/s1/a",
-    "shelves/s1/b",
-  ]);
+  expect(result.ok, equals(true));
+  expect(
+    result.ok && result.data.map((object) => object.path),
+    equals([
+      "shelves/s1/a",
+      "shelves/s1/b",
+    ]),
+  );
 
   database.restore();
 });
 
-Deno.test("list: an object carries what a walk of the bucket could not have said", async () => {
+Scribe.test("list: an object carries what a walk of the bucket could not have said", async () => {
   const database = installDatabaseFake({
     __storage_objects__: [{
       path: "shelves/s1/photo",
@@ -89,46 +92,49 @@ Deno.test("list: an object carries what a walk of the bucket could not have said
 
   const result = await shelves.list("s1");
 
-  assertEquals(result.ok && result.data, [{
-    path: "shelves/s1/photo",
-    url: "http://localhost:4001/storage/v1/object/private_bucket/shelves/s1/photo",
-    visibility: StorageVisibility.Private,
-    mimeType: "image/png",
-    byteSize: 512,
-    blurHash: "LEHV6nWB2yk8",
-    updatedAt: "2026-08-01T00:00:00.000Z",
-  }]);
+  expect(
+    result.ok && result.data,
+    equals([{
+      path: "shelves/s1/photo",
+      url: "http://localhost:4001/storage/v1/object/private_bucket/shelves/s1/photo",
+      visibility: StorageVisibility.Private,
+      mimeType: "image/png",
+      byteSize: 512,
+      blurHash: "LEHV6nWB2yk8",
+      updatedAt: "2026-08-01T00:00:00.000Z",
+    }]),
+  );
 
   database.restore();
 });
 
-Deno.test("list: a neighbour whose name differs by the character like treats as a joker stays out", async () => {
+Scribe.test("list: a neighbour whose name differs by the character like treats as a joker stays out", async () => {
   const database = installDatabaseFake(seededWith(["shelf_1/mine", "shelfX1/theirs"]));
   const shelf = Storage.public("{shelfName}");
 
   const result = await shelf.list("shelf_1");
 
-  assertEquals(result.ok && result.data.map((object) => object.path), ["shelf_1/mine"]);
+  expect(result.ok && result.data.map((object) => object.path), equals(["shelf_1/mine"]));
 
   database.restore();
 });
 
-Deno.test("clear: a folder empties beyond one page, and forgets every row it removed", async () => {
+Scribe.test("clear: a folder empties beyond one page, and forgets every row it removed", async () => {
   const paths = Array.from({ length: 2_500 }, (_, i) => `shelves/s1/${String(i).padStart(5, "0")}`);
   const database = installDatabaseFake(seededWith(paths));
   const transport = installStorageMock();
 
   const result = await shelves.clear("s1");
 
-  assertEquals(result.ok, true);
-  assertEquals(transport.removedPaths.length, 2_500);
-  assertEquals(database.fake.rows("__storage_objects__"), []);
+  expect(result.ok, equals(true));
+  expect(transport.removedPaths.length, equals(2_500));
+  expect(database.fake.rows("__storage_objects__"), equals([]));
 
   transport.restore();
   database.restore();
 });
 
-Deno.test("clear: the removals are grouped by the bucket each object is in", async () => {
+Scribe.test("clear: the removals are grouped by the bucket each object is in", async () => {
   const database = installDatabaseFake({
     __storage_objects__: [
       storedAt("shelves/s1/open", StorageVisibility.Public),
@@ -139,17 +145,20 @@ Deno.test("clear: the removals are grouped by the bucket each object is in", asy
 
   const result = await shelves.clear("s1");
 
-  assertEquals(result.ok, true);
-  assertEquals(transport.removals, [
-    { bucket: "public_bucket", paths: ["shelves/s1/open"] },
-    { bucket: "private_bucket", paths: ["shelves/s1/shut"] },
-  ]);
+  expect(result.ok, equals(true));
+  expect(
+    transport.removals,
+    equals([
+      { bucket: "public_bucket", paths: ["shelves/s1/open"] },
+      { bucket: "private_bucket", paths: ["shelves/s1/shut"] },
+    ]),
+  );
 
   transport.restore();
   database.restore();
 });
 
-Deno.test("clear: a page holding nothing but a neighbour's objects still moves on", async () => {
+Scribe.test("clear: a page holding nothing but a neighbour's objects still moves on", async () => {
   const neighbours = Array.from(
     { length: 1_000 },
     (_, i) => `shelfX1/${String(i).padStart(5, "0")}`,
@@ -159,22 +168,22 @@ Deno.test("clear: a page holding nothing but a neighbour's objects still moves o
 
   const result = await Storage.public("{clearedName}").clear("shelf_1");
 
-  assertEquals(result.ok, true);
-  assertEquals(transport.removedPaths, ["shelf_1/mine"]);
-  assertEquals(database.fake.rows("__storage_objects__").length, 1_000);
+  expect(result.ok, equals(true));
+  expect(transport.removedPaths, equals(["shelf_1/mine"]));
+  expect(database.fake.rows("__storage_objects__").length, equals(1_000));
 
   transport.restore();
   database.restore();
 });
 
-Deno.test("clear: an argument carrying a traversal removes nothing at all", async () => {
+Scribe.test("clear: an argument carrying a traversal removes nothing at all", async () => {
   const database = installDatabaseFake(seededWith(["shelves/s1/a"]));
   const transport = installStorageMock();
 
   const result = await shelves.clear("../..");
 
-  assertEquals(result.ok, false);
-  assertEquals(transport.removals, []);
+  expect(result.ok, equals(false));
+  expect(transport.removals, equals([]));
 
   transport.restore();
   database.restore();

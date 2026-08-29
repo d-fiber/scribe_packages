@@ -33,11 +33,11 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { allOf, equals, expect, isA, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import { installStorageTestSettings } from "../testing/settings.ts";
 
 installStorageTestSettings();
-import { assertEquals, assertThrows } from "@std/assert";
 import { Bytes, Storage, StoragePathError, StorageVisibility } from "@scribe/storage";
 
 const SPEC = { extensions: ["png"], maxSize: Bytes.megabytes(1) };
@@ -47,63 +47,57 @@ const avatar = people.image("avatar", SPEC);
 const badges = people.child("badges/{badgeId}");
 const badge = badges.file("badge", { extensions: ["json"], maxSize: Bytes.kilobytes(4) });
 
-Deno.test("declaration: a resource renders under the folder that declared it", () => {
-  assertEquals(
-    avatar.url("p1"),
-    "http://localhost:4000/storage/v1/object/public/public_bucket/people/p1/avatar",
-  );
+Scribe.test("declaration: a resource renders under the folder that declared it", () => {
+  expect(avatar.url("p1"), equals("http://localhost:4000/storage/v1/object/public/public_bucket/people/p1/avatar"));
 });
 
-Deno.test("declaration: a child takes the arguments of both templates, in order", () => {
-  assertEquals(
+Scribe.test("declaration: a child takes the arguments of both templates, in order", () => {
+  expect(
     badge.url("p1", "b1"),
-    "http://localhost:4000/storage/v1/object/public/public_bucket/people/p1/badges/b1/badge",
+    equals("http://localhost:4000/storage/v1/object/public/public_bucket/people/p1/badges/b1/badge"),
   );
 });
 
-Deno.test("declaration: a child may land in another bucket than its parent", () => {
+Scribe.test("declaration: a child may land in another bucket than its parent", () => {
   const notes = people.child("notes", StorageVisibility.Private);
   const note = notes.file("note", { extensions: ["json"], maxSize: Bytes.kilobytes(4) });
 
-  assertEquals(
-    note.url("p1"),
-    "http://localhost:4001/storage/v1/object/private_bucket/people/p1/notes/note",
-  );
+  expect(note.url("p1"), equals("http://localhost:4001/storage/v1/object/private_bucket/people/p1/notes/note"));
 });
 
-Deno.test("declaration: an argument carrying a traversal renders no path at all", () => {
-  assertEquals(avatar.url("../../etc"), null);
-  assertEquals(avatar.url("a/b"), null);
-  assertEquals(avatar.url(""), null);
+Scribe.test("declaration: an argument carrying a traversal renders no path at all", () => {
+  expect(avatar.url("../../etc"), equals(null));
+  expect(avatar.url("a/b"), equals(null));
+  expect(avatar.url(""), equals(null));
 });
 
-Deno.test("declaration: a folder refuses a resource whose name a child already took", () => {
+Scribe.test("declaration: a folder refuses a resource whose name a child already took", () => {
   const shops = Storage.public("shops/{shopId}");
   shops.child("stock/{itemId}");
 
-  assertThrows(() => shops.file("stock", SPEC), TypeError, "stock");
+  expect(() => shops.file("stock", SPEC), throwsA(allOf(isA(TypeError), withMessage("stock"))));
 });
 
-Deno.test("declaration: a folder refuses two resources of the same name", () => {
+Scribe.test("declaration: a folder refuses two resources of the same name", () => {
   const cars = Storage.public("cars/{carId}");
   cars.image("photo", SPEC);
 
-  assertThrows(() => cars.image("photo", SPEC), TypeError, "photo");
+  expect(() => cars.image("photo", SPEC), throwsA(allOf(isA(TypeError), withMessage("photo"))));
 });
 
-Deno.test("declaration: a child cannot write a placeholder an enclosing folder already writes", () => {
+Scribe.test("declaration: a child cannot write a placeholder an enclosing folder already writes", () => {
   const teams = Storage.public("teams/{teamId}");
 
-  assertThrows(() => teams.child("sub/{teamId}"), TypeError, "teamId");
+  expect(() => teams.child("sub/{teamId}"), throwsA(allOf(isA(TypeError), withMessage("teamId"))));
 });
 
-Deno.test("declaration: the same path cannot be declared for two buckets", () => {
+Scribe.test("declaration: the same path cannot be declared for two buckets", () => {
   Storage.public("twice/{id}");
 
-  assertThrows(() => Storage.private("twice/{id}"), TypeError, "twice/{id}");
+  expect(() => Storage.private("twice/{id}"), throwsA(allOf(isA(TypeError), withMessage("twice/{id}"))));
 });
 
-Deno.test("declaration: a template that renders no usable segment is refused", () => {
-  assertThrows(() => Storage.public("bad path/{id}"), StoragePathError);
-  assertThrows(() => Storage.public(""), StoragePathError);
+Scribe.test("declaration: a template that renders no usable segment is refused", () => {
+  expect(() => Storage.public("bad path/{id}"), throwsA(isA(StoragePathError)));
+  expect(() => Storage.public(""), throwsA(isA(StoragePathError)));
 });

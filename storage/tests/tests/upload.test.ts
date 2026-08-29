@@ -33,11 +33,11 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { installStorageTestSettings } from "../testing/settings.ts";
 
 installStorageTestSettings();
-import { assertEquals } from "@std/assert";
 import type { Failure } from "@scribe/alchemy";
 import { Bytes, Storage, StorageUploadError, StorageVisibility } from "@scribe/storage";
 import { installStorageMock } from "../testing/mock.ts";
@@ -54,86 +54,92 @@ function errorOf(result: { ok: boolean }): StorageUploadError {
   return (result as Failure<StorageUploadError>).error;
 }
 
-Deno.test("upload: the bytes land on the rendered path, and the index remembers them", async () => {
+Scribe.test("upload: the bytes land on the rendered path, and the index remembers them", async () => {
   const database = installDatabaseFake();
   const transport = installStorageMock();
 
   const result = await sheet.upload(json(7), "r1");
 
-  assertEquals(result.ok, true);
-  assertEquals(transport.uploads, [{
-    bucket: "public_bucket",
-    path: "reports/r1/sheet",
-    contentType: "application/octet-stream",
-    byteSize: 7,
-  }]);
-  assertEquals(database.fake.rows("__storage_objects__"), [{
-    path: "reports/r1/sheet",
-    visibility: "public",
-    mime_type: "application/octet-stream",
-    byte_size: 7,
-    blur_hash: null,
-    updated_at: database.fake.rows("__storage_objects__")[0].updated_at,
-  }]);
+  expect(result.ok, equals(true));
+  expect(
+    transport.uploads,
+    equals([{
+      bucket: "public_bucket",
+      path: "reports/r1/sheet",
+      contentType: "application/octet-stream",
+      byteSize: 7,
+    }]),
+  );
+  expect(
+    database.fake.rows("__storage_objects__"),
+    equals([{
+      path: "reports/r1/sheet",
+      visibility: "public",
+      mime_type: "application/octet-stream",
+      byte_size: 7,
+      blur_hash: null,
+      updated_at: database.fake.rows("__storage_objects__")[0].updated_at,
+    }]),
+  );
 
   transport.restore();
   database.restore();
 });
 
-Deno.test("upload: an undeclared extension is refused before the bucket is reached", async () => {
+Scribe.test("upload: an undeclared extension is refused before the bucket is reached", async () => {
   const database = installDatabaseFake();
   const transport = installStorageMock();
 
   const result = await sheet.upload(new File([], "a.png", { type: "image/png" }), "r1");
 
-  assertEquals(errorOf(result), StorageUploadError.InvalidType);
-  assertEquals(transport.uploads, []);
-  assertEquals(database.fake.rows("__storage_objects__"), []);
+  expect(errorOf(result), equals(StorageUploadError.InvalidType));
+  expect(transport.uploads, equals([]));
+  expect(database.fake.rows("__storage_objects__"), equals([]));
 
   transport.restore();
   database.restore();
 });
 
-Deno.test("upload: a file over the declared size is refused before the bucket is reached", async () => {
+Scribe.test("upload: a file over the declared size is refused before the bucket is reached", async () => {
   const database = installDatabaseFake();
   const transport = installStorageMock();
 
   const result = await sheet.upload(json(5_000), "r1");
 
-  assertEquals(errorOf(result), StorageUploadError.FileTooLarge);
-  assertEquals(transport.uploads, []);
+  expect(errorOf(result), equals(StorageUploadError.FileTooLarge));
+  expect(transport.uploads, equals([]));
 
   transport.restore();
   database.restore();
 });
 
-Deno.test("upload: an argument carrying a traversal is refused before the bucket is reached", async () => {
+Scribe.test("upload: an argument carrying a traversal is refused before the bucket is reached", async () => {
   const database = installDatabaseFake();
   const transport = installStorageMock();
 
   const result = await sheet.upload(json(), "../secrets");
 
-  assertEquals(errorOf(result), StorageUploadError.InvalidPath);
-  assertEquals(transport.uploads, []);
+  expect(errorOf(result), equals(StorageUploadError.InvalidPath));
+  expect(transport.uploads, equals([]));
 
   transport.restore();
   database.restore();
 });
 
-Deno.test("upload: an index that refuses the row fails the upload", async () => {
+Scribe.test("upload: an index that refuses the row fails the upload", async () => {
   const database = installRefusingDatabase();
   const transport = installStorageMock();
 
   const result = await sheet.upload(json(), "r1");
 
-  assertEquals(errorOf(result), StorageUploadError.IndexFailed);
-  assertEquals(transport.uploadedPaths, ["reports/r1/sheet"]);
+  expect(errorOf(result), equals(StorageUploadError.IndexFailed));
+  expect(transport.uploadedPaths, equals(["reports/r1/sheet"]));
 
   transport.restore();
   database.restore();
 });
 
-Deno.test("upload: a declaration that changed bucket takes its old bytes away", async () => {
+Scribe.test("upload: a declaration that changed bucket takes its old bytes away", async () => {
   const database = installDatabaseFake({
     __storage_objects__: [{
       path: "reports/r1/sheet",
@@ -148,32 +154,35 @@ Deno.test("upload: a declaration that changed bucket takes its old bytes away", 
 
   const result = await sheet.upload(json(), "r1");
 
-  assertEquals(result.ok, true);
-  assertEquals(transport.uploads[0].bucket, "public_bucket");
-  assertEquals(transport.removals, [{
-    bucket: "private_bucket",
-    paths: ["reports/r1/sheet"],
-  }]);
-  assertEquals(database.fake.rows("__storage_objects__")[0].visibility, "public");
+  expect(result.ok, equals(true));
+  expect(transport.uploads[0].bucket, equals("public_bucket"));
+  expect(
+    transport.removals,
+    equals([{
+      bucket: "private_bucket",
+      paths: ["reports/r1/sheet"],
+    }]),
+  );
+  expect(database.fake.rows("__storage_objects__")[0].visibility, equals("public"));
 
   transport.restore();
   database.restore();
 });
 
-Deno.test("upload: a bucket that refuses leaves the index untouched", async () => {
+Scribe.test("upload: a bucket that refuses leaves the index untouched", async () => {
   const database = installDatabaseFake();
   const transport = installStorageMock(false);
 
   const result = await sheet.upload(json(), "r1");
 
-  assertEquals(errorOf(result), StorageUploadError.UploadFailed);
-  assertEquals(database.fake.rows("__storage_objects__"), []);
+  expect(errorOf(result), equals(StorageUploadError.UploadFailed));
+  expect(database.fake.rows("__storage_objects__"), equals([]));
 
   transport.restore();
   database.restore();
 });
 
-Deno.test("remove: the bytes go, and the row that named them goes with them", async () => {
+Scribe.test("remove: the bytes go, and the row that named them goes with them", async () => {
   const database = installDatabaseFake({
     __storage_objects__: [{
       path: "reports/r1/sheet",
@@ -188,9 +197,9 @@ Deno.test("remove: the bytes go, and the row that named them goes with them", as
 
   const result = await sheet.remove("r1");
 
-  assertEquals(result.ok, true);
-  assertEquals(transport.removedPaths, ["reports/r1/sheet"]);
-  assertEquals(database.fake.rows("__storage_objects__"), []);
+  expect(result.ok, equals(true));
+  expect(transport.removedPaths, equals(["reports/r1/sheet"]));
+  expect(database.fake.rows("__storage_objects__"), equals([]));
 
   transport.restore();
   database.restore();

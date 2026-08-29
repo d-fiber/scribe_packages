@@ -33,11 +33,11 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, isNot, Scribe } from "@scribe/alchemy/test";
 import { installStorageTestSettings } from "../testing/settings.ts";
 
 installStorageTestSettings();
-import { assertEquals, assertNotEquals } from "@std/assert";
 import encodeWebp from "@jsquash/webp/encode";
 import { encode as encodePng } from "fast-png";
 import { encode as encodeJpeg } from "jpeg-js";
@@ -74,63 +74,63 @@ const webp = async (w = 64, h = 64): Promise<Uint8Array<ArrayBuffer>> =>
     }),
   );
 
-Deno.test("blurhash: a PNG yields a hash, never null", async () => {
+Scribe.test("blurhash: a PNG yields a hash, never null", async () => {
   const hash = await blurhash.fromImage(new File([png()], "a.png"));
 
-  assertNotEquals(hash, null);
-  assertEquals(typeof hash, "string");
-  assertEquals(hash!.length > 6, true);
+  expect(hash, isNot(equals(null)));
+  expect(typeof hash, equals("string"));
+  expect(hash!.length > 6, equals(true));
 });
 
-Deno.test("blurhash: a JPEG yields a hash too", async () => {
+Scribe.test("blurhash: a JPEG yields a hash too", async () => {
   const hash = await blurhash.fromImage(new File([jpeg()], "a.jpg"));
-  assertNotEquals(hash, null);
+  expect(hash, isNot(equals(null)));
 });
 
-Deno.test("blurhash: a WebP yields a hash, it is no longer dropped as unsupported", async () => {
+Scribe.test("blurhash: a WebP yields a hash, it is no longer dropped as unsupported", async () => {
   const hash = await blurhash.fromImage(new File([await webp()], "a.webp"));
 
-  assertNotEquals(hash, null);
-  assertEquals(typeof hash, "string");
+  expect(hash, isNot(equals(null)));
+  expect(typeof hash, equals("string"));
 });
 
-Deno.test("blurhash: the same picture yields the same hash whatever the container", async () => {
+Scribe.test("blurhash: the same picture yields the same hash whatever the container", async () => {
   const fromPng = await blurhash.fromImage(new File([png()], "a.png"));
   const fromJpeg = await blurhash.fromImage(new File([jpeg()], "a.jpg"));
 
-  assertEquals(fromPng!.slice(0, 4), fromJpeg!.slice(0, 4));
+  expect(fromPng!.slice(0, 4), equals(fromJpeg!.slice(0, 4)));
 });
 
-Deno.test("blurhash: two different pictures never share a hash", async () => {
+Scribe.test("blurhash: two different pictures never share a hash", async () => {
   const flat = new Uint8Array(64 * 64 * 4).fill(255);
   const plain = new Uint8Array(
     encodePng({ width: 64, height: 64, data: flat, channels: 4, depth: 8 }),
   );
 
-  assertNotEquals(
+  expect(
     await blurhash.fromImage(new File([png()], "a.png")),
-    await blurhash.fromImage(new File([plain], "b.png")),
+    isNot(equals(await blurhash.fromImage(new File([plain], "b.png")))),
   );
 });
 
-Deno.test("blurhash: bytes that are not an image yield null, never a throw", async () => {
+Scribe.test("blurhash: bytes that are not an image yield null, never a throw", async () => {
   const garbage = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
-  assertEquals(await blurhash.fromImage(new File([garbage], "a.png")), null);
+  expect(await blurhash.fromImage(new File([garbage], "a.png")), equals(null));
 });
 
-Deno.test("blurhash: a truncated PNG yields null, never a throw", async () => {
+Scribe.test("blurhash: a truncated PNG yields null, never a throw", async () => {
   const truncated = png().slice(0, 20);
-  assertEquals(await blurhash.fromImage(new File([truncated], "a.png")), null);
+  expect(await blurhash.fromImage(new File([truncated], "a.png")), equals(null));
 });
 
-Deno.test("decode: the format is read from the bytes, not the file name", async () => {
-  assertNotEquals(await decodeImage(png()), null);
-  assertNotEquals(await decodeImage(jpeg()), null);
-  assertNotEquals(await decodeImage(await webp()), null);
-  assertEquals(await decodeImage(new Uint8Array([0, 1, 2, 3])), null);
+Scribe.test("decode: the format is read from the bytes, not the file name", async () => {
+  expect(await decodeImage(png()), isNot(equals(null)));
+  expect(await decodeImage(jpeg()), isNot(equals(null)));
+  expect(await decodeImage(await webp()), isNot(equals(null)));
+  expect(await decodeImage(new Uint8Array([0, 1, 2, 3])), equals(null));
 });
 
-Deno.test("decode: a greyscale PNG is expanded to RGBA", async () => {
+Scribe.test("decode: a greyscale PNG is expanded to RGBA", async () => {
   const grey = new Uint8Array(4 * 4).fill(120);
   const encoded = new Uint8Array(
     encodePng({ width: 4, height: 4, data: grey, channels: 1, depth: 8 }),
@@ -138,30 +138,30 @@ Deno.test("decode: a greyscale PNG is expanded to RGBA", async () => {
 
   const decoded = (await decodeImage(encoded))!;
 
-  assertEquals(decoded.data.length, 4 * 4 * 4);
-  assertEquals([...decoded.data.slice(0, 4)], [120, 120, 120, 255]);
+  expect(decoded.data.length, equals(4 * 4 * 4));
+  expect([...decoded.data.slice(0, 4)], equals([120, 120, 120, 255]));
 });
 
-Deno.test("downsample: a big picture is reduced, a small one is left alone", async () => {
+Scribe.test("downsample: a big picture is reduced, a small one is left alone", async () => {
   const big = (await decodeImage(png(128, 64)))!;
   const small = downsample(big, 32);
 
-  assertEquals(small.width, 32);
-  assertEquals(small.height, 16);
-  assertEquals(small.data.length, 32 * 16 * 4);
+  expect(small.width, equals(32));
+  expect(small.height, equals(16));
+  expect(small.data.length, equals(32 * 16 * 4));
 
   const tiny = (await decodeImage(png(8, 8)))!;
-  assertEquals(downsample(tiny, 32), tiny);
+  expect(downsample(tiny, 32), equals(tiny));
 });
 
-Deno.test("blurhash: no network is ever needed", async () => {
+Scribe.test("blurhash: no network is ever needed", async () => {
   const realFetch = globalThis.fetch;
   globalThis.fetch = () => {
     throw new Error("blurhash reached for the network");
   };
 
   try {
-    assertNotEquals(await blurhash.fromImage(new File([png()], "a.png")), null);
+    expect(await blurhash.fromImage(new File([png()], "a.png")), isNot(equals(null)));
   } finally {
     globalThis.fetch = realFetch;
   }

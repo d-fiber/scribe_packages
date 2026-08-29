@@ -33,11 +33,11 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-
+import "@scribe/testing/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { installStorageTestSettings } from "../testing/settings.ts";
 
 installStorageTestSettings();
-import { assertEquals } from "@std/assert";
 import { extractPosterFrame, FRAME_SIZE, pickPosterFrame } from "../../lib/src/media/video_frame.ts";
 
 const FRAME_BYTES = FRAME_SIZE * FRAME_SIZE * 4;
@@ -59,35 +59,35 @@ function stream(...frames: Uint8Array[]): Uint8Array {
   return out;
 }
 
-Deno.test("poster frame: a lit opening frame is kept as is", () => {
+Scribe.test("poster frame: a lit opening frame is kept as is", () => {
   const picked = pickPosterFrame(stream(frame(200), frame(10), frame(255)));
 
-  assertEquals(picked![0], 200);
+  expect(picked![0], equals(200));
 });
 
-Deno.test("poster frame: an opening fade to black is skipped", () => {
+Scribe.test("poster frame: an opening fade to black is skipped", () => {
   const picked = pickPosterFrame(
     stream(frame(0), frame(0), frame(180), frame(90)),
   );
 
-  assertEquals(picked![0], 180);
+  expect(picked![0], equals(180));
 });
 
-Deno.test("poster frame: a video that is dark throughout still yields its lightest frame", () => {
+Scribe.test("poster frame: a video that is dark throughout still yields its lightest frame", () => {
   const picked = pickPosterFrame(stream(frame(0), frame(4), frame(2)));
 
-  assertEquals(picked![0], 4);
+  expect(picked![0], equals(4));
 });
 
-Deno.test("poster frame: an empty stream yields null, never a throw", () => {
-  assertEquals(pickPosterFrame(new Uint8Array(0)), null);
+Scribe.test("poster frame: an empty stream yields null, never a throw", () => {
+  expect(pickPosterFrame(new Uint8Array(0)), equals(null));
 });
 
-Deno.test("poster frame: a truncated frame is not decoded as a whole one", () => {
-  assertEquals(pickPosterFrame(new Uint8Array(FRAME_BYTES - 1)), null);
+Scribe.test("poster frame: a truncated frame is not decoded as a whole one", () => {
+  expect(pickPosterFrame(new Uint8Array(FRAME_BYTES - 1)), equals(null));
 });
 
-Deno.test("video frame: a runtime that cannot spawn ffmpeg yields null, never a failed upload", async () => {
+Scribe.test("video frame: a runtime that cannot spawn ffmpeg yields null, never a failed upload", async () => {
   const runnable = await Deno.permissions.query({
     name: "run",
     command: "ffmpeg",
@@ -98,5 +98,5 @@ Deno.test("video frame: a runtime that cannot spawn ffmpeg yields null, never a 
     type: "video/mp4",
   });
 
-  assertEquals(await extractPosterFrame(clip), null);
+  expect(await extractPosterFrame(clip), equals(null));
 });
