@@ -77,8 +77,13 @@ export interface CronDefinition {
  * it next runs, which most callers have no use for and may discard.
  */
 export class Cron implements Scheduled {
+  /** The name this job was declared under. */
   readonly name: string;
+
+  /** When this job fires, as the definition named it. */
   readonly schedule: Schedule;
+
+  /** How long a claimed occurrence stays claimed, defaulted and rounded from the definition. */
   readonly timeout: Duration;
 
   constructor(definition: CronDefinition, handler: CronHandler) {

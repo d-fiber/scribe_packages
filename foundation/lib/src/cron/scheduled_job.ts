@@ -46,7 +46,10 @@ import type { CronHandler, Scheduled } from "./schedule.ts";
  * overlap. A token only frees what is still its own.
  */
 export class ScheduledJob {
+  /** The schedule this job runs against. */
   readonly job: Scheduled;
+
+  /** The body called on every occurrence. */
   readonly handler: CronHandler;
 
   #nextRun: Date | null = null;
