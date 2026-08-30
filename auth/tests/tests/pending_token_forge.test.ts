@@ -37,7 +37,7 @@
 // The test forge re-implements the signing format so fixtures can be built
 // before the database mock exists. That duplication is only safe as long as both
 // sides stay interchangeable, which is exactly what this file checks.
-import "@scribe/testing/runner.ts";
+import "@scribe/runtime/scholium/runner.ts";
 import { equals, expect, fail, isNot, isTrue, Scribe } from "@scribe/alchemy/test";
 import { installAuthTestSettings } from "../testing/settings.ts";
 import { PendingToken, PendingTokenPurpose } from "../../lib/src/pending_token.ts";

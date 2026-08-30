@@ -51,7 +51,7 @@ import { wireAuth } from "./src/capability/wire.ts";
 import { capabilities } from "@scribe/contracts/capability.ts";
 import type { LifecycleSteps } from "@scribe/alchemy";
 import { extensions, OptionalExtension, runDeclarations } from "@scribe/runtime/support/extensions/mod.ts";
-import { optional, required } from "@scribe/foundation";
+import { optional, required } from "@scribe/runtime/scholium/env.ts";
 import { AUTH_EXTENSION } from "./src/declaration/registry.ts";
 import { authSettings } from "./src/settings.ts";
 import { Account } from "./src/declaration/account.ts";
