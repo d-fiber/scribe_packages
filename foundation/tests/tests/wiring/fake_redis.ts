@@ -38,7 +38,10 @@ import { type Kv, kv } from "../../../lib/src/redis/kv.ts";
 import { type InstalledMock, installMock } from "../../testing/install.ts";
 
 export interface FakeRedis extends InstalledMock {
+  /** The name of every command this fake has answered so far, in the order it received them. */
   readonly calls: string[];
+
+  /** The keys and values this fake currently holds, as `set` and `setex` leave them. */
   readonly store: Map<string, string>;
   roundTrips(): number;
   countOf(command: string): number;
