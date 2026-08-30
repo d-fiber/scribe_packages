@@ -120,6 +120,7 @@ function passwordRefusal(password: string): SignUpError | null {
 
 /** The door an address opens. */
 export class EmailCredential<TInput extends EmailCredentials> implements SignUpCredential<TInput> {
+  /** The door this credential opens, always the email channel. */
   readonly channel = Channel.Email;
 
   async read(input: TInput): Promise<Result<{ recipient: string | null }, SignUpError>> {
@@ -162,6 +163,7 @@ export class EmailCredential<TInput extends EmailCredentials> implements SignUpC
 
 /** The door a number opens. */
 export class PhoneCredential<TInput extends PhoneCredentials> implements SignUpCredential<TInput> {
+  /** The door this credential opens, always the phone channel. */
   readonly channel = Channel.Phone;
 
   async read(input: TInput): Promise<Result<{ recipient: string | null }, SignUpError>> {
@@ -204,6 +206,7 @@ export class PhoneCredential<TInput extends PhoneCredentials> implements SignUpC
 
 /** The door an identity another provider vouched for opens. */
 export class SocialCredential<TInput extends SocialCredentials> implements SignUpCredential<TInput> {
+  /** The door this credential opens, `Channel.Google` or `Channel.Apple` depending on the provider. */
   readonly channel: Channel;
   readonly #provider: SocialProvider;
 

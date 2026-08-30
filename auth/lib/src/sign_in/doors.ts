@@ -180,7 +180,10 @@ class PhoneOtp implements OtpChannel {
 
 /** The door an address opens. */
 export class EmailCredential implements SignInCredential<EmailCredentials> {
+  /** The door this credential opens, always the email channel. */
   readonly channel = Channel.Email;
+
+  /** Sending and verifying a one-time passcode by email. */
   readonly otp: OtpChannel = new EmailOtp();
 
   read(
@@ -240,7 +243,10 @@ export class EmailCredential implements SignInCredential<EmailCredentials> {
 
 /** The door a number opens. */
 export class PhoneCredential implements SignInCredential<PhoneCredentials> {
+  /** The door this credential opens, always the phone channel. */
   readonly channel = Channel.Phone;
+
+  /** Sending and verifying a one-time passcode by text message. */
   readonly otp: OtpChannel = new PhoneOtp();
 
   read(
@@ -295,6 +301,7 @@ export class PhoneCredential implements SignInCredential<PhoneCredentials> {
 
 /** The door an identity another provider vouched for opens. */
 export class SocialCredential implements SignInCredential<SocialCredentials> {
+  /** The door this credential opens, `Channel.Google` or `Channel.Apple` depending on the provider. */
   readonly channel: Channel;
   readonly #provider: SocialProvider;
 
