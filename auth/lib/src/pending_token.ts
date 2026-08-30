@@ -54,8 +54,13 @@ const _TTL_MS: Record<PendingTokenPurpose, number> = {
 export const MAX_PENDING_TOKEN_CHARS = 2048;
 
 export interface PendingTokenPayload {
+  /** What the caller identified itself by when the token was issued. */
   readonly identifier: string;
+
+  /** The role the token grants once redeemed. */
   readonly role: AccountRole;
+
+  /** The device the token was issued to, or `null` when none was recorded. */
   readonly deviceId: string | null;
 }
 
@@ -88,6 +93,7 @@ export class PendingToken {
     return this.#hmacKey;
   }
 
+  /** How long, in milliseconds, a token issued for this purpose stays valid. */
   get ttlMs(): number {
     return _TTL_MS[this.#purpose];
   }

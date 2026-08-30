@@ -43,7 +43,10 @@ export enum EmailCheckStatus {
 }
 
 export interface EmailFormatResult {
+  /** The address in its checked, canonical form, or the empty string when it did not pass. */
   value: string;
+
+  /** Why `value` is empty, or `EmailCheckStatus.Ok` when it is not. */
   status: EmailCheckStatus;
 }
 
@@ -89,7 +92,10 @@ export enum PhoneCheckStatus {
 }
 
 export interface PhoneCheckResult {
+  /** The number in its checked, canonical form, or the empty string when it did not pass. */
   value: string;
+
+  /** Why `value` is empty, or `PhoneCheckStatus.Ok` when it is not. */
   status: PhoneCheckStatus;
 }
 
@@ -100,7 +106,10 @@ export enum PasswordCheckStatus {
 }
 
 export interface PasswordCheckResult {
+  /** The password as given, or the empty string when it did not pass. */
   value: string;
+
+  /** Why `value` is empty, or `PasswordCheckStatus.Ok` when it is not. */
   status: PasswordCheckStatus;
 }
 
@@ -275,7 +284,12 @@ class PhoneValidator {
 }
 
 export class AuthValidator {
+  /** Checks and formats an email address. */
   static readonly email = EmailValidator;
+
+  /** Checks a password against the package's own rules. */
   static readonly password = PasswordValidator;
+
+  /** Checks and formats a phone number. */
   static readonly phone = PhoneValidator;
 }
