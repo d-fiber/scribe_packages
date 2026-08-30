@@ -32,7 +32,7 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-import "@scribe/testing/runner.ts";
+import "@scribe/runtime/scholium/runner.ts";
 import { allOf, contains, equals, expect, isA, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import { triggerRegistry } from "../../../lib/src/trigger/trigger_registry.ts";
 import { Trigger } from "../../../lib/src/trigger/trigger.ts";

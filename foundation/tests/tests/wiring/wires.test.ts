@@ -32,22 +32,9 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-import "@scribe/testing/runner.ts";
+import "@scribe/runtime/scholium/runner.ts";
 import { allOf, equals, expect, isA, isTrue, same, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
-import {
-  Caches,
-  Commands,
-  Crons,
-  Databases,
-  Duration,
-  Environments,
-  FileSystems,
-  Hooks,
-  Now,
-  Queues,
-  RateLimiters,
-  Triggers,
-} from "@scribe/alchemy";
+import { Caches, Crons, Databases, Duration, Hooks, Now, Queues, RateLimiters, Triggers } from "@scribe/alchemy";
 import { Clients } from "@scribe/alchemy/http";
 import { Loggers } from "@scribe/alchemy/observe";
 import type { Slot } from "@scribe/alchemy";
@@ -67,9 +54,6 @@ const PORTS: readonly Slot<unknown>[] = [
   Crons,
   Triggers,
   Databases,
-  FileSystems,
-  Commands,
-  Environments,
 ];
 
 const NAMES: readonly string[] = [
@@ -83,9 +67,6 @@ const NAMES: readonly string[] = [
   "Crons",
   "Triggers",
   "Databases",
-  "FileSystems",
-  "Commands",
-  "Environments",
 ];
 
 function held(): (unknown | null)[] {
@@ -214,9 +195,6 @@ Scribe.test("every mounted driver answers the members its port declares", () => 
       Crons: ["schedule"],
       Triggers: ["watch"],
       Databases: ["table"],
-      FileSystems: ["open"],
-      Commands: ["run"],
-      Environments: ["get", "toObject"],
     };
 
     PORTS.forEach((slot, at) => {
@@ -227,15 +205,6 @@ Scribe.test("every mounted driver answers the members its port declares", () => 
         expect(typeof driver[name], equals("function"), `${NAMES[at]} answers no ${name}`);
       }
     });
-  });
-});
-
-Scribe.test("the file system driver hands out one disk however often it is asked", () => {
-  mount(() => {
-    scribe.wires?.();
-    const driver = FileSystems.get();
-
-    expect(driver.open(), same(driver.open()));
   });
 });
 

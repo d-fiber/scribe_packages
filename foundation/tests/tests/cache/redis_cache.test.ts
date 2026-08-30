@@ -33,7 +33,7 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import "@scribe/testing/runner.ts";
+import "@scribe/runtime/scholium/runner.ts";
 import { installDrivers } from "../../testing/drivers.ts";
 import "../../testing/settings.ts";
 

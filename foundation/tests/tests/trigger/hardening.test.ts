@@ -33,7 +33,7 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
-import "@scribe/testing/runner.ts";
+import "@scribe/runtime/scholium/runner.ts";
 import { allOf, equals, expect, isA, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import "../../testing/settings.ts";
 import { matchesOf } from "../../../lib/src/trigger/trigger_match.ts";
