@@ -40,8 +40,13 @@ installAuthTestSettings();
 import type { InstalledMock } from "@scribe/testing/install.ts";
 
 export interface GoTrueCall {
+  /** The HTTP method the package sent, uppercased. */
   readonly method: string;
+
+  /** The GoTrue path the call reached, `/auth/v1` already stripped. */
   readonly path: string;
+
+  /** The decoded request body, or `null` when the call carried none or it could not be parsed. */
   readonly body: Record<string, unknown> | null;
 }
 
@@ -50,6 +55,7 @@ export type GoTrueHandler = (
 ) => { status: number; body?: unknown } | undefined;
 
 export interface GoTrueMock extends InstalledMock {
+  /** Every call this mock has answered so far, in the order it received them. */
   readonly calls: GoTrueCall[];
   paths(): string[];
   called(method: string, path: string): number;
