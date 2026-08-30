@@ -35,8 +35,13 @@
 // LICENSE file, the LICENSE file governs.
 
 export interface RgbaImage {
+  /** The image's width, in pixels. */
   readonly width: number;
+
+  /** The image's height, in pixels. */
   readonly height: number;
+
+  /** The pixels, four bytes each in row-major order: red, green, blue, then alpha. */
   readonly data: Uint8ClampedArray;
 }
 
