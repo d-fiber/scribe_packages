@@ -46,21 +46,44 @@ import { installMock } from "../../testing/install.ts";
 const encoder = new TextEncoder();
 
 export interface Answers {
+  /** Whether the handler under test called `ack()` on this message. */
   acked: boolean;
+
+  /** Whether the handler under test called `term()` on this message. */
   termed: boolean;
+
+  /** The delay `nak(millis)` was last called with, or null when `nak` was never called. */
   nakedAfter: number | null;
+
+  /** How many times `nak()` was called. */
   naks: number;
 }
 
 export type Probe = JsMsg & Answers;
 
 export interface ProbeOptions {
+  /** The subject the probe answers `msg.subject` with. */
   readonly subject: string;
+
+  /** The value JSON-encoded into the probe's body, ignored when `raw` is given instead. */
   readonly data?: unknown;
+
+  /** The exact body bytes to encode, overriding `data`, for a probe whose payload isn't JSON. */
   readonly raw?: string;
+
+  /** The redelivery count the probe reports, defaulting to a first delivery. */
   readonly deliveryCount?: number;
+
+  /** The stream sequence number the probe reports, defaulting to `1`. */
   readonly seq?: number;
+
+  /**
+   * A counter the probe increments every time its `data` getter is read, for asserting how many
+   * times a handler decoded the body.
+   */
   readonly reads?: { count: number };
+
+  /** Whether calling `ack()` on this probe throws, as if the connection had already closed. */
   readonly refuseAck?: boolean;
 }
 
@@ -111,17 +134,26 @@ export function unanswered(one: Answers): boolean {
 }
 
 export interface Published {
+  /** The subject the message was published to. */
   readonly subject: string;
+
+  /** The decoded payload the dispatcher published, or null when the body carried no `data`. */
   readonly data: unknown;
 }
 
 export interface DispatchReport {
+  /** What `DrainTally` counted across the batch: how many probes acked, termed or were left open. */
   readonly result: DrainResult;
+
+  /** Every message the dispatcher published while draining the batch, in publish order. */
   readonly published: Published[];
+
+  /** The error `dispatch` threw, or null when the batch drained without one. */
   readonly rejected: unknown;
 }
 
 export interface DispatchOptions {
+  /** Replaces the topology's own `publish`, called with the subject after the fake has recorded it. */
   publish?: (subject: string) => Promise<string>;
 }
 

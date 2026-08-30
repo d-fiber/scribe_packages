@@ -90,12 +90,14 @@ export interface BatchQueueDefinition extends QueueDefinition {
  * there would register a second one under a name already taken, and throw.
  */
 export class QueuePublisher<in TJob> {
+  /** The queue this publisher pushes to, already registered by the host that declared it. */
   protected readonly queue: RegisteredQueue;
 
   constructor(queue: RegisteredQueue) {
     this.queue = queue;
   }
 
+  /** The name `queue` was declared under. */
   get name(): string {
     return this.queue.name;
   }

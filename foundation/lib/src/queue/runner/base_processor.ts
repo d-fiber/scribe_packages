@@ -62,6 +62,7 @@ export interface MessageProcessor {
  * is the whole reason the split exists.
  */
 export abstract class BaseProcessor implements MessageProcessor {
+  /** The queue this processor was built for, and the one a subclass drains against. */
   protected readonly queue: RegisteredQueue;
   readonly #failures: FailurePolicy;
 

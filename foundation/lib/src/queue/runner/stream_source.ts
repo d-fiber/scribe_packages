@@ -49,7 +49,10 @@ import { graceFor, longestGrace } from "./grace_period.ts";
  * isolated queues.
  */
 export class StreamSource {
+  /** The name this source logs and reports under. */
   readonly label: string;
+
+  /** Whether this source is the shared one, and so is the loop that promotes the delayed set. */
   readonly promotesDelayed: boolean;
 
   readonly #stream: string;
