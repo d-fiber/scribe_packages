@@ -37,14 +37,18 @@ import type { LoggedLevel, Logger, LogInput } from "@scribe/alchemy/observe";
 import { Loggers } from "@scribe/alchemy/observe";
 
 export interface LoggedLine {
+  /** The severity this line was logged at. */
   readonly level: LoggedLevel;
 
+  /** The action name the caller logged, the first argument every `Logger` method takes. */
   readonly action: string;
 
+  /** The structured input the caller attached, or null when the call carried none. */
   readonly input: LogInput | null;
 }
 
 export class MemoryLogger implements Logger {
+  /** Every line logged through this logger so far, in the order it received them. */
   readonly lines: LoggedLine[] = [];
 
   debug(action: string, input?: LogInput): void {
@@ -67,6 +71,7 @@ export class MemoryLogger implements Logger {
     this.lines.push({ level, action, input: input ?? null });
   }
 
+  /** The action name of every line logged so far, in the order they were logged. */
   get actions(): readonly string[] {
     return this.lines.map((line) => line.action);
   }
