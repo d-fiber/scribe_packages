@@ -149,6 +149,7 @@ export interface KeyedAudience {
  * the audience it reads instead of growing a second table.
  */
 export class Audience implements Members, KeyedAudience {
+  /** The key this declaration was made under, and the set or family it reads and writes by. */
   readonly name: string;
 
   readonly #ttl: Duration | null;
