@@ -146,6 +146,9 @@ class JwtMapper {
 }
 
 export class AuthMapper {
+  /** Maps a GoTrue user onto this package's own account shape. */
   static readonly account = AccountMapper;
+
+  /** Reads a claim out of a signed JWT without going back to GoTrue for it. */
   static readonly jwt = JwtMapper;
 }

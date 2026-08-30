@@ -71,6 +71,7 @@ class GoTrueSignInEmailOtp {
 }
 
 export class GoTrueSignInEmail {
+  /** The one-time-passcode half of an email sign-in, requesting and then verifying a code. */
   readonly otp = new GoTrueSignInEmailOtp();
 
   withPassword(

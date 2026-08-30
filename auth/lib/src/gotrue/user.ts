@@ -103,9 +103,16 @@ class GoTrueUserRole {
 }
 
 export class GoTrueUser {
+  /** Reading and changing the signed-in user's email. */
   readonly email = new GoTrueUserEmail();
+
+  /** Changing the signed-in user's password. */
   readonly password = new GoTrueUserPassword();
+
+  /** Reading and changing the signed-in user's phone number. */
   readonly phone = new GoTrueUserPhone();
+
+  /** Changing the Postgres role a user's session runs queries under. */
   readonly role = new GoTrueUserRole();
 
   async delete(userId: string): Promise<Result<void, AuthError>> {

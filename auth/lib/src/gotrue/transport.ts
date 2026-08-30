@@ -40,40 +40,98 @@ import { Failure, Ok, okay, type Result } from "@scribe/alchemy";
 import type { HttpResponse } from "@scribe/alchemy/http";
 import { identitySettings } from "@scribe/runtime/support/settings/identity.ts";
 
-export type AuthError = { code: string; message: string };
+export type AuthError = {
+  /** The stable error code GoTrue reports, or `"unexpected_error"` when it reports none. */
+  code: string;
 
+  /** A message meant for a human, already picked from whichever field GoTrue used to carry it. */
+  message: string;
+};
+
+/** One provider a GoTrue user has signed in with, as GoTrue itself reports it. */
 export interface GoTrueIdentity {
+  /** The identifier of this identity record, distinct from the user it belongs to. */
   identity_id: string;
+
+  /** The identifier GoTrue assigned this identity, ahead of `identity_id` on some responses. */
   id: string;
+
+  /** The identifier of the GoTrue user this identity is attached to. */
   user_id: string;
+
+  /** The name of the provider that issued this identity, `"google"` or `"apple"` among others. */
   provider: string;
+
+  /** Whatever the provider returned about the user, `email` and `sub` when the provider sent them. */
   identity_data?: { email?: string; sub?: string; [key: string]: unknown };
+
+  /** When this identity was first linked to the user, or `null` when GoTrue did not report it. */
   created_at: string | null;
+
+  /** When this identity was last used to sign in, or `null` when it never has been. */
   last_sign_in_at: string | null;
 }
 
+/** A user account as GoTrue itself reports it, before this package maps it to its own shape. */
 export interface GoTrueUser {
+  /** The identifier GoTrue assigned this user. */
   id: string;
+
+  /** The Postgres role JWTs issued for this user carry, `"authenticated"` in the common case. */
   aud: string;
+
+  /** The Postgres role this user's session runs queries under. */
   role: string;
+
+  /** The user's email, or `null` when the account was created without one. */
   email: string | null;
+
+  /** The user's phone number, or `null` when the account was created without one. */
   phone: string | null;
+
+  /** When the user confirmed their email, or `null` when it is still unconfirmed. */
   email_confirmed_at: string | null;
+
+  /** When the user confirmed their phone number, or `null` when it is still unconfirmed. */
   phone_confirmed_at: string | null;
+
+  /** When either the email or the phone was confirmed, or `null` when neither is. */
   confirmed_at: string | null;
+
+  /** When this user last completed a sign-in. */
   last_sign_in_at: string | null;
+
+  /** Metadata GoTrue itself controls, `provider` and `role` among the keys it writes. */
   app_metadata: { provider?: string; role?: string; [key: string]: unknown };
+
+  /** Metadata the user or the application set on the account, opaque to GoTrue. */
   user_metadata: Record<string, unknown>;
+
+  /** Every provider identity linked to this user. */
   identities: GoTrueIdentity[];
+
+  /** When this account was created. */
   created_at: string;
+
+  /** When this account's record was last written. */
   updated_at: string;
 }
 
+/** What a sign-in or a token refresh against GoTrue answers with, on success. */
 export interface GoTrueSessionResponse {
+  /** The bearer token a caller now authenticates with, absent when the call did not start a session. */
   access_token?: string;
+
+  /** The token that trades for a fresh `access_token` once this one expires. */
   refresh_token?: string;
+
+  /** How many seconds `access_token` stays valid for, counted from the moment GoTrue answered. */
   expires_in?: number;
+
+  /** The scheme `access_token` is presented under, `"bearer"` in practice. */
   token_type?: string;
+
+  /** The account this session belongs to. */
   user?: GoTrueUser;
 }
 
@@ -115,8 +173,13 @@ export function userHeaders(jwt: string): HeadersInit {
 
 /** What a call to GoTrue carries. It is the subset of a request that every call site uses. */
 export interface AuthRequest {
+  /** The HTTP method to send, matched case-insensitively against `POST`, `PUT`, `PATCH` and `DELETE`. */
   readonly method: string;
+
+  /** The headers to send, `Content-Type` and `apikey` among them; omitted when the call needs none. */
   readonly headers?: HeadersInit;
+
+  /** The request body, already serialized; omitted for a call that carries none. */
   readonly body?: string;
 }
 

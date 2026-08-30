@@ -70,6 +70,9 @@ class GoTrueSignInApple {
 }
 
 export class GoTrueSignInSocial {
+  /** Signing in with a Google identity token. */
   readonly google = new GoTrueSignInGoogle();
+
+  /** Signing in with an Apple identity token. */
   readonly apple = new GoTrueSignInApple();
 }

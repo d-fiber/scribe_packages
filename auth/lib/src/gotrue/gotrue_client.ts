@@ -45,10 +45,19 @@ import { GoTrueSignUp } from "./sign_up.ts";
 import { GoTrueUser } from "./user.ts";
 
 export class GoTrueClient {
+  /** Every way this package signs a user in. */
   readonly signIn: GoTrueSignIn = new GoTrueSignIn();
+
+  /** Every way this package creates a new account. */
   readonly signUp: GoTrueSignUp = new GoTrueSignUp();
+
+  /** Reading and refreshing the session GoTrue issued. */
   readonly session: GoTrueSession = new GoTrueSession();
+
+  /** Requesting and completing a password reset. */
   readonly resetPassword: GoTrueResetPassword = new GoTrueResetPassword();
+
+  /** Reading and changing the fields GoTrue stores on the signed-in user. */
   readonly user: GoTrueUser = new GoTrueUser();
 }
 

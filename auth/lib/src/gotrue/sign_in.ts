@@ -39,7 +39,12 @@ import { GoTrueSignInPhone } from "./sign_in/phone.ts";
 import { GoTrueSignInSocial } from "./sign_in/social.ts";
 
 export class GoTrueSignIn {
+  /** Signing in with an email address, by password or by one-time passcode. */
   readonly email = new GoTrueSignInEmail();
+
+  /** Signing in with a phone number, by password or by one-time passcode. */
   readonly phone = new GoTrueSignInPhone();
+
+  /** Signing in with an external identity provider. */
   readonly social = new GoTrueSignInSocial();
 }
