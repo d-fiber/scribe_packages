@@ -55,6 +55,7 @@
 import {
   Caches,
   Claims,
+  Commands,
   Crons,
   Databases,
   Environments,
@@ -82,6 +83,7 @@ import { ScheduledCrons } from "./src/cron/scheduled_crons.ts";
 import { OutboxTriggers } from "./src/trigger/outbox_triggers.ts";
 import { PostgrestDatabases } from "./src/database/postgrest_databases.ts";
 import { LocalFileSystems } from "./src/files/local_files.ts";
+import { LocalCommands } from "./src/commands/local_commands.ts";
 import { ProcessEnvironment } from "./src/environment.ts";
 import { RedisRateLimiters } from "./src/rate_limit/redis_rate_limiter.ts";
 import { ConsoleLogger } from "./src/observe/console_logger.ts";
@@ -133,6 +135,7 @@ export const scribe: LifecycleSteps = {
     if (!Triggers.configured) Triggers.use(new OutboxTriggers());
     if (!Databases.configured) Databases.use(new PostgrestDatabases());
     if (!FileSystems.configured) FileSystems.use(new LocalFileSystems());
+    if (!Commands.configured) Commands.use(new LocalCommands());
     if (!Environments.configured) Environments.use(new ProcessEnvironment());
   },
 

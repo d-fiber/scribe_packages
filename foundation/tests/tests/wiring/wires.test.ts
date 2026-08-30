@@ -36,6 +36,7 @@ import "@scribe/testing/runner.ts";
 import { allOf, equals, expect, isA, isTrue, same, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import {
   Caches,
+  Commands,
   Crons,
   Databases,
   Duration,
@@ -67,6 +68,7 @@ const PORTS: readonly Slot<unknown>[] = [
   Triggers,
   Databases,
   FileSystems,
+  Commands,
   Environments,
 ];
 
@@ -82,6 +84,7 @@ const NAMES: readonly string[] = [
   "Triggers",
   "Databases",
   "FileSystems",
+  "Commands",
   "Environments",
 ];
 
@@ -212,6 +215,7 @@ Scribe.test("every mounted driver answers the members its port declares", () => 
       Triggers: ["watch"],
       Databases: ["table"],
       FileSystems: ["open"],
+      Commands: ["run"],
       Environments: ["get", "toObject"],
     };
 
