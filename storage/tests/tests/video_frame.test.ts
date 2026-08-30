@@ -34,7 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 import "@scribe/testing/runner.ts";
-import { equals, expect, Scribe } from "@scribe/alchemy/test";
+import { equals, expect, MemoryCommands, MemoryFileSystemDriver, Scribe } from "@scribe/alchemy/test";
+import { Commands, FileSystems } from "@scribe/alchemy";
+import type { CommandAnswer } from "@scribe/alchemy/test";
 import { installStorageTestSettings } from "../testing/settings.ts";
 
 installStorageTestSettings();
@@ -87,16 +89,55 @@ Scribe.test("poster frame: a truncated frame is not decoded as a whole one", () 
   expect(pickPosterFrame(new Uint8Array(FRAME_BYTES - 1)), equals(null));
 });
 
-Scribe.test("video frame: a runtime that cannot spawn ffmpeg yields null, never a failed upload", async () => {
-  const runnable = await Deno.permissions.query({
-    name: "run",
-    command: "ffmpeg",
-  });
-  if (runnable.state === "granted") return;
+async function withPoster<T>(answer: CommandAnswer, body: () => Promise<T>): Promise<T> {
+  const heldCommands = Commands.configured ? Commands.get() : null;
+  const heldFiles = FileSystems.configured ? FileSystems.get() : null;
 
-  const clip = new File([new Uint8Array(64)], "clip.mp4", {
-    type: "video/mp4",
-  });
+  Commands.use(new MemoryCommands(answer));
+  FileSystems.use(new MemoryFileSystemDriver());
 
-  expect(await extractPosterFrame(clip), equals(null));
+  try {
+    return await body();
+  } finally {
+    if (heldCommands === null) Commands.clear();
+    else Commands.use(heldCommands);
+    if (heldFiles === null) FileSystems.clear();
+    else FileSystems.use(heldFiles);
+  }
+}
+
+Scribe.test("video frame: ffmpeg failing on both passes yields null, never a failed upload", async () => {
+  const clip = new File([new Uint8Array(64)], "clip.mp4", { type: "video/mp4" });
+
+  const poster = await withPoster(
+    { code: 1, stderr: new TextEncoder().encode("Invalid data found when processing input") },
+    () => extractPosterFrame(clip),
+  );
+
+  expect(poster, equals(null));
+});
+
+Scribe.test("video frame: ffmpeg that cannot start yields null, never a throw", async () => {
+  const clip = new File([new Uint8Array(64)], "clip.mp4", { type: "video/mp4" });
+
+  const poster = await withPoster(
+    () => {
+      throw new Error("ffmpeg: command not found");
+    },
+    () => extractPosterFrame(clip),
+  );
+
+  expect(poster, equals(null));
+});
+
+Scribe.test("video frame: a lit frame from ffmpeg becomes the poster", async () => {
+  const clip = new File([new Uint8Array(64)], "clip.mp4", { type: "video/mp4" });
+
+  const poster = await withPoster(
+    { code: 0, stdout: frame(200) },
+    () => extractPosterFrame(clip),
+  );
+
+  expect(poster?.width, equals(FRAME_SIZE));
+  expect(poster?.data[0], equals(200));
 });
