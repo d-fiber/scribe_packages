@@ -77,6 +77,7 @@ export interface HookDefinition<R> {
  * cannot. The same event can carry both.
  */
 export class Hook<T, R = void> {
+  /** The event name this hook was declared under, and how a subscriber and a caller find it. */
   readonly name: string;
 
   readonly #inline: InlineChain<T, R>;
