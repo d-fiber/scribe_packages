@@ -50,7 +50,7 @@
 import { wireStorage } from "./src/capability/wire.ts";
 import { capabilities } from "@scribe/contracts/capability.ts";
 import type { LifecycleSteps } from "@scribe/alchemy";
-import { required } from "@scribe/foundation";
+import { required } from "@scribe/runtime/scholium/env.ts";
 import { SupabaseStorageTransport } from "./src/bucket/supabase.ts";
 import { StorageTransports } from "./src/bucket/registry.ts";
 import { storageSettings } from "./src/settings.ts";
