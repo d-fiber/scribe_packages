@@ -41,12 +41,18 @@ import { type Kv, kv } from "../../../../lib/src/redis/kv.ts";
 import { type InstalledMock, installMock } from "../../../testing/install.ts";
 
 export interface Command {
+  /** The Redis command name, exactly as the client sent it. */
   readonly name: string;
+
+  /** The arguments the command was called with, in the order the client gave them. */
   readonly args: readonly unknown[];
 }
 
 export interface FakeRedis extends InstalledMock {
+  /** Every command this fake has answered so far, in the order it received them. */
   readonly commands: Command[];
+
+  /** How many commands this fake has answered so far, `commands.length` under a shorter name. */
   readonly roundTrips: number;
   countOf(name: string): number;
   place(key: string, value: string, livesForMs?: number): void;
