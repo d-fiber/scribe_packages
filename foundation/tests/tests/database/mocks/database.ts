@@ -39,8 +39,12 @@ import type { PostgrestClient } from "@supabase/postgrest-js";
 import { FakePostgrestClient, type FakePostgrestSeed, type Row, type RpcHandler } from "../../../testing/database.ts";
 
 export class DatabaseMock {
+  /** The fake PostgREST client every role reads through, and where a test seeds and asserts rows. */
   readonly db: FakePostgrestClient;
+
+  /** A table handle bound to no role, the same one `TablesBase` gives the service key. */
   readonly service: TablesBase;
+
   #user: TablesBase | null = null;
   #admin: TablesBase | null = null;
 
@@ -49,14 +53,17 @@ export class DatabaseMock {
     this.service = new TablesBase(this.db as unknown as PostgrestClient);
   }
 
+  /** The user-scoped table handle, or null until {@link asUser} has been called once. */
   get user(): TablesBase | null {
     return this.#user;
   }
 
+  /** The admin-scoped table handle, or null until {@link asAdmin} has been called once. */
   get admin(): TablesBase | null {
     return this.#admin;
   }
 
+  /** This mock itself, so a caller that asked for `.tables` can chain straight into a role. */
   get tables(): DatabaseMock {
     return this;
   }

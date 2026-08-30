@@ -72,6 +72,7 @@ export class TablesBase {
     this.#source = source;
   }
 
+  /** The client this table handle reads and writes through, resolved from `source` on first use. */
   protected get db(): PostgrestClient {
     if (this.#client === null) {
       this.#client = typeof this.#source === "function" ? this.#source() : this.#source;
