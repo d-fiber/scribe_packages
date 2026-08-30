@@ -150,6 +150,7 @@ export interface DefaultedConfig<T> extends Config<T> {
  * and a caller reading a field that used to exist is where it shows.
  */
 export class RemoteConfig<T> implements Config<T> {
+  /** The key this declaration was made under, and the row it reads and writes by. */
   readonly name: string;
 
   readonly #fallback: T | null;
