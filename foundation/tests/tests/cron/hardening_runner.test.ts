@@ -33,6 +33,8 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
+import "@scribe/runtime/scholium/runner.ts";
+import { Scribe } from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
 import "../../testing/settings.ts";
 
@@ -91,56 +93,50 @@ const noop = () => Promise.resolve();
 
 installDrivers();
 
-Deno.test({
-  name: "new Cron() leaves a refused declaration in the registry, where the report trips over it",
-  fn: () => {
-    assertThrows(() =>
-      new Cron(
-        {
-          name: "hardening:no-future-run",
-          schedule: cronExpression("0 0 30 2 *", CronTimezone.Utc),
-        },
-        noop,
-      )
+Scribe.test("new Cron() leaves a refused declaration in the registry, where the report trips over it", () => {
+  assertThrows(() =>
+    new Cron(
+      {
+        name: "hardening:no-future-run",
+        schedule: cronExpression("0 0 30 2 *", CronTimezone.Utc),
+      },
+      noop,
+    )
+  );
+
+  assertEquals(
+    cronRegistry.list().some((entry) => entry.job.name === "hardening:no-future-run"),
+    false,
+    "the name was taken before the schedule was checked, so the registry now holds a job the " +
+      "runner never accepted, report() throws for every other job too, and the name can " +
+      "never be declared again",
+  );
+});
+
+Scribe.test("Cron.nextRun() on an interval never counts down, so a status page shows a job that never arrives", () => {
+  const clock = new MovableNow(Date.parse("2026-01-01T00:00:00.000Z"));
+  Now.use(clock);
+  try {
+    const job = new Cron(
+      { name: "hardening:countdown", schedule: every(Duration.minutes(5)) },
+      noop,
     );
+    const announced = job.nextRun().getTime();
+
+    clock.at += 240_000;
 
     assertEquals(
-      cronRegistry.list().some((entry) => entry.job.name === "hardening:no-future-run"),
-      false,
-      "the name was taken before the schedule was checked, so the registry now holds a job the " +
-        "runner never accepted, report() throws for every other job too, and the name can " +
-        "never be declared again",
+      job.nextRun().getTime(),
+      announced,
+      "four of the five minutes went by and the answer moved with them, so what the registry " +
+        "reports and what the loop holds are two different instants",
     );
-  },
+  } finally {
+    Now.use(new SystemNow());
+  }
 });
 
-Deno.test({
-  name: "Cron.nextRun() on an interval never counts down, so a status page shows a job that never arrives",
-  fn: () => {
-    const clock = new MovableNow(Date.parse("2026-01-01T00:00:00.000Z"));
-    Now.use(clock);
-    try {
-      const job = new Cron(
-        { name: "hardening:countdown", schedule: every(Duration.minutes(5)) },
-        noop,
-      );
-      const announced = job.nextRun().getTime();
-
-      clock.at += 240_000;
-
-      assertEquals(
-        job.nextRun().getTime(),
-        announced,
-        "four of the five minutes went by and the answer moved with them, so what the registry " +
-          "reports and what the loop holds are two different instants",
-      );
-    } finally {
-      Now.use(new SystemNow());
-    }
-  },
-});
-
-Deno.test("the loop and the registry hold two different answers for the same interval job", () => {
+Scribe.test("the loop and the registry hold two different answers for the same interval job", () => {
   const clock = new MovableNow(Date.parse("2026-01-01T00:00:00.000Z"));
   Now.use(clock);
   try {
@@ -160,50 +156,44 @@ Deno.test("the loop and the registry hold two different answers for the same int
   }
 });
 
-Deno.test({
-  name: "ScheduledCrons refuses the only time-of-day shape the port can name",
-  fn: () => {
+Scribe.test("ScheduledCrons refuses the only time-of-day shape the port can name", () => {
+  const driver = new ScheduledCrons();
+
+  driver.schedule({
+    key: "hardening:port-at",
+    schedule: { at: { hour: 8, minute: 0 } },
+    run: noop,
+  });
+});
+
+Scribe.test("ScheduledCrons arms an empty body, so what the port declared never runs", async () => {
+  const time = new FakeTime(new Date("2026-01-01T00:00:00.000Z"));
+  const claim = grantingEveryClaim();
+  const runner = cronRunner;
+  let ran = 0;
+  try {
     const driver = new ScheduledCrons();
-
     driver.schedule({
-      key: "hardening:port-at",
-      schedule: { at: { hour: 8, minute: 0 } },
-      run: noop,
+      key: "hardening:port-body",
+      schedule: { every: Duration.minutes(1) },
+      run: () => {
+        ran++;
+      },
     });
-  },
+
+    runner.start(Duration.milliseconds(10_000));
+    await time.tickAsync(60_000);
+    await time.runMicrotasks();
+
+    assertEquals(ran, 1, "the driver dropped options.run and armed a body that resolves");
+  } finally {
+    runner.stop();
+    claim.restore();
+    time.restore();
+  }
 });
 
-Deno.test({
-  name: "ScheduledCrons arms an empty body, so what the port declared never runs",
-  fn: async () => {
-    const time = new FakeTime(new Date("2026-01-01T00:00:00.000Z"));
-    const claim = grantingEveryClaim();
-    const runner = cronRunner;
-    let ran = 0;
-    try {
-      const driver = new ScheduledCrons();
-      driver.schedule({
-        key: "hardening:port-body",
-        schedule: { every: Duration.minutes(1) },
-        run: () => {
-          ran++;
-        },
-      });
-
-      runner.start(Duration.milliseconds(10_000));
-      await time.tickAsync(60_000);
-      await time.runMicrotasks();
-
-      assertEquals(ran, 1, "the driver dropped options.run and armed a body that resolves");
-    } finally {
-      runner.stop();
-      claim.restore();
-      time.restore();
-    }
-  },
-});
-
-Deno.test("ScheduledCrons answers the same run for a key declared twice", () => {
+Scribe.test("ScheduledCrons answers the same run for a key declared twice", () => {
   const driver = new ScheduledCrons();
   const options = {
     key: "hardening:port-twice",
@@ -214,7 +204,7 @@ Deno.test("ScheduledCrons answers the same run for a key declared twice", () => 
   assertEquals(driver.schedule(options), driver.schedule(options));
 });
 
-Deno.test("ScheduledCrons drops the zone the port named, and says nothing", () => {
+Scribe.test("ScheduledCrons drops the zone the port named, and says nothing", () => {
   const driver = new ScheduledCrons();
 
   const armed = driver.schedule({
@@ -227,7 +217,7 @@ Deno.test("ScheduledCrons drops the zone the port named, and says nothing", () =
   assertEquals(Object.keys(armed).includes("timezone"), false);
 });
 
-Deno.test("a busy job burns the occurrences it sleeps through rather than queueing them", async () => {
+Scribe.test("a busy job burns the occurrences it sleeps through rather than queueing them", async () => {
   const time = new FakeTime(new Date("2026-01-01T00:00:00.000Z"));
   const claim = grantingEveryClaim();
   const runner = new CronRunner();
@@ -261,7 +251,7 @@ Deno.test("a busy job burns the occurrences it sleeps through rather than queuei
   }
 });
 
-Deno.test("a clock that goes back an hour holds an interval job for that hour", async () => {
+Scribe.test("a clock that goes back an hour holds an interval job for that hour", async () => {
   const time = new FakeTime(new Date("2026-01-01T00:00:00.000Z"));
   const claim = grantingEveryClaim();
   const clock = new MovableNow(Date.parse("2026-01-01T00:00:00.000Z"));
@@ -300,7 +290,7 @@ Deno.test("a clock that goes back an hour holds an interval job for that hour", 
   }
 });
 
-Deno.test("restarting the loop cannot double the cap, because every in-flight job still holds its token", async () => {
+Scribe.test("restarting the loop cannot double the cap, because every in-flight job still holds its token", async () => {
   {
     const time = new FakeTime(new Date("2026-01-01T00:00:00.000Z"));
     const claim = grantingEveryClaim();
@@ -350,7 +340,7 @@ Deno.test("restarting the loop cannot double the cap, because every in-flight jo
   }
 });
 
-Deno.test("start() called twice keeps the first loop and ignores the second cap", async () => {
+Scribe.test("start() called twice keeps the first loop and ignores the second cap", async () => {
   const time = new FakeTime(new Date("2026-01-01T00:00:00.000Z"));
   const claim = grantingEveryClaim();
   const runner = new CronRunner();
