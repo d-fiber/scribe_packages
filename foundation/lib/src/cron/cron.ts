@@ -53,14 +53,23 @@ export interface CronDefinition {
    */
   readonly name: string;
 
-  /** When this job runs, as one of the three schedule shapes. */
+  /**
+   * When this job runs, as one of the three schedule shapes.
+   *
+   * A fixed interval, a cron expression, or a daily time in a named timezone each answer "when is
+   * the next run" differently, so the shape carries which one a job declared rather than the
+   * runner having to guess from the value alone.
+   */
   readonly schedule: Schedule;
 
   /**
    * How long the body is given, and how long the occurrence stays claimed.
    *
-   * Left out, ten minutes. It has to be a whole number of minutes, for the reason
-   * `core/duration.ts` gives.
+   * Left out, ten minutes. It is refused outright unless it is a whole number of minutes: the
+   * claim that reserves an occurrence for one replica is derived from the interval, and a value
+   * that does not divide evenly into minutes would round differently depending on when a
+   * replica's clock happens to read it, letting two replicas both believe they hold the claim and
+   * run the same occurrence twice.
    */
   readonly timeout?: Duration;
 }
@@ -77,10 +86,10 @@ export interface CronDefinition {
  * it next runs, which most callers have no use for and may discard.
  */
 export class Cron implements Scheduled {
-  /** The name this job was declared under. */
+  /** The name this job was declared under, and the identifier `cronRegistry` and `cronRunner` both key it by. */
   readonly name: string;
 
-  /** When this job fires, as the definition named it. */
+  /** When this job fires, as the definition named it, kept so {@link nextRun} can be answered without going back to the definition. */
   readonly schedule: Schedule;
 
   /** How long a claimed occurrence stays claimed, defaulted and rounded from the definition. */
@@ -100,7 +109,11 @@ export class Cron implements Scheduled {
     cronRunner.register(this, handler);
   }
 
-  /** When this job next runs. */
+  /**
+   * When this job next runs, computed fresh from the current time on every call rather than
+   * cached, since a job that has already run once needs the answer to move forward past that
+   * occurrence and a cached value would repeat the same run forever.
+   */
   nextRun(): Date {
     return nextRun(this.schedule, _now());
   }

@@ -46,10 +46,10 @@ import type { CronHandler, Scheduled } from "./schedule.ts";
  * overlap. A token only frees what is still its own.
  */
 export class ScheduledJob {
-  /** The schedule this job runs against. */
+  /** The declaration this job runs against, kept so {@link nextRunAt} and {@link takeSlot} can re-derive a schedule rather than freezing one at arm time. */
   readonly job: Scheduled;
 
-  /** The body called on every occurrence. */
+  /** The body called on every occurrence, held here rather than passed at call time since `CronRunner` only ever knows the job, not which handler it was armed with. */
   readonly handler: CronHandler;
 
   #nextRun: Date | null = null;
@@ -74,7 +74,7 @@ export class ScheduledJob {
     this.#from = from;
   }
 
-  /** The job's name. */
+  /** The job's name, read through rather than duplicated so a rename of `job.name` cannot leave the two out of sync. */
   get name(): string {
     return this.job.name;
   }
@@ -84,12 +84,12 @@ export class ScheduledJob {
     return this.#nextRun ??= nextRun(this.job.schedule, this.#from());
   }
 
-  /** Whether an occurrence of this job is in flight. */
+  /** Whether an occurrence of this job is in flight, read off the token rather than a plain flag for the reason the class doc gives. */
   get running(): boolean {
     return this.#runToken !== 0;
   }
 
-  /** Whether its next occurrence has arrived. */
+  /** Whether its next occurrence has arrived, so `CronRunner` knows to take the slot and run the handler. */
   isDue(now: Date): boolean {
     return now >= this.nextRunAt;
   }
@@ -106,7 +106,7 @@ export class ScheduledJob {
     return slot;
   }
 
-  /** Marks the job as running under `token`. */
+  /** Marks the job as running under `token`, the value `endRun` must be called back with to actually free it. */
   beginRun(token: number): void {
     this.#runToken = token;
   }
