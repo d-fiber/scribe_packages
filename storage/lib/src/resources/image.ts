@@ -40,10 +40,12 @@ import type { StorageImage } from "../runtime/result.ts";
 
 /** A picture, whose upload also derives the blur hash a client shows while the bytes travel. */
 export class ImageResource<TArgs extends string[] = []> extends StorageResource<StorageImage, TArgs> {
+  /** The {@link StorageResource.decorate} implementation: derives the blur hash from `file` itself. */
   protected async decorate(path: string, file: File): Promise<StorageImage> {
     return { path, url: this.urlOf(path), blurHash: await blurhash.fromImage(file) };
   }
 
+  /** The {@link StorageResource.blurHash} override: the hash `decorate` already computed and stored. */
   protected override blurHash(data: StorageImage): string | null {
     return data.blurHash;
   }

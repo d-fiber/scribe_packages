@@ -37,6 +37,7 @@
 const SEGMENT_PATTERN = /^[A-Za-z0-9_-]+$/;
 const SEGMENT_MAX_LENGTH = 128;
 
+/** Raised when a path segment does not match `SEGMENT_PATTERN` or exceeds `SEGMENT_MAX_LENGTH`. */
 export class StoragePathError extends Error {
   constructor(segment: string) {
     super(
@@ -48,6 +49,17 @@ export class StoragePathError extends Error {
   }
 }
 
+/**
+ * `value`, once it matches `SEGMENT_PATTERN` and stays within `SEGMENT_MAX_LENGTH`.
+ *
+ * @remarks
+ * The pattern excludes `/`, `.` and every other character a bucket key or an object path could
+ * use to escape the folder it was meant to land in, `../..` included. Every literal and argument
+ * a path template builds goes through this, so refusing the bad character here is what keeps the
+ * whole storage path free of traversal without each caller checking for it separately.
+ *
+ * @throws {StoragePathError} When `value` does not pass.
+ */
 export function pathSegment(value: string): string {
   if (!SEGMENT_PATTERN.test(value) || value.length > SEGMENT_MAX_LENGTH) {
     throw new StoragePathError(value);

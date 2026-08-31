@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+/** A decoded raster image, held as raw RGBA pixels rather than an encoded file. */
 export interface RgbaImage {
   /** The image's width, in pixels. */
   readonly width: number;
@@ -45,6 +46,18 @@ export interface RgbaImage {
   readonly data: Uint8ClampedArray;
 }
 
+/**
+ * `source`'s pixels, whatever channel layout a decoder produced, folded onto four 8-bit RGBA
+ * bytes per pixel.
+ *
+ * @remarks
+ * A decoded image can carry one channel, grey, two, grey and alpha, three, RGB, or four, RGBA,
+ * and each byte can be 8 or 16 bits deep. Normalizing every layout to RGBA here, once, is what
+ * lets the rest of this package treat a decoded image the same regardless of which format
+ * produced it. A missing alpha channel becomes fully opaque, `255`, and a 16-bit channel is
+ * folded down to 8 bits by dropping its low byte, since nothing downstream needs more precision
+ * than a thumbnail or a placeholder can show.
+ */
 export function toRgba(
   source: ArrayLike<number>,
   width: number,
@@ -69,6 +82,15 @@ export function toRgba(
   return out;
 }
 
+/**
+ * `image`, shrunk with its aspect ratio kept so neither side exceeds `maxSize`, or `image`
+ * itself, unchanged, when it already fits.
+ *
+ * @remarks
+ * Samples the nearest source pixel for each output pixel rather than averaging or interpolating,
+ * because the caller, blurhash encoding, only needs a small, roughly representative image to hash,
+ * not a faithful resize, and nearest-neighbor sampling is the cheapest way to get there.
+ */
 export function downsample(image: RgbaImage, maxSize: number): RgbaImage {
   const { width, height } = image;
   if (width <= maxSize && height <= maxSize) return image;

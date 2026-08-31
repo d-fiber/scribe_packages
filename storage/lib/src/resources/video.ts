@@ -40,10 +40,12 @@ import type { StorageVideo } from "../runtime/result.ts";
 
 /** A video, whose upload derives its blur hash from the first frame it can decode. */
 export class VideoResource<TArgs extends string[] = []> extends StorageResource<StorageVideo, TArgs> {
+  /** The {@link StorageResource.decorate} implementation: derives the blur hash from the first decodable frame. */
   protected async decorate(path: string, file: File): Promise<StorageVideo> {
     return { path, url: this.urlOf(path), blurHash: await blurhash.fromVideo(file) };
   }
 
+  /** The {@link StorageResource.blurHash} override: the hash `decorate` already computed and stored. */
   protected override blurHash(data: StorageVideo): string | null {
     return data.blurHash;
   }
