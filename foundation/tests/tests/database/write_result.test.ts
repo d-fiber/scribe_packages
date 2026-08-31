@@ -40,6 +40,7 @@ import { installDrivers } from "../../testing/drivers.ts";
 import type { Result } from "@scribe/alchemy";
 import type { PostgrestClient } from "@supabase/postgrest-js";
 import { from } from "../../../lib/src/database/tables_base.ts";
+import { clientOf, installDatabaseMock } from "./mocks/install_database.ts";
 
 // deno-lint-ignore no-explicit-any
 type Any = any;
@@ -76,6 +77,7 @@ function saidBy(outcome: Result<unknown>): string {
 const WRITES: ReadonlyArray<[string, (client: PostgrestClient) => Promise<Result<unknown>>]> = [
   ["insert", (c) => from<{ id: string }>(c, TABLE).insert({ id: "a" })],
   ["insertOne", (c) => from<{ id: string }>(c, TABLE).insertOne({ id: "a" })],
+  ["upsert", (c) => from<{ id: string }>(c, TABLE).upsert({ id: "a" }, { onConflict: "id" })],
   ["update", (c) => from<{ id: string }>(c, TABLE).where((f) => f.id.eq("a")).update({ id: "b" })],
   ["delete", (c) => from<{ id: string }>(c, TABLE).where((f) => f.id.eq("a")).delete()],
   ["deleteOne", (c) => from<{ id: string }>(c, TABLE).where((f) => f.id.eq("a")).deleteOne()],
@@ -83,7 +85,7 @@ const WRITES: ReadonlyArray<[string, (client: PostgrestClient) => Promise<Result
 
 installDrivers();
 
-Scribe.test("a store that answered with a code is a conflict, on every one of the five writes", async () => {
+Scribe.test("a store that answered with a code is a conflict, on every one of the six writes", async () => {
   for (const [name, write] of WRITES) {
     const outcome = await write(answering({ data: null, error: { code: "23505", message: "duplicate key" } }));
 
@@ -92,7 +94,7 @@ Scribe.test("a store that answered with a code is a conflict, on every one of th
   }
 });
 
-Scribe.test("a store that answered nothing at all is unavailable, on every one of the five writes", async () => {
+Scribe.test("a store that answered nothing at all is unavailable, on every one of the six writes", async () => {
   for (const [name, write] of WRITES) {
     const outcome = await write(answering({ data: null, error: new Error("connection reset") }));
 
@@ -221,4 +223,52 @@ Scribe.test("an insert of no rows at all is an honest count of zero", async () =
 
   expect(outcome.ok, equals(true));
   expect(outcome.ok === true && outcome.data, equals(0));
+});
+
+Scribe.test("upsert answers the number of rows it was handed, not what the store echoed", async () => {
+  const one = await from<{ id: string }>(answering({ data: null, error: null }), TABLE)
+    .upsert({ id: "a" }, { onConflict: "id" });
+  const three = await from<{ id: string }>(answering({ data: null, error: null }), TABLE)
+    .upsert([{ id: "a" }, { id: "b" }, { id: "c" }], { onConflict: "id" });
+
+  expect(one.ok === true && one.data, equals(1));
+  expect(three.ok === true && three.data, equals(3));
+});
+
+Scribe.test("insert into a table with a declared unique key refuses a row that would duplicate it", async () => {
+  const mock = installDatabaseMock({ [TABLE]: [{ id: "a", label: "first" }] });
+  mock.db.declareUniqueKey(TABLE, ["id"]);
+  try {
+    const outcome = await from<{ id: string; label: string }>(clientOf(mock), TABLE)
+      .insert({ id: "a", label: "second" });
+
+    expect(kindOf(outcome), equals("conflict"), "a fake table with a declared key refuses a duplicate like Postgres would");
+    expect(mock.rows(TABLE), equals([{ id: "a", label: "first" }]), "the row already there is untouched");
+  } finally {
+    mock.restore();
+  }
+});
+
+Scribe.test("insert into a table with no declared unique key accepts a row that would otherwise duplicate one", async () => {
+  const mock = installDatabaseMock({ [TABLE]: [{ id: "a", label: "first" }] });
+  try {
+    const outcome = await from<{ id: string; label: string }>(clientOf(mock), TABLE)
+      .insert({ id: "a", label: "second" });
+
+    expect(outcome.ok, equals(true), "a table with no declared key behaves exactly as it did before this existed");
+  } finally {
+    mock.restore();
+  }
+});
+
+Scribe.test("upsert writes a new row when nothing shares its conflict columns, and merges into it otherwise", async () => {
+  const mock = installDatabaseMock({ [TABLE]: [{ id: "a", label: "first" }] });
+  try {
+    await from<{ id: string; label: string }>(clientOf(mock), TABLE)
+      .upsert([{ id: "a", label: "second" }, { id: "b", label: "third" }], { onConflict: "id" });
+
+    expect(mock.rows(TABLE), equals([{ id: "a", label: "second" }, { id: "b", label: "third" }]));
+  } finally {
+    mock.restore();
+  }
 });

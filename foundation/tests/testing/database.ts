@@ -40,12 +40,20 @@ export type Row = Record<string, unknown>;
 class FakeTable {
   rows: Row[];
 
+  /** The columns that must together be unique, so a fake insert can refuse a duplicate. None by default. */
+  uniqueKey: string[] | null = null;
+
   constructor(rows: Row[] = []) {
     this.rows = rows;
   }
 }
 
-type Op = "select" | "insert" | "update" | "delete";
+/** Thrown by a fake insert into a table with a declared unique key, when a row already holds it. */
+class FakeUniqueViolation {
+  constructor(readonly error: { code: string; message: string }) {}
+}
+
+type Op = "select" | "insert" | "update" | "delete" | "upsert";
 
 function likeToRegExp(pattern: string, insensitive = false): RegExp {
   const escaped = pattern
@@ -55,10 +63,14 @@ function likeToRegExp(pattern: string, insensitive = false): RegExp {
   return new RegExp(`^${escaped}$`, insensitive ? "i" : undefined);
 }
 
-class FakeQueryBuilder implements PromiseLike<{ data: unknown; error: null }> {
+/** What a fake query resolves with: a normal answer, or the shape a real PostgREST error takes. */
+type FakeAnswer = { data: unknown; error: null } | { data: null; error: { code: string; message: string } };
+
+class FakeQueryBuilder implements PromiseLike<FakeAnswer> {
   readonly #table: FakeTable;
   readonly #op: Op;
   readonly #payload?: Row | Row[];
+  readonly #onConflict?: string[];
   readonly #filters: Array<(row: Row) => boolean> = [];
   readonly #orders: { col: string; ascending: boolean }[] = [];
   #limitCount: number | null = null;
@@ -67,10 +79,11 @@ class FakeQueryBuilder implements PromiseLike<{ data: unknown; error: null }> {
   #returning: boolean;
   #selectCols: string[] | null = null;
 
-  constructor(table: FakeTable, op: Op, payload?: Row | Row[]) {
+  constructor(table: FakeTable, op: Op, payload?: Row | Row[], onConflict?: string[]) {
     this.#table = table;
     this.#op = op;
     this.#payload = payload;
+    this.#onConflict = onConflict;
     this.#returning = op === "select";
   }
 
@@ -174,19 +187,19 @@ class FakeQueryBuilder implements PromiseLike<{ data: unknown; error: null }> {
     return this;
   }
 
-  then<TResult1 = { data: unknown; error: null }, TResult2 = never>(
-    onfulfilled?:
-      | ((value: {
-        data: unknown;
-        error: null;
-      }) => TResult1 | PromiseLike<TResult1>)
-      | null,
+  then<TResult1 = FakeAnswer, TResult2 = never>(
+    onfulfilled?: ((value: FakeAnswer) => TResult1 | PromiseLike<TResult1>) | null,
     onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
   ): PromiseLike<TResult1 | TResult2> {
-    return Promise.resolve({ data: this.#execute(), error: null as null }).then(
-      onfulfilled,
-      onrejected,
-    );
+    try {
+      return Promise.resolve({ data: this.#execute(), error: null as null }).then(
+        onfulfilled,
+        onrejected,
+      );
+    } catch (raised) {
+      if (!(raised instanceof FakeUniqueViolation)) throw raised;
+      return Promise.resolve({ data: null, error: raised.error }).then(onfulfilled, onrejected);
+    }
   }
 
   #matched(): Row[] {
@@ -216,6 +229,20 @@ class FakeQueryBuilder implements PromiseLike<{ data: unknown; error: null }> {
         const items = (
           Array.isArray(this.#payload) ? this.#payload : [this.#payload!]
         ).map((item) => ({ ...item }));
+
+        if (this.#table.uniqueKey) {
+          const key = this.#table.uniqueKey;
+          for (const item of items) {
+            const conflict = this.#table.rows.some((row) => key.every((col) => row[col] === item[col]));
+            if (conflict) {
+              throw new FakeUniqueViolation({
+                code: "23505",
+                message: `duplicate key value violates unique constraint on (${key.join(", ")})`,
+              });
+            }
+          }
+        }
+
         this.#table.rows.push(...items);
         const projected = items.map((row) => this.#project(row));
         if (this.#single) return projected[0] ?? null;
@@ -234,6 +261,22 @@ class FakeQueryBuilder implements PromiseLike<{ data: unknown; error: null }> {
           (row) => !rows.includes(row),
         );
         const projected = rows.map((row) => this.#project(row));
+        if (this.#single) return projected[0] ?? null;
+        return this.#returning ? projected : null;
+      }
+      case "upsert": {
+        const conflictOn = this.#onConflict ?? [];
+        const items = (
+          Array.isArray(this.#payload) ? this.#payload : [this.#payload!]
+        ).map((item) => ({ ...item }));
+
+        for (const item of items) {
+          const existing = this.#table.rows.find((row) => conflictOn.every((col) => row[col] === item[col]));
+          if (existing) Object.assign(existing, item);
+          else this.#table.rows.push(item);
+        }
+
+        const projected = items.map((row) => this.#project(row));
         if (this.#single) return projected[0] ?? null;
         return this.#returning ? projected : null;
       }
@@ -275,9 +318,19 @@ export class FakePostgrestClient {
     return this.#table(name).rows;
   }
 
-  /** Replaces table `name`'s rows with `rows`. */
+  /** Replaces table `name`'s rows with `rows`, keeping its declared unique key if it has one. */
   seed(name: string, rows: Row[]): void {
-    this.#tables.set(name, new FakeTable(rows.map((row) => ({ ...row }))));
+    this.#table(name).rows = rows.map((row) => ({ ...row }));
+  }
+
+  /**
+   * Declares that `columns` together are unique in table `name`, so a fake `insert` refuses a row
+   * that would duplicate them the way a real primary key or `UNIQUE` constraint would.
+   *
+   * A table with no declared key accepts any insert, which is the default every other table keeps.
+   */
+  declareUniqueKey(name: string, columns: string[]): void {
+    this.#table(name).uniqueKey = columns;
   }
 
   /** Wires `handler` to answer calls to the RPC named `fn`. */
@@ -291,6 +344,8 @@ export class FakePostgrestClient {
     return {
       select: (cols?: string) => new FakeQueryBuilder(table, "select").select(cols),
       insert: (data: Row | Row[]) => new FakeQueryBuilder(table, "insert", data),
+      upsert: (data: Row | Row[], options?: { onConflict?: string }) =>
+        new FakeQueryBuilder(table, "upsert", data, options?.onConflict?.split(",").map((col) => col.trim())),
       update: (data: Row) => new FakeQueryBuilder(table, "update", data),
       delete: () => new FakeQueryBuilder(table, "delete"),
     };

@@ -178,6 +178,40 @@ Scribe.test("DEFECT update rewrites the owning column and hands the row to someb
   }
 });
 
+Scribe.test("DEFECT upsert lets a caller write a row owned by somebody else", async () => {
+  const mock = installDatabaseMock({ [SECRETS]: [] });
+  try {
+    const outcome = await withIdentity(
+      CALLER,
+      () =>
+        from<Secret>(clientOf(mock), SECRETS)
+          .upsert({ id: "s9", owner_id: "victim", body: "planted" }, { onConflict: "id" }),
+    );
+
+    expect(outcome.ok, equals(false), "upsert has to refuse what insert refuses");
+    expect(mock.rows(SECRETS).length, equals(0));
+  } finally {
+    mock.restore();
+  }
+});
+
+Scribe.test("upsert fills the owning column of every row of a batch that leaves it out", async () => {
+  const mock = installDatabaseMock({ [SECRETS]: [] });
+  try {
+    const outcome = await withIdentity(
+      CALLER,
+      () =>
+        from<Secret>(clientOf(mock), SECRETS)
+          .upsert([{ id: "a", body: "one" }, { id: "b", body: "two" }] as never, { onConflict: "id" }),
+    );
+
+    expect(outcome.ok, equals(true));
+    expect(mock.rows(SECRETS).map((row) => row.owner_id), equals(["u1", "u1"]));
+  } finally {
+    mock.restore();
+  }
+});
+
 Scribe.test("insert fills the owning column of every row of a batch that leaves it out", async () => {
   const mock = installDatabaseMock({ [SECRETS]: [] });
   try {

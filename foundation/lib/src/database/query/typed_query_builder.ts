@@ -407,6 +407,33 @@ export class TypedQueryBuilder<
     return this.#failed("insert", error) ? new Failure(_refusalOf(error)) : new Ok(rows);
   }
 
+  /**
+   * Writes `data`, updating whatever row already shares the columns named by `onConflict`, and
+   * answers how many rows were sent.
+   *
+   * @remarks
+   * This is what turns a bulk load into one round trip instead of one read and one write per
+   * row: a caller that does not know which of `data` already exist sends all of them, and the
+   * store decides row by row whether that was an insert or an update. It carries the same owner
+   * rules as {@link insert} — the owning column is filled where a row leaves it out, and a row
+   * naming another owner refuses the whole batch — because an upsert that skipped that guard
+   * would let a caller overwrite a row it does not own by conflicting into it.
+   */
+  async upsert(
+    data: Partial<Row> | Partial<Row>[],
+    options: { onConflict: string },
+  ): Future<Result<number>> {
+    const owned = this.#owned(data);
+    if (!owned.ok) return owned;
+
+    const rows = Array.isArray(data) ? data.length : 1;
+    const { error } = await this.#db
+      .from(this.#table)
+      .upsert(owned.data, { onConflict: options.onConflict });
+
+    return this.#failed("upsert", error) ? new Failure(_refusalOf(error)) : new Ok(rows);
+  }
+
   /** Writes one row and answers it as the store wrote it, or what stopped the write. */
   async insertOne(data: Partial<Row>): Future<Result<Row>> {
     const owned = this.#owned(data);
