@@ -97,10 +97,12 @@ export class Realtime<T extends object, L extends Listen = Listen.Granted> {
    * configuration belongs here and anything tied to an account does not.
    */
   static public<T extends { id: string }>(name: string): Realtime<T, Listen.Public>;
+  /** The same declaration for a payload with no `id`, naming which field of `T` keys a row. */
   static public<T extends object>(
     name: string,
     options: { key: keyof T & string },
   ): Realtime<T, Listen.Public>;
+  /** The shared implementation behind both overloads above. */
   static public<T extends object>(
     name: string,
     options?: { key: keyof T & string },
@@ -110,10 +112,12 @@ export class Realtime<T extends object, L extends Listen = Listen.Granted> {
 
   /** A channel every caller holding a session hears. */
   static authenticated<T extends { id: string }>(name: string): Realtime<T, Listen.Authenticated>;
+  /** The same declaration for a payload with no `id`, naming which field of `T` keys a row. */
   static authenticated<T extends object>(
     name: string,
     options: { key: keyof T & string },
   ): Realtime<T, Listen.Authenticated>;
+  /** The shared implementation behind both overloads above. */
   static authenticated<T extends object>(
     name: string,
     options?: { key: keyof T & string },
@@ -128,10 +132,12 @@ export class Realtime<T extends object, L extends Listen = Listen.Granted> {
    * what they carry to a population the declaration cannot name.
    */
   static granted<T extends { id: string }>(name: string): Realtime<T, Listen.Granted>;
+  /** The same declaration for a payload with no `id`, naming which field of `T` keys a row. */
   static granted<T extends object>(
     name: string,
     options: { key: keyof T & string },
   ): Realtime<T, Listen.Granted>;
+  /** The shared implementation behind both overloads above. */
   static granted<T extends object>(
     name: string,
     options?: { key: keyof T & string },
@@ -172,6 +178,7 @@ export class Realtime<T extends object, L extends Listen = Listen.Granted> {
   }
 }
 
+/** `options.key` when given, or `"id"`, the field every overload without a `key` requires `T` to carry. */
 function keyOf<T extends object>(options?: { key: keyof T & string }): keyof T & string {
   return options?.key ?? ("id" as keyof T & string);
 }
