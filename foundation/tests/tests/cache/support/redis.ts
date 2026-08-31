@@ -40,6 +40,7 @@ import type { LockCommands } from "../../../../lib/src/cache/lock/lock_commands.
 import { type Kv, kv } from "../../../../lib/src/redis/kv.ts";
 import { type InstalledMock, installMock } from "../../../testing/install.ts";
 
+/** One Redis command a fake client received, as it received it. */
 export interface Command {
   /** The Redis command name, exactly as the client sent it. */
   readonly name: string;
@@ -48,18 +49,33 @@ export interface Command {
   readonly args: readonly unknown[];
 }
 
+/** A stand-in for the cache's Redis client, holding values in memory instead of a real server. */
 export interface FakeRedis extends InstalledMock {
   /** Every command this fake has answered so far, in the order it received them. */
   readonly commands: Command[];
 
   /** How many commands this fake has answered so far, `commands.length` under a shorter name. */
   readonly roundTrips: number;
+
+  /** How many of the recorded commands were named `name`, for asserting on round trips a caller made. */
   countOf(name: string): number;
+
+  /** Sets `key` directly, bypassing every mocked command, to seed state a test starts from. */
   place(key: string, value: string, livesForMs?: number): void;
+
+  /** The value held under `key`, or null when it is absent or expired, read outside the mocked commands. */
   raw(key: string): string | null;
+
+  /** Milliseconds until `key` expires, null when it never will, or when it is absent or already expired. */
   ttlOf(key: string): number | null;
+
+  /** Empties {@link commands}, so a test can assert on what happens next without counting setup calls. */
   clear(): void;
+
+  /** Makes the next call to command `name` throw `error` instead of answering, to exercise a failure path. */
   failNext(name: string, error: Error): void;
+
+  /** Delays the next call to command `name` by `byMs`, to exercise a caller's own timeout or race handling. */
   slow(name: string, byMs: number): void;
 }
 
@@ -70,6 +86,17 @@ interface Held {
 
 const _MILLISECOND = 1;
 
+/**
+ * Patches the shared `kv()` client's own commands to run against an in-memory store, and returns
+ * a handle a test uses to seed data, inspect what ran, and inject failures or latency.
+ *
+ * @remarks
+ * The commands are patched one by one with {@link installMock} rather than swapping `kv()` for a
+ * different object, because `kv()` returns the same client instance every caller in the process
+ * already imported: replacing the reference would leave every other module still holding the
+ * real one. Patching in place is what makes the fake visible everywhere `kv()` is called from,
+ * without the test needing to inject anything.
+ */
 export function installFakeRedis(): FakeRedis {
   const held = new Map<string, Held>();
   const commands: Command[] = [];

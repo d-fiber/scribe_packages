@@ -38,6 +38,7 @@ import { TablesBase } from "../../../../lib/src/database/tables_base.ts";
 import type { PostgrestClient } from "@supabase/postgrest-js";
 import { FakePostgrestClient, type FakePostgrestSeed, type Row, type RpcHandler } from "../../../testing/database.ts";
 
+/** A fake PostgREST-backed database, for a test to seed rows into and read table handles from. */
 export class DatabaseMock {
   /** The fake PostgREST client every role reads through, and where a test seeds and asserts rows. */
   readonly db: FakePostgrestClient;
@@ -68,27 +69,33 @@ export class DatabaseMock {
     return this;
   }
 
+  /** The user-scoped table handle, opened once and reused on every later call. */
   asUser(): TablesBase {
     return (this.#user ??= new TablesBase(this.db as unknown as PostgrestClient));
   }
 
+  /** The admin-scoped table handle, opened once and reused on every later call. */
   asAdmin(): TablesBase {
     return (this.#admin ??= new TablesBase(this.db as unknown as PostgrestClient));
   }
 
+  /** Every row currently seeded into `table`. */
   rows(table: string): Row[] {
     return this.db.rows(table);
   }
 
+  /** Replaces `table`'s rows with `rows`. */
   seed(table: string, rows: Row[]): void {
     this.db.seed(table, rows);
   }
 
+  /** Wires `handler` to answer calls to the RPC named `fn`. */
   onRpc(fn: string, handler: RpcHandler): void {
     this.db.onRpc(fn, handler);
   }
 }
 
+/** A {@link DatabaseMock}, as a factory a caller can pass around instead of a bare constructor. */
 export function createDatabaseMock(seed: FakePostgrestSeed = {}): DatabaseMock {
   return new DatabaseMock(seed);
 }

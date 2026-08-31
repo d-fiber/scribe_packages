@@ -37,14 +37,21 @@ import type { LockCommands } from "../../../lib/src/cache/lock/lock_commands.ts"
 import { type Kv, kv } from "../../../lib/src/redis/kv.ts";
 import { type InstalledMock, installMock } from "../../testing/install.ts";
 
+/** A stand-in for Redis used to check that wiring reaches it, without asserting on individual commands. */
 export interface FakeRedis extends InstalledMock {
   /** The name of every command this fake has answered so far, in the order it received them. */
   readonly calls: string[];
 
   /** The keys and values this fake currently holds, as `set` and `setex` leave them. */
   readonly store: Map<string, string>;
+
+  /** How many commands this fake has answered so far, `calls.length` under a shorter name. */
   roundTrips(): number;
+
+  /** How many of the recorded calls were named `command`, for asserting a wiring path reached Redis at all. */
   countOf(command: string): number;
+
+  /** Empties {@link calls} and {@link store}, for a test that reuses one fake across several cases. */
   forget(): void;
 }
 
@@ -53,6 +60,16 @@ interface Pipelined {
   exec(): Promise<unknown[]>;
 }
 
+/**
+ * Patches the shared `kv()` client with an in-memory store, for a wiring test that only needs to
+ * know a call reached Redis at all.
+ *
+ * @remarks
+ * `pttl` always answers `-1` and there is no way to inject a failure or a delay, unlike
+ * `tests/cache/support/redis.ts`'s fake: a wiring test asserts that a port was plugged into the
+ * right client, not on Redis's own expiry or error behaviour, so this fake stays a command
+ * recorder rather than a faithful re-implementation.
+ */
 export function installFakeRedis(): FakeRedis {
   const store = new Map<string, string>();
   const calls: string[] = [];
