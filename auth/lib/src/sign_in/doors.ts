@@ -125,6 +125,16 @@ export interface SocialCredentials {
   readonly accessToken?: string;
 }
 
+/**
+ * `raw` turned into an {@link Authenticated} answer, once it actually carries a user and an
+ * access token, or {@link SignInError.Unexpected} when it does not.
+ *
+ * @remarks
+ * This is the one place that checks `raw.user` and `raw.access_token` before trusting the
+ * response as a real session. `AuthMapper.account.session` itself only maps the fields, casting
+ * rather than checking them, so every door funnels its GoTrue answer through here rather than
+ * building an `Authenticated` by hand.
+ */
 function sessionOf(
   raw: GoTrueSessionResponse,
 ): Result<Authenticated, SignInError> {
@@ -140,6 +150,7 @@ function sessionOf(
   });
 }
 
+/** The email half of {@link EmailCredential.otp}. */
 class EmailOtp implements OtpChannel {
   readonly channel = Channel.Email;
 
@@ -159,6 +170,7 @@ class EmailOtp implements OtpChannel {
   }
 }
 
+/** The phone half of {@link PhoneCredential.otp}. */
 class PhoneOtp implements OtpChannel {
   readonly channel = Channel.Phone;
 
@@ -186,6 +198,7 @@ export class EmailCredential implements SignInCredential<EmailCredentials> {
   /** Sending and verifying a one-time passcode by email. */
   readonly otp: OtpChannel = new EmailOtp();
 
+  /** The {@link SignInCredential.read} implementation: validates `input.email` and that a password was sent. */
   read(
     input: EmailCredentials,
   ): Promise<Result<{ identifier: string | null }, SignInError>> {
@@ -207,6 +220,11 @@ export class EmailCredential implements SignInCredential<EmailCredentials> {
     return Promise.resolve(new Ok({ identifier: email.value }));
   }
 
+  /**
+   * The {@link SignInCredential.authenticate} implementation: signs in with `input.email` and
+   * `input.password`, resending the confirmation email when GoTrue reports the account as
+   * unconfirmed.
+   */
   async authenticate(
     input: EmailCredentials,
     role: AccountRole,
@@ -249,6 +267,7 @@ export class PhoneCredential implements SignInCredential<PhoneCredentials> {
   /** Sending and verifying a one-time passcode by text message. */
   readonly otp: OtpChannel = new PhoneOtp();
 
+  /** The {@link SignInCredential.read} implementation: validates `input.phone` and that a password was sent. */
   read(
     input: PhoneCredentials,
   ): Promise<Result<{ identifier: string | null }, SignInError>> {
@@ -272,6 +291,7 @@ export class PhoneCredential implements SignInCredential<PhoneCredentials> {
     );
   }
 
+  /** The {@link SignInCredential.authenticate} implementation: signs in with `input.phone` and `input.password`. */
   async authenticate(
     input: PhoneCredentials,
   ): Promise<Result<Authenticated, SignInError>> {
@@ -310,6 +330,7 @@ export class SocialCredential implements SignInCredential<SocialCredentials> {
     this.#provider = channel === Channel.Google ? SocialProvider.GOOGLE : SocialProvider.APPLE;
   }
 
+  /** The {@link SignInCredential.read} implementation: checks that `input.idToken` and `input.nonce` are non-empty. */
   read(
     input: SocialCredentials,
   ): Promise<Result<{ identifier: string | null }, SignInError>> {
@@ -320,6 +341,7 @@ export class SocialCredential implements SignInCredential<SocialCredentials> {
     );
   }
 
+  /** The {@link SignInCredential.authenticate} implementation: exchanges `input.idToken` with this door's own provider. */
   async authenticate(
     input: SocialCredentials,
   ): Promise<Result<Authenticated, SignInError>> {

@@ -107,6 +107,14 @@ export interface SocialCredentials {
   readonly accessToken?: string;
 }
 
+/**
+ * Why `password` cannot be used for a new account, or `null` when it can.
+ *
+ * @remarks
+ * Shared between {@link EmailCredential.read} and {@link PhoneCredential.read}, which otherwise
+ * differ only in which field they check first, so the two doors cannot answer two different
+ * reasons for the same password.
+ */
 function passwordRefusal(password: string): SignUpError | null {
   switch (AuthValidator.password.check(password).status) {
     case PasswordCheckStatus.Empty:
@@ -123,6 +131,7 @@ export class EmailCredential<TInput extends EmailCredentials> implements SignUpC
   /** The door this credential opens, always the email channel. */
   readonly channel = Channel.Email;
 
+  /** The {@link SignUpCredential.read} implementation: validates `input.email` and `input.password`. */
   async read(input: TInput): Promise<Result<{ recipient: string | null }, SignUpError>> {
     const email = AuthValidator.email.check(input.email);
     if (email.status === EmailCheckStatus.Empty) return new Failure(SignUpError.EmailRequired);
@@ -134,6 +143,7 @@ export class EmailCredential<TInput extends EmailCredentials> implements SignUpC
     return new Ok({ recipient: await sha256Hex(AuthValidator.email.inbox(email.value)) });
   }
 
+  /** The {@link SignUpCredential.issue} implementation: creates the GoTrue user with `input.email`. */
   async issue(input: TInput): Promise<Result<IssuedIdentity, SignUpError>> {
     const email = AuthValidator.email.check(input.email).value ?? input.email;
     const answer = await goTrue.signUp.createUserWithEmail(email, input.password);
@@ -166,6 +176,7 @@ export class PhoneCredential<TInput extends PhoneCredentials> implements SignUpC
   /** The door this credential opens, always the phone channel. */
   readonly channel = Channel.Phone;
 
+  /** The {@link SignUpCredential.read} implementation: validates `input.phone` and `input.password`. */
   async read(input: TInput): Promise<Result<{ recipient: string | null }, SignUpError>> {
     const phone = AuthValidator.phone.check(input.phone);
     if (phone.status === PhoneCheckStatus.Empty) return new Failure(SignUpError.PhoneRequired);
@@ -177,6 +188,7 @@ export class PhoneCredential<TInput extends PhoneCredentials> implements SignUpC
     return new Ok({ recipient: await sha256Hex(AuthValidator.phone.format(input.phone)) });
   }
 
+  /** The {@link SignUpCredential.issue} implementation: creates the GoTrue user with `input.phone`. */
   async issue(input: TInput): Promise<Result<IssuedIdentity, SignUpError>> {
     const phone = AuthValidator.phone.format(input.phone);
     const answer = await goTrue.signUp.createUserWithPhone(phone, input.password);
@@ -215,6 +227,7 @@ export class SocialCredential<TInput extends SocialCredentials> implements SignU
     this.#provider = channel === Channel.Google ? SocialProvider.GOOGLE : SocialProvider.APPLE;
   }
 
+  /** The {@link SignUpCredential.read} implementation: checks that `input.idToken` and `input.nonce` are non-empty. */
   read(input: TInput): Promise<Result<{ recipient: string | null }, SignUpError>> {
     const malformed = input.idToken.trim().length === 0 || input.nonce.trim().length === 0;
 
@@ -223,6 +236,7 @@ export class SocialCredential<TInput extends SocialCredentials> implements SignU
     );
   }
 
+  /** The {@link SignUpCredential.issue} implementation: exchanges `input.idToken` with this door's own provider. */
   async issue(input: TInput): Promise<Result<IssuedIdentity, SignUpError>> {
     const answer = this.#provider === SocialProvider.GOOGLE
       ? await goTrue.signUp.createUserWithGoogle(input.idToken, input.nonce, input.accessToken)

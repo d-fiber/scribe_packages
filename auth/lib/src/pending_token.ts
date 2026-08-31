@@ -53,6 +53,7 @@ const _TTL_MS: Record<PendingTokenPurpose, number> = {
 
 export const MAX_PENDING_TOKEN_CHARS = 2048;
 
+/** What a pending token proves once it has been verified: who asked, and for what role. */
 export interface PendingTokenPayload {
   /** What the caller identified itself by when the token was issued. */
   readonly identifier: string;
@@ -64,6 +65,7 @@ export interface PendingTokenPayload {
   readonly deviceId: string | null;
 }
 
+/** A single-purpose, HMAC-signed token that stands in for a completed step until it is redeemed or expires. */
 export class PendingToken {
   readonly #purpose: PendingTokenPurpose;
   #hmacKey: Promise<CryptoKey> | null = null;
@@ -98,6 +100,10 @@ export class PendingToken {
     return _TTL_MS[this.#purpose];
   }
 
+  /**
+   * Signs and records a token for `identifier`, `role` and `deviceId`, or `null` when the record
+   * could not be saved.
+   */
   async issue(
     identifier: string,
     role: AccountRole,
@@ -142,6 +148,15 @@ export class PendingToken {
     return `${payloadB64}.${toHex(sigBuffer)}`;
   }
 
+  /**
+   * The payload `token` carries, once its signature verifies, it has not expired, and it was
+   * issued for this instance's own purpose; `null` on any other outcome, malformed input included.
+   *
+   * @remarks
+   * This checks the token's own signature and claims only. It does not consult the database, so
+   * a token already {@link consume}d still verifies here. A caller that must refuse reuse checks
+   * {@link exists} or consumes the token instead of relying on this alone.
+   */
   async payload(token: string): Promise<PendingTokenPayload | null> {
     try {
       if (!token || token.length > MAX_PENDING_TOKEN_CHARS) return null;
@@ -185,6 +200,7 @@ export class PendingToken {
     }
   }
 
+  /** Whether `token`'s record still exists and has not expired, without consuming it. */
   async exists(token: string): Promise<boolean> {
     const hash = await sha256Hex(token);
     const data = await pendingTokens()
@@ -195,6 +211,7 @@ export class PendingToken {
     return data !== null;
   }
 
+  /** Deletes `token`'s record if it still exists and has not expired, so it cannot be redeemed twice. */
   async consume(token: string): Promise<boolean> {
     const hash = await sha256Hex(token);
     const deleted = await pendingTokens()
