@@ -60,8 +60,7 @@ const DEFAULT_KEY = "id";
  * function. It is the boundary where the types stop, so it is written down once here rather
  * than cast at each of the five call sites.
  */
-// deno-lint-ignore no-explicit-any
-type AnyChange = any;
+type AnyChange = unknown;
 
 /** What a declaration can say beyond its path. */
 export interface TriggerOptions {
