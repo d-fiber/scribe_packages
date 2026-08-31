@@ -199,7 +199,7 @@ interface Draft {
   settings: IndexSettings;
 }
 
-// deno-lint-ignore no-explicit-any
+// deno-lint-ignore no-explicit-any -- the builder chain below crosses several constrained generics (DocumentShape, DocumentProperties), each rejecting unknown at a different step.
 type Loose = any;
 
 /**

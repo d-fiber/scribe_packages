@@ -37,7 +37,7 @@
 import type { SearchIndex } from "./search_index.ts";
 
 /** Any declared index, whatever parameters and preview it was declared with. */
-// deno-lint-ignore no-explicit-any
+// deno-lint-ignore no-explicit-any -- SearchIndex's parameters are constrained (Doc extends object, Params extends SearchParams), which unknown fails outright.
 export type AnySearchIndex = SearchIndex<any, any>;
 
 const declarations = new Map<string, AnySearchIndex>();

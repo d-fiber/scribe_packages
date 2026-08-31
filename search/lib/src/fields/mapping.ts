@@ -89,7 +89,7 @@ export type SortableText = MappingTextProperty & {
 };
 
 /** What one field of a document declares: where it comes from, and what the index makes of it. */
-// deno-lint-ignore no-explicit-any
+// deno-lint-ignore no-explicit-any -- MappedField and EmbeddedField constrain their parameters, which unknown fails, and DocumentShape is what this line itself declares.
 export type DocumentShape = { readonly [field: string]: MappedField<any> | EmbeddedField<any, any> };
 
 /** What a field declaration takes beyond the column it reads. */
@@ -321,7 +321,7 @@ export const Field: FieldFactory = {
   keyword: (column, options) =>
     new MappedField(column, { type: "keyword", ...options?.mapping } as MappingKeywordProperty),
 
-  // deno-lint-ignore no-explicit-any
+  // deno-lint-ignore no-explicit-any -- text is overloaded on options.sortable, and no single return type satisfies both overloads for one implementation.
   text: ((column: string, options?: TextOptions): any =>
     new MappedField(
       column,
