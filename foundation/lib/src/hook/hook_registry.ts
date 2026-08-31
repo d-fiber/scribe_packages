@@ -68,6 +68,12 @@ export interface RegisteredHook {
 export class HookRegistry {
   readonly #hooks = new Map<string, RegisteredHook>();
 
+  /**
+   * Adds `hook` to the registry, indexed by name.
+   *
+   * @throws {DuplicateDeclarationError} When another, different hook already registered under
+   * the same name.
+   */
   add(hook: RegisteredHook): void {
     const existing = this.#hooks.get(hook.name);
     if (existing && existing !== hook) {
@@ -79,14 +85,17 @@ export class HookRegistry {
     this.#hooks.set(hook.name, hook);
   }
 
+  /** The hook declared as `name`, or `null` when nothing was. */
   get(name: string): RegisteredHook | null {
     return this.#hooks.get(name) ?? null;
   }
 
+  /** Every registered hook, in no particular order. */
   list(): UnmodifiableList<RegisteredHook> {
     return [...this.#hooks.values()];
   }
 
+  /** A one-line summary of what is registered and how many hooks have no handler, for the boot log. */
   report(): string {
     const all = this.list();
     const idle = all.filter((h) => h.handlers() === 0).map((h) => h.name);

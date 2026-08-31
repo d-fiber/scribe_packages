@@ -101,7 +101,13 @@ export class Hook<T, R = void> {
     hookRegistry.add(this);
   }
 
-  /** How many subscribers this hook has, both kinds counted. */
+  /**
+   * How many subscribers this hook has, both kinds counted.
+   *
+   * @remarks
+   * `run` checks this before doing anything else, so a hook nobody wired short-circuits to the
+   * cached {@link #unhandled} answer instead of building an emission it would immediately discard.
+   */
   handlers(): number {
     return this.#inline.size + this.#background.size;
   }
