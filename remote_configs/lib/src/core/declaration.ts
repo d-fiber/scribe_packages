@@ -169,11 +169,17 @@ export class RemoteConfig<T> implements Config<T> {
    * @throws {TypeError} When another declaration already took `name`.
    */
   static of<T>(name: string, options: DefaultedConfigOptions<T>): DefaultedConfig<T>;
+  /** The same declaration, without a `default`: `get` can then answer `null`. */
   static of<T>(name: string, options?: ConfigOptions): Config<T>;
+  /** The shared implementation behind both overloads above. */
   static of<T>(name: string, options: ConfigOptions & { default?: T } = {}): Config<T> {
     return new RemoteConfig<T>(name, options.default ?? null, options.ttl ?? null);
   }
 
+  /**
+   * The {@link Config.get} implementation: reads through the cache, and falls back to the
+   * declared default (or `null`) rather than throwing when the row cannot be read at all.
+   */
   async get(): Promise<T | null> {
     let row: RemoteConfigRow | null;
     try {
@@ -186,6 +192,10 @@ export class RemoteConfig<T> implements Config<T> {
     return row === null ? this.#fallback : row.value as T;
   }
 
+  /**
+   * The {@link Config.set} implementation: writes `value`, then evicts the cached row so the
+   * next `get` reads what was just written instead of a stale cached one.
+   */
   set(value: T, options: SetOptions = {}): Promise<Result<void, ConfigError>> {
     return guarded(async () => {
       const ttl = options.ttl !== undefined ? options.ttl : this.#ttl;
@@ -201,6 +211,10 @@ export class RemoteConfig<T> implements Config<T> {
     });
   }
 
+  /**
+   * The {@link Config.ttl} implementation: re-times the stored row without touching its value,
+   * then evicts the cache the same way {@link set} does.
+   */
   ttl(ttl: Duration | null): Promise<Result<void, ConfigError>> {
     return guarded(async () => {
       const retimed = await retimeValue(this.name, ttl === null ? null : Date.now() + ttl.inMilliseconds);
@@ -211,6 +225,7 @@ export class RemoteConfig<T> implements Config<T> {
     });
   }
 
+  /** The {@link Config.delete} implementation: drops the stored row, then evicts the cache. */
   delete(): Promise<Result<void, ConfigError>> {
     return guarded(async () => {
       await dropValue(this.name);
@@ -219,6 +234,7 @@ export class RemoteConfig<T> implements Config<T> {
     });
   }
 
+  /** This config's row, read through the cache, or `null` when it is missing or has expired. */
   async #held(): Promise<RemoteConfigRow | null> {
     const row = await cachedValue(this.name, () => valueOf(this.name));
     if (row === null) return null;
