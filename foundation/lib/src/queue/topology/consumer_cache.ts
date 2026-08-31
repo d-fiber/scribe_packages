@@ -46,6 +46,7 @@ import type { Consumer } from "@nats-io/jetstream";
 export class ConsumerCache {
   readonly #resolved = new Map<string, Consumer>();
 
+  /** The consumer `durable` on `stream`, resolved from the server once and cached after that. */
   async get(stream: string, durable: string): Future<Consumer> {
     const key = `${stream}/${durable}`;
 

@@ -54,6 +54,7 @@ export class TopologyProvisioner {
     this.#manager = manager;
   }
 
+  /** Creates or widens every stream and consumer `plan` calls for, leaving what already matches alone. */
   async provision(plan: TopologyPlan): Future<void> {
     await this.#stream(SHARED_STREAM, ["q.>"], RetentionPolicy.Workqueue, plan);
     await this.#stream(
