@@ -12,6 +12,7 @@ interface ItemRow extends Record<string, unknown> {
  * The brackets in the file name are the parameter, read back with `ctx.param`.
  */
 export class ReadItem extends Get {
+  /** Answers the item named by `item_id`, or a 404 when none matches. */
   protected override async run(ctx: RequestContext): Promise<Response> {
     const item = await database
       .from<ItemRow>("items")

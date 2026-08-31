@@ -2,6 +2,7 @@ import { Caller, Middleware, type RateLimiter, Time } from "@scribe/sdk";
 
 /** Declares this node reachable by the engine alone, never from the gateway. */
 export class InternalAccess extends Middleware {
+  /** Allows only the engine's own service caller, never the gateway. */
   protected override access(): Caller {
     return Caller.Service;
   }
