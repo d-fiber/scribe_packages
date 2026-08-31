@@ -39,7 +39,9 @@ import { SocialProvider } from "@scribe/contracts/enums.ts";
 import { requestIdTokenExchange } from "../primitives.ts";
 import type { AuthError, GoTrueSessionResponse } from "../transport.ts";
 
+/** Google's half of {@link GoTrueSignInSocial}. */
 class GoTrueSignInGoogle {
+  /** Exchanges a Google identity token for a session, refusing locally when Google sign-in is not configured. */
   signIn(
     idToken: string,
     nonce: string,
@@ -54,7 +56,9 @@ class GoTrueSignInGoogle {
   }
 }
 
+/** Apple's half of {@link GoTrueSignInSocial}. */
 class GoTrueSignInApple {
+  /** Exchanges an Apple identity token for a session, refusing locally when Apple sign-in is not configured. */
   signIn(
     idToken: string,
     nonce: string,
@@ -69,6 +73,14 @@ class GoTrueSignInApple {
   }
 }
 
+/**
+ * GoTrue's social sign-in paths: exchanging a provider's own identity token for a session.
+ *
+ * @remarks
+ * Each provider below, `google` and `apple`, first checks whether that provider is configured
+ * for the project. An unconfigured provider fails locally without ever reaching GoTrue, the
+ * same way `GoTrueSignInPhone` refuses when the phone provider is off.
+ */
 export class GoTrueSignInSocial {
   /** Signing in with a Google identity token. */
   readonly google = new GoTrueSignInGoogle();

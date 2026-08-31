@@ -50,7 +50,9 @@ function userUrl(userId: string): string {
   return `${authUrl()}/admin/users/${encodeURIComponent(userId)}`;
 }
 
+/** The email half of {@link GoTrueUser}. */
 class GoTrueUserEmail {
+  /** Changes `userId`'s email through the admin API, since the user's own token cannot change its own identifier. */
   update(
     userId: string,
     email: string,
@@ -63,7 +65,9 @@ class GoTrueUserEmail {
   }
 }
 
+/** The password half of {@link GoTrueUser}. */
 class GoTrueUserPassword {
+  /** Sets `userId`'s password directly through the admin API, without requiring the old one. */
   update(
     userId: string,
     password: string,
@@ -76,7 +80,9 @@ class GoTrueUserPassword {
   }
 }
 
+/** The phone half of {@link GoTrueUser}. */
 class GoTrueUserPhone {
+  /** Changes `userId`'s phone number through the admin API, the same reasoning as {@link GoTrueUserEmail.update}. */
   update(
     userId: string,
     phone: string,
@@ -89,7 +95,12 @@ class GoTrueUserPhone {
   }
 }
 
+/** The role half of {@link GoTrueUser}. */
 class GoTrueUserRole {
+  /**
+   * Sets the Postgres role `userId`'s session runs queries under, by writing it into GoTrue's own
+   * `app_metadata` rather than a table this package owns.
+   */
   update(
     userId: string,
     role: AccountRole,
@@ -102,6 +113,7 @@ class GoTrueUserRole {
   }
 }
 
+/** Every way this package reads and changes a signed-in user's own GoTrue account. */
 export class GoTrueUser {
   /** Reading and changing the signed-in user's email. */
   readonly email = new GoTrueUserEmail();
@@ -115,6 +127,7 @@ export class GoTrueUser {
   /** Changing the Postgres role a user's session runs queries under. */
   readonly role = new GoTrueUserRole();
 
+  /** Deletes the GoTrue account `userId` names, treating an account already gone as success. */
   async delete(userId: string): Promise<Result<void, AuthError>> {
     const res = await sendAuth(userUrl(userId), {
       method: "DELETE",

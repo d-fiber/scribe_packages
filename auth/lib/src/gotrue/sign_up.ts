@@ -47,7 +47,9 @@ import {
   requestAuth,
 } from "./transport.ts";
 
+/** Every way this package creates a new account with GoTrue. */
 export class GoTrueSignUp {
+  /** Creates an account with `email` and `password`, unconfirmed: GoTrue emails the confirmation link. */
   createUserWithEmail(
     email: string,
     password: string,
@@ -59,6 +61,10 @@ export class GoTrueSignUp {
     });
   }
 
+  /**
+   * Creates an account with `email` and `password`, confirmed immediately through the admin API,
+   * for a flow that verifies ownership some other way and does not want GoTrue's own email step.
+   */
   async createConfirmedUserWithEmail(
     email: string,
     password: string,
@@ -74,6 +80,14 @@ export class GoTrueSignUp {
     return response.ok ? new Ok({ user: response.data }) : new Failure(response.error);
   }
 
+  /**
+   * Creates an account with `phone` and `password`, unconfirmed: GoTrue sends the confirmation
+   * code over `channel`.
+   *
+   * @remarks
+   * Refused with {@link phoneNotConfiguredError} before any call to GoTrue when this deployment
+   * has no phone provider configured, since GoTrue's own answer for that case is less specific.
+   */
   createUserWithPhone(
     phone: string,
     password: string,
@@ -89,6 +103,7 @@ export class GoTrueSignUp {
     });
   }
 
+  /** Creates an account from a Google ID token GoTrue exchanges for a session. */
   createUserWithGoogle(
     idToken: string,
     nonce: string,
@@ -102,6 +117,7 @@ export class GoTrueSignUp {
     );
   }
 
+  /** Creates an account from an Apple ID token GoTrue exchanges for a session. */
   createUserWithApple(
     idToken: string,
     nonce: string,

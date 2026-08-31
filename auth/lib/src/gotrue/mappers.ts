@@ -40,7 +40,15 @@ import type { Session } from "../../contracts/account.ts";
 import type { AccountRole } from "../../contracts/role.ts";
 import { fromBase64Url, jsonFromBase64Url } from "@scribe/runtime/support/crypto/base64.ts";
 
+/** GoTrue's wire shapes mapped onto this package's own account contract, `AuthMapper.account`'s implementation. */
 class AccountMapper {
+  /**
+   * The Postgres role `raw` carries, or `null` when it carries none.
+   *
+   * @remarks
+   * Accepts both a bare user and a session response, since a caller sometimes only has the
+   * session GoTrue answered with and would otherwise have to unwrap `raw.user` itself first.
+   */
   static role(raw: GoTrueUser | GoTrueSessionResponse): AccountRole | null {
     const user: GoTrueUser | undefined = "app_metadata" in raw ? raw : raw.user;
     const role = user?.app_metadata.role;
@@ -52,6 +60,15 @@ class AccountMapper {
     return { ...raw, id: raw.id };
   }
 
+  /**
+   * `raw` mapped onto this package's own `Session` shape.
+   *
+   * @remarks
+   * Casts `access_token`, `refresh_token` and `expires_in` rather than checking them, because this
+   * mapper trusts the caller already decided `raw` is a real session, `sessionOf` in
+   * `sign_in/doors.ts` checks `user` and `access_token` before ever calling this. Mapping a
+   * response that failed that check would produce a `Session` whose token fields lie.
+   */
   static session(raw: GoTrueSessionResponse): Session {
     return {
       access_token: raw.access_token as string,
@@ -63,6 +80,15 @@ class AccountMapper {
   }
 }
 
+/**
+ * Reads a session JWT's claims locally, `AuthMapper.jwt`'s implementation.
+ *
+ * @remarks
+ * Verifies the token's own HMAC signature with `JWT_SECRET`, the same secret GoTrue signs with,
+ * rather than asking GoTrue whether the token is still good: a caller that only needs to know who
+ * a token names, or how long it has left, would otherwise pay a network round trip for a question
+ * the signature alone already answers.
+ */
 class JwtMapper {
   static #key: Promise<CryptoKey> | null = null;
 
@@ -87,6 +113,15 @@ class JwtMapper {
     return JwtMapper.#key;
   }
 
+  /**
+   * How many seconds until `jwt` expires, without checking its signature.
+   *
+   * @remarks
+   * Unverified on purpose: `session.ts` calls this to report `expires_in` back to a caller only
+   * after GoTrue itself has already confirmed the token is valid, so checking the signature again
+   * here would repeat a check the network round trip already did. `account` is the one that
+   * verifies, for a token whose origin is not already known.
+   */
   static expiresInUnverified(jwt: string): number {
     try {
       const payload = JwtMapper.decodeSegment(jwt.split(".")[1]);
@@ -99,6 +134,17 @@ class JwtMapper {
     }
   }
 
+  /**
+   * The user id and role `jwt` asserts, once its HMAC signature, algorithm and expiry all check
+   * out, or `null` on any failure.
+   *
+   * @remarks
+   * Refuses when `JWT_SECRET` is unset rather than skipping the check, refuses an algorithm other
+   * than `HS256` even if the signature would otherwise verify, since accepting whatever the token
+   * claims to be signed with is exactly the confusion an explicit algorithm list exists to close,
+   * and refuses an expired token: any one of these failing answers `null`, the same as a token that
+   * was never valid at all, so a caller cannot tell which check failed from the answer alone.
+   */
   static async account(
     jwt: string,
   ): Promise<{ userId: string; role: AccountRole } | null> {
@@ -140,11 +186,22 @@ class JwtMapper {
     }
   }
 
+  /** The role {@link account} verifies `jwt` to, or `null` when the token does not verify. */
   static async accountRole(jwt: string): Promise<AccountRole | null> {
     return (await JwtMapper.account(jwt))?.role ?? null;
   }
 }
 
+/**
+ * The single door onto both mappers this package keeps: `account` for GoTrue's wire shapes,
+ * `jwt` for reading a session token's claims locally.
+ *
+ * @remarks
+ * `jwt` exists because a caller that only needs to know who a token belongs to, or whether it
+ * has expired, would otherwise have to round-trip to GoTrue just to ask. Verifying the HMAC
+ * signature locally, with the same secret GoTrue signs with, answers that without the network
+ * call.
+ */
 export class AuthMapper {
   /** Maps a GoTrue user onto this package's own account shape. */
   static readonly account = AccountMapper;

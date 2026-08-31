@@ -45,7 +45,9 @@ import {
   requestAuthVoid,
 } from "../transport.ts";
 
+/** The one-time-passcode path for an email sign-in: request a code, then trade it for a session. */
 class GoTrueSignInEmailOtp {
+  /** Sends a one-time code to `email`, creating the account first when `createUser` says to. */
   send(
     email: string,
     role: AccountRole,
@@ -58,6 +60,7 @@ class GoTrueSignInEmailOtp {
     });
   }
 
+  /** Exchanges the code `send` sent to `email` for a session. */
   verify(
     email: string,
     otp: string,
@@ -70,10 +73,25 @@ class GoTrueSignInEmailOtp {
   }
 }
 
+/**
+ * GoTrue's password and email-link paths for signing in, plus the OTP path under `otp`.
+ *
+ * @remarks
+ * Three ways into the same account: a password checked server-side, a one-time code sent to
+ * the address, or a token lifted from a link GoTrue emailed. All three return the same session
+ * shape, so a caller never has to branch on which one succeeded.
+ */
 export class GoTrueSignInEmail {
   /** The one-time-passcode half of an email sign-in, requesting and then verifying a code. */
   readonly otp = new GoTrueSignInEmailOtp();
 
+  /**
+   * Signs in with `email` and `password`, returning a session on success.
+   *
+   * @remarks
+   * Requested anonymously: the password is what authenticates the call, not an existing
+   * session.
+   */
   withPassword(
     email: string,
     password: string,
@@ -85,6 +103,14 @@ export class GoTrueSignInEmail {
     });
   }
 
+  /**
+   * Verifies the token from an email link and returns a session.
+   *
+   * @remarks
+   * `type` names which link this is: GoTrue accepts several kinds through the same `verify`
+   * endpoint, a magic-link sign-in, an invite, a recovery link among them, and this passes the
+   * value straight through rather than choosing one for the caller.
+   */
   verifyToken(
     tokenHash: string,
     type: string,
@@ -96,6 +122,13 @@ export class GoTrueSignInEmail {
     });
   }
 
+  /**
+   * Resends the sign-up confirmation email to `email`, tagged with the account's `role`.
+   *
+   * @remarks
+   * Exists because the first confirmation email GoTrue sends at sign-up can be lost, expire, or
+   * never arrive; this repeats it without creating a second account.
+   */
   resendConfirmation(
     email: string,
     role: AccountRole,

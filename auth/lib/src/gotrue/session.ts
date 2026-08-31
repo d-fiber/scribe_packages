@@ -48,7 +48,16 @@ import {
   userHeaders,
 } from "./transport.ts";
 
+/**
+ * Reading, refreshing and ending the GoTrue session a sign-in produced.
+ *
+ * @remarks
+ * Grouped apart from `GoTrueSignIn` because these calls all take an existing session's own access
+ * token, not credentials: a caller reaches this once already signed in, to keep that session
+ * alive or to close it, never to open a new one.
+ */
 export class GoTrueSession {
+  /** Exchanges `refreshToken` for a new session, as GoTrue's own refresh grant answers it. */
   refreshToken(
     refreshToken: string,
   ): Promise<Result<GoTrueSessionResponse, AuthError>> {
@@ -59,6 +68,7 @@ export class GoTrueSession {
     });
   }
 
+  /** The GoTrue user `accessToken` names. */
   user(accessToken: string): Promise<Result<GoTrueUser, AuthError>> {
     return requestAuth(`${authUrl()}/user`, {
       method: "GET",
@@ -66,6 +76,7 @@ export class GoTrueSession {
     });
   }
 
+  /** Changes the email or phone `accessToken`'s user signs in with. */
   updateIdentifier(
     accessToken: string,
     identifier: { email: string } | { phone: string },
@@ -77,6 +88,7 @@ export class GoTrueSession {
     });
   }
 
+  /** Confirms a phone number change with the one-time code `otp` sent to `phone`. */
   verifyPhoneChange(
     phone: string,
     otp: string,
@@ -88,6 +100,7 @@ export class GoTrueSession {
     });
   }
 
+  /** Removes the external identity `identityId` from the user `accessToken` names. */
   unlinkIdentity(
     accessToken: string,
     identityId: string,
@@ -101,6 +114,7 @@ export class GoTrueSession {
     );
   }
 
+  /** Ends the session `accessToken` names, at the reach `scope` describes. */
   logout(
     accessToken: string,
     scope: SignOutScope,
