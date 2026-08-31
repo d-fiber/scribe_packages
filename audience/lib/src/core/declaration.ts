@@ -179,16 +179,23 @@ export class Audience implements Members, KeyedAudience {
     return new Audience(Audience.#declared(name), options.ttl ?? null);
   }
 
+  /** Registers `name` in the declared-audience registry and answers the key it was declared under. */
   static #declared(name: string): string {
     const key = audienceSegment(name);
     declareAudience(key);
     return key;
   }
 
+  /** The {@link KeyedAudience.in} implementation: derives the scoped audience's key and reuses this declaration's `ttl`. */
   in(scope: string, ...nested: string[]): Members {
     return new Audience(audienceKey(this.name, [scope, ...nested]), this.#ttl);
   }
 
+  /**
+   * The {@link Members.has} implementation: reads through the cache, and answers `false` rather
+   * than throwing when the backend cannot be reached, since a closed door costs less than an open
+   * one when the answer cannot be trusted.
+   */
   async has(member: string): Promise<boolean> {
     try {
       return await this.#held(member) !== null;
@@ -198,6 +205,10 @@ export class Audience implements Members, KeyedAudience {
     }
   }
 
+  /**
+   * The {@link Members.add} implementation: writes the membership, then evicts the cached
+   * `has` result so a check right after `add` sees the change instead of a stale answer.
+   */
   add(member: string, options: JoinOptions = {}): Promise<Result<void, AudienceError>> {
     return guarded(async () => {
       const ttl = options.ttl !== undefined ? options.ttl : this.#ttl;
@@ -212,6 +223,7 @@ export class Audience implements Members, KeyedAudience {
     });
   }
 
+  /** The {@link Members.remove} implementation: drops the membership, then evicts the cache the same way {@link add} does. */
   remove(member: string): Promise<Result<void, AudienceError>> {
     return guarded(async () => {
       const removed = await dropMembership(this.name, member);
@@ -221,6 +233,10 @@ export class Audience implements Members, KeyedAudience {
     });
   }
 
+  /**
+   * The {@link Members.ttl} implementation: re-times the stored membership without touching
+   * whether `member` belongs, then evicts the cache the same way {@link add} does.
+   */
   ttl(member: string, ttl: Duration | null): Promise<Result<void, AudienceError>> {
     return guarded(async () => {
       const retimed = await retimeMembership(
@@ -234,6 +250,10 @@ export class Audience implements Members, KeyedAudience {
     });
   }
 
+  /**
+   * The {@link Members.members} implementation: lists the audience, and answers an empty list
+   * rather than throwing when the backend cannot be reached.
+   */
   async members(): Promise<string[]> {
     try {
       return await membersOf(this.name);
@@ -243,6 +263,7 @@ export class Audience implements Members, KeyedAudience {
     }
   }
 
+  /** The {@link Members.clear} implementation: drops the whole audience, then evicts its cache. */
   clear(): Promise<Result<void, AudienceError>> {
     return guarded(async () => {
       const wiped = await dropAudience(this.name);
@@ -252,6 +273,7 @@ export class Audience implements Members, KeyedAudience {
     });
   }
 
+  /** `member`'s row in this audience, read through the cache, or `null` when it is missing or has expired. */
   async #held(member: string): Promise<AudienceRow | null> {
     const row = await cachedMembership(
       this.name,

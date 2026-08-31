@@ -11,6 +11,7 @@ import { type LoggedEntry, LogSink, printEntry } from "@scribe/sdk";
  * Deleting this file is what makes those two silent.
  */
 export class ProjectLogs extends LogSink {
+  /** Prints `entry` to standard output. */
   protected override each(entry: LoggedEntry): void {
     printEntry(entry);
   }

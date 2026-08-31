@@ -7,6 +7,7 @@ import { Caller, Middleware, type RateLimiter, Time } from "@scribe/sdk";
  * that folder, and the closest to the route wins.
  */
 export class ExampleBrowsing extends Middleware {
+  /** Allows any caller, anonymous included. */
   protected override access(): Caller {
     return Caller.Anonymous;
   }
