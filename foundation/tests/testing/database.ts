@@ -33,7 +33,6 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-// deno-lint-ignore-file no-explicit-any
 import "./settings.ts";
 
 export type Row = Record<string, unknown>;
@@ -120,18 +119,22 @@ class FakeQueryBuilder implements PromiseLike<{ data: unknown; error: null }> {
   }
 
   gt(col: string, value: unknown): this {
+    // deno-lint-ignore no-explicit-any -- a fake row's column holds whatever the test fixture gave it, and this defers to the host's own comparison rather than pretending to know the type.
     return this.#filter(col, (v) => (v as any) > (value as any));
   }
 
   gte(col: string, value: unknown): this {
+    // deno-lint-ignore no-explicit-any -- see gt: the value's real type is not known here.
     return this.#filter(col, (v) => (v as any) >= (value as any));
   }
 
   lt(col: string, value: unknown): this {
+    // deno-lint-ignore no-explicit-any -- see gt: the value's real type is not known here.
     return this.#filter(col, (v) => (v as any) < (value as any));
   }
 
   lte(col: string, value: unknown): this {
+    // deno-lint-ignore no-explicit-any -- see gt: the value's real type is not known here.
     return this.#filter(col, (v) => (v as any) <= (value as any));
   }
 
@@ -197,6 +200,7 @@ class FakeQueryBuilder implements PromiseLike<{ data: unknown; error: null }> {
         for (const { col, ascending } of [...this.#orders].reverse()) {
           rows = [...rows].sort((a, b) => {
             if (a[col] === b[col]) return 0;
+            // deno-lint-ignore no-explicit-any -- see FakePostgrestClient.gt: the column's real type is not known here.
             const cmp = (a[col] as any) > (b[col] as any) ? 1 : -1;
             return ascending ? cmp : -cmp;
           });
