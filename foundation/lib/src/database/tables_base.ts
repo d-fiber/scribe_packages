@@ -47,6 +47,14 @@ import type { RelNode } from "./query/selector.ts";
  */
 export type RpcBuilder<T extends object> = ReturnType<PostgrestClient["rpc"]> & { _row: T };
 
+/**
+ * Opens a query against `table`, typed by the row shape `T` and the relations `Rels` a generated
+ * table accessor declares.
+ *
+ * @remarks
+ * Every method a generated table class exposes is a thin call into this, since the query builder
+ * itself does not know a table's row shape at compile time, only what a caller tells it here.
+ */
 export function from<
   T extends object,
   Rels extends Record<string, RelNode> = Record<string, never>,
@@ -62,8 +70,25 @@ function rpc<T extends object>(
   return db.rpc(fn, args) as RpcBuilder<T>;
 }
 
+/**
+ * A PostgREST client, or a thunk that produces one when first asked.
+ *
+ * @remarks
+ * A thunk is what lets a `TablesBase` be constructed before the host has finished wiring its
+ * settings: a table accessor declared at module scope only needs a real client once a query
+ * actually runs, not at the moment its class is instantiated.
+ */
 export type PostgrestClientSource = PostgrestClient | (() => PostgrestClient);
 
+/**
+ * The base every generated table accessor extends.
+ *
+ * @remarks
+ * A row's own table class carries the typed columns and relations `from` needs; this base carries
+ * the one thing every one of them shares regardless of row shape, resolving and holding the
+ * PostgREST client, so that logic exists once instead of being generated fresh into every table
+ * file.
+ */
 export class TablesBase {
   readonly #source: PostgrestClientSource;
   #client: PostgrestClient | null = null;
@@ -72,7 +97,11 @@ export class TablesBase {
     this.#source = source;
   }
 
-  /** The client this table handle reads and writes through, resolved from `source` on first use. */
+  /**
+   * The client this table handle reads and writes through, resolved from `source` on first use
+   * and held from then on, so a thunk given a settings-dependent client to build only pays that
+   * cost once per table handle rather than once per query.
+   */
   protected get db(): PostgrestClient {
     if (this.#client === null) {
       this.#client = typeof this.#source === "function" ? this.#source() : this.#source;
@@ -80,7 +109,7 @@ export class TablesBase {
     return this.#client;
   }
 
-  /** Calls a Postgres function, typed by the rows it answers. */
+  /** Calls the Postgres function named `fn`, typed by the rows `R` it answers. */
   rpc<R extends object = object>(
     fn: string,
     args?: Record<string, unknown>,

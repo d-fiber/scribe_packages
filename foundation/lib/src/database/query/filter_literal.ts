@@ -38,6 +38,15 @@ import type { UnmodifiableList } from "@scribe/alchemy";
 const PLAIN_COLUMN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const IS_KEYWORDS: UnmodifiableList<string> = ["null", "true", "false", "unknown"];
 
+/**
+ * Raised when a filter would build a PostgREST query string unsafe to send as written.
+ *
+ * @remarks
+ * PostgREST reads a filter's column and value out of a plain, comma-and-operator-delimited query
+ * string, not a parameterized query the way a raw SQL client would: there is no bound-value escape
+ * hatch here, so this module's whole job is refusing anything that could not be safely spliced into
+ * that string, and this is the one error every refusal raises.
+ */
 export class UnsafeFilterError extends Error {
   constructor(readonly detail: string) {
     super(`refusing to build a PostgREST filter: ${detail}`);
@@ -45,6 +54,18 @@ export class UnsafeFilterError extends Error {
   }
 }
 
+/**
+ * Answers `column` back once it matches `PLAIN_COLUMN`, or throws.
+ *
+ * @remarks
+ * A column name reaches PostgREST unquoted, right next to the operator and the value in the same
+ * query string, so a column that carried a comma or an operator character of its own would not
+ * filter on a different column, it would change which operator the query runs or add a second
+ * filter the caller never asked for. This is the one place that risk is closed off, before a
+ * column name is ever used to build part of a filter.
+ *
+ * @throws {UnsafeFilterError} When `column` is not a plain identifier.
+ */
 export function assertPlainColumn(column: string): string {
   if (!PLAIN_COLUMN.test(column)) {
     throw new UnsafeFilterError(`"${column}" is not a plain column name`);
@@ -52,6 +73,15 @@ export function assertPlainColumn(column: string): string {
   return column;
 }
 
+/**
+ * `value` as PostgREST's filter syntax expects it to be written.
+ *
+ * @remarks
+ * `null`, a boolean, and a finite number are written bare, because PostgREST reads those forms
+ * back as themselves; anything else is quoted, with an embedded quote or backslash escaped, so a
+ * string value cannot be mistaken for the end of the literal and used to inject a second filter
+ * term into the query string.
+ */
 export function quoteFilterLiteral(value: unknown): string {
   if (value === null || value === undefined) return "null";
   if (typeof value === "boolean") return String(value);
@@ -64,6 +94,7 @@ export function quoteFilterLiteral(value: unknown): string {
   return `"${text.replaceAll("\\", "\\\\").replaceAll('"', '\\"')}"`;
 }
 
+/** Whether `value` is one of the four literal keywords PostgREST's `is` operator accepts, rather than an ordinary value `quoteFilterLiteral` would quote. */
 export function isFilterKeyword(value: unknown): boolean {
   if (value === null || value === undefined) return true;
   if (typeof value === "boolean") return true;
@@ -94,6 +125,7 @@ export function keywordLiteral(value: unknown): string {
   return String(value).toLowerCase();
 }
 
+/** `values`, each quoted through {@link quoteFilterLiteral}, joined the way PostgREST's `in` operator expects a list. */
 export function quoteFilterList(values: UnmodifiableList<unknown>): string {
   return `(${values.map(quoteFilterLiteral).join(",")})`;
 }

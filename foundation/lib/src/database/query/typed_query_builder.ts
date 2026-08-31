@@ -66,6 +66,7 @@ function describeCause(cause: unknown): string {
   return text.length > MAX_CAUSE_CHARS ? `${text.slice(0, MAX_CAUSE_CHARS)}...` : text;
 }
 
+/** Raised when a query throws rather than answering a `Result`: a read failure, not a refused write. */
 export class DatabaseQueryError extends Error {
   constructor(
     readonly table: string,
@@ -86,6 +87,15 @@ export class DatabaseQueryError extends Error {
  */
 export type PostgrestClientSource = any | (() => any);
 
+/**
+ * A chainable, owner-scoped query over one table, compiled against PostgREST only when it runs.
+ *
+ * @remarks
+ * Every chaining method returns a new builder rather than mutating this one, so a base query can
+ * be shared and specialized without the branches interfering with each other. Reads throw a
+ * {@link DatabaseQueryError} on failure; writes answer a `Result` instead, since a write has ways
+ * of not happening that are worth telling apart, not just one failure to raise.
+ */
 export class TypedQueryBuilder<
   Row extends object,
   Answer = Row,
@@ -262,10 +272,12 @@ export class TypedQueryBuilder<
     return named === undefined || named === decision.id ? null : _FOREIGN_OWNER;
   }
 
+  /** Reads or writes without the owner scope, for code that runs outside a caller's own request. */
   unscoped(): TypedQueryBuilder<Row, Answer, Rels> {
     return this.#with({ unscoped: true });
   }
 
+  /** Allows a write with no `where` to reach every row, rather than being refused as unbounded. */
   entireTable(): TypedQueryBuilder<Row, Answer, Rels> {
     return this.#with({ entireTable: true });
   }
@@ -277,6 +289,7 @@ export class TypedQueryBuilder<
     });
   }
 
+  /** Selects `cols` as a raw PostgREST column list, for a shape {@link select}'s own selector cannot express. */
   selectRaw<R extends object = Row>(
     cols: string,
   ): TypedQueryBuilder<Row, R, Rels> {
@@ -286,6 +299,7 @@ export class TypedQueryBuilder<
     });
   }
 
+  /** Selects the shape `builder` describes, typed by what it picks off `Row` and its declared relations. */
   select<const Shape extends Record<string, unknown>>(
     builder: (s: Selector<Row, Rels>) => Shape,
   ): TypedQueryBuilder<Row, ExtractShape<Row, Shape>, Rels> {
@@ -296,6 +310,7 @@ export class TypedQueryBuilder<
     }) as any;
   }
 
+  /** Adds the filters `builder` describes, on top of whatever this query already filters on. */
   where(
     builder: (f: FilterBuilder<Row>) => FilterSpec | FilterSpec[],
   ): TypedQueryBuilder<Row, Answer, Rels> {
@@ -308,6 +323,7 @@ export class TypedQueryBuilder<
     });
   }
 
+  /** Orders the result by `column`, ascending unless `options.ascending` says otherwise. */
   order<K extends keyof Row & string>(
     column: K,
     options?: {
@@ -341,10 +357,12 @@ export class TypedQueryBuilder<
     return this.#with({ limitCount: count });
   }
 
+  /** Asks for rows `from` through `to`, inclusive, in the order the query would otherwise answer them. */
   range(from: number, to: number): TypedQueryBuilder<Row, Answer, Rels> {
     return this.#with({ rangeVal: [from, to] });
   }
 
+  /** Runs this query and answers every row it reaches, scoped and shaped by whatever was chained. */
   async get(): Future<Answer[]> {
     const qb = buildRead(this.#db, this.#table, this.#scoped().state);
     const { data, error } = (await qb) as { data: unknown; error: unknown };
@@ -353,6 +371,7 @@ export class TypedQueryBuilder<
     return (data ?? []) as Answer[];
   }
 
+  /** Runs this query and answers its one row, or `null` when it reaches none. */
   async getOne(): Future<Answer | null> {
     const qb = buildRead(
       this.#db,
@@ -440,9 +459,11 @@ export class TypedQueryBuilder<
 
   /** Removes the one row this query reaches, and answers it as it was before. */
   async deleteOne(): Future<Result<Row>>;
+  /** The same removal, answering the shape `builder` describes instead of the whole row. */
   async deleteOne<const Shape extends Record<string, unknown>>(
     builder: (s: Selector<Row, Rels>) => Shape,
   ): Future<Result<ExtractShape<Row, Shape>>>;
+  /** The shared implementation behind both overloads above. */
   async deleteOne<const Shape extends Record<string, unknown>>(
     builder?: (s: Selector<Row, Rels>) => Shape,
   ): Future<Result<Row | ExtractShape<Row, Shape>>> {
