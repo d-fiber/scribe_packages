@@ -59,7 +59,7 @@ rsync -a --delete \
   --exclude '/.git' \
   --exclude '/.github' \
   --exclude '/.gitignore' \
-  --exclude '/deno.json' \
+  --exclude 'deno.json' \
   --exclude '/LICENSE' \
   --exclude '/README.md' \
   --exclude '/CONTRIBUTING.md' \

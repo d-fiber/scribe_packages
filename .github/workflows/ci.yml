@@ -14,6 +14,7 @@ concurrency:
 
 env:
   DENO_VERSION: 2.7.14
+  DART_SDK: 3.12.2
 
 jobs:
   # The three checks every repository owes, held once in the framework.
@@ -36,15 +37,45 @@ jobs:
           ref: dev
           path: scribe
 
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          repository: d-fiber/scribe_tools
+          ref: dev
+          path: scribe_tools
+
       - uses: denoland/setup-deno@22d081ff2d3a40755e97629de92e3bcbfa7cf2ed # v2.0.5
         with:
           deno-version: ${{ env.DENO_VERSION }}
+
+      - uses: dart-lang/setup-dart@6afc89df92d6eb3834022f73cd65adc8cdfcb92d # v1.8.1
+        with:
+          sdk: ${{ env.DART_SDK }}
 
       - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
         with:
           path: ~/.cache/deno
           key: deno-${{ runner.os }}-${{ hashFiles('scribe/deno.lock') }}
           restore-keys: deno-${{ runner.os }}-
+
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('scribe_tools/pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+
+      - name: Resolve scribe_tools' own dependencies
+        working-directory: scribe_tools
+        run: dart pub get
+
+      - name: Refuse a package whose lock is behind its manifest
+        env:
+          SCRIBE_ROOT: ${{ github.workspace }}/scribe
+        run: |
+          set -eu
+          for manifest in source/*/package.yaml; do
+            (cd "$(dirname "$manifest")" && dart run "$GITHUB_WORKSPACE/scribe_tools/bin/scribe.dart" forge)
+          done
+          git -C source diff --exit-code -- '*/package.lock'
 
       - name: Put these packages in the framework
         run: bash source/.github/sync/copy.sh "$GITHUB_WORKSPACE/scribe/packages"
