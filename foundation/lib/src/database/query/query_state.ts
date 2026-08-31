@@ -34,9 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-// deno-lint-ignore-file no-explicit-any
-
 import type { UnmodifiableList } from "@scribe/alchemy";
+import type { PostgrestClient } from "@supabase/postgrest-js";
 
 import type { FilterSpec } from "./filter_builder.ts";
 
@@ -104,7 +103,8 @@ export function atMostOneRow(state: QueryState): QueryState {
   return { ...state, limitCount: AMBIGUITY_PROBE };
 }
 
-export function buildRead(db: any, table: string, state: QueryState): any {
+// deno-lint-ignore no-explicit-any -- the builder type differs at each chained call, so no single type covers select, order, limit and range together.
+export function buildRead(db: PostgrestClient, table: string, state: QueryState): any {
   let qb = db.from(table).select(state.selectCols ?? "*");
   for (const f of state.filters) qb = f.apply(qb);
   for (const o of state.orders) qb = qb.order(o.col, o.options);
@@ -114,11 +114,12 @@ export function buildRead(db: any, table: string, state: QueryState): any {
 }
 
 export function buildWrite(
-  db: any,
+  db: PostgrestClient,
   table: string,
   state: QueryState,
   op: "update" | "delete",
   data?: unknown,
+  // deno-lint-ignore no-explicit-any -- see buildRead: the builder type differs at each chained call.
 ): any {
   let qb = op === "update" ? db.from(table).update(data) : db.from(table).delete();
   for (const f of state.filters) qb = f.apply(qb);

@@ -34,9 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-// deno-lint-ignore-file no-explicit-any
-
 import { Failure, type Future, Ok, Refusal, type Result } from "@scribe/alchemy";
+import type { PostgrestClient } from "@supabase/postgrest-js";
 import { log } from "@scribe/alchemy/observe";
 
 import { ownerOf } from "../table_owners.ts";
@@ -85,7 +84,7 @@ export class DatabaseQueryError extends Error {
  * and building the client there would read the database settings before the boot has filled
  * them, which throws. Taking a thunk is what lets the two happen in either order.
  */
-export type PostgrestClientSource = any | (() => any);
+export type PostgrestClientSource = PostgrestClient | (() => PostgrestClient);
 
 /**
  * A chainable, owner-scoped query over one table, compiled against PostgREST only when it runs.
@@ -105,7 +104,7 @@ export class TypedQueryBuilder<
   readonly #table: string;
   readonly #state: QueryState;
 
-  #client: any = null;
+  #client: PostgrestClient | null = null;
 
   constructor(
     source: PostgrestClientSource,
@@ -123,7 +122,7 @@ export class TypedQueryBuilder<
    * Chaining passes the source along rather than the resolved client, so a chain built before
    * the boot filled the settings still works.
    */
-  get #db(): any {
+  get #db(): PostgrestClient {
     return (this.#client ??= typeof this.#source === "function" ? this.#source() : this.#source);
   }
 
@@ -150,6 +149,7 @@ export class TypedQueryBuilder<
           filters: [
             ...this.#state.filters,
             ...embedded,
+            // deno-lint-ignore no-explicit-any -- FilterSpec.apply takes the builder untyped, since its shape differs at each chained call.
             { column: decision.column, apply: (qb: any) => qb.eq(decision.column, NOBODY) },
           ],
         },
@@ -171,6 +171,7 @@ export class TypedQueryBuilder<
           ...embedded,
           {
             column: decision.column,
+            // deno-lint-ignore no-explicit-any -- see above: FilterSpec.apply takes the builder untyped.
             apply: (qb: any) => qb.eq(decision.column, decision.id),
           },
         ],
@@ -304,10 +305,10 @@ export class TypedQueryBuilder<
     builder: (s: Selector<Row, Rels>) => Shape,
   ): TypedQueryBuilder<Row, ExtractShape<Row, Shape>, Rels> {
     const shape = builder(selector<Row, Rels>());
-    return new TypedQueryBuilder(this.#source, this.#table, {
+    return new TypedQueryBuilder<Row, ExtractShape<Row, Shape>, Rels>(this.#source, this.#table, {
       ...this.#state,
       selectCols: columnsOf(shape),
-    }) as any;
+    });
   }
 
   /** Adds the filters `builder` describes, on top of whatever this query already filters on. */

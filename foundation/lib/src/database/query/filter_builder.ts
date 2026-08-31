@@ -34,8 +34,6 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-// deno-lint-ignore-file no-explicit-any
-
 import { assertPlainColumn, keywordLiteral, quoteFilterList, quoteFilterLiteral } from "./filter_literal.ts";
 
 /** One condition of a `where`, kept as the column it names and the call that applies it. */
@@ -44,9 +42,11 @@ export interface FilterSpec {
   readonly column: string;
 
   /** Applies this condition to a PostgREST builder and answers it back for chaining. */
+  // deno-lint-ignore no-explicit-any -- the builder type differs at each chained call, so no single type covers every caller of apply.
   apply(qb: any): any;
 }
 
+// deno-lint-ignore no-explicit-any -- see FilterSpec.apply: the builder type differs at each chained call.
 function on(column: string, apply: (qb: any) => any): FilterSpec {
   return { column, apply };
 }
@@ -86,7 +86,7 @@ export type FilterBuilder<T> = {
 };
 
 export function filter<T>(): FilterBuilder<T> {
-  const ops = (col: string): FilterOps<any> => ({
+  const ops = (col: string): FilterOps<unknown> => ({
     eq: (v) => said(col, "eq", quoteFilterLiteral(v)),
     neq: (v) => said(col, "neq", quoteFilterLiteral(v)),
     gt: (v) => said(col, "gt", quoteFilterLiteral(v)),

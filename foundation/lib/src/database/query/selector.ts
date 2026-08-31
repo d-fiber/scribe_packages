@@ -34,8 +34,6 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-// deno-lint-ignore-file no-explicit-any
-
 /** One relation a table can embed, and what embedding it yields. */
 export type RelNode = {
   /** The shape of a row on the far side of this relation. */
@@ -107,7 +105,7 @@ export function selector<
 >(): Selector<Row, Rels> {
   const embed = (
     relation: string,
-    builder: (s: any) => any,
+    builder: (s: unknown) => Record<string, unknown>,
     options?: { inner?: boolean },
   ): string => {
     const shape = builder(selector());
