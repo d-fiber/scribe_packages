@@ -180,7 +180,7 @@ export class RoleDevices {
 }
 
 /** Any declared role, whatever it reads, writes and refuses. */
-// deno-lint-ignore no-explicit-any
+// deno-lint-ignore no-explicit-any -- the four parameters are used contravariantly through handler callbacks, so unknown fails their own constraints.
 export type AnyAccount = AccountDeclaration<any, any, any, any>;
 
 function filledColumns(

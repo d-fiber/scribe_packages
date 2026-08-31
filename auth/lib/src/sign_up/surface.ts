@@ -82,7 +82,7 @@ export type SignUpSurface<
     apple: Door<SocialCredentials, TSignUp, SocialSignUpError>;
   }>;
 
-// deno-lint-ignore no-explicit-any
+// deno-lint-ignore no-explicit-any -- TSignUp extends WriteShape, which unknown fails outright.
 type AnyDoor = SignUpDoor<any, any>;
 
 /** Builds the doors a declaration named, and nothing else. */

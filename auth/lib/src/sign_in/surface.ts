@@ -89,8 +89,7 @@ export type SignInSurface<TChannels extends readonly Channel[], TRefusal> =
     apple: Door<SocialCredentials, TRefusal>;
   }>;
 
-// deno-lint-ignore no-explicit-any
-type AnyDoor = SignInDoor<any, any, any>;
+type AnyDoor = SignInDoor<unknown, unknown, unknown>;
 
 function opened(door: AnyDoor): (input: never) => unknown {
   const run = (input: never) => door.run(input);
