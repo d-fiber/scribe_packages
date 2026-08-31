@@ -33,12 +33,13 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
+
 import "@scribe/runtime/scholium/runner.ts";
-import { expect, isFalse, isTrue, Scribe } from "@scribe/alchemy/test";
+import { equals, expect, isFalse, isTrue, Scribe } from "@scribe/alchemy/test";
 import { Audience } from "../../lib/src/core/declaration.ts";
 import { forgetMembership } from "../../lib/src/runtime/cache.ts";
 import { installAudienceMock } from "../testing/mock.ts";
-const editors = Audience.keyed("cache-editors");
+const editors = Audience.for("cache").namespaced("cache-editors");
 
 Scribe.test("a membership asked about once is answered from the cache until something drops it", async () => {
   const audiences = installAudienceMock();
@@ -46,7 +47,7 @@ Scribe.test("a membership asked about once is answered from the cache until some
   try {
     expect(await editors.in("p1").has("a1"), isFalse);
 
-    audiences.seed([{ audience: "cache-editors:p1", member: "a1", created_at: 1, expires_at: null }]);
+    audiences.seed([{ feature: "cache", audience: "cache-editors:p1", member: "a1", created_at: 1, expires_at: null }]);
     expect(await editors.in("p1").has("a1"), isFalse);
 
     await forgetMembership("cache-editors:p1", "a1");
@@ -92,6 +93,67 @@ Scribe.test("emptying an audience is seen by the next question", async () => {
 
     await editors.in("p1").clear();
     expect(await editors.in("p1").has("a1"), isFalse);
+  } finally {
+    audiences.restore();
+  }
+});
+
+Scribe.test("emptying a huge audience does not evict an unrelated audience's cache entries", async () => {
+  const audiences = installAudienceMock();
+
+  try {
+    await editors.in("p1").add("a1");
+    await editors.in("p2").add("a2");
+    expect(await editors.in("p1").has("a1"), isTrue);
+    expect(await editors.in("p2").has("a2"), isTrue);
+
+    await editors.in("p1").clear();
+
+    expect(await editors.in("p1").has("a1"), isFalse, "the cleared scope forgets what it held");
+    expect(await editors.in("p2").has("a2"), isTrue, "an unrelated scope's cache entry survives a sibling's clear");
+  } finally {
+    audiences.restore();
+  }
+});
+
+Scribe.test("two clears in immediate succession each still invalidate what came before", async () => {
+  const audiences = installAudienceMock();
+
+  try {
+    await editors.in("p1").add("a1");
+    await editors.in("p1").clear();
+    await editors.in("p1").add("a2");
+    await editors.in("p1").clear();
+
+    expect(await editors.in("p1").has("a2"), isFalse, "the second clear must invalidate what the first one did not see");
+  } finally {
+    audiences.restore();
+  }
+});
+
+Scribe.test("adding many members at once is seen by the next question, for every member added", async () => {
+  const audiences = installAudienceMock();
+
+  try {
+    expect((await editors.in("p1").addMany(["a1", "a2", "a3"])).ok, isTrue);
+
+    expect(await editors.in("p1").has("a1"), isTrue);
+    expect(await editors.in("p1").has("a2"), isTrue);
+    expect(await editors.in("p1").has("a3"), isTrue);
+  } finally {
+    audiences.restore();
+  }
+});
+
+Scribe.test("a scope's page reads its own members and none of another's", async () => {
+  const audiences = installAudienceMock();
+
+  try {
+    await editors.in("p1").addMany(["a1", "a2"]);
+    await editors.in("p2").addMany(["b1"]);
+
+    expect((await editors.in("p1").members()).members, equals(["a1", "a2"]));
+    expect((await editors.in("p2").members()).members, equals(["b1"]));
   } finally {
     audiences.restore();
   }

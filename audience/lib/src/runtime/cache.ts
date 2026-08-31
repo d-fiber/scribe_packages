@@ -41,12 +41,30 @@ import type { AudienceRow } from "../db/tables.ts";
  * How long a membership is kept, held or not.
  *
  * It is short by the standards of this cache because what it holds decides whether a caller gets
- * through. Nothing waits on it either: putting a member in, taking one out and emptying an
- * audience all drop what they touched, and the store is shared, so every replica stops answering
- * the old way at the same instant. What the ten minutes cover is the row that expires on its own,
- * which no write goes through to announce.
+ * through. What the ten minutes cover is the row that expires on its own, which no write goes
+ * through to announce.
  */
 const CACHE_TTL = Duration.minutes(10);
+
+/**
+ * How long a generation is kept before it is recomputed from scratch.
+ *
+ * It only bounds how long a stale generation number could theoretically linger if it were never
+ * read; every `clear()` writes a fresh one immediately; a long ttl costs nothing extra because a
+ * missing entry already reads as generation zero.
+ */
+const GENERATION_TTL = Duration.days(1);
+
+/**
+ * How long a generation read locally is trusted before this process asks the cache again.
+ *
+ * `has()` is the hot path this whole file exists to keep cheap, and a generation-tagged key needs
+ * the generation before it can even be looked up, which would otherwise cost every point check a
+ * second round trip on top of the one it already pays for the membership itself. Two seconds is
+ * how long a `clear()` on one replica can take to be seen as a fresh generation by another, and it
+ * is a window this process names rather than one the cache hides inside a single method call.
+ */
+const LOCAL_GENERATION_TTL_MS = Duration.seconds(2).inMilliseconds;
 
 /**
  * What one cached membership holds.
@@ -63,6 +81,59 @@ interface CachedMembership {
 const SEPARATOR = "|";
 
 const members = cache<CachedMembership>({ key: "audience:member", ttl: CACHE_TTL });
+const generations = cache<number>({ key: "audience:generation", ttl: GENERATION_TTL });
+
+/**
+ * The generation of a handful of audiences, read once from the cache and trusted for a short
+ * while before this process asks again.
+ *
+ * @remarks
+ * Named and kept here, rather than folded into a single method that hides the extra round trip, on
+ * purpose: a cache port that computed this for free would be a fake teaching the wrong lesson, one
+ * a real Redis adapter could not actually deliver on.
+ */
+class LocalGenerationCache {
+  readonly #ttlMs: number;
+  readonly #entries = new Map<string, { readonly value: number; readonly at: number }>();
+
+  constructor(ttlMs: number) {
+    this.#ttlMs = ttlMs;
+  }
+
+  /** The generation held for `audience`, or undefined when nothing fresh enough is held. */
+  get(audience: string): number | undefined {
+    const entry = this.#entries.get(audience);
+    if (entry === undefined || Date.now() - entry.at >= this.#ttlMs) return undefined;
+    return entry.value;
+  }
+
+  /** Remembers `value` as the generation of `audience`, fresh as of now. */
+  set(audience: string, value: number): void {
+    this.#entries.set(audience, { value, at: Date.now() });
+  }
+}
+
+const localGenerations = new LocalGenerationCache(LOCAL_GENERATION_TTL_MS);
+
+/** The generation `audience` is at, trusting a fresh local read before asking the shared cache. */
+async function currentGeneration(audience: string): Promise<number> {
+  const local = localGenerations.get(audience);
+  if (local !== undefined) return local;
+
+  const value = (await generations.get(audience)) ?? 0;
+  localGenerations.set(audience, value);
+  return value;
+}
+
+/** The generation of each of `audiences`, in the same order, without a local read in front. */
+async function currentGenerations(audiences: readonly string[]): Promise<number[]> {
+  const values = await generations.getMany(audiences);
+  return values.map((value) => value ?? 0);
+}
+
+function entryOf(audience: string, generation: number, member: string): string {
+  return `${audience}${SEPARATOR}${generation}${SEPARATOR}${member}`;
+}
 
 /**
  * The row held for `member` in `audience`, loading it through `load` when the cache does not.
@@ -76,32 +147,49 @@ export async function cachedMembership(
   member: string,
   load: () => Promise<AudienceRow | null>,
 ): Promise<AudienceRow | null> {
-  const held = await members.upsert(entryOf(audience, member), async () => ({ row: await load() }));
+  const generation = await currentGeneration(audience);
+  const held = await members.upsert(
+    entryOf(audience, generation, member),
+    async () => ({ row: await load() }),
+  );
   return held.row;
 }
 
 /** Drops what the cache holds for `member` in `audience`, so the next read goes to the table. */
-export function forgetMembership(audience: string, member: string): Promise<void> {
-  return members.delete(entryOf(audience, member));
-}
-
-/** Drops what the cache holds for every member of `audience`. */
-export function forgetAudience(audience: string): Promise<void> {
-  return members.clear(`${audience}${SEPARATOR}*`);
+export async function forgetMembership(audience: string, member: string): Promise<void> {
+  const generation = await currentGeneration(audience);
+  await members.delete(entryOf(audience, generation, member));
 }
 
 /**
  * Drops what the cache holds for `member` in each of `audiences`.
  *
- * The audiences are named rather than swept because a sweep matching a member would have to glob
- * on the tail of every key of the namespace, and Redis walks the whole keyspace to answer that.
+ * The audiences are named rather than swept because a sweep matching a member would have to walk
+ * the whole keyspace of every audience this package has ever cached, and cost the same whatever
+ * the size of the audiences actually named.
  */
-export function forgetMemberIn(audiences: readonly string[], member: string): Promise<void> {
-  if (audiences.length === 0) return Promise.resolve();
+export async function forgetMemberIn(audiences: readonly string[], member: string): Promise<void> {
+  if (audiences.length === 0) return;
 
-  return members.deleteMany(...audiences.map((audience) => entryOf(audience, member)));
+  const generationOf = await currentGenerations(audiences);
+  await members.deleteMany(...audiences.map((audience, at) => entryOf(audience, generationOf[at], member)));
 }
 
-function entryOf(audience: string, member: string): string {
-  return `${audience}${SEPARATOR}${member}`;
+/**
+ * Retires every cache entry `audience` holds, without touching one of them.
+ *
+ * @remarks
+ * This is what replaces a pattern-matched sweep of the whole keyspace: bumping the generation
+ * makes every entry written under the old one unreachable, and they age out of the store on their
+ * own ttl instead of being walked and deleted. The cost of clearing a hundred-thousand-member
+ * audience is therefore the same as clearing a ten-member one, which a keyspace sweep can never be.
+ *
+ * The next generation is at least the previous one plus one, never just the clock: two calls
+ * close enough together to read the same millisecond must still produce two different
+ * generations, or the second clear would leave the first one's entries reachable.
+ */
+export async function forgetAudience(audience: string): Promise<void> {
+  const next = Math.max(Date.now(), await currentGeneration(audience) + 1);
+  await generations.add(audience, next);
+  localGenerations.set(audience, next);
 }

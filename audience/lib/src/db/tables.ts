@@ -38,6 +38,16 @@ import { Table } from "@scribe/foundation/database";
 
 /** One row of the table this package keeps of who belongs where. */
 export interface AudienceRow {
+  /**
+   * The feature this row's audience was declared under, and the value the table is partitioned
+   * on.
+   *
+   * It is what keeps a high-churn feature from degrading the queries, the autovacuum load and the
+   * cache hit rate of an unrelated one sharing this table: each feature's rows live in their own
+   * partition, or in the shared `default` one when nobody promoted a partition of their own.
+   */
+  feature: string;
+
   /** The key of the audience, which is the declaration name and its scope joined together. */
   audience: string;
 
@@ -56,22 +66,48 @@ export interface AudienceRow {
   expires_at: number | null;
 }
 
+/** One row of the table that durably remembers which feature claimed which declaration name. */
+export interface AudienceDeclarationRow {
+  /** The feature this declaration was claimed under. */
+  feature: string;
+
+  /** The declaration name, unique within `feature`. */
+  name: string;
+
+  /**
+   * What claimed this pair, so a second, different owner claiming it can be told apart from the
+   * same owner claiming it again at the next boot.
+   */
+  owner: string;
+
+  /** When this pair was first claimed, in milliseconds, set by a trigger. */
+  created_at: number;
+}
+
 /**
- * The one table this package ships, as the query builder needs to see it.
+ * The two tables this package ships, as the query builder needs to see them.
  *
- * It is declared here rather than taken from a generated schema because the package owns the SQL
- * that creates it. A package that read its own table out of a project's generated file would stop
- * compiling the day that project renamed something it does not own.
+ * They are declared here rather than taken from a generated schema because the package owns the
+ * SQL that creates them. A package that read its own tables out of a project's generated file
+ * would stop compiling the day that project renamed something it does not own.
  */
 export type AudiencesSchema = {
   /** One row per member of one audience, and none for an audience nobody was put in. */
   __audiences__: { row: AudienceRow };
+
+  /** One row per (feature, name) pair a declaration has claimed, across every process. */
+  __audience_declarations__: { row: AudienceDeclarationRow };
 };
 
-/** A handle on this package's own table. */
+/** A handle on one of this package's own tables. */
 export class AudiencesTable<K extends keyof AudiencesSchema & string> extends Table<AudiencesSchema, K> {}
 
 /** Who belongs to what. */
 export function audiences(): AudiencesTable<"__audiences__"> {
   return new AudiencesTable("__audiences__");
+}
+
+/** Which feature claimed which declaration name. */
+export function audienceDeclarations(): AudiencesTable<"__audience_declarations__"> {
+  return new AudiencesTable("__audience_declarations__");
 }

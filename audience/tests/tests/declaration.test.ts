@@ -35,17 +35,19 @@
 // LICENSE file, the LICENSE file governs.
 
 import "@scribe/runtime/scholium/runner.ts";
-import { equals, expect, isA, isFalse, isTrue, Scribe, throwsA } from "@scribe/alchemy/test";
+import { equals, expect, expectLater, isA, isFalse, isTrue, Scribe, throwsA } from "@scribe/alchemy/test";
 import { Duration } from "@scribe/alchemy";
 import { AudienceError } from "../../lib/contracts/audience.ts";
 import { Audience } from "../../lib/src/core/declaration.ts";
-import { AudienceKeyError } from "../../lib/src/core/key.ts";
+import { AudienceKeyError, AudienceMemberError } from "../../lib/src/core/key.ts";
 import { installAudienceMock } from "../testing/mock.ts";
-const banned = Audience.plain("declaration-banned");
-const editors = Audience.keyed("declaration-editors");
-const invited = Audience.keyed("declaration-invited", { ttl: Duration.days(7) });
 
-Scribe.test("a plain audience holds the members it was given", async () => {
+const declaration = Audience.for("declaration");
+const banned = declaration.global("declaration-banned");
+const editors = declaration.namespaced("declaration-editors");
+const invited = declaration.namespaced("declaration-invited", { ttl: Duration.days(7) });
+
+Scribe.test("a global audience holds the members it was given", async () => {
   const audiences = installAudienceMock();
 
   try {
@@ -104,6 +106,7 @@ Scribe.test("a membership that has expired stops answering", async () => {
 
   try {
     audiences.seed([{
+      feature: "declaration",
       audience: "declaration-editors:p1",
       member: "a1",
       created_at: 1,
@@ -111,7 +114,7 @@ Scribe.test("a membership that has expired stops answering", async () => {
     }]);
 
     expect(await editors.in("p1").has("a1"), isFalse);
-    expect(await editors.in("p1").members(), equals([]));
+    expect((await editors.in("p1").members()).members, equals([]));
   } finally {
     audiences.restore();
   }
@@ -165,21 +168,101 @@ Scribe.test("emptying an audience leaves the other scopes alone", async () => {
     await editors.in("p2").add("a2");
 
     expect((await editors.in("p1").clear()).ok, isTrue);
-    expect(await editors.in("p1").members(), equals([]));
-    expect(await editors.in("p2").members(), equals(["a2"]));
+    expect((await editors.in("p1").members()).members, equals([]));
+    expect((await editors.in("p2").members()).members, equals(["a2"]));
   } finally {
     audiences.restore();
   }
 });
 
-Scribe.test("a name taken twice is refused", () => {
-  Audience.plain("declaration-twice");
+Scribe.test("adding many members at once writes every one of them", async () => {
+  const audiences = installAudienceMock();
 
-  expect(() => Audience.keyed("declaration-twice"), throwsA(isA(TypeError)));
+  try {
+    const added = await editors.in("p1").addMany(["a1", "a2", "a3"]);
+
+    expect(added.ok, isTrue);
+    expect((await editors.in("p1").members()).members, equals(["a1", "a2", "a3"]));
+  } finally {
+    audiences.restore();
+  }
 });
 
-Scribe.test("a name or a scope a key cannot hold is refused", () => {
-  expect(() => Audience.plain("bad name"), throwsA(isA(AudienceKeyError)));
-  expect(() => Audience.plain(""), throwsA(isA(AudienceKeyError)));
+Scribe.test("adding an empty list of members is a no-op that touches nothing", async () => {
+  const audiences = installAudienceMock();
+
+  try {
+    const added = await editors.in("p1").addMany([]);
+
+    expect(added.ok, isTrue);
+    expect(audiences.memberships().length, equals(0));
+  } finally {
+    audiences.restore();
+  }
+});
+
+Scribe.test("addMany applies the declared delay the same way add does", async () => {
+  const audiences = installAudienceMock();
+
+  try {
+    const before = Date.now();
+    await invited.in("p1").addMany(["a1", "a2"]);
+
+    for (const row of audiences.memberships()) {
+      expect(row.expires_at as number >= before + Duration.days(7).inMilliseconds, isTrue);
+    }
+  } finally {
+    audiences.restore();
+  }
+});
+
+Scribe.test("reaping an audience removes only its own expired rows", async () => {
+  const audiences = installAudienceMock();
+
+  try {
+    audiences.seed([
+      { feature: "declaration", audience: "declaration-editors:p1", member: "a1", created_at: 1, expires_at: 1 },
+      { feature: "declaration", audience: "declaration-editors:p1", member: "a2", created_at: 1, expires_at: null },
+      { feature: "declaration", audience: "declaration-editors:p2", member: "b1", created_at: 1, expires_at: 1 },
+    ]);
+
+    const reaped = await editors.in("p1").reap();
+
+    expect(reaped.ok, isTrue);
+    expect(reaped.ok ? reaped.data : -1, equals(1));
+    expect(audiences.memberships().map((row) => row.member), equals(["a2", "b1"]));
+  } finally {
+    audiences.restore();
+  }
+});
+
+Scribe.test("a name taken twice under the same feature is refused", () => {
+  declaration.global("declaration-twice");
+
+  expect(() => declaration.namespaced("declaration-twice"), throwsA(isA(TypeError)));
+});
+
+Scribe.test("the same name under two different features is not a collision", () => {
+  const a = Audience.for("feature-a").global("shared-name");
+  const b = Audience.for("feature-b").global("shared-name");
+
+  expect(a.name, equals(b.name));
+});
+
+Scribe.test("a name, a scope or a feature a key cannot hold is refused", () => {
+  expect(() => declaration.global("bad name"), throwsA(isA(AudienceKeyError)));
+  expect(() => declaration.global(""), throwsA(isA(AudienceKeyError)));
   expect(() => editors.in("p1:p2"), throwsA(isA(AudienceKeyError)));
+  expect(() => Audience.for("bad feature"), throwsA(isA(AudienceKeyError)));
+});
+
+Scribe.test("a member carrying a control character or the cache separator is refused", async () => {
+  const audiences = installAudienceMock();
+
+  try {
+    await expectLater(() => banned.has("a1\n"), throwsA(isA(AudienceMemberError)));
+    await expectLater(() => banned.add("a1|x"), throwsA(isA(AudienceMemberError)));
+  } finally {
+    audiences.restore();
+  }
 });

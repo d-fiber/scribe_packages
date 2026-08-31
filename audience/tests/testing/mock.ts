@@ -40,13 +40,19 @@ import { installValkeryMock } from "@scribe/foundation/testing";
 import { type InstalledMock, installMock } from "@scribe/testing/install.ts";
 import type { PostgrestClient } from "@supabase/postgrest-js";
 
-/** The table of this package, standing in for Postgres, and what a test reads back. */
+/** The tables of this package, standing in for Postgres, and what a test reads back. */
 export interface InstalledAudiences extends InstalledMock {
   /** The memberships the package wrote, in the order it wrote them. */
   memberships(): Row[];
 
-  /** Puts `rows` in the table, replacing what it held. */
+  /** The declarations {@link verifyDeclarations} has durably claimed, in the order it claimed them. */
+  declarations(): Row[];
+
+  /** Puts `rows` in the membership table, replacing what it held. */
   seed(rows: Row[]): void;
+
+  /** Puts `rows` in the declaration table, replacing what it held. */
+  seedDeclarations(rows: Row[]): void;
 }
 
 /**
@@ -58,7 +64,8 @@ export interface InstalledAudiences extends InstalledMock {
  * assertion on somebody who was just put in would pass or fail for the wrong reason.
  */
 export function installAudienceMock(seed: FakePostgrestSeed = {}): InstalledAudiences {
-  const fake = new FakePostgrestClient({ __audiences__: [], ...seed });
+  const fake = new FakePostgrestClient({ __audiences__: [], __audience_declarations__: [], ...seed });
+  fake.declareUniqueKey("__audience_declarations__", ["feature", "name"]);
 
   const database = installMock(
     PostgrestClients,
@@ -73,6 +80,8 @@ export function installAudienceMock(seed: FakePostgrestSeed = {}): InstalledAudi
       database.restore();
     },
     memberships: () => fake.rows("__audiences__"),
+    declarations: () => fake.rows("__audience_declarations__"),
     seed: (rows: Row[]) => fake.seed("__audiences__", rows),
+    seedDeclarations: (rows: Row[]) => fake.seed("__audience_declarations__", rows),
   };
 }

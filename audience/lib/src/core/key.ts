@@ -38,6 +38,21 @@ const SEGMENT_PATTERN = /^[A-Za-z0-9_-]+$/;
 const SEGMENT_MAX_LENGTH = 128;
 const SEPARATOR = ":";
 
+const MEMBER_MAX_LENGTH = 512;
+
+/**
+ * What a member must not carry: a control character, `DEL`, or the character the cache layer
+ * joins an audience and a member with.
+ *
+ * A member is an identifier this package never learns the shape of, so its charset stays open
+ * where a segment's does not. What it cannot carry is narrower: a control character has no
+ * business inside an identifier written by a caller, and the cache separator is refused because a
+ * member holding it would be read back under a different cache entry than the one it was written
+ * to, `cache.ts` describes why.
+ */
+// deno-lint-ignore no-control-regex -- matching a control character is the point of this pattern.
+const MEMBER_FORBIDDEN = /[\x00-\x1f\x7f|]/;
+
 /** Thrown when a declaration name or a scope carries something a key cannot hold. */
 export class AudienceKeyError extends Error {
   constructor(segment: string) {
@@ -47,6 +62,18 @@ export class AudienceKeyError extends Error {
       } expected ${SEGMENT_PATTERN.source}, ${SEGMENT_MAX_LENGTH} characters max.`,
     );
     this.name = "AudienceKeyError";
+  }
+}
+
+/** Thrown when a member carries something the table or the cache cannot hold safely. */
+export class AudienceMemberError extends Error {
+  constructor(member: string) {
+    super(
+      `Invalid audience member: ${
+        JSON.stringify(member)
+      } must not be empty, exceed ${MEMBER_MAX_LENGTH} characters, or carry a control character or "|".`,
+    );
+    this.name = "AudienceMemberError";
   }
 }
 
@@ -66,7 +93,21 @@ export function audienceSegment(value: string): string {
 }
 
 /**
- * The key `name` answers to once narrowed to `scope`, which is empty for a plain audience.
+ * Answers `value` once it is safe to hold as a member.
+ *
+ * @throws {AudienceMemberError} When it is empty, too long, or carries a control character or the
+ * cache separator.
+ */
+export function memberSegment(value: string): string {
+  if (value.length === 0 || value.length > MEMBER_MAX_LENGTH || MEMBER_FORBIDDEN.test(value)) {
+    throw new AudienceMemberError(value);
+  }
+
+  return value;
+}
+
+/**
+ * The key `name` answers to once narrowed to `scope`, which is empty for a global audience.
  *
  * @throws {AudienceKeyError} When any segment carries something a key cannot hold.
  */

@@ -44,17 +44,22 @@
  *
  * `scribe` at the bottom is the other half of what it hands over. It is the three moments the
  * host may run this package at, and a package that runs at none of them says so with an empty
- * one rather than by exporting nothing.
+ * one rather than by exporting nothing. `verifyDeclarations` is not one of them on purpose: the
+ * owner it claims declarations under is a project's choice, not something this package could
+ * synthesize, so a project that wants the durable check calls it itself, at whichever of its own
+ * moments it chooses.
  */
 
 import type { LifecycleSteps } from "@scribe/alchemy";
 
 export { Audience } from "./src/core/declaration.ts";
-export type { KeyedAudience, Members } from "./src/core/declaration.ts";
+export type { AudienceFeature, Members, NamespacedAudience } from "./src/core/declaration.ts";
 export { audiencesOf, forgetMember } from "./src/core/member.ts";
-export { AudienceKeyError } from "./src/core/key.ts";
-export { MAX_AUDIENCES, MAX_MEMBERS } from "./src/db/members.ts";
-export type { AudienceRow } from "./src/db/tables.ts";
+export { AudienceKeyError, AudienceMemberError } from "./src/core/key.ts";
+export { AudienceClaimError, declaredAudiences, verifyDeclarations } from "./src/core/registry.ts";
+export { DEFAULT_AUDIENCES_LIMIT, DEFAULT_PAGE_SIZE } from "./src/db/members.ts";
+export type { MembersPage } from "./src/db/members.ts";
+export type { AudienceDeclarationRow, AudienceRow } from "./src/db/tables.ts";
 
 export { AudienceError } from "./contracts/audience.ts";
 export type { AudienceOptions, JoinOptions } from "./contracts/audience.ts";

@@ -35,25 +35,28 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { Duration } from "@scribe/alchemy";
-import { Failure, okay, type Result } from "@scribe/alchemy";
+import { Failure, Ok, okay, type Result } from "@scribe/alchemy";
 import { AudienceError, type AudienceOptions, type JoinOptions } from "../../contracts/audience.ts";
 import {
   dropAudience,
   dropMembership,
   hasExpired,
+  type MembersPage,
   membershipOf,
   membersOf,
+  reapExpired,
   retimeMembership,
   writeMembership,
+  writeMemberships,
 } from "../db/members.ts";
 import type { AudienceRow } from "../db/tables.ts";
 import { cachedMembership, forgetAudience, forgetMembership } from "../runtime/cache.ts";
 import { guarded } from "./guard.ts";
-import { audienceKey, audienceSegment } from "./key.ts";
+import { audienceKey, audienceSegment, memberSegment } from "./key.ts";
 import { declareAudience } from "./registry.ts";
 
 /**
- * One audience, and the six things a caller does with it.
+ * One audience, and the seven things a caller does with it.
  *
  * Nothing here learns what a member is. It holds the identifier the caller gave, which is what
  * lets an account, a device and a workspace live in the same table without the package having to
@@ -69,11 +72,24 @@ export interface Members {
    * It never fails. A table that cannot be reached answers false, reported, and so does a
    * membership that has expired. A caller asking this is deciding whether to let something
    * through, so the answer that costs least when it is wrong is the one that closes the door.
+   *
+   * @throws {AudienceMemberError} When `member` is empty, too long, or carries a control
+   * character. That is a mistake in what the caller sent, not something a backend outage
+   * produces, so it is not swallowed the way a backend failure is.
    */
   has(member: string): Promise<boolean>;
 
   /** Puts `member` in, and moves the expiry when it was already in. */
   add(member: string, options?: JoinOptions): Promise<Result<void, AudienceError>>;
+
+  /**
+   * Puts every one of `members` in, in a handful of round trips rather than one per member.
+   *
+   * This is the call a caller building a large audience in one shot reaches for: adding twenty
+   * thousand members one at a time each pays a read and a write, where this pays a few. An empty
+   * list is a no-op that never reaches the table or the cache.
+   */
+  addMany(members: readonly string[], options?: JoinOptions): Promise<Result<void, AudienceError>>;
 
   /** Takes `member` out, and answers `NotFound` when it was not in. */
   remove(member: string): Promise<Result<void, AudienceError>>;
@@ -87,13 +103,14 @@ export interface Members {
   ttl(member: string, ttl: Duration | null): Promise<Result<void, AudienceError>>;
 
   /**
-   * The members of this audience, up to the cap the package lists with.
+   * One page of this audience's members, live ones only.
    *
-   * It never fails, and a table that cannot be reached answers with an empty listing, reported.
-   * Reaching the cap is reported too, because a truncated listing is indistinguishable from a
-   * complete one at the call site.
+   * It never fails, and a table that cannot be reached answers an empty, non-truncated page. Pass
+   * `after` the last cursor's value to read the next page; `truncated` tells the caller the scan
+   * gave up before it could say the page was complete, which is the one thing a caller must check
+   * before treating a short page as the whole audience.
    */
-  members(): Promise<string[]>;
+  members(options?: { after?: string; limit?: number }): Promise<MembersPage>;
 
   /**
    * Empties this audience, and answers whether the wipe went through.
@@ -102,6 +119,16 @@ export interface Members {
    * day the name is reused for something else.
    */
   clear(): Promise<Result<void, AudienceError>>;
+
+  /**
+   * Physically removes this audience's rows that have already expired, and answers how many.
+   *
+   * A membership that has expired already reads as absent, so this changes nothing a caller can
+   * observe; it only stops the table from growing forever with rows nothing answers with any more.
+   * Nothing calls this on its own — a project wires it into a cron of its own, one audience at a
+   * time, which is what keeps a reap from touching more than the one audience it was asked about.
+   */
+  reap(): Promise<Result<number, AudienceError>>;
 }
 
 /**
@@ -110,8 +137,8 @@ export interface Members {
  * It carries nothing a caller can ask directly, and that is the whole of what it buys: naming the
  * scope is the only way in, so a check meant for one project cannot read the members of another.
  */
-export interface KeyedAudience {
-  /** The name every audience of this family is keyed under. */
+export interface NamespacedAudience {
+  /** The name every audience of this family is namespaced under. */
   readonly name: string;
 
   /**
@@ -123,22 +150,53 @@ export interface KeyedAudience {
 }
 
 /**
+ * The two ways to declare an audience under one feature.
+ *
+ * @see {@link Audience.for}
+ */
+export interface AudienceFeature {
+  /**
+   * Declares the one audience named `name`, under this feature.
+   *
+   * @throws {TypeError} When another declaration already took `name` under this feature.
+   * @throws {AudienceKeyError} When `name` carries anything a key cannot hold.
+   */
+  global(name: string, options?: AudienceOptions): Members;
+
+  /**
+   * Declares a family of audiences named `name`, under this feature, one per scope a caller keys
+   * it on.
+   *
+   * @throws {TypeError} When another declaration already took `name` under this feature.
+   * @throws {AudienceKeyError} When `name` carries anything a key cannot hold.
+   */
+  namespaced(name: string, options?: AudienceOptions): NamespacedAudience;
+}
+
+/**
  * One named set a project puts identifiers into, and asks about on the way in.
  *
  * ```ts
- * const banned = Audience.plain("banned");
- * const editors = Audience.keyed("project-editors");
+ * const chat = Audience.for("chat");
+ * const banned = chat.global("banned");
+ * const editors = chat.namespaced("project-editors");
  *
  * await banned.has(accountId);
  * await editors.in(projectId).add(accountId, { ttl: Duration.days(30) });
  * await editors.in(projectId).has(accountId);
  * ```
  *
- * The two ways of declaring answer two different questions. A plain audience is one set, so asking
- * whether somebody is in it is a complete question. A keyed audience is a family, one set per
- * project, per workspace or per whatever the project keys it on, and the question means nothing
- * until that key is named. That is why they hand back {@link Members} and {@link KeyedAudience}:
- * the compiler refuses a check that forgot its scope.
+ * `Audience.for(feature)` is the first thing every declaration names, and it is not optional:
+ * `feature` is what the table is partitioned on, so a project that never says which feature an
+ * audience belongs to is a project that cannot keep an unrelated feature's churn from degrading
+ * this one. Two features may declare the same name; `feature` already keeps their rows, and their
+ * cache entries, apart, so nothing else needs to.
+ *
+ * The two ways of declaring inside one feature answer two different questions. A global audience
+ * is one set, so asking whether somebody is in it is a complete question. A namespaced audience is
+ * a family, one set per project, per workspace or per whatever the project keys it on, and the
+ * question means nothing until that key is named. That is why they hand back {@link Members} and
+ * {@link NamespacedAudience}: the compiler refuses a check that forgot its scope.
  *
  * A declaration is **built, not extended**: the constructor is private and both factories hand
  * back an interface, so there is one way to make one and it names everything at once. It is safe
@@ -148,47 +206,46 @@ export interface KeyedAudience {
  * is in an audience and settles the rest itself, and a module that needs a right of its own names
  * the audience it reads instead of growing a second table.
  */
-export class Audience implements Members, KeyedAudience {
+export class Audience implements Members, NamespacedAudience {
+  /** The feature this declaration belongs to, and the value its table and cache entries are kept apart by. */
+  readonly feature: string;
+
   /** The key this declaration was made under, and the set or family it reads and writes by. */
   readonly name: string;
 
   readonly #ttl: Duration | null;
 
-  private constructor(name: string, ttl: Duration | null) {
+  private constructor(feature: string, name: string, ttl: Duration | null) {
+    this.feature = feature;
     this.name = name;
     this.#ttl = ttl;
   }
 
   /**
-   * Declares the one audience named `name`.
+   * Names the feature every audience declared through the result belongs to.
    *
-   * @throws {TypeError} When another declaration already took `name`.
-   * @throws {AudienceKeyError} When `name` carries anything a key cannot hold.
+   * @throws {AudienceKeyError} When `feature` carries anything a key cannot hold.
    */
-  static plain(name: string, options: AudienceOptions = {}): Members {
-    return new Audience(Audience.#declared(name), options.ttl ?? null);
+  static for(feature: string): AudienceFeature {
+    const claimed = audienceSegment(feature);
+
+    return {
+      global: (name, options = {}) => new Audience(claimed, Audience.#declared(claimed, name), options.ttl ?? null),
+      namespaced: (name, options = {}) =>
+        new Audience(claimed, Audience.#declared(claimed, name), options.ttl ?? null),
+    };
   }
 
-  /**
-   * Declares a family of audiences named `name`, one per scope a caller keys it on.
-   *
-   * @throws {TypeError} When another declaration already took `name`.
-   * @throws {AudienceKeyError} When `name` carries anything a key cannot hold.
-   */
-  static keyed(name: string, options: AudienceOptions = {}): KeyedAudience {
-    return new Audience(Audience.#declared(name), options.ttl ?? null);
-  }
-
-  /** Registers `name` in the declared-audience registry and answers the key it was declared under. */
-  static #declared(name: string): string {
+  /** Registers `name` under `feature` in the declared-audience registry and answers the key it was declared under. */
+  static #declared(feature: string, name: string): string {
     const key = audienceSegment(name);
-    declareAudience(key);
+    declareAudience(feature, key);
     return key;
   }
 
-  /** The {@link KeyedAudience.in} implementation: derives the scoped audience's key and reuses this declaration's `ttl`. */
+  /** The {@link NamespacedAudience.in} implementation: derives the scoped audience's key and reuses this declaration's `ttl`. */
   in(scope: string, ...nested: string[]): Members {
-    return new Audience(audienceKey(this.name, [scope, ...nested]), this.#ttl);
+    return new Audience(this.feature, audienceKey(this.name, [scope, ...nested]), this.#ttl);
   }
 
   /**
@@ -197,10 +254,12 @@ export class Audience implements Members, KeyedAudience {
    * one when the answer cannot be trusted.
    */
   async has(member: string): Promise<boolean> {
+    memberSegment(member);
+
     try {
       return await this.#held(member) !== null;
     } catch {
-      console.error(`[audience] ${this.name} could not be read, so nobody belongs to it.`);
+      console.error(`[audience] ${this.feature}/${this.name} could not be read, so nobody belongs to it.`);
       return false;
     }
   }
@@ -209,24 +268,50 @@ export class Audience implements Members, KeyedAudience {
    * The {@link Members.add} implementation: writes the membership, then evicts the cached
    * `has` result so a check right after `add` sees the change instead of a stale answer.
    */
-  add(member: string, options: JoinOptions = {}): Promise<Result<void, AudienceError>> {
-    return guarded(async () => {
-      const ttl = options.ttl !== undefined ? options.ttl : this.#ttl;
-      const written = await writeMembership(
-        this.name,
+  async add(member: string, options: JoinOptions = {}): Promise<Result<void, AudienceError>> {
+    memberSegment(member);
+
+    return await guarded(async () => {
+      const written = await writeMembership({
+        feature: this.feature,
+        audience: this.name,
         member,
-        ttl === null ? null : Date.now() + ttl.inMilliseconds,
-      );
+        expiresAt: this.#expiresAt(options),
+      });
 
       await forgetMembership(this.name, member);
       return written ? okay : new Failure(AudienceError.Backend);
     });
   }
 
+  /**
+   * The {@link Members.addMany} implementation: writes every membership in a handful of chunked
+   * upserts, then bumps this audience's cache generation once instead of evicting each member's
+   * entry in turn.
+   */
+  async addMany(members: readonly string[], options: JoinOptions = {}): Promise<Result<void, AudienceError>> {
+    for (const member of members) memberSegment(member);
+    if (members.length === 0) return okay;
+
+    return await guarded(async () => {
+      const expiresAt = this.#expiresAt(options);
+      const written = await writeMemberships(
+        members.map((member) => ({ feature: this.feature, audience: this.name, member, expiresAt })),
+      );
+
+      if (!written) return new Failure(AudienceError.Backend);
+
+      await forgetAudience(this.name);
+      return okay;
+    });
+  }
+
   /** The {@link Members.remove} implementation: drops the membership, then evicts the cache the same way {@link add} does. */
-  remove(member: string): Promise<Result<void, AudienceError>> {
-    return guarded(async () => {
-      const removed = await dropMembership(this.name, member);
+  async remove(member: string): Promise<Result<void, AudienceError>> {
+    memberSegment(member);
+
+    return await guarded(async () => {
+      const removed = await dropMembership(this.feature, this.name, member);
 
       await forgetMembership(this.name, member);
       return removed ? okay : new Failure(AudienceError.NotFound);
@@ -237,9 +322,12 @@ export class Audience implements Members, KeyedAudience {
    * The {@link Members.ttl} implementation: re-times the stored membership without touching
    * whether `member` belongs, then evicts the cache the same way {@link add} does.
    */
-  ttl(member: string, ttl: Duration | null): Promise<Result<void, AudienceError>> {
-    return guarded(async () => {
+  async ttl(member: string, ttl: Duration | null): Promise<Result<void, AudienceError>> {
+    memberSegment(member);
+
+    return await guarded(async () => {
       const retimed = await retimeMembership(
+        this.feature,
         this.name,
         member,
         ttl === null ? null : Date.now() + ttl.inMilliseconds,
@@ -251,26 +339,37 @@ export class Audience implements Members, KeyedAudience {
   }
 
   /**
-   * The {@link Members.members} implementation: lists the audience, and answers an empty list
-   * rather than throwing when the backend cannot be reached.
+   * The {@link Members.members} implementation: lists the audience, and answers an empty,
+   * non-truncated page rather than throwing when the backend cannot be reached.
    */
-  async members(): Promise<string[]> {
+  async members(options: { after?: string; limit?: number } = {}): Promise<MembersPage> {
     try {
-      return await membersOf(this.name);
+      return await membersOf(this.feature, this.name, options);
     } catch {
-      console.error(`[audience] ${this.name} could not be listed, so it reads as empty.`);
-      return [];
+      console.error(`[audience] ${this.feature}/${this.name} could not be listed, so it reads as empty.`);
+      return { members: [], cursor: null, truncated: false };
     }
   }
 
   /** The {@link Members.clear} implementation: drops the whole audience, then evicts its cache. */
-  clear(): Promise<Result<void, AudienceError>> {
-    return guarded(async () => {
-      const wiped = await dropAudience(this.name);
+  async clear(): Promise<Result<void, AudienceError>> {
+    return await guarded(async () => {
+      const wiped = await dropAudience(this.feature, this.name);
 
       await forgetAudience(this.name);
       return wiped ? okay : new Failure(AudienceError.Backend);
     });
+  }
+
+  /** The {@link Members.reap} implementation: physically removes this audience's expired rows. */
+  reap(): Promise<Result<number, AudienceError>> {
+    return guarded(async () => new Ok(await reapExpired(this.feature, this.name)));
+  }
+
+  /** What `options.ttl` resolves to: the caller's own, this declaration's when absent, forever for null. */
+  #expiresAt(options: JoinOptions): number | null {
+    const ttl = options.ttl !== undefined ? options.ttl : this.#ttl;
+    return ttl === null ? null : Date.now() + ttl.inMilliseconds;
   }
 
   /** `member`'s row in this audience, read through the cache, or `null` when it is missing or has expired. */
@@ -278,7 +377,7 @@ export class Audience implements Members, KeyedAudience {
     const row = await cachedMembership(
       this.name,
       member,
-      () => membershipOf(this.name, member),
+      () => membershipOf(this.feature, this.name, member),
     );
 
     return row === null || hasExpired(row) ? null : row;

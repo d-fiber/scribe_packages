@@ -35,55 +35,74 @@
 // LICENSE file, the LICENSE file governs.
 
 import "@scribe/runtime/scholium/runner.ts";
-import { equals, expect, isFalse, isTrue, Scribe } from "@scribe/alchemy/test";
+import { equals, expect, isFalse, Scribe } from "@scribe/alchemy/test";
 import { Audience } from "../../lib/src/core/declaration.ts";
-import { audiencesOf, forgetMember } from "../../lib/src/core/member.ts";
 import { installAudienceMock } from "../testing/mock.ts";
-const member = Audience.for("member");
-const banned = member.global("member-banned");
-const editors = member.namespaced("member-editors");
+import type { Row } from "@scribe/foundation/testing";
 
-Scribe.test("a member is listed under every audience it belongs to, across features", async () => {
+const list = Audience.for("pagination").global("large-list");
+
+function rowsOf(members: readonly string[], expiresAt: number | null = null): Row[] {
+  return members.map((member) => ({
+    feature: "pagination",
+    audience: "large-list",
+    member,
+    created_at: 1,
+    expires_at: expiresAt,
+  }));
+}
+
+Scribe.test("a page walks a list too large for one page without gaps or duplicates", async () => {
   const audiences = installAudienceMock();
+  const members = Array.from({ length: 25 }, (_, i) => `m${String(i).padStart(3, "0")}`);
+  audiences.seed(rowsOf(members));
 
   try {
-    await banned.add("a1");
-    await editors.in("p1").add("a1");
-    await editors.in("p2").add("a2");
+    const collected: string[] = [];
+    let cursor: string | undefined;
 
-    expect((await audiencesOf("a1")).audiences, equals(["member-banned", "member-editors:p1"]));
+    for (let guard = 0; guard < 10; guard++) {
+      const page = await list.members({ after: cursor, limit: 10 });
+      collected.push(...page.members);
+      if (page.cursor === null) break;
+      cursor = page.cursor;
+    }
+
+    expect(collected, equals(members));
   } finally {
     audiences.restore();
   }
 });
 
-Scribe.test("a member that is forgotten belongs nowhere, cache included", async () => {
+Scribe.test("a page does not under-report live members when expired rows are interleaved within its window", async () => {
   const audiences = installAudienceMock();
+  const expired = Array.from({ length: 8 }, (_, i) => `expired${i}`);
+  const live = ["m0", "m1", "m2"];
+
+  // Interleave so the expired rows sort ahead of some live ones: a raw page of the requested size
+  // would previously have been filtered after being capped, undercounting the live members.
+  audiences.seed([...rowsOf(expired, Date.now() - 1), ...rowsOf(live)]);
 
   try {
-    await banned.add("a1");
-    await editors.in("p1").add("a1");
-    expect(await banned.has("a1"), isTrue);
-    expect(await editors.in("p1").has("a1"), isTrue);
+    const page = await list.members({ limit: 3 });
 
-    expect((await forgetMember("a1")).ok, isTrue);
-    expect(await banned.has("a1"), isFalse);
-    expect(await editors.in("p1").has("a1"), isFalse);
-    expect((await audiencesOf("a1")).audiences, equals([]));
+    expect(page.members, equals(live));
+    expect(page.truncated, isFalse);
   } finally {
     audiences.restore();
   }
 });
 
-Scribe.test("forgetting a member leaves the others where they are", async () => {
+Scribe.test("a page that gives up scanning says so instead of reading as complete", async () => {
   const audiences = installAudienceMock();
+  const allExpired = Array.from({ length: 40 }, (_, i) => `gone${i}`);
+  audiences.seed(rowsOf(allExpired, Date.now() - 1));
 
   try {
-    await editors.in("p1").add("a1");
-    await editors.in("p1").add("a2");
+    const page = await list.members({ limit: 2 });
 
-    await forgetMember("a1");
-    expect((await editors.in("p1").members()).members, equals(["a2"]));
+    expect(page.members, equals([]));
+    expect(page.truncated, equals(true));
   } finally {
     audiences.restore();
   }

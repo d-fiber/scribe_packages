@@ -35,56 +35,77 @@
 // LICENSE file, the LICENSE file governs.
 
 import "@scribe/runtime/scholium/runner.ts";
-import { equals, expect, isFalse, isTrue, Scribe } from "@scribe/alchemy/test";
+import { equals, expect, expectLater, isA, Scribe, throwsA } from "@scribe/alchemy/test";
 import { Audience } from "../../lib/src/core/declaration.ts";
-import { audiencesOf, forgetMember } from "../../lib/src/core/member.ts";
+import { AudienceClaimError, verifyDeclarations } from "../../lib/src/core/registry.ts";
 import { installAudienceMock } from "../testing/mock.ts";
-const member = Audience.for("member");
-const banned = member.global("member-banned");
-const editors = member.namespaced("member-editors");
+import { PostgrestClients } from "@scribe/foundation/database";
+import { type InstalledMock, installMock } from "@scribe/testing/install.ts";
+import type { PostgrestClient } from "@supabase/postgrest-js";
 
-Scribe.test("a member is listed under every audience it belongs to, across features", async () => {
+const FEATURE = "registry-test";
+const NAME = "registry-claim-target";
+
+Audience.for(FEATURE).global(NAME);
+
+Scribe.test("verifyDeclarations durably claims every pair this process declared", async () => {
   const audiences = installAudienceMock();
 
   try {
-    await banned.add("a1");
-    await editors.in("p1").add("a1");
-    await editors.in("p2").add("a2");
+    await verifyDeclarations("owner-a");
 
-    expect((await audiencesOf("a1")).audiences, equals(["member-banned", "member-editors:p1"]));
+    const claim = audiences.declarations().find((row) => row.feature === FEATURE && row.name === NAME);
+    expect(claim?.owner, equals("owner-a"));
   } finally {
     audiences.restore();
   }
 });
 
-Scribe.test("a member that is forgotten belongs nowhere, cache included", async () => {
+Scribe.test("verifyDeclarations called again by the same owner is a no-op", async () => {
   const audiences = installAudienceMock();
 
   try {
-    await banned.add("a1");
-    await editors.in("p1").add("a1");
-    expect(await banned.has("a1"), isTrue);
-    expect(await editors.in("p1").has("a1"), isTrue);
+    await verifyDeclarations("owner-a");
+    await verifyDeclarations("owner-a");
 
-    expect((await forgetMember("a1")).ok, isTrue);
-    expect(await banned.has("a1"), isFalse);
-    expect(await editors.in("p1").has("a1"), isFalse);
-    expect((await audiencesOf("a1")).audiences, equals([]));
+    const claims = audiences.declarations().filter((row) => row.feature === FEATURE && row.name === NAME);
+    expect(claims.length, equals(1));
   } finally {
     audiences.restore();
   }
 });
 
-Scribe.test("forgetting a member leaves the others where they are", async () => {
+Scribe.test("verifyDeclarations refuses a pair already durably claimed by a different owner", async () => {
   const audiences = installAudienceMock();
+  audiences.seedDeclarations([{ feature: FEATURE, name: NAME, owner: "owner-a", created_at: 1 }]);
 
   try {
-    await editors.in("p1").add("a1");
-    await editors.in("p1").add("a2");
-
-    await forgetMember("a1");
-    expect((await editors.in("p1").members()).members, equals(["a2"]));
+    await expectLater(() => verifyDeclarations("owner-b"), throwsA(isA(AudienceClaimError)));
   } finally {
     audiences.restore();
+  }
+});
+
+function installUnreachableDatabase(): InstalledMock {
+  const unreachable = {
+    from(): never {
+      throw new Error("connection refused");
+    },
+  };
+
+  return installMock(
+    PostgrestClients,
+    "service",
+    () => unreachable as unknown as PostgrestClient,
+  );
+}
+
+Scribe.test("a table that cannot be reached refuses to verify rather than claiming blind", async () => {
+  const down = installUnreachableDatabase();
+
+  try {
+    await expectLater(() => verifyDeclarations("owner-a"), throwsA(isA(Error)));
+  } finally {
+    down.restore();
   }
 });
