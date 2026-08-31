@@ -2,6 +2,7 @@ import { Caller, Middleware, type RateLimiter, Time } from "@scribe/sdk";
 
 /** Declares who may reach this node, which the gateway also gates behind a key. */
 export class GuardedAccess extends Middleware {
+  /** Allows any caller, anonymous included. */
   protected override access(): Caller {
     return Caller.Anonymous;
   }

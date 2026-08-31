@@ -14,12 +14,13 @@ interface ItemRow extends Record<string, unknown> {
 }
 
 /**
- * Answers `GET /v1/example/items`.
+ * Answers `GET /v1/internal`.
  *
- * A file named `index` answers on the directory itself, so this one is the
- * collection and `[item_id].ts` next to it is one of its members.
+ * A file named `index` answers on the directory itself, which is why this
+ * route has no filename segment of its own the way `items/[item_id].ts` does.
  */
 export class ListItems extends Get {
+  /** Lists up to 50 items, ordered by name. */
   protected override async run(_: RequestContext): Promise<Response> {
     const items = await database
       .from<ItemRow>("items")
@@ -31,13 +32,14 @@ export class ListItems extends Get {
   }
 }
 
-/** Answers `POST /v1/example/items`. */
+/** Answers `POST /v1/internal`. */
 export class CreateItem extends Post {
   /** What the caller must hold, checked before `run` is reached. */
   protected override permissions(): readonly string[] {
     return ["item:create"];
   }
 
+  /** Inserts a new item named by the request body. */
   protected override async run(ctx: RequestContext): Promise<Response> {
     const body = ctx.body({ name: Required(String) });
     if (!body) return response.badRequest();
