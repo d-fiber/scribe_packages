@@ -240,6 +240,15 @@ class FakeQueryBuilder implements PromiseLike<{ data: unknown; error: null }> {
 export type FakePostgrestSeed = Record<string, Row[]>;
 export type RpcHandler = (args?: Record<string, unknown>) => unknown;
 
+/**
+ * A PostgREST client that keeps every table in memory, standing in for the real one in a test.
+ *
+ * @remarks
+ * `filter_builder.ts` calls `.filter(column, operator, literal)` on whatever client it is given,
+ * the literal already encoded the way `quoteFilterLiteral` writes it for the wire. This class
+ * decodes that same format in {@link readFilterLiteral} and {@link readFilterList}, so a test
+ * exercises the real encoding path end to end instead of a query object nothing ever serializes.
+ */
 export class FakePostgrestClient {
   readonly #tables = new Map<string, FakeTable>();
   readonly #rpcHandlers = new Map<string, RpcHandler>();
@@ -257,18 +266,22 @@ export class FakePostgrestClient {
     return table;
   }
 
+  /** Every row currently held under table `name`. */
   rows(name: string): Row[] {
     return this.#table(name).rows;
   }
 
+  /** Replaces table `name`'s rows with `rows`. */
   seed(name: string, rows: Row[]): void {
     this.#tables.set(name, new FakeTable(rows.map((row) => ({ ...row }))));
   }
 
+  /** Wires `handler` to answer calls to the RPC named `fn`. */
   onRpc(fn: string, handler: RpcHandler): void {
     this.#rpcHandlers.set(fn, handler);
   }
 
+  /** The query builder for table `name`, the same surface the real PostgREST client exposes. */
   from(name: string) {
     const table = this.#table(name);
     return {
@@ -279,6 +292,7 @@ export class FakePostgrestClient {
     };
   }
 
+  /** Calls the handler wired to `fn` with `args`, or answers `null` when nothing was wired. */
   rpc(
     fn: string,
     args?: Record<string, unknown>,
@@ -291,6 +305,7 @@ export class FakePostgrestClient {
   }
 }
 
+/** Decodes one value out of the quoted, escaped form `quoteFilterLiteral` writes for the wire. */
 function readFilterLiteral(literal: string): unknown {
   if (literal === "null") return null;
   if (literal === "unknown") return undefined;
@@ -308,6 +323,7 @@ function readFilterLiteral(literal: string): unknown {
   return read;
 }
 
+/** Decodes the parenthesized, comma-separated form `quoteFilterList` writes for an `in` filter. */
 function readFilterList(literal: string): unknown[] {
   const members: string[] = [];
   let member = "";

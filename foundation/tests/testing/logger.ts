@@ -36,6 +36,7 @@
 import type { LoggedLevel, Logger, LogInput } from "@scribe/alchemy/observe";
 import { Loggers } from "@scribe/alchemy/observe";
 
+/** One call a test made through a {@link Logger}, recorded rather than printed. */
 export interface LoggedLine {
   /** The severity this line was logged at. */
   readonly level: LoggedLevel;
@@ -47,26 +48,32 @@ export interface LoggedLine {
   readonly input: LogInput | null;
 }
 
+/** The {@link Logger} a test installs to assert on what a package logged, instead of printing it. */
 export class MemoryLogger implements Logger {
   /** Every line logged through this logger so far, in the order it received them. */
   readonly lines: LoggedLine[] = [];
 
+  /** The {@link Logger.debug} implementation: records the line at `"debug"`. */
   debug(action: string, input?: LogInput): void {
     this.at("debug", action, input);
   }
 
+  /** The {@link Logger.info} implementation: records the line at `"info"`. */
   info(action: string, input?: LogInput): void {
     this.at("info", action, input);
   }
 
+  /** The {@link Logger.warn} implementation: records the line at `"warn"`. */
   warn(action: string, input?: LogInput): void {
     this.at("warn", action, input);
   }
 
+  /** The {@link Logger.error} implementation: records the line at `"error"`. */
   error(action: string, input?: LogInput): void {
     this.at("error", action, input);
   }
 
+  /** The {@link Logger.at} implementation: appends the line to {@link lines}. */
   at(level: LoggedLevel, action: string, input?: LogInput): void {
     this.lines.push({ level, action, input: input ?? null });
   }
@@ -76,11 +83,22 @@ export class MemoryLogger implements Logger {
     return this.lines.map((line) => line.action);
   }
 
+  /** Empties {@link lines}, for a test that wants to assert on what happens next in isolation. */
   clear(): void {
     this.lines.length = 0;
   }
 }
 
+/**
+ * Installs a fresh {@link MemoryLogger} as the process-wide `Loggers` and returns it, along with a
+ * `restore` that puts back whatever logger was configured before.
+ *
+ * @remarks
+ * `Loggers` is a single static instance shared by every package, so a test that calls `Loggers.use`
+ * without restoring leaves the next test logging into a logger it never installed. `restore` clears
+ * rather than reinstalls when nothing was configured beforehand, matching the state a fresh process
+ * starts in.
+ */
 export function recordLog(): MemoryLogger & { restore(): void } {
   const held = Loggers.configured ? Loggers.get() : null;
   const logger = new MemoryLogger();
