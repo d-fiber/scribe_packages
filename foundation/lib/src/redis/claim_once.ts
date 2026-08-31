@@ -45,6 +45,11 @@ import { kv } from "./kv.ts";
  * two callers racing on the same key cannot both be told they took it.
  */
 export class RedisClaims implements ClaimDriver {
+  /**
+   * The {@link ClaimDriver.claim} implementation: `SET key NX EX ttlSeconds`, `true` only for the
+   * caller Redis answers `OK` to. Falls back to `options.whenUnavailable === "allow"` when the
+   * store cannot be reached, rather than deciding the claim by default.
+   */
   async claim(key: string, ttlSeconds: number, options: ClaimOptions): Promise<boolean> {
     try {
       return await kv().set(key, "1", "EX", ttlSeconds, "NX") === "OK";

@@ -225,6 +225,7 @@ export class RedisRateLimiter implements RateLimiter {
  * `rateLimit` and the host fills {@link RateLimiters} with this at boot.
  */
 export class RedisRateLimiters implements RateLimiterDriver {
+  /** The {@link RateLimiterDriver.open} implementation: a new {@link RedisRateLimiter} for `options`. */
   open(options: RateLimitOptions): RateLimiter {
     return new RedisRateLimiter(options);
   }

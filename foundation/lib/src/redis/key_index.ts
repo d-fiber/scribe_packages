@@ -44,8 +44,8 @@ import { kv } from "./kv.ts";
  * operation is fail-soft: an index that cannot answer costs a stale entry, and no caller of a
  * cache should fail because its bookkeeping did.
  *
- * The expiry is re-armed on every write, so the index never outlives the entries it points at
- * — an index key written without one would stay behind forever.
+ * The expiry is re-armed on every write, so the index never outlives the entries it points at.
+ * An index key written without one would stay behind forever.
  */
 export class KeyIndex {
   readonly #prefix: string;
