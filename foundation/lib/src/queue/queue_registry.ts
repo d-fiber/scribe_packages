@@ -50,6 +50,12 @@ export class QueueRegistry {
   readonly #byName = new Map<string, RegisteredQueue>();
   readonly #bySubject = new Map<string, RegisteredQueue>();
 
+  /**
+   * Adds `queue` to the registry, indexed by its name and by the NATS subject it reduces to.
+   *
+   * @throws {DuplicateDeclarationError} When `queue.name` is already taken, or when it reduces to
+   * a subject another queue already publishes to.
+   */
   add(queue: RegisteredQueue): void {
     if (this.#byName.has(queue.name)) {
       throw new DuplicateDeclarationError(
@@ -71,26 +77,39 @@ export class QueueRegistry {
     this.#bySubject.set(queue.subject, queue);
   }
 
+  /** The queue declared as `name`, or `null` when nothing was, for the caller that has the name a project wrote. */
   get(name: string): RegisteredQueue | null {
     return this.#byName.get(name) ?? null;
   }
 
+  /**
+   * The queue whose NATS subject is `subject`, or `null` when none reduces to it.
+   *
+   * @remarks
+   * A message arriving off the wire carries a subject, not the name it was declared under, so the
+   * dispatcher and the grace-period lookup both go through this rather than `get`: neither of them
+   * ever has the queue's own name to look it up by.
+   */
   bySubject(subject: string): RegisteredQueue | null {
     return this.#bySubject.get(subject) ?? null;
   }
 
+  /** Every registered queue, in no particular order. */
   list(): UnmodifiableList<RegisteredQueue> {
     return [...this.#byName.values()];
   }
 
+  /** Every registered queue that consumes off the shared stream, the ones the shared consumer's fetch already covers. */
   shared(): UnmodifiableList<RegisteredQueue> {
     return this.list().filter((queue) => !queue.dedicated);
   }
 
+  /** Every registered queue that consumes off its own dedicated stream, each needing its own `StreamSource`. */
   dedicated(): UnmodifiableList<RegisteredQueue> {
     return this.list().filter((queue) => queue.dedicated);
   }
 
+  /** A one-line summary of what is registered, for the boot log. */
   report(): string {
     const queues = this.list();
     if (queues.length === 0) return "[queue] no queue declared";

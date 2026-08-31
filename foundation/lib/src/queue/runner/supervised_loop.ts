@@ -46,9 +46,10 @@ const BACKOFF_FROM: Duration = Duration.seconds(1);
 /** The ceiling the doubling stops at, so a long outage does not push a retry an hour away. */
 const BACKOFF_UP_TO: Duration = Duration.seconds(30);
 
-/** One turn of a loop. */
+/** One turn of a loop: a fetch and a dispatch, for a `SupervisedLoop` to call again and again. */
 export type Pass = () => Future<void>;
-/** What runs once before the first turn. */
+
+/** What runs once before the first turn, `ensureTopology` for a `QueueRunner`'s own loops, so a pass never has to check the topology exists on every call. */
 export type Prepare = () => Future<void>;
 
 /**
@@ -77,6 +78,14 @@ export class SupervisedLoop {
     this.#prepare = prepare;
   }
 
+  /**
+   * Runs `prepare`, then this loop's pass over and over until `isRunning` says to stop.
+   *
+   * @remarks
+   * A crash restarts the whole loop after {@link RESTART_AFTER}, logged, rather than propagating
+   * and taking the process down with it: a queue loop that stops on an error stops for good, and
+   * nothing else would say so.
+   */
   start(): void {
     this.#drive().catch((error) => {
       log.error("queue-runner.loop_crashed", {

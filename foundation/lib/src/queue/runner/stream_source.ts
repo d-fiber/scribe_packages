@@ -70,10 +70,12 @@ export class StreamSource {
     this.promotesDelayed = promotesDelayed;
   }
 
+  /** The source every queue that has no stream of its own reads from, the one that promotes the delayed set. */
   static shared(): StreamSource {
     return new StreamSource("shared", SHARED_STREAM, SHARED_CONSUMER, true);
   }
 
+  /** The source `queue`'s own dedicated stream, for a queue declared to have one. */
   static dedicated(queue: RegisteredQueue): StreamSource {
     return new StreamSource(
       queue.name,
@@ -83,6 +85,7 @@ export class StreamSource {
     );
   }
 
+  /** `queue`'s own {@link dedicated} source when it declares one, otherwise the {@link shared} source. */
   static forQueue(queue: RegisteredQueue): StreamSource {
     return queue.dedicated ? StreamSource.dedicated(queue) : StreamSource.shared();
   }

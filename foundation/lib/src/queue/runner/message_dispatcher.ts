@@ -71,6 +71,7 @@ function groupBySubject(
  * long as its slowest group rather than the sum of them.
  */
 export class MessageDispatcher {
+  /** Groups `messages` by subject and hands each group to its own queue's processor, in parallel. */
   async dispatch(
     messages: UnmodifiableList<JsMsg>,
     tally: DrainTally,

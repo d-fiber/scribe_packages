@@ -97,11 +97,20 @@ export class QueuePublisher<in TJob> {
     this.queue = queue;
   }
 
-  /** The name `queue` was declared under. */
+  /** The name `queue` was declared under, read through so a `QueuePublisher` never carries a copy that could drift from the registration. */
   get name(): string {
     return this.queue.name;
   }
 
+  /**
+   * Publishes `data`, delayed by `opts.delay` when given, and answers the message's own identifier.
+   *
+   * @remarks
+   * A delayed push takes a separate path, `pushDelayed`, rather than a delay parameter on the same
+   * NATS publish: a message the broker delivers immediately has to sit somewhere else until its due
+   * date, so a delayed job is written to Redis and only promoted onto the stream once it is actually
+   * due, not held in NATS the whole time.
+   */
   async push(data: TJob, opts: PushOptions = {}): Future<string> {
     if (opts.delay && opts.delay.inMilliseconds > 0) {
       return await pushDelayed(
@@ -137,6 +146,13 @@ export class QueuePublisher<in TJob> {
     return ids;
   }
 
+  /**
+   * How many messages of this queue are waiting to be delivered.
+   *
+   * @remarks
+   * Counted against `this.queue.dedicated`'s own stream, shared or not, since a dedicated queue's
+   * messages never sit on the shared stream at all and counting there would always answer zero.
+   */
   async size(): Future<number> {
     await ensureTopology();
     return await topology.countBySubject(
@@ -145,16 +161,34 @@ export class QueuePublisher<in TJob> {
     );
   }
 
+  /** How many messages of this queue have exhausted their delivery attempts and moved to the dead letter, kept there for an operator to inspect or retry. */
   async deadCount(): Future<number> {
     await ensureTopology();
     return await topology.countBySubject(DEAD_STREAM, this.queue.deadSubject);
   }
 
+  /**
+   * How many messages of this queue are delayed, waiting for their due date.
+   *
+   * @remarks
+   * Reads Redis rather than the stream, since a delayed message has not been published to NATS at
+   * all yet: it sits in the same sorted set `pushDelayed` wrote it into, and only reaches the
+   * stream once its due date arrives.
+   */
   async delayedCount(): Future<number> {
     const delayed = await delayedCounts();
     return delayed.counts[this.queue.name] ?? 0;
   }
 
+  /**
+   * This queue's current status: its declaration, and how many messages are pending, dead, or
+   * delayed.
+   *
+   * @remarks
+   * Bundles what {@link size}, {@link deadCount} and {@link delayedCount} would otherwise take
+   * three separate calls to assemble, for an operator dashboard or a health check that wants the
+   * whole picture of one queue in a single call rather than one per figure.
+   */
   async status(): Future<QueueStatus> {
     await ensureTopology();
     return await queueStatus.one(this.queue);

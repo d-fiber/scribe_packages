@@ -58,6 +58,14 @@ export class QueueRunner {
   #running = false;
   #generation = 0;
 
+  /**
+   * One pass over every source, fetching at most `count` messages from each and dispatching them.
+   *
+   * @remarks
+   * The manual counterpart to what {@link start} runs continuously: a single deterministic drain
+   * a caller can await and inspect the {@link DrainResult} of, rather than a background loop it
+   * would then have to stop again to observe the same thing.
+   */
   async run(count = FETCH_COUNT): Future<DrainResult> {
     const tally = await this.#prepare();
 
@@ -93,10 +101,19 @@ export class QueueRunner {
     return tally.toResult();
   }
 
+  /** The name of every registered queue this runner can drain, for a caller that wants to name one to {@link runOne} without reading the registry itself. */
   names(): UnmodifiableList<string> {
     return queueRegistry.list().map((queue) => queue.name);
   }
 
+  /**
+   * Starts a supervised loop per source. Does nothing when this runner is already running.
+   *
+   * @remarks
+   * The generation captured here is what the class doc's guard against a double `start` relies
+   * on: a loop from an older generation checks `alive` on every turn, so a `stop` followed
+   * immediately by a `start` leaves the old loop's own check failing rather than racing the new one.
+   */
   start(): void {
     if (this.#running) return;
     this.#running = true;
@@ -114,6 +131,7 @@ export class QueueRunner {
     }
   }
 
+  /** Signals every running loop to stop after its current pass. */
   stop(): void {
     this.#running = false;
   }

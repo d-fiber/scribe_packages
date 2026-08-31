@@ -49,6 +49,7 @@ import { BaseProcessor } from "./base_processor.ts";
  * own delivery count, but one poisonous message makes the whole group run again.
  */
 export class BatchProcessor extends BaseProcessor {
+  /** The {@link BaseProcessor.process} override: calls the body once with the whole group, decoded and acked together. */
   override async process(
     messages: UnmodifiableList<JsMsg>,
     tally: DrainTally,
