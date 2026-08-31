@@ -1,6 +1,6 @@
 name: audience
 description: The named set somebody belongs to, and the right that follows from it.
-version: 1.0.0
+version: 2.0.0
 
 environment:
   scribe: "^1.0.0"
