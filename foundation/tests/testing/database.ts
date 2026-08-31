@@ -133,22 +133,22 @@ class FakeQueryBuilder implements PromiseLike<FakeAnswer> {
 
   gt(col: string, value: unknown): this {
     // deno-lint-ignore no-explicit-any -- a fake row's column holds whatever the test fixture gave it, and this defers to the host's own comparison rather than pretending to know the type.
-    return this.#filter(col, (v) => (v as any) > (value as any));
+    return this.#filter(col, (v) => v !== null && v !== undefined && (v as any) > (value as any));
   }
 
   gte(col: string, value: unknown): this {
     // deno-lint-ignore no-explicit-any -- see gt: the value's real type is not known here.
-    return this.#filter(col, (v) => (v as any) >= (value as any));
+    return this.#filter(col, (v) => v !== null && v !== undefined && (v as any) >= (value as any));
   }
 
   lt(col: string, value: unknown): this {
     // deno-lint-ignore no-explicit-any -- see gt: the value's real type is not known here.
-    return this.#filter(col, (v) => (v as any) < (value as any));
+    return this.#filter(col, (v) => v !== null && v !== undefined && (v as any) < (value as any));
   }
 
   lte(col: string, value: unknown): this {
     // deno-lint-ignore no-explicit-any -- see gt: the value's real type is not known here.
-    return this.#filter(col, (v) => (v as any) <= (value as any));
+    return this.#filter(col, (v) => v !== null && v !== undefined && (v as any) <= (value as any));
   }
 
   is(col: string, value: unknown): this {

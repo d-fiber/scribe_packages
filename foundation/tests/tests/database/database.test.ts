@@ -56,6 +56,29 @@ Scribe.test("FakePostgrestClient: select applies where/order/range", async () =>
   expect((data as { id: string }[]).map((row) => row.id), equals(["2", "3"]));
 });
 
+Scribe.test("DEFECT FakePostgrestClient: an ordering comparison must never match a null column", async () => {
+  const mock = createDatabaseMock({
+    widgets: [
+      { id: "1", expires_at: null },
+      { id: "2", expires_at: 5 },
+    ],
+  });
+
+  const { data: lte } = await mock.db.from("widgets").select("*").lte("expires_at", 10);
+  const { data: gte } = await mock.db.from("widgets").select("*").gte("expires_at", 0);
+
+  expect(
+    (lte as { id: string }[]).map((row) => row.id),
+    equals(["2"]),
+    "a null column is not less than or equal to anything, the way SQL's three-valued logic treats it",
+  );
+  expect(
+    (gte as { id: string }[]).map((row) => row.id),
+    equals(["2"]),
+    "a null column is not greater than or equal to anything either",
+  );
+});
+
 Scribe.test(
   "FakePostgrestClient: insert appends and update/delete respect filters",
   async () => {
