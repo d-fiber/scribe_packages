@@ -54,7 +54,7 @@ services:
                   return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
                 end
 
-                local app_meta = decoded:match('"app_metadata"%s*:%s*{(.-)}')
+                local app_meta = decoded:match('"app_metadata"%s*:%s*(%b{})')
                 local role = app_meta and app_meta:match('"role"%s*:%s*"([^"]*)"')
                 local is_admin = role == "admin"
 
