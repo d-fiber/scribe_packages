@@ -21,57 +21,11 @@ services:
                   return kong.response.exit(404, '{"message":"Not found"}', {["Content-Type"] = "application/json"})
                 end
 
-                -- Public objects are readable with no condition at all, token
-                -- included. That is what makes the URL usable from an <img>, an
-                -- email or a CDN. public_bucket is public on the storage side, and
-                -- the RLS does not apply to this path.
-                local path = kong.request.get_path()
-                if path:find("/object/public/", 1, true) then
-                  return
-                end
-
-                -- Everything else aims at the private bucket, so a token is required.
-                local auth = kong.request.get_header("authorization")
-                local token = auth and auth:match("^[Bb]earer%s+(.+)$")
-
-                if not token then
-                  return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
-                end
-
-                local payload_b64 = token:match("^[^.]+%.([^.]+)%.")
-                if not payload_b64 then
-                  return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
-                end
-
-                local b64 = payload_b64:gsub('%-', '+'):gsub('_', '/')
-                local pad = (4 - #b64 % 4) % 4
-                b64 = b64 .. string.rep('=', pad)
-                local decoded = ngx.decode_base64(b64)
-
-                if not decoded then
-                  return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
-                end
-
-                -- Extract role and sub via pattern matching (cjson not allowed in sandbox)
-                local role = decoded:match('"role"%s*:%s*"([^"]*)"')
-                local sub  = decoded:match('"sub"%s*:%s*"([^"]*)"')
-
-                -- service_role bypasses all restrictions (Studio / internal calls)
-                if role == "service_role" then
-                  return
-                end
-
-                if not sub or sub == '' then
-                  return kong.response.exit(401, '{"message":"Unauthorized"}', {["Content-Type"] = "application/json"})
-                end
-
-                -- Private means admin only. The RLS checks it again in the
-                -- database, in storage_select_private_bucket, and Caddy imposes the
-                -- VPN upstream. Three independent barriers, and none of them is
-                -- enough on its own.
-                if role ~= "admin" then
-                  return kong.response.exit(404, '{"message":"Not found"}', {["Content-Type"] = "application/json"})
-                end
+                -- Everything past the method belongs to storage-api: it is the
+                -- one place that actually verifies a bearer token's signature,
+                -- so this gateway does not pretend to check identity on its own
+                -- behalf. See storage.md for what used to live here and why it
+                -- was decorative.
       - name: request-transformer
         config:
           add:
