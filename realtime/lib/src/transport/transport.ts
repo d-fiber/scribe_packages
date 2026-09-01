@@ -53,7 +53,7 @@ export interface RealtimeRow {
  * Where an emission goes once it has been addressed.
  *
  * @remarks
- * The port exists so that the channel is replaceable. `SyncEventsTransport` writes a row and
+ * The port exists so that the channel is replaceable. `EventLogTransport` writes a row and
  * lets Postgres broadcast it, which is what a mounted package does by default; a project that
  * would rather push into a queue or towards a third party swaps the implementation and leaves
  * every declaration alone.
