@@ -81,13 +81,14 @@ export abstract class StorageResource<TData, TArgs extends string[]> {
    * Writes `file` at the key `args` render, and answers what the resource makes of it.
    *
    * @remarks
-   * The extension and the size are checked first, so a refused upload never reaches a bucket.
-   * The index is written after the bytes, and an object whose row names another bucket has its
-   * old copy removed, since a key designates one object and the stale bytes would otherwise
-   * stay readable at their own URL.
+   * The extension, the size and, where this package knows the signature to expect, the file's own
+   * bytes are checked first, so a refused upload never reaches a bucket. The index is written
+   * after the bytes, and an object whose row names another bucket has its old copy removed, since
+   * a key designates one object and the stale bytes would otherwise stay readable at their own
+   * URL.
    */
   async upload(file: File, ...args: TArgs): Promise<StorageUploadResult<TData>> {
-    const invalid = mediaError(file, this.#config.extensions, this.#config.maxSize);
+    const invalid = await mediaError(file, this.#config.extensions, this.#config.maxSize);
     if (invalid) return new Failure(invalid);
 
     const path = this.#pathOf(args);

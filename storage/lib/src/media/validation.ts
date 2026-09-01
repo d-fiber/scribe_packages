@@ -37,16 +37,30 @@
 import type { Bytes } from "@scribe/alchemy";
 import { StorageUploadError } from "../runtime/result.ts";
 import { extensionOf } from "./extension.ts";
+import { contentMatchesExtension, SNIFF_PREFIX_BYTES } from "./sniff.ts";
 
-export function mediaError(
+/**
+ * Why `file` cannot be written under a resource declaring `extensions` and `maxSize`, or null
+ * when it may be.
+ *
+ * @remarks
+ * The content check reads only the leading bytes it needs and only for an extension this package
+ * carries a signature for, so a `payload.png` whose bytes are not a PNG is refused here instead
+ * of being stored and served under a `Content-Type` it never earned.
+ */
+export async function mediaError(
   file: File,
   extensions: readonly string[],
   maxSize: Bytes,
-): StorageUploadError | null {
+): Promise<StorageUploadError | null> {
   const extension = extensionOf(file.name);
   if (!extension || !extensions.some((e) => e.toLowerCase() === extension)) {
     return StorageUploadError.InvalidType;
   }
   if (file.size > maxSize.inBytes) return StorageUploadError.FileTooLarge;
+
+  const header = new Uint8Array(await file.slice(0, SNIFF_PREFIX_BYTES).arrayBuffer());
+  if (contentMatchesExtension(extension, header) === false) return StorageUploadError.ContentMismatch;
+
   return null;
 }

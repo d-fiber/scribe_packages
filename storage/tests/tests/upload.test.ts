@@ -47,8 +47,17 @@ import { installDatabaseFake, installRefusingDatabase } from "./mocks/database.t
 const reports = Storage.public("reports/{reportId}");
 const sheet = reports.file("sheet", { extensions: ["json"], maxSize: Bytes.kilobytes(4) });
 
+const photos = Storage.public("photos/{photoId}");
+const avatar = photos.file("avatar", { extensions: ["png"], maxSize: Bytes.kilobytes(4) });
+
+const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+
 function json(bytes = 3): File {
   return new File([new Uint8Array(bytes)], "a.json", { type: "application/json" });
+}
+
+function pngNamed(bytes: number[]): File {
+  return new File([new Uint8Array(bytes)], "a.png", { type: "image/png" });
 }
 
 function errorOf(result: { ok: boolean }): StorageUploadError {
@@ -122,6 +131,45 @@ Scribe.test("upload: an argument carrying a traversal is refused before the buck
 
   expect(errorOf(result), equals(StorageUploadError.InvalidPath));
   expect(transport.uploads, equals([]));
+
+  transport.restore();
+  database.restore();
+});
+
+Scribe.test("upload: content that does not carry its declared extension's signature is refused before the bucket is reached", async () => {
+  const database = installDatabaseFake();
+  const transport = installStorageMock();
+
+  const result = await avatar.upload(pngNamed([1, 2, 3, 4]), "p1");
+
+  expect(errorOf(result), equals(StorageUploadError.ContentMismatch));
+  expect(transport.uploads, equals([]));
+  expect(database.fake.rows("__storage_objects__"), equals([]));
+
+  transport.restore();
+  database.restore();
+});
+
+Scribe.test("upload: content carrying its declared extension's signature is accepted", async () => {
+  const database = installDatabaseFake();
+  const transport = installStorageMock();
+
+  const result = await avatar.upload(pngNamed(PNG_SIGNATURE), "p1");
+
+  expect(result.ok, equals(true));
+  expect(transport.uploads.length, equals(1));
+
+  transport.restore();
+  database.restore();
+});
+
+Scribe.test("upload: an extension this package carries no signature for is trusted on its name alone", async () => {
+  const database = installDatabaseFake();
+  const transport = installStorageMock();
+
+  const result = await sheet.upload(json(4), "r1");
+
+  expect(result.ok, equals(true));
 
   transport.restore();
   database.restore();
