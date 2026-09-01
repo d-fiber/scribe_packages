@@ -147,6 +147,11 @@ export interface ObjectPage {
  * one it kept: a page made entirely of a neighbour's objects keeps nothing, and a caller walking
  * the pages would ask for the same one forever if it resumed from what it had.
  *
+ * The query asks for one row more than `limit`. A folder holding exactly `limit` objects then
+ * comes back under that cap, so `full` reads false instead of mistaking the last row for proof
+ * that more exist; a folder holding more comes back over it, and the extra row is dropped rather
+ * than handed to the caller.
+ *
  * @param after - The path to resume after, exclusive. Empty starts at the beginning.
  */
 export async function objectsUnder(
@@ -160,13 +165,17 @@ export async function objectsUnder(
     const rows = await storageObjects()
       .where((f) => after === "" ? f.path.like(`${under}%`) : [f.path.like(`${under}%`), f.path.gt(after)])
       .order("path")
-      .limit(limit)
+      .limit(limit + 1)
       .get();
 
+    const full = rows.length > limit;
+    const matched = rows.filter((row) => row.path.startsWith(under));
+    const objects = full ? matched.slice(0, limit) : matched;
+
     return {
-      objects: rows.filter((row) => row.path.startsWith(under)),
-      last: rows.length === 0 ? null : rows[rows.length - 1].path,
-      full: rows.length >= limit,
+      objects,
+      last: objects.length === 0 ? null : objects[objects.length - 1].path,
+      full,
     };
   } catch (e) {
     console.error(`[storage:index] ${prefix} could not be read:`, e);
