@@ -52,5 +52,5 @@ export { database, DatabaseClient } from "./src/database/database_client.ts";
 export { databaseSettings } from "./src/database/database_settings.ts";
 export { from, type RpcBuilder, TablesBase } from "./src/database/tables_base.ts";
 export { ownerOf, registerTableOwners } from "./src/database/table_owners.ts";
-export { type DatabaseSchema, Table, type TableShape } from "./src/database/table.ts";
+export { Database, type DatabaseSchema, Table, type TableShape } from "./src/database/table.ts";
 export { wrote } from "./src/database/wrote.ts";

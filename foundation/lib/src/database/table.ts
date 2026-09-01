@@ -65,15 +65,15 @@ type RelationsOf<S extends DatabaseSchema, K extends keyof S> = S[K]["relations"
 /**
  * A handle on one table of a schema, and the start of a query on it.
  *
- * It is the base a bound `Database` extends, never used directly: the schema that types it is
+ * It is the base a bound `AppTable` extends, never used directly: the schema that types it is
  * derived from the SQL, so it lives with the SQL and not here.
  *
  * ```ts
  * // written by the generator, next to the schema it derives
- * export class Database<K extends keyof AppSchema & string> extends Table<AppSchema, K> {}
+ * export class AppTable<K extends keyof AppSchema & string> extends Table<AppSchema, K> {}
  *
  * // written by hand
- * const users = new Database("table_name");
+ * const users = new AppTable("table_name");
  * ```
  *
  * Constraining the name by `keyof S` is what makes the SQL the single source of truth: a table
@@ -90,6 +90,31 @@ export class Table<
 > extends TypedQueryBuilder<RowOf<S, K>, RowOf<S, K>, RelationsOf<S, K>> {
   constructor(
     table: K,
+    source: PostgrestClientSource = () => PostgrestClients.service(),
+  ) {
+    super(source, table);
+  }
+}
+
+/**
+ * A handle on exactly one table, typed by its row shape alone.
+ *
+ * ```ts
+ * const orders = new Database<OrderRow>("orders");
+ * ```
+ *
+ * `Table<S, K>` checks a name against a schema several declarations share, which is what catches
+ * a typo: the name given to one is wrong relative to what another declared. A single table has
+ * nothing else in that schema to be wrong relative to, so the check has nothing to buy here.
+ * `Database` is `Table` without that schema, for a package that owns just this one table by hand.
+ *
+ * A handle is safe to keep at module scope, for the same reason `Table` is: it holds no client
+ * and no identity, so one built at import time serves every request without carrying anything
+ * from the first.
+ */
+export class Database<Row extends object> extends TypedQueryBuilder<Row, Row, Record<string, never>> {
+  constructor(
+    table: string,
     source: PostgrestClientSource = () => PostgrestClients.service(),
   ) {
     super(source, table);
