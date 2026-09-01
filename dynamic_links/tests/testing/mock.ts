@@ -36,7 +36,7 @@
 
 import { PostgrestClients } from "@scribe/foundation/database";
 import { FakePostgrestClient, type FakePostgrestSeed, type Row } from "@scribe/foundation/testing";
-import { installValkeryMock } from "@scribe/foundation/testing";
+import { installQueueMock, installValkeryMock } from "@scribe/foundation/testing";
 import type { InstalledMock } from "@scribe/testing/install.ts";
 import { installMock } from "@scribe/testing/install.ts";
 import type { PostgrestClient } from "@supabase/postgrest-js";
@@ -46,7 +46,7 @@ export interface InstalledDynamicLinks extends InstalledMock {
   /** The links the package wrote, in the order it wrote them. */
   links(): Row[];
 
-  /** The visits the package wrote, which arrive only once the statistics queue has drained. */
+  /** The visits the package wrote, present as soon as a call to `record()` has resolved. */
   statistics(): Row[];
 
   /** Puts `rows` in `table`, replacing what it held. */
@@ -55,11 +55,14 @@ export interface InstalledDynamicLinks extends InstalledMock {
 
 /**
  * Stands in for everything this package reaches, so a project can test the routes that serve
- * its links without a database and without a cache.
+ * its links without a database, without a cache and without a message broker.
  *
- * The cache is replaced too, and not only the tables: a slug resolved twice against a live
- * Valkery would answer the second time from a process this test does not own, and the second
- * assertion would pass for the wrong reason.
+ * The cache and the statistics queue are replaced too, and not only the tables: a slug resolved
+ * twice against a live Valkery would answer the second time from a process this test does not
+ * own, and a visit pushed to the real queue would need a NATS connection this test has no reason
+ * to hold. `__dynamic_links__` also gets its slug declared unique, the one constraint a project
+ * relies on in production: without it, a second link could be written under a slug the first one
+ * already answers to, which the real table's own unique index never allows.
  */
 export function installDynamicLinksMock(seed: FakePostgrestSeed = {}): InstalledDynamicLinks {
   const fake = new FakePostgrestClient({
@@ -67,6 +70,7 @@ export function installDynamicLinksMock(seed: FakePostgrestSeed = {}): Installed
     __dynamic_link_statistics__: [],
     ...seed,
   });
+  fake.declareUniqueKey("__dynamic_links__", ["slug"]);
 
   const database = installMock(
     PostgrestClients,
@@ -74,9 +78,11 @@ export function installDynamicLinksMock(seed: FakePostgrestSeed = {}): Installed
     () => fake as unknown as PostgrestClient,
   );
   const valkery = installValkeryMock();
+  const queue = installQueueMock();
 
   return {
     restore: () => {
+      queue.restore();
       valkery.restore();
       database.restore();
     },

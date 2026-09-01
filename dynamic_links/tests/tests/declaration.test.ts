@@ -36,13 +36,20 @@
 
 import "@scribe/runtime/scholium/runner.ts";
 import { allOf, equals, expect, fail, isA, isTrue, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
+import { installMock } from "@scribe/testing/install.ts";
 import { LinkError, LinkKind, LinkPlatform } from "../../lib/contracts/link.ts";
 import { DynamicLink } from "../../lib/src/core/declaration.ts";
 import { DestinationKind, Link, type Visit } from "../../lib/src/core/destination.ts";
+import { field } from "../../lib/src/core/field.ts";
 import { installDynamicLinksMock } from "../testing/mock.ts";
 
 interface Invite {
   code: string;
+}
+
+interface InviteWithFields {
+  code: string;
+  invitedBy: string;
 }
 
 interface Promo {
@@ -50,6 +57,11 @@ interface Promo {
 }
 
 const invite = DynamicLink.deeplink<Invite>("declaration-invite", { path: "/invite/{code}" });
+
+const inviteWithFields = DynamicLink.deeplink<InviteWithFields>("declaration-invite-fields", {
+  path: "/invite/{code}",
+  fields: { code: field.string(), invitedBy: field.string() },
+});
 
 const promo = DynamicLink.redirect<Promo>("declaration-promo", {
   url: "https://shop.example.test/{campaign}",
@@ -226,4 +238,60 @@ Scribe.test("two declarations cannot take the same name", () => {
     () => DynamicLink.deeplink("declaration-invite", { path: "/other/{code}" }),
     throwsA(allOf(isA(TypeError), withMessage("declared twice"))),
   );
+});
+
+Scribe.test("a field absent from the template still needs a value its own descriptor accepts", async () => {
+  const database = installDynamicLinksMock();
+
+  try {
+    const created = await inviteWithFields.create({ code: "A1B2", invitedBy: 42 as unknown as string });
+    if (created.ok) fail("a value a field descriptor refuses must not be created, even off the template");
+
+    expect(created.error, equals(LinkError.Params));
+    expect(database.links().length, equals(0), "nothing must be written for a link nobody could serve");
+  } finally {
+    database.restore();
+  }
+});
+
+Scribe.test("data every field descriptor accepts is created normally", async () => {
+  const database = installDynamicLinksMock();
+
+  try {
+    const created = await inviteWithFields.create({ code: "A1B2", invitedBy: "user-1" });
+    if (!created.ok) fail("data matching every field descriptor must be created");
+
+    expect(
+      database.links()[0].payload,
+      equals({ k: "declaration-invite-fields", a: { code: "A1B2", invitedBy: "user-1" } }),
+    );
+  } finally {
+    database.restore();
+  }
+});
+
+Scribe.test("a slug the table already holds is retried, and refused after five collisions", async () => {
+  const database = installDynamicLinksMock();
+  const fixedSlug = installMock(
+    crypto,
+    "getRandomValues",
+    (<T extends ArrayBufferView | null>(array: T): T => {
+      if (array instanceof Uint8Array) array.fill(0);
+      return array;
+    }) as typeof crypto.getRandomValues,
+  );
+
+  try {
+    const first = await invite.create({ code: "A1B2" });
+    if (!first.ok) fail("the first link drawing a slug nobody holds yet must be created");
+
+    const second = await invite.create({ code: "C3D4" });
+    if (second.ok) fail("a slug the table already holds must never be handed to a second link");
+
+    expect(second.error, equals(LinkError.SlugConflict));
+    expect(database.links().length, equals(1), "a link whose slug collided five times running must not be written");
+  } finally {
+    fixedSlug.restore();
+    database.restore();
+  }
 });
