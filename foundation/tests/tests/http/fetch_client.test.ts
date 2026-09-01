@@ -152,6 +152,36 @@ Scribe.test("a verb that may carry a body but carries none sends nothing", async
   });
 });
 
+Scribe.test("put, patch and delete carry a body and announce its length, the way post does", async () => {
+  await withFetch(ok, async (calls) => {
+    const client = new FetchClient();
+
+    await client.put(URL_UNDER_TEST, { body: "up" });
+    await client.patch(URL_UNDER_TEST, { body: "up" });
+    await client.delete(URL_UNDER_TEST, { body: "up" });
+
+    expect(calls.map((call) => call.init.method), equals(["PUT", "PATCH", "DELETE"]));
+    for (const call of calls) {
+      expect(call.init.body, equals(new TextEncoder().encode("up")));
+      expect(new Headers(call.init.headers).get("content-length"), equals("2"));
+    }
+  });
+});
+
+Scribe.test("put, patch and delete given no body send none, the way post does", async () => {
+  await withFetch(ok, async (calls) => {
+    const client = new FetchClient();
+
+    await client.put(URL_UNDER_TEST);
+    await client.patch(URL_UNDER_TEST);
+    await client.delete(URL_UNDER_TEST);
+
+    for (const call of calls) {
+      expect(call.init.body, equals(undefined), "an empty body is no body, not an empty buffer");
+    }
+  });
+});
+
 Scribe.test("a body is sent as bytes, with its length announced", async () => {
   await withFetch(ok, async (calls) => {
     await new FetchClient().post(URL_UNDER_TEST, { body: "héllo" });

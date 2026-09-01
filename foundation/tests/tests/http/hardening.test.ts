@@ -252,6 +252,29 @@ Scribe.test("an answer longer than the cap the caller reads with is refused as a
   });
 });
 
+Scribe.test("a response body that breaks mid-stream surfaces the failure instead of a short read", async () => {
+  await withFetch(
+    () =>
+      new globalThis.Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode("part"));
+            controller.error(new Error("connection reset"));
+          },
+        }),
+        { status: 200 },
+      ),
+    async () => {
+      const client = new FetchClient();
+      const answered = await client.send(new HttpRequest("GET", SOMEWHERE));
+
+      const raised = await caught(() => answered.stream.toBytes());
+      expect(raised, having(isA(Error), (r) => r.message, "message", equals("connection reset")));
+      client.close();
+    },
+  );
+});
+
 Scribe.test("a limit of zero milliseconds is a limit, not the absence of one", async () => {
   await withFetch(() => new globalThis.Response("x", { status: 200 }), async (calls) => {
     const client = new FetchClient();
