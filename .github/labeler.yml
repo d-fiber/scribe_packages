@@ -1,0 +1,39 @@
+foundation:
+  - changed-files:
+      - any-glob-to-any-file: foundation/**
+
+auth:
+  - changed-files:
+      - any-glob-to-any-file: auth/**
+
+realtime:
+  - changed-files:
+      - any-glob-to-any-file: realtime/**
+
+storage:
+  - changed-files:
+      - any-glob-to-any-file: storage/**
+
+search:
+  - changed-files:
+      - any-glob-to-any-file: search/**
+
+dynamic_links:
+  - changed-files:
+      - any-glob-to-any-file: dynamic_links/**
+
+remote_configs:
+  - changed-files:
+      - any-glob-to-any-file: remote_configs/**
+
+audience:
+  - changed-files:
+      - any-glob-to-any-file: audience/**
+
+tools:
+  - changed-files:
+      - any-glob-to-any-file: tools/**
+
+ci:
+  - changed-files:
+      - any-glob-to-any-file: .github/**
