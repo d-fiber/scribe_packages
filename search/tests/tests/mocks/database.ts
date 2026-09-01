@@ -42,6 +42,9 @@ import { PostgrestClients } from "@scribe/foundation/database";
 import { FakePostgrestClient, type FakePostgrestSeed } from "@scribe/foundation/testing";
 import type { PostgrestClient } from "@supabase/postgrest-js";
 
+/** How many times `__search_fail__` retries a document before it stops being tried, mirroring the real function's own default caller. */
+const MAX_ATTEMPTS = 5;
+
 /**
  * Answers every query of this package with in-memory rows, and hands back the restore handle.
  *
@@ -57,7 +60,78 @@ export function installDatabaseFake(seed: FakePostgrestSeed = {}): InstalledMock
     ...seed,
   };
 
-  const fake = new FakePostgrestClient(filled) as unknown as PostgrestClient;
+  const fake = new FakePostgrestClient(filled);
+  wireOutbox(fake);
 
-  return installMock(PostgrestClients, "service", () => fake);
+  return installMock(PostgrestClients, "service", () => fake as unknown as PostgrestClient);
+}
+
+/**
+ * Mirrors `__search_enqueue__`, `__search_fail__` and `__search_backlog__` against the fake's
+ * own seeded rows, in place of the Postgres functions `deploy/db/init/search.sql` ships.
+ *
+ * Without this, the three RPC calls the outbox makes answer `null` to everything under the
+ * fake, and the deduplication `__search_outbox__` exists for is provable only against a real
+ * cluster and a real database, through the shell scenario.
+ */
+function wireOutbox(fake: FakePostgrestClient): void {
+  fake.onRpc("__search_enqueue__", (args) => {
+    const index = args?.p_index as string;
+    const operation = args?.p_operation as string;
+    const ids = [...new Set(args?.p_ids as (string | null)[])].filter((id): id is string => id !== null);
+    const outbox = fake.rows("__search_outbox__");
+
+    for (const id of ids) {
+      const existing = outbox.find((row) => row.index === index && row.entity_id === id);
+      if (existing) {
+        existing.operation = operation;
+        existing.attempts = 0;
+        existing.failed_at = null;
+        existing.last_error = null;
+        continue;
+      }
+
+      outbox.push({
+        index,
+        entity_id: id,
+        operation,
+        enqueued_at: Date.now(),
+        attempts: 0,
+        failed_at: null,
+        last_error: null,
+      });
+    }
+
+    return ids.length;
+  });
+
+  fake.onRpc("__search_fail__", (args) => {
+    const index = args?.p_index as string;
+    const ids = new Set(args?.p_ids as string[]);
+    const reason = args?.p_error as string;
+    const maxAttempts = (args?.p_max_attempts as number | undefined) ?? MAX_ATTEMPTS;
+
+    let written = 0;
+    for (const row of fake.rows("__search_outbox__")) {
+      if (row.index !== index || row.failed_at !== null || !ids.has(row.entity_id as string)) continue;
+
+      const attempts = (row.attempts as number) + 1;
+      row.attempts = attempts;
+      row.last_error = reason;
+      if (attempts >= maxAttempts) row.failed_at = new Date().toISOString();
+      written += 1;
+    }
+
+    return written;
+  });
+
+  fake.onRpc("__search_backlog__", (args) => {
+    const index = args?.p_index as string;
+    const scoped = fake.rows("__search_outbox__").filter((row) => row.index === index);
+
+    return {
+      pending: scoped.filter((row) => row.failed_at === null).length,
+      failed: scoped.filter((row) => row.failed_at !== null).length,
+    };
+  });
 }

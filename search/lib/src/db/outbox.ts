@@ -91,6 +91,11 @@ export async function enqueue(
  * Nothing is locked. A row is left in place until the cluster acknowledged it, so two drains
  * running at once write the same document twice, which the cluster treats as one write. A lock
  * would buy nothing and would leave rows claimed by a process that died holding them.
+ *
+ * The `attempts` counter this leaves unprotected against two replicas draining the same row in
+ * the same window is not this package's own concern: `searchDrain` runs under the `CronRunner`'s
+ * `SlotLock`, which already keeps one occurrence of a job from overlapping another across the
+ * fleet, and it is that lock which keeps the counter from being incremented twice for one drain.
  */
 export function claim(limit: number = BATCH_SIZE): Promise<SearchOutboxRow[]> {
   return searchOutbox()
