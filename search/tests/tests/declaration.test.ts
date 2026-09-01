@@ -38,7 +38,7 @@ import "@scribe/runtime/scholium/runner.ts";
 import { allOf, equals, expect, isA, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import type { SearchParams } from "../../lib/contracts/definition.ts";
 import type { DocumentSelector } from "../../lib/src/document/selector.ts";
-import { Field, indexNamed, Search } from "@scribe/search";
+import { Field, indexNamed, QueryBuilder, Search } from "@scribe/search";
 
 interface StoreRow {
   store_id: string;
@@ -167,4 +167,37 @@ Scribe.test("the same declaration walked twice under one name is accepted", () =
   const declared = declare("idempotent_stores", { name: "idempotent" });
 
   expect(indexNamed("idempotent")?.name, equals(declared.name));
+});
+
+Scribe.test("autoQuery derives one equality filter per keyword or boolean field, and a free-text clause", () => {
+  const auto = Search.on<StoreRow>("auto_stores", "store_id")
+    .document((s) => ({
+      name: Field.text(s.name),
+      code: Field.keyword(s.store_id),
+      open: Field.bool(s.is_open),
+    }))
+    .preview((s) => ({ id: s.store_id }))
+    .autoQuery();
+
+  const expected = new QueryBuilder(["name"])
+    .text("rosa")
+    .filter({ term: { code: "A1" } })
+    .filter({ term: { open: true } })
+    .build();
+
+  expect(auto.plan({ text: "rosa", code: "A1", open: true }), equals(expected));
+});
+
+Scribe.test("autoQuery leaves out a filter whose parameter was not given", () => {
+  const auto = Search.on<StoreRow>("auto_partial_stores", "store_id")
+    .document((s) => ({
+      name: Field.text(s.name),
+      open: Field.bool(s.is_open),
+    }))
+    .preview((s) => ({ id: s.store_id }))
+    .autoQuery();
+
+  const expected = new QueryBuilder(["name"]).text("rosa").build();
+
+  expect(auto.plan({ text: "rosa" }), equals(expected));
 });

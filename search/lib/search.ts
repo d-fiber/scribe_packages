@@ -61,6 +61,7 @@ import { Search } from "./src/core/search.ts";
 
 export { Search } from "./src/core/search.ts";
 export type {
+  AutoQueryParams,
   DeclaredSorts,
   DocumentStep,
   IndexOptions,
