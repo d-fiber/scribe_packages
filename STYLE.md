@@ -288,7 +288,7 @@ messages, and whatever a script prints.
 Nothing runs here. A package resolves only through the framework's import map, so the checks live in a scribe checkout:
 
 ```sh
-bash tool/test.sh
+bash tools/test.sh
 ```
 
 It copies these packages into the checkout beside this one, then runs the framework's own `deno task check`, `deno lint`

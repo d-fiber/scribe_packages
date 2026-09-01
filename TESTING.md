@@ -14,8 +14,8 @@ does not fail on your change, it fails on `not a dependency and not in import
 map`, which teaches nothing.
 
 ```sh
-bash tool/test.sh                       # uses ../scribe
-SCRIBE_CHECKOUT=~/code/scribe bash tool/test.sh
+bash tools/test.sh                       # uses ../scribe
+SCRIBE_CHECKOUT=~/code/scribe bash tools/test.sh
 ```
 
 It copies these packages into that checkout and runs the framework's own checks against them. That is what the CI does,
@@ -55,8 +55,8 @@ One command per package, the scenario brings its own stack up and down:
 
 ```sh
 bash storage/tests/e2e/scenario.sh   # one package
-bash tool/e2e.sh                      # every package, then a sweep
-bash tool/e2e.sh audience             # just one, through the same runner
+bash tools/e2e.sh                      # every package, then a sweep
+bash tools/e2e.sh audience             # just one, through the same runner
 ```
 
 `KEEP=1` leaves the stack up after a scenario, for poking at it.
@@ -184,7 +184,7 @@ const editors = Audience.keyed(`e2e-editors-${RUN_ID}`);
 
 ## 12. Take away what you made to test
 
-Rows, buckets, indexes, containers, and the copy `tool/test.sh` left in the scribe checkout. Left behind, they become a
+Rows, buckets, indexes, containers, and the copy `tools/test.sh` left in the scribe checkout. Left behind, they become a
 state somebody will eventually take for real.
 
 Delete by looking at what you delete. List first, name what goes, and never delete a pattern.
@@ -201,7 +201,7 @@ No
 Tested, everything passes.
 
 Yes
-tool/test.sh is green: the framework type checks with these packages and its 1064 tests pass.
+tools/test.sh is green: the framework type checks with these packages and its 1064 tests pass.
 I ran bash storage/tests/e2e/scenario.sh, green. I did not run the search
 scenario, so the index change is unverified against a real OpenSearch.
 ```
@@ -214,8 +214,8 @@ would have explained it.
 ## What runs it
 
 ```sh
-bash tool/test.sh                    # the version check, then the framework's checks with these packages
-bash tool/e2e.sh                     # every package end to end, then a sweep
+bash tools/test.sh                    # the version check, then the framework's checks with these packages
+bash tools/e2e.sh                     # every package end to end, then a sweep
 bash storage/tests/e2e/scenario.sh   # just one
 ```
 

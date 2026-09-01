@@ -43,15 +43,15 @@ Fiber/scribe/
 
 ```sh
 git config core.hooksPath .githooks
-bash tool/test.sh
+bash tools/test.sh
 ```
 
 The hooks line is worth the five seconds: `pre-push` runs what CI runs, so a fault stays in your terminal instead of
 turning up somewhere it blocks a release. `git push --no-verify` skips it when you know what you are doing.
 
-`tool/test.sh` copies these packages into the checkout beside this one and runs the framework's own `deno task check`,
+`tools/test.sh` copies these packages into the checkout beside this one and runs the framework's own `deno task check`,
 `deno lint` and `deno task test` against them. Name another checkout with
-`SCRIBE_CHECKOUT=~/code/scribe bash tool/test.sh`.
+`SCRIBE_CHECKOUT=~/code/scribe bash tools/test.sh`.
 
 It leaves the copy in place. What you just proved is what is now sitting in that checkout, so discard it there when you
 are done.
@@ -88,7 +88,7 @@ self-contained shell scenario that starts the stack, exercises it and tears it d
 
 ```sh
 bash storage/tests/e2e/scenario.sh   # one package
-bash tool/e2e.sh                      # every package, then a sweep of whatever was left
+bash tools/e2e.sh                      # every package, then a sweep of whatever was left
 ```
 
 An end to end suite that was never run is a claim, not a proof, and it is the half of the testing that the CI cannot do
@@ -137,7 +137,7 @@ Then, in the scribe checkout, the package gets one `imports` entry mapping `@scr
 a `workspace` member: a member needs a `deno.json`, and a package carries none.
 
 A package's `tests/e2e/` holds a `scenario.sh` and its own copy of the harness: `support/stack.sh` and the
-`fixtures/mini/` project. `tool/test.sh` runs every package's suite, `tool/e2e.sh` runs every package's scenario.
+`fixtures/mini/` project. `tools/test.sh` runs every package's suite, `tools/e2e.sh` runs every package's scenario.
 
 ## Commit messages
 
@@ -206,7 +206,7 @@ sections `main` had not yet seen.
 
 The arrival on `main` fires `sync`, which puts these packages into `scribe` at `engine/packages/`, checks that the
 framework still type checks and passes its suite with them, and only then commits to its `dev`. It leaves this
-repository's own files behind: the licence, the four documents, `.github/`, `.githooks/` and `tool/test.sh` belong to
+repository's own files behind: the licence, the four documents, `.github/`, `.githooks/` and `tools/test.sh` belong to
 working here, not to the framework.
 
 You never copy anything into `scribe` by hand. Two copies of the same code, one of them edited, is the one failure this

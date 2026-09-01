@@ -62,12 +62,12 @@ TS2307 [ERROR]: Import "@scribe/foundation/lib/src/database/table.ts" not a depe
 cd realtime && scribedev pkg get && scribedev pkg test
 ```
 
-You verify the whole tree by putting these packages in a scribe checkout and checking that. `tool/test.sh` does it for
+You verify the whole tree by putting these packages in a scribe checkout and checking that. `tools/test.sh` does it for
 you:
 
 ```sh
-bash tool/test.sh                       # uses ../scribe
-SCRIBE_CHECKOUT=~/code/scribe bash tool/test.sh
+bash tools/test.sh                       # uses ../scribe
+SCRIBE_CHECKOUT=~/code/scribe bash tools/test.sh
 ```
 
 That is also what the CI does, and what the sync does before it pushes.
@@ -79,16 +79,16 @@ at `engine/packages/`, checks that the framework still type checks and passes it
 to its `dev`.
 
 What it leaves behind: this repository's own files. The licence, the four documents, `.github/`, `.githooks/` and
-`tool/test.sh` belong to working here, not to the framework.
+`tools/test.sh` belong to working here, not to the framework.
 
 ## The stack the end to end tests need
 
-`tool/e2e/` brings up the containers one package needs, and takes them down.
+`tools/e2e/` brings up the containers one package needs, and takes them down.
 
 ```sh
-bash tool/e2e/up.sh realtime
-bash tool/e2e/down.sh realtime
-bash tool/e2e/reset.sh realtime
+bash tools/e2e/up.sh realtime
+bash tools/e2e/down.sh realtime
+bash tools/e2e/reset.sh realtime
 ```
 
 Then the suite itself runs from the scribe checkout, with `deno task test:e2e:realtime`.

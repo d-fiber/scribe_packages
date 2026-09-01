@@ -66,7 +66,7 @@ rsync -a --delete \
   --exclude '/STYLE.md' \
   --exclude '/TESTING.md' \
   --exclude 'CHANGELOG.md' \
-  --exclude '/tool/test.sh' \
+  --exclude '/tools/test.sh' \
   --exclude '/.githooks' \
   --exclude 'tests/e2e/.generated' \
   --exclude 'tests/e2e/.postgres' \
