@@ -140,8 +140,9 @@ Scribe.test("a claim taken after the pass expired succeeds again", async () => {
   target.set = () => Promise.resolve(held ? null : "OK");
 
   try {
-    held = true;
     expect(await lock.claim(Duration.seconds(10)), equals(true));
+    held = true;
+    expect(await new DrainLock().claim(Duration.seconds(10)), equals(false), "the first pass is still held");
     held = false;
     expect(await new DrainLock().claim(Duration.seconds(10)), equals(true), "the previous pass has expired");
   } finally {

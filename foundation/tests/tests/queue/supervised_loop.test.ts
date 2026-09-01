@@ -35,7 +35,6 @@
 
 import "@scribe/runtime/scholium/runner.ts";
 import { equals, expect, Scribe } from "@scribe/alchemy/test";
-import { FakeTime } from "@std/testing/time";
 import { installDrivers } from "../../testing/drivers.ts";
 import { SupervisedLoop } from "../../../lib/src/queue/runner/supervised_loop.ts";
 
@@ -92,33 +91,26 @@ Scribe.test("the loop repeats the pass while isRunning says so, and stops the in
 });
 
 Scribe.test("a pass that throws is retried after a backoff, without ending the loop", async () => {
-  const time = new FakeTime();
-  try {
-    let calls = 0;
-    let running = true;
-    let resolveDone: () => void;
-    const done = new Promise<void>((resolve) => resolveDone = resolve);
+  let calls = 0;
+  let running = true;
+  let resolveDone: () => void;
+  const done = new Promise<void>((resolve) => resolveDone = resolve);
 
-    new SupervisedLoop(
-      "test",
-      () => {
-        calls++;
-        if (calls === 1) return Promise.reject(new Error("boom"));
-        running = false;
-        resolveDone();
-        return Promise.resolve();
-      },
-      () => running,
-    ).start();
+  new SupervisedLoop(
+    "test",
+    () => {
+      calls++;
+      if (calls === 1) return Promise.reject(new Error("boom"));
+      running = false;
+      resolveDone();
+      return Promise.resolve();
+    },
+    () => running,
+  ).start();
 
-    await time.tickAsync(1_000);
-    await time.runMicrotasks();
-    await done;
+  await done;
 
-    expect(calls, equals(2), "the pass that threw did not stop the loop, and the retry after the backoff succeeded");
-  } finally {
-    time.restore();
-  }
+  expect(calls, equals(2), "the pass that threw did not stop the loop, and the retry after the backoff succeeded");
 });
 
 Scribe.test("isRunning already false when start() runs means the pass never fires", async () => {

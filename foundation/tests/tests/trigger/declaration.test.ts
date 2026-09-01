@@ -136,8 +136,8 @@ Scribe.test("onFieldChange refuses a transition on a path that names no column",
 });
 
 Scribe.test("two declarations on one table naming different key columns are refused", () => {
-  orders.onInsert("carts/{cartId}", noop);
-  orders.onUpdate({ path: "carts/{cid}", key: "cid" }, noop);
+  orders.onInsert("coupons/{couponId}", noop);
+  orders.onUpdate({ path: "coupons/{cid}", key: "cid" }, noop);
 
   expect(
     () => triggerRegistry.sources(),

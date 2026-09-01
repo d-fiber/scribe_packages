@@ -97,7 +97,7 @@ Scribe.test("a message pushed by the first queue is handed to the body of the on
   expect(second, equals([]));
 });
 
-Scribe.test("the queue that steals a subject carries its own limits, not the one it stole from", () => {
+Scribe.test("a queue that fails to steal a subject leaves the original's limits untouched", () => {
   new Queue<{ id: string }>(
     { name: "test:collide:limits.one", options: { maxRetries: 2 } },
     () => Promise.resolve(),
@@ -115,12 +115,12 @@ Scribe.test("the queue that steals a subject carries its own limits, not the one
   expect(
     queueRegistry.get("test:collide:limits.one")?.maxRetries,
     equals(2),
-    "the first declaration keeps the limits it was given, even though its subject was stolen",
+    "the first declaration keeps its own limits: the attempt on its subject never got past the guard",
   );
   expect(
-    queueRegistry.get("test:collide:limits_one")?.maxRetries,
-    equals(9),
-    "the registry answers the last declaration by name, so the stealing queue's own maxRetries stands",
+    queueRegistry.get("test:collide:limits_one"),
+    equals(null),
+    "a declaration whose constructor threw is never registered under its own name either",
   );
 });
 

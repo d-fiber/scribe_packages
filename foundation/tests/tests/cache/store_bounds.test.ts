@@ -130,10 +130,12 @@ Scribe.test("a sweep walks every page a scan hands back before it stops", async 
       ["17", ["paged/a"]],
       ["0", ["paged/b"]],
     ];
+    let calls = 0;
     const scan = installMock(
       kv(),
       "scan",
       (() => {
+        calls++;
         const [next, keys] = pages.shift() ?? ["0", []];
         return Promise.resolve([next, keys]);
       }) as unknown as Kv["scan"],
@@ -145,7 +147,7 @@ Scribe.test("a sweep walks every page a scan hands back before it stops", async 
       scan.restore();
     }
 
-    expect(redis.countOf("scan"), equals(2), "a non-zero cursor must send the sweep back for another page");
+    expect(calls, equals(2), "a non-zero cursor must send the sweep back for another page");
     expect(await cache.get("a"), equals(null));
     expect(await cache.get("b"), equals(null), "the second page must be walked too, not just the first");
   } finally {
