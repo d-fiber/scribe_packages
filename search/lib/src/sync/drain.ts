@@ -45,14 +45,24 @@ import { claim, fail, settle } from "../db/outbox.ts";
 import type { SearchOutboxRow } from "../db/tables.ts";
 
 /**
- * How many batches one occurrence takes before it stops and waits for the next.
+ * How long one occurrence keeps draining before it stops and waits for the next.
  *
  * A backlog is drained inside one occurrence rather than at one batch a minute, which is what
- * a bulk import needs: without it, ten thousand rows written in one go would take an hour to
- * become searchable. The bound is what keeps an occurrence from running until its timeout when
- * something upstream keeps writing faster than the cluster takes.
+ * a bulk import needs: without it, a hundred thousand rows written in one go would take
+ * twenty passes just to leave the first minute, regardless of how fast the cluster actually
+ * answers. The budget is what keeps an occurrence from running until its own timeout when
+ * something upstream keeps writing faster than the cluster takes, and it is kept well under
+ * the minute between two occurrences so the next one is never held up by this one.
  */
-const MAX_PASSES = 25;
+const DRAIN_BUDGET: Duration = Duration.seconds(50);
+
+/**
+ * The fewest passes one occurrence always takes, whatever {@link DRAIN_BUDGET} says.
+ *
+ * A cluster slow enough that one pass alone crosses the budget would otherwise never drain
+ * more than a single batch of the backlog behind it.
+ */
+const MIN_PASSES = 2;
 
 /** What one index has waiting, split by the way its documents move. */
 interface Work {
@@ -72,15 +82,16 @@ interface Work {
  *
  * A pass that settles nothing stops the drain even when the line is not empty. The rows are
  * claimed oldest first and nothing is locked, so a document the cluster keeps refusing stays
- * at the head of the line: without this the same batch would be tried twenty-five times in a
- * row and the ones behind it would never be reached.
+ * at the head of the line: without this the same batch would be tried pass after pass for the
+ * whole budget and the ones behind it would never be reached.
  */
 export async function drainSearchOutbox(): Promise<number> {
   await extensions.load(SEARCH_EXTENSION);
 
   let drained = 0;
+  const deadline = Date.now() + DRAIN_BUDGET.inMilliseconds;
 
-  for (let pass = 0; pass < MAX_PASSES; pass++) {
+  for (let pass = 0; pass < MIN_PASSES || Date.now() < deadline; pass++) {
     const batch = await claim();
     if (batch.length === 0) break;
 
