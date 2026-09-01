@@ -47,9 +47,12 @@ const MAX_LISTENERS = 1_000;
 
 /** Lets `accountId` listen to `channel`, and answers whether the grant is now in place. */
 export async function grantChannel(channel: string, accountId: string): Promise<boolean> {
-  if (await isGranted(channel, accountId)) return true;
-
-  return wrote(await realtimeGrants().insert({ channel, account_id: accountId }));
+  return wrote(
+    await realtimeGrants().upsert(
+      { channel, account_id: accountId },
+      { onConflict: "channel,account_id" },
+    ),
+  );
 }
 
 /** Stops `accountId` from listening to `channel`, and answers whether a grant was removed. */
