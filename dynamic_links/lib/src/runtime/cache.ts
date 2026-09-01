@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { cache, Duration } from "@scribe/alchemy";
+import { cache, Duration, type UnmodifiableList } from "@scribe/alchemy";
 import type { DynamicLinkRow } from "../db/tables.ts";
 
 /** How long a resolved slug is kept, answered or not. */
@@ -64,6 +64,44 @@ export async function cachedLink(
 }
 
 /**
+ * The link each of `slugs` resolves to, loading through `load` whatever the cache does not hold.
+ *
+ * @remarks
+ * For bulk resolution, never the single-slug path on the request that serves one click: a batch
+ * caller asks for many slugs it already knows by name, so this skips the cache's single-flight
+ * coalescing, which exists for callers racing on one key rather than callers who name a whole
+ * list up front.
+ */
+export async function cachedLinks(
+  slugs: UnmodifiableList<string>,
+  load: (missing: UnmodifiableList<string>) => Promise<ReadonlyMap<string, DynamicLinkRow>>,
+): Promise<ReadonlyMap<string, DynamicLinkRow | null>> {
+  const resolved = new Map<string, DynamicLinkRow | null>();
+  if (slugs.length === 0) return resolved;
+
+  const cached = await links.getMany(slugs);
+  const missing: string[] = [];
+
+  slugs.forEach((slug, at) => {
+    const entry = cached[at];
+    if (entry === null) missing.push(slug);
+    else resolved.set(slug, entry.link);
+  });
+
+  if (missing.length > 0) {
+    const found = await load(missing);
+    const toCache: [string, CachedLink][] = missing.map((slug) => {
+      const row = found.get(slug) ?? null;
+      resolved.set(slug, row);
+      return [slug, { link: row }];
+    });
+    await links.addMany(toCache);
+  }
+
+  return resolved;
+}
+
+/**
  * Drops what the cache holds for `slug`.
  *
  * Creating a link whose slug had already been asked for needs this, otherwise the slug stays
@@ -71,4 +109,15 @@ export async function cachedLink(
  */
 export function forgetLink(slug: string): Promise<void> {
   return links.delete(slug);
+}
+
+/**
+ * Writes `row` into the cache directly, keyed by its own slug.
+ *
+ * For a caller that already holds the row it just wrote, such as `create()` right after its own
+ * insert: writing it here costs no round trip, since the value is already in hand, and it spares
+ * the very first resolution of the link the cache miss it would otherwise take.
+ */
+export function rememberLink(row: DynamicLinkRow): Promise<void> {
+  return links.add(row.slug, { link: row });
 }

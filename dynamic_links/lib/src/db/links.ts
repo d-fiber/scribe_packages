@@ -35,6 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { wrote } from "@scribe/foundation/database";
+import { type Refusal, type Result } from "@scribe/alchemy";
 import { type DynamicLinkRow, dynamicLinks, type StoredPayload } from "./tables.ts";
 
 /** What creating one link writes into the table. */
@@ -59,19 +60,46 @@ export function linkBySlug(slug: string): Promise<DynamicLinkRow | null> {
     .getOne();
 }
 
+/** The links answering to any of `slugs`, in no particular order and skipping what does not exist. */
+export function linksBySlug(slugs: readonly string[]): Promise<DynamicLinkRow[]> {
+  return dynamicLinks()
+    .where((f) => f.slug.in(slugs as string[]))
+    .get();
+}
+
 /**
- * Writes `link` and answers the row, or null when the table refused it.
+ * Writes `link`, and answers the row as the table wrote it, or what refused the write.
  *
- * A refusal is almost always the unique index on the slug, which is the one the caller retries
- * on. Nothing else in the row can collide.
+ * The refusal's `kind` is what tells a collision on the unique slug index, worth a retry on a
+ * freshly drawn slug, apart from the table not answering at all, which a retry would only repeat.
  */
-export function insertLink(link: NewLink): Promise<DynamicLinkRow | null> {
+export function insertLink(link: NewLink): Promise<Result<DynamicLinkRow, Refusal>> {
   return dynamicLinks().insertOne({
     slug: link.slug,
     payload: link.payload,
     expires_at: link.expiresAt,
     user_id: link.userId,
-  }).then((written) => (written.ok ? written.data : null));
+  });
+}
+
+/**
+ * Writes every one of `links` in one round trip, and answers how many were written or what
+ * refused the group.
+ *
+ * @remarks
+ * Postgres aborts a multi-row insert whole on its first violation, so a refusal here, conflict or
+ * not, means none of `links` was written. There is no partial group to salvage from this call
+ * alone, and the caller that wants one retries the group's members one at a time instead.
+ */
+export function insertLinks(links: readonly NewLink[]): Promise<Result<number, Refusal>> {
+  return dynamicLinks().insert(
+    links.map((link) => ({
+      slug: link.slug,
+      payload: link.payload,
+      expires_at: link.expiresAt,
+      user_id: link.userId,
+    })),
+  );
 }
 
 /**

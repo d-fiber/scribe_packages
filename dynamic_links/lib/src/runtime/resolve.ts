@@ -34,17 +34,22 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Failure, Ok, type Result } from "@scribe/alchemy";
-import { LinkError, type LinkOutcome, type LinkPreview, type LinkVisitor } from "../../contracts/link.ts";
+import { Failure, Ok, type Result, type UnmodifiableList } from "@scribe/alchemy";
+import {
+  LinkError,
+  type LinkOutcome,
+  type LinkPreview,
+  type LinkVisitor,
+  type ResolveLinkError,
+} from "../../contracts/link.ts";
 import type { AnyLinkData, DynamicLink, LinkData } from "../core/declaration.ts";
 import type { LinkDestination, Visit } from "../core/destination.ts";
 import { guarded } from "../core/guard.ts";
-import { previewOf } from "../core/preview.ts";
 import { type AnyDynamicLink, linkNamed } from "../core/registry.ts";
-import { linkBySlug } from "../db/links.ts";
+import { linkBySlug, linksBySlug } from "../db/links.ts";
 import { dynamicLinkStatisticsQueue } from "../db/statistics.ts";
 import type { DynamicLinkRow } from "../db/tables.ts";
-import { cachedLink } from "./cache.ts";
+import { cachedLink, cachedLinks } from "./cache.ts";
 
 /**
  * A link that answered, and everything the node serving it needs.
@@ -93,13 +98,14 @@ export class ResolvedLink {
   }
 
   /**
-   * What a card shows for this link in `locale`, null when no rule was declared.
+   * What a card shows for this link in `locale`, null when its declaration names no rule.
    *
-   * The rule is the one `onLinkPreview` holds, so the text is written where a project keeps its
-   * translations rather than on the declaration, which is read long before anybody opens it.
+   * The declaration's own `preview` reads `locale` at this point rather than the moment the link
+   * was created, because a card is shown in the language of whoever opens the link, which nobody
+   * knows that early.
    */
   preview(locale: string | null): LinkPreview | null {
-    return previewOf({ name: this.name, data: this.data }, locale);
+    return this.#declaration.previewFor(this.data, locale);
   }
 
   /**
@@ -134,15 +140,53 @@ export class ResolvedLink {
  * created is what an address scanner asks for, and caching only the links that exist would send
  * every one of those queries to Postgres.
  */
-export function resolveLink(slug: string): Promise<Result<ResolvedLink, LinkError>> {
+export function resolveLink(slug: string): Promise<Result<ResolvedLink, ResolveLinkError | LinkError.Backend>> {
   return guarded(async () => {
     const row = await cachedLink(slug, () => linkBySlug(slug));
-    if (!row) return new Failure(LinkError.NotFound);
-    if (row.expires_at !== null && row.expires_at < Date.now()) return new Failure(LinkError.Expired);
-
-    const declaration = linkNamed(row.payload.k);
-    if (!declaration) return new Failure(LinkError.Unknown);
-
-    return new Ok(new ResolvedLink(row, declaration));
+    return outcomeOf(row);
   });
+}
+
+/**
+ * Every one of `slugs`, keyed by the slug it was asked under, each answering or saying why not.
+ *
+ * @remarks
+ * For an admin listing or a moderation pass over many slugs at once, never for the page that
+ * serves one click: it reads the cache and the table in as many round trips as it takes for the
+ * whole list rather than one round trip per slug, but it is one call whether `slugs` names ten or
+ * ten thousand, so a caller does not have to bound its own concurrency the way fanning `resolveLink`
+ * out with `Promise.all` would ask it to. A slug repeated in `slugs` answers once.
+ */
+export async function resolveMany(
+  slugs: UnmodifiableList<string>,
+): Promise<ReadonlyMap<string, Result<ResolvedLink, ResolveLinkError | LinkError.Backend>>> {
+  const outcomes = new Map<string, Result<ResolvedLink, ResolveLinkError | LinkError.Backend>>();
+  if (slugs.length === 0) return outcomes;
+
+  const unique = [...new Set(slugs)];
+  let rows: ReadonlyMap<string, DynamicLinkRow | null>;
+  try {
+    rows = await cachedLinks(
+      unique,
+      async (missing) => new Map((await linksBySlug(missing)).map((row) => [row.slug, row] as const)),
+    );
+  } catch {
+    for (const slug of unique) outcomes.set(slug, new Failure(LinkError.Backend));
+    return outcomes;
+  }
+
+  for (const slug of unique) {
+    outcomes.set(slug, outcomeOf(rows.get(slug) ?? null));
+  }
+  return outcomes;
+}
+
+function outcomeOf(row: DynamicLinkRow | null): Result<ResolvedLink, ResolveLinkError> {
+  if (!row) return new Failure(LinkError.NotFound);
+  if (row.expires_at !== null && row.expires_at < Date.now()) return new Failure(LinkError.Expired);
+
+  const declaration = linkNamed(row.payload.k);
+  if (!declaration) return new Failure(LinkError.Unknown);
+
+  return new Ok(new ResolvedLink(row, declaration));
 }

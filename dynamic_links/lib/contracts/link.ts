@@ -135,6 +135,25 @@ export enum LinkError {
   Backend = "backend",
 }
 
+/**
+ * Why creating a link failed, which is never a reason resolving or revoking one would answer.
+ *
+ * Narrower than {@link LinkError} on purpose: a caller handling `create`'s result switches over
+ * exactly the two domain outcomes it can produce, and the compiler refuses a branch for
+ * `NotFound` or `Expired` rather than silently accepting dead code for an outcome `create` never
+ * answers.
+ */
+export type CreateLinkError = LinkError.Params | LinkError.SlugConflict;
+
+/** Why revoking a slug did not remove it. */
+export type RevokeLinkError = LinkError.NotFound;
+
+/** Why a page of one link's visits could not be read. */
+export type StatisticsError = LinkError.NotFound;
+
+/** Why a slug did not resolve. */
+export type ResolveLinkError = LinkError.NotFound | LinkError.Expired | LinkError.Unknown;
+
 /** A link as its declaration just created it. */
 export interface CreatedLink {
   /** The slug the link answers to, which is the only part of it a URL carries. */

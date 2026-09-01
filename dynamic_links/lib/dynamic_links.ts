@@ -63,23 +63,32 @@ export type {
 } from "./src/core/declaration.ts";
 export { DestinationKind, Link } from "./src/core/destination.ts";
 export type { AppOptions, LinkDestination, LinkFactory, Visit } from "./src/core/destination.ts";
-export { onLinkPreview } from "./src/core/preview.ts";
-export type { LinkPreviewRule, PreviewedLink } from "./src/core/preview.ts";
 export { declaredLinks, linkNamed } from "./src/core/registry.ts";
 export type { AnyDynamicLink } from "./src/core/registry.ts";
 export { generateSlug } from "./src/core/slug.ts";
 export { LinkTemplate, LinkTemplateError } from "./src/core/template.ts";
 export { isSafeRedirectUrl } from "./src/core/url.ts";
+export { field } from "./src/core/field.ts";
+export type { FieldDescriptor, LinkFields } from "./src/core/field.ts";
 
 export { forgetLink } from "./src/runtime/cache.ts";
-export { ResolvedLink, resolveLink } from "./src/runtime/resolve.ts";
+export { ResolvedLink, resolveLink, resolveMany } from "./src/runtime/resolve.ts";
 
 export { dynamicLinkStatisticsQueue } from "./src/db/statistics.ts";
 export type { RecordedVisit } from "./src/db/statistics.ts";
 export type { DynamicLinkRow, DynamicLinkStatisticRow, StoredPayload } from "./src/db/tables.ts";
 
 export { LinkError, LinkKind, LinkOutcome, LinkPlatform } from "./contracts/link.ts";
-export type { CreatedLink, LinkPreview, LinkStatistic, LinkVisitor } from "./contracts/link.ts";
+export type {
+  CreatedLink,
+  CreateLinkError,
+  LinkPreview,
+  LinkStatistic,
+  LinkVisitor,
+  ResolveLinkError,
+  RevokeLinkError,
+  StatisticsError,
+} from "./contracts/link.ts";
 
 /**
  * When this package runs, which is at none of the three moments.

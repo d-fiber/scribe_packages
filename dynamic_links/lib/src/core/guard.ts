@@ -40,13 +40,19 @@ import { LinkError } from "../../contracts/link.ts";
 /**
  * Runs `query` and turns anything it throws into a backend failure.
  *
+ * @remarks
  * Everything this package answers goes through here, because a link is one part of a page: a
  * caller decides whether an unreachable database is worse than a link it cannot serve, and it
  * cannot decide that from inside a `catch`.
+ *
+ * `E` is one operation's own error union, never naming {@link LinkError.Backend} itself: this is
+ * the one place that adds it, so a caller who switches over `create`'s three-member result still
+ * gets a compiler error for a branch `create` cannot produce, and never has to add a fourth case
+ * by hand for the one failure every operation shares.
  */
-export async function guarded<T>(
-  query: () => Promise<Result<T, LinkError>>,
-): Promise<Result<T, LinkError>> {
+export async function guarded<T, E extends LinkError>(
+  query: () => Promise<Result<T, E>>,
+): Promise<Result<T, E | LinkError.Backend>> {
   try {
     return await query();
   } catch {

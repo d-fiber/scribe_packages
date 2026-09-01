@@ -34,26 +34,41 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Duration } from "@scribe/alchemy";
-import type { Pagination } from "@scribe/alchemy";
-import { Failure, Ok, okay, type Result } from "@scribe/alchemy";
-import { type CreatedLink, LinkError, LinkKind, type LinkStatistic } from "../../contracts/link.ts";
-import { deleteLink, insertLink, linkBySlug } from "../db/links.ts";
+import type { Duration, Pagination, UnmodifiableList } from "@scribe/alchemy";
+import { Failure, Ok, okay, Refusal, type Result, runPooled } from "@scribe/alchemy";
+import {
+  type CreatedLink,
+  type CreateLinkError,
+  LinkError,
+  LinkKind,
+  type LinkPreview,
+  type LinkStatistic,
+  type RevokeLinkError,
+  type StatisticsError,
+} from "../../contracts/link.ts";
+import { deleteLink, insertLink, insertLinks, linkBySlug, linksBySlug, type NewLink } from "../db/links.ts";
 import { statisticsOf } from "../db/statistics.ts";
-import { forgetLink } from "../runtime/cache.ts";
+import type { DynamicLinkRow } from "../db/tables.ts";
+import { forgetLink, rememberLink } from "../runtime/cache.ts";
 import { Link, type LinkDestination, type Visit } from "./destination.ts";
+import type { FieldDescriptor, LinkFields } from "./field.ts";
 import { guarded } from "./guard.ts";
 import { declareLink } from "./registry.ts";
 import { generateSlug } from "./slug.ts";
-import { LinkTemplate } from "./template.ts";
+import { LinkTemplate, type LinkValue } from "./template.ts";
 import { isSafeRedirectUrl } from "./url.ts";
+
+export type { LinkValue };
 
 const MAX_SLUG_ATTEMPTS = 5;
 const DEFAULT_PAGE_SIZE = 30;
 const APP_ROOT = "/";
 
-/** What one field of a link may hold, which is what a JSON column reads back unchanged. */
-export type LinkValue = string | number | boolean;
+/** How many rows one bulk insert of {@link DynamicLink.createMany} carries at a time. */
+const CREATE_CHUNK_SIZE = 500;
+
+/** How many chunks of {@link DynamicLink.createMany} are written at once. */
+const CREATE_CONCURRENCY = 4;
 
 /**
  * The shape a declaration's data has to have, one scalar per field.
@@ -67,13 +82,36 @@ export type LinkData<T> = { readonly [K in keyof T]: LinkValue };
 export type AnyLinkData = Readonly<Record<string, LinkValue>>;
 
 /** What every declaration takes, whatever it sends a visitor to. */
-export interface LinkOptions {
+export interface LinkOptions<T> {
   /** How long a link of this declaration resolves. Forever when absent. */
   readonly ttl?: Duration;
+
+  /**
+   * What a card shows for a link of this declaration, `locale` being the visitor's own.
+   *
+   * Answering null leaves the link without a card, which is what a declaration with nothing to
+   * show wants. Absent here, every link of this declaration is unfurled with none.
+   */
+  readonly preview?: (data: T, locale: string | null) => LinkPreview | null;
+
+  /**
+   * One descriptor per field of `T`, checked against every value this declaration is asked to
+   * create a link from.
+   *
+   * A field the path or the address renders is already checked by the declaration's own
+   * template, but a field that carries data without ever appearing in a route is not: `code` in
+   * `/invite/{code}` fails `create()` on its own the moment it is missing, while `invitedBy`,
+   * declared right next to it in the same interface, does not, and a value that came from a
+   * request body rather than a literal in the code has nothing else standing between it and a
+   * row. Declaring `fields` closes that gap for every field of `T`, not only the ones a template
+   * happens to spell out. Absent here, a value is written exactly as `create()` receives it,
+   * checked only against the template's own placeholders.
+   */
+  readonly fields?: LinkFields<T>;
 }
 
 /** What declaring a deeplink takes beyond its name. */
-export interface DeeplinkOptions extends LinkOptions {
+export interface DeeplinkOptions<T> extends LinkOptions<T> {
   /**
    * The route the application opens, with one placeholder per field it reads.
    *
@@ -85,18 +123,18 @@ export interface DeeplinkOptions extends LinkOptions {
 }
 
 /** What declaring a redirect takes beyond its name. */
-export interface RedirectOptions extends LinkOptions {
+export interface RedirectOptions<T> extends LinkOptions<T> {
   /** The address a visitor is sent to, with one placeholder per field it reads. */
   readonly url: string;
 }
 
 /** What declaring a routed link takes beyond its name. */
-export interface RoutedOptions<T extends LinkData<T>> extends LinkOptions {
+export interface RoutedOptions<T extends LinkData<T>> extends LinkOptions<T> {
   /**
    * Where one visit is sent, decided from what the page knows about it.
    *
-   * It is the only code a declaration carries, which is why it is a factory of its own rather
-   * than an option the two others also accept.
+   * It is what makes this declaration `routed` rather than `deeplink` or `redirect`, which is why
+   * it is a factory of its own rather than an option the two others also accept.
    */
   readonly decide: (visit: Visit, data: T) => LinkDestination;
 }
@@ -140,10 +178,12 @@ export interface LinkPage {
  * the declaration. Where a link points is decided here, in code, rather than copied into every
  * row when it was created, so changing a route changes every link already handed out.
  *
- * Three factories, and the third is the only one that carries code. `deeplink` and `redirect`
- * declare a destination and nothing else; `routed` decides one per visit, from the platform, the
- * country and the data. A card is not declared here at all: it is read in the language of
- * whoever opens the link, which nobody knows this early, so it lives in `onLinkPreview`.
+ * Three factories, and the third is the only one that carries a decision as code. `deeplink` and
+ * `redirect` declare a destination and nothing else; `routed` decides one per visit, from the
+ * platform, the country and the data. `preview` is on `LinkOptions` and every one of the three
+ * accepts it: it is read in the language of whoever opens the link, which nobody knows this
+ * early, so it is a function like `decide` rather than a value, but typed by this declaration's
+ * own data the same way `decide` is.
  *
  * A declaration is **built, not extended**: the constructor is private and registration happens
  * as it is built, so a form that took the destination in a second call would leave a declaration
@@ -161,21 +201,25 @@ export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
 
   readonly #template: LinkTemplate | null;
   readonly #decide: ((visit: Visit, data: T) => LinkDestination) | null;
+  readonly #preview: ((data: T, locale: string | null) => LinkPreview | null) | null;
   readonly #ttl: Duration | null;
+  readonly #fields: LinkFields<T> | null;
 
   private constructor(
     name: string,
     kind: LinkKind,
     pattern: string,
     decide: ((visit: Visit, data: T) => LinkDestination) | null,
-    ttl: Duration | null,
+    options: LinkOptions<T>,
   ) {
     this.name = name;
     this.kind = kind;
     this.pattern = pattern;
     this.#template = pattern === "" ? null : new LinkTemplate(pattern);
     this.#decide = decide;
-    this.#ttl = ttl;
+    this.#preview = options.preview ?? null;
+    this.#ttl = options.ttl ?? null;
+    this.#fields = options.fields ?? null;
     declareLink(this as unknown as DynamicLink);
   }
 
@@ -189,14 +233,14 @@ export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
    */
   static deeplink<T extends LinkData<T> = AnyLinkData>(
     name: string,
-    options: DeeplinkOptions = {},
+    options: DeeplinkOptions<T> = {},
   ): DynamicLink<T> {
     return new DynamicLink<T>(
       name,
       LinkKind.Deeplink,
       options.path ?? "",
       null,
-      options.ttl ?? null,
+      options,
     );
   }
 
@@ -210,14 +254,14 @@ export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
    */
   static redirect<T extends LinkData<T> = AnyLinkData>(
     name: string,
-    options: RedirectOptions,
+    options: RedirectOptions<T>,
   ): DynamicLink<T> {
     return new DynamicLink<T>(
       name,
       LinkKind.Redirect,
       options.url,
       null,
-      options.ttl ?? null,
+      options,
     );
   }
 
@@ -237,7 +281,7 @@ export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
       LinkKind.Routed,
       "",
       options.decide,
-      options.ttl ?? null,
+      options,
     );
   }
 
@@ -249,39 +293,66 @@ export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
    * @remarks
    * Up to five slugs are drawn, because the table refuses a slug it already holds. Five
    * collisions in a row on 62¹⁰ addresses is not a collision, it is a table that stopped
-   * accepting the insert, so the failure names the conflict rather than retrying forever.
+   * accepting the insert, so the failure names the conflict rather than retrying forever. A
+   * refusal that is not a collision, the table not answering at all, is never retried: doing so
+   * would spend up to five round trips discovering what the first one already said.
    */
   create(
     data: T,
     options: CreateLinkOptions = {},
-  ): Promise<Result<CreatedLink, LinkError>> {
-    return guarded(async () => {
-      if (this.#template !== null && !this.#template.accepts(rendered(data as AnyLinkData))) {
-        return new Failure(LinkError.Params);
+  ): Promise<Result<CreatedLink, CreateLinkError | LinkError.Backend>> {
+    return guarded(() => this.#createOne(data, options));
+  }
+
+  /**
+   * Creates one link per item of `items` and answers one outcome per item, in the same order.
+   *
+   * @remarks
+   * Meant for a burst, thousands of referral codes minted in one call, not for the per-request
+   * path that mints one link at a time: `items` is written in chunks of a few hundred, each in
+   * one round trip, rather than one round trip per link. A chunk that collides on a slug, which
+   * five hundred freshly drawn slugs colliding an existing one all but never does, falls back to
+   * writing that chunk's items one at a time so the other chunks are not held back by it.
+   *
+   * One item failing `Params` never reaches the table at all, and never costs the batch a round
+   * trip: every item is checked against this declaration's template first, and only what passes
+   * is written.
+   *
+   * Unlike {@link create}, a link written this way is never dropped from the cache. The slugs are
+   * freshly drawn, so the chance that any of them was already asked for and cached as absent is
+   * the same vanishing one {@link create} accepts for a single link, multiplied by however many
+   * this call wrote, and dropping thousands of cache entries to guard against it would cost more
+   * than the absence it guards against.
+   */
+  async createMany(
+    items: UnmodifiableList<T>,
+    options: CreateLinkOptions = {},
+  ): Promise<readonly Result<CreatedLink, CreateLinkError | LinkError.Backend>[]> {
+    const results: Result<CreatedLink, CreateLinkError | LinkError.Backend>[] = new Array(items.length);
+    if (items.length === 0) return results;
+
+    const expiresAt = options.expiresAt !== undefined ? options.expiresAt : this.#expiry();
+    const pending: number[] = [];
+
+    items.forEach((data, index) => {
+      if (!this.#accepts(data)) {
+        results[index] = new Failure(LinkError.Params);
+        return;
       }
-
-      const expiresAt = options.expiresAt !== undefined ? options.expiresAt : this.#expiry();
-
-      for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt++) {
-        const slug = generateSlug();
-        const row = await insertLink({
-          slug,
-          payload: { k: this.name, a: data },
-          expiresAt,
-          userId: options.userId ?? null,
-        });
-        if (!row) continue;
-
-        await forgetLink(row.slug);
-        return new Ok({
-          slug: row.slug,
-          expiresAt: row.expires_at,
-          createdAt: row.created_at,
-        });
-      }
-
-      return new Failure(LinkError.SlugConflict);
+      pending.push(index);
     });
+
+    const chunks: number[][] = [];
+    for (let at = 0; at < pending.length; at += CREATE_CHUNK_SIZE) {
+      chunks.push(pending.slice(at, at + CREATE_CHUNK_SIZE));
+    }
+
+    await runPooled(
+      chunks,
+      CREATE_CONCURRENCY,
+      (chunk) => this.#createChunk(chunk, items, options, expiresAt, results),
+    );
+    return results;
   }
 
   /**
@@ -291,7 +362,7 @@ export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
    * belongs to the declaration whose name its row carries, and one declaration reaching into
    * another's links would make a name mean nothing.
    */
-  revoke(slug: string): Promise<Result<void, LinkError>> {
+  revoke(slug: string): Promise<Result<void, RevokeLinkError | LinkError.Backend>> {
     return guarded(async () => {
       const row = await linkBySlug(slug);
       if (!row || row.payload.k !== this.name) {
@@ -310,7 +381,7 @@ export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
   statistics(
     slug: string,
     page: LinkPage = {},
-  ): Promise<Result<Pagination<LinkStatistic>, LinkError>> {
+  ): Promise<Result<Pagination<LinkStatistic>, StatisticsError | LinkError.Backend>> {
     return guarded(async () => {
       const row = await linkBySlug(slug);
       if (!row || row.payload.k !== this.name) {
@@ -334,7 +405,7 @@ export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
   destinationFor(visit: Visit, data: T): LinkDestination {
     if (this.#decide !== null) return this.#decide(visit, data);
 
-    const target = this.#template === null ? null : this.#template.render(rendered(data as AnyLinkData));
+    const target = this.#template === null ? null : this.#template.render(data as AnyLinkData);
     if (this.kind === LinkKind.Redirect) {
       return target !== null && isSafeRedirectUrl(target) ? Link.web(target) : Link.notFound();
     }
@@ -343,13 +414,126 @@ export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
     return Link.app(target ?? APP_ROOT);
   }
 
+  /** What a card shows for a link carrying `data` in `locale`, null when this declaration names no rule. */
+  previewFor(data: T, locale: string | null): LinkPreview | null {
+    return this.#preview === null ? null : this.#preview(data, locale);
+  }
+
+  async #createOne(
+    data: T,
+    options: CreateLinkOptions,
+  ): Promise<Result<CreatedLink, CreateLinkError | LinkError.Backend>> {
+    if (!this.#accepts(data)) {
+      return new Failure(LinkError.Params);
+    }
+
+    const expiresAt = options.expiresAt !== undefined ? options.expiresAt : this.#expiry();
+
+    for (let attempt = 0; attempt < MAX_SLUG_ATTEMPTS; attempt++) {
+      const slug = generateSlug();
+      const written = await this.#insertOne({
+        slug,
+        payload: { k: this.name, a: data as AnyLinkData },
+        expiresAt,
+        userId: options.userId ?? null,
+      });
+
+      if (written.ok) {
+        this.#rememberSoon(written.data);
+        return new Ok({
+          slug: written.data.slug,
+          expiresAt: written.data.expires_at,
+          createdAt: written.data.created_at,
+        });
+      }
+
+      if (written.error.kind !== "conflict") return new Failure(LinkError.Backend);
+    }
+
+    return new Failure(LinkError.SlugConflict);
+  }
+
+  /** Whether `data` passes both this declaration's template and its field descriptors. */
+  #accepts(data: T): boolean {
+    const record = data as AnyLinkData;
+    if (this.#template !== null && !this.#template.accepts(record)) return false;
+    if (this.#fields === null) return true;
+
+    const fields = this.#fields as Readonly<Record<string, FieldDescriptor<LinkValue>>>;
+    return Object.entries(fields).every(([name, descriptor]) => descriptor.accepts(record[name]));
+  }
+
+  async #createChunk(
+    indexes: readonly number[],
+    items: UnmodifiableList<T>,
+    options: CreateLinkOptions,
+    expiresAt: number | null,
+    results: Result<CreatedLink, CreateLinkError | LinkError.Backend>[],
+  ): Promise<void> {
+    const slugs = indexes.map(() => generateSlug());
+    const rows: NewLink[] = indexes.map((index, at) => ({
+      slug: slugs[at],
+      payload: { k: this.name, a: items[index] as AnyLinkData },
+      expiresAt,
+      userId: options.userId ?? null,
+    }));
+
+    const written = await this.#insertChunk(rows);
+    if (written.ok) {
+      const found = await linksBySlug(slugs);
+      const bySlug = new Map(found.map((row) => [row.slug, row] as const));
+      indexes.forEach((index, at) => {
+        const row = bySlug.get(slugs[at]);
+        results[index] = row
+          ? new Ok({ slug: row.slug, expiresAt: row.expires_at, createdAt: row.created_at })
+          : new Failure(LinkError.Backend);
+      });
+      return;
+    }
+
+    if (written.error.kind !== "conflict") {
+      indexes.forEach((index) => {
+        results[index] = new Failure(LinkError.Backend);
+      });
+      return;
+    }
+
+    await runPooled(indexes, CREATE_CONCURRENCY, async (index) => {
+      results[index] = await this.#createOne(items[index], options);
+    });
+  }
+
+  async #insertOne(link: NewLink): Promise<Result<DynamicLinkRow, Refusal>> {
+    try {
+      return await insertLink(link);
+    } catch (cause) {
+      return new Failure(Refusal.unavailable(String(cause)));
+    }
+  }
+
+  async #insertChunk(rows: readonly NewLink[]): Promise<Result<number, Refusal>> {
+    try {
+      return await insertLinks(rows);
+    } catch (cause) {
+      return new Failure(Refusal.unavailable(String(cause)));
+    }
+  }
+
+  /**
+   * Writes `row` into the cache in the background, keyed by the slug it was just given.
+   *
+   * `#createOne` already holds the row it inserted, so this spares the very first resolution of
+   * a freshly created link, made by whoever the creator hands it to first, the round trip a cache
+   * miss would otherwise cost against a table that would only answer back what this call already
+   * has in hand.
+   */
+  #rememberSoon(row: DynamicLinkRow): void {
+    rememberLink(row).catch((cause) => {
+      console.error(`[dynamic-links:cache] failed to remember slug ${row.slug} after create: ${String(cause)}`);
+    });
+  }
+
   #expiry(): number | null {
     return this.#ttl === null ? null : Date.now() + this.#ttl.inMilliseconds;
   }
-}
-
-function rendered(data: AnyLinkData): Readonly<Record<string, string>> {
-  return Object.fromEntries(
-    Object.entries(data).map(([key, value]) => [key, String(value)]),
-  );
 }
