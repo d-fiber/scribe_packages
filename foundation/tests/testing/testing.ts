@@ -51,3 +51,4 @@ export { installMock } from "./install.ts";
 export type { InstalledMock } from "./install.ts";
 export { recordLog } from "./logger.ts";
 export type { MemoryLogger } from "./logger.ts";
+export { installQueueMock } from "./queue.ts";
