@@ -115,3 +115,18 @@ Scribe.test("a queue's linger delay is indeed carried by the registry", () => {
     "a queue declared without batch mode carries no linger at all",
   );
 });
+
+Scribe.test("a linger of a full day is carried by the registry exactly as declared", () => {
+  const aDay = 24 * 60 * 60 * 1_000;
+
+  new Queue<{ id: string }>(
+    { name: "test:define:linger-day", batch: { lingerMs: aDay } },
+    () => Promise.resolve(),
+  );
+
+  expect(
+    queueRegistry.get("test:define:linger-day")?.lingerMs,
+    equals(aDay),
+    "nothing in the declaration path caps a linger, so a queue that asks for a full day gets it",
+  );
+});

@@ -97,6 +97,33 @@ Scribe.test("a message pushed by the first queue is handed to the body of the on
   expect(second, equals([]));
 });
 
+Scribe.test("the queue that steals a subject carries its own limits, not the one it stole from", () => {
+  new Queue<{ id: string }>(
+    { name: "test:collide:limits.one", options: { maxRetries: 2 } },
+    () => Promise.resolve(),
+  );
+
+  expect(
+    () =>
+      new Queue<{ id: string }>(
+        { name: "test:collide:limits_one", options: { maxRetries: 9 } },
+        () => Promise.resolve(),
+      ),
+    throwsA(isA(DuplicateDeclarationError)),
+  );
+
+  expect(
+    queueRegistry.get("test:collide:limits.one")?.maxRetries,
+    equals(2),
+    "the first declaration keeps the limits it was given, even though its subject was stolen",
+  );
+  expect(
+    queueRegistry.get("test:collide:limits_one")?.maxRetries,
+    equals(9),
+    "the registry answers the last declaration by name, so the stealing queue's own maxRetries stands",
+  );
+});
+
 Scribe.test("an empty queue name is accepted and builds a subject NATS refuses", () => {
   expect(
     () => new Queue<{ id: string }>({ name: "" }, () => Promise.resolve()),
