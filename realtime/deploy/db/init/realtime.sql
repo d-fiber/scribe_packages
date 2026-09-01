@@ -164,7 +164,8 @@ begin
     ),
     event   := new.action,
     topic   := new.channel,
-    private := coalesce(v_listen, 'granted') <> 'public'
+    private := new.channel != split_part(new.channel, ':', 1)
+      or coalesce(v_listen, 'granted') <> 'public'
   );
 
   new.payload := '{}'::jsonb;
