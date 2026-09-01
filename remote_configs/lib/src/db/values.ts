@@ -60,28 +60,18 @@ export function valueOf(name: string): Promise<RemoteConfigRow | null> {
  * Stores `stored`, replacing what the table held for that name, and answers whether it took.
  *
  * @remarks
- * It reads before it writes because the query builder has no upsert and an update that matched
- * nothing is indistinguishable from one that matched a row. Two writers storing the same name in
- * the same instant therefore have one of them refused by the primary key, which answers false
- * rather than losing the other's value.
+ * Two writers storing the same name in the same instant both reach Postgres, and the one that
+ * commits last is the one that stays: the upsert carries no version, so it cannot refuse the
+ * loser the way a primary key refuses a second insert. That is the trade this store makes on
+ * purpose, not an oversight. A caller that needs to detect the loser needs a different config
+ * entirely, one with a version column to condition the write on.
  */
 export async function writeValue(stored: StoredValue): Promise<boolean> {
-  const held = await valueOf(stored.name);
-
-  if (held === null) {
-    return wrote(
-      await remoteConfigs().insert({
-        name: stored.name,
-        value: stored.value,
-        expires_at: stored.expiresAt,
-      }),
-    );
-  }
-
   return wrote(
-    await remoteConfigs()
-      .where((f) => f.name.eq(stored.name))
-      .update({ value: stored.value, expires_at: stored.expiresAt }),
+    await remoteConfigs().upsert(
+      { name: stored.name, value: stored.value, expires_at: stored.expiresAt },
+      { onConflict: "name" },
+    ),
   );
 }
 
