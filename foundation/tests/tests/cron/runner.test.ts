@@ -369,3 +369,65 @@ Scribe.test(
     }
   },
 );
+
+Scribe.test("a handler that throws synchronously does not crash the loop, and frees the slot for the next tick", async () => {
+  const time = new FakeTime(new Date("2026-01-01T00:00:00.000Z"));
+  const claim = shadowOccurrenceClaim();
+  try {
+    const runner = new CronRunner();
+    let calls = 0;
+    runner.register(intervalJob("throws", Duration.milliseconds(60_000)), () => {
+      calls++;
+      throw new Error("boom");
+    });
+
+    runner.start(Duration.milliseconds(10_000));
+    await time.tickAsync(60_000);
+    await time.runMicrotasks();
+    assertEquals(calls, 1, "the first interval fired the handler, which threw");
+
+    await time.tickAsync(60_000);
+    await time.runMicrotasks();
+    assertEquals(calls, 2, "the throw did not leave the slot held, so the second interval fired it again");
+
+    runner.stop();
+  } finally {
+    claim.restore();
+    time.restore();
+  }
+});
+
+Scribe.test("a handler that rejects does not crash the loop, and frees the slot for the next tick", async () => {
+  const time = new FakeTime(new Date("2026-01-01T00:00:00.000Z"));
+  const claim = shadowOccurrenceClaim();
+  try {
+    const runner = new CronRunner();
+    let calls = 0;
+    runner.register(intervalJob("rejects", Duration.milliseconds(60_000)), () => {
+      calls++;
+      return Promise.reject(new Error("boom"));
+    });
+
+    runner.start(Duration.milliseconds(10_000));
+    await time.tickAsync(60_000);
+    await time.runMicrotasks();
+    assertEquals(calls, 1, "the first interval fired the handler, which rejected");
+
+    await time.tickAsync(60_000);
+    await time.runMicrotasks();
+    assertEquals(calls, 2, "the rejection did not leave the slot held, so the second interval fired it again");
+
+    runner.stop();
+  } finally {
+    claim.restore();
+    time.restore();
+  }
+});
+
+Scribe.test("jobs() answers every registered job, not just the ones that have run", () => {
+  const runner = new CronRunner();
+  runner.register(intervalJob("a", Duration.milliseconds(60_000)), () => Promise.resolve());
+  runner.register(intervalJob("b", Duration.milliseconds(120_000)), () => Promise.resolve());
+
+  assertEquals(runner.jobs().map((job) => job.name).sort(), ["a", "b"]);
+});
