@@ -82,4 +82,68 @@ case "$varz" in
 esac
 say "nats answers its monitoring endpoint"
 
+nats_handshake() {
+  # shellcheck disable=SC2086
+  docker compose $COMPOSE exec -T nats sh -c \
+    "printf 'CONNECT {\"auth_token\":\"$1\",\"verbose\":false}\r\nPING\r\n' | nc -w 2 localhost 4222" 2>/dev/null
+}
+
+bad_auth=$(nats_handshake "wrong-token")
+case "$bad_auth" in
+  *'-ERR'*) ;;
+  *) fail "nats accepted a wrong token: '$bad_auth'." ;;
+esac
+say "nats refuses a wrong token"
+
+nats_password=$(grep '^NATS_PASSWORD=' "$WORK/.env" | cut -d= -f2-)
+good_auth=$(nats_handshake "$nats_password")
+case "$good_auth" in
+  *PONG*) ;;
+  *) fail "nats refused the fixture's own token: '$good_auth'." ;;
+esac
+say "nats accepts the token the fixture set"
+
+attached=$(query_db "select count(*) from pg_trigger where tgname = '__scribe_table_change__' and tgrelid = 'public.items'::regclass")
+[ "$attached" = "1" ] || fail "public.items has no change trigger attached, and the cluster holds '$attached'."
+say "the create-table event trigger attached foundation's function to the fixture's own table"
+
+query_db "insert into public.__trigger_sources__ (table_name, key_column) values ('items', 'item_id') on conflict (table_name) do update set key_column = excluded.key_column" >/dev/null
+say "items is registered as a trigger source, the way a declaration would register it"
+
+events_before=$(query_db "select count(*) from public.__trigger_events__ where table_name = 'items'")
+query_db "insert into public.items (name) values ('e2e-trigger-single')" >/dev/null
+events_after=$(query_db "select count(*) from public.__trigger_events__ where table_name = 'items'")
+[ "$events_after" -gt "$events_before" ] || fail "one insert into a registered table produced no trigger event."
+
+op=$(query_db "select op from public.__trigger_events__ where table_name = 'items' order by id desc limit 1")
+[ "$op" = "insert" ] || fail "the event the trigger wrote names the op '$op' instead of 'insert'."
+say "log_table_change fired on a real write and recorded it"
+
+say "starting 20 concurrent writes to the same table"
+events_before=$(query_db "select count(*) from public.__trigger_events__ where table_name = 'items'")
+for i in $(seq 1 20); do
+  query_db "insert into public.items (name) values ('e2e-trigger-load-$i')" >/dev/null &
+done
+wait
+events_after=$(query_db "select count(*) from public.__trigger_events__ where table_name = 'items'")
+gained=$((events_after - events_before))
+[ "$gained" -ge 20 ] || fail "20 concurrent inserts produced $gained trigger events, at least 20 were expected."
+say "20 concurrent writes produced $gained trigger events, none dropped"
+
+say "starting 20 concurrent claims on the same key"
+redis_password=$(grep '^REDIS_PASSWORD=' "$WORK/.env" | cut -d= -f2-)
+claim_key="e2e:claim:$$"
+claim_results=$(mktemp -d)
+for i in $(seq 1 20); do
+  ( # shellcheck disable=SC2086
+    docker compose $COMPOSE exec -T redis redis-cli -a "$redis_password" --no-auth-warning \
+      set "$claim_key" "$i" NX EX 30 2>/dev/null | tr -d '[:space:]' > "$claim_results/$i"
+  ) &
+done
+wait
+wins=$(grep -l '^OK$' "$claim_results"/* 2>/dev/null | wc -l | tr -d '[:space:]')
+rm -rf "$claim_results"
+[ "$wins" = "1" ] || fail "20 concurrent claims on one key produced $wins winners, expected exactly 1."
+say "20 concurrent claims on one key produced exactly one winner"
+
 say "green"
