@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 
 import { Duration, type Future, type UnmodifiableList } from "@scribe/alchemy";
-import { RedisCache } from "../lib/src/cache/redis_cache.ts";
+import { Valkery } from "../lib/src/cache/cache.ts";
 
 /** What one entry of the session namespace holds. */
 interface Session {
@@ -52,7 +52,7 @@ interface Session {
  * answer for a namespace whose entries are correct at any age; a namespace whose values go
  * stale says how fast here rather than at each call site.
  */
-export const sessions = new RedisCache<Session>({ key: "session", ttl: Duration.minutes(5) });
+export const sessions = new Valkery<Session>({ key: "session", ttl: Duration.minutes(5) });
 
 /** Reads one entry, answering null on a miss and on an unreachable Redis alike. */
 export function sessionOf(accountId: string): Future<Session | null> {

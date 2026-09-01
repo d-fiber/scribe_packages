@@ -38,7 +38,7 @@ import { DateTime, Duration } from "@scribe/alchemy";
 import { installDrivers } from "../../testing/drivers.ts";
 import { decodeCacheEntry, encodeCacheEntry } from "../../../lib/src/cache/cache_entry.ts";
 import { KeySpace } from "../../../lib/src/cache/key_space.ts";
-import { RedisCache } from "../../../lib/src/cache/redis_cache.ts";
+import { Valkery } from "../../../lib/src/cache/cache.ts";
 import { installFakeRedis } from "./support/redis.ts";
 const FIVE_MINUTES = Duration.minutes(5);
 const WARMUP = 2_000;
@@ -75,7 +75,7 @@ Scribe.test("a warm read costs one round trip and nothing else", async () => {
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<{ n: number }>({ key: "warm", ttl: FIVE_MINUTES });
+    const cache = new Valkery<{ n: number }>({ key: "warm", ttl: FIVE_MINUTES });
     await cache.add("k", { n: 1 });
     redis.clear();
 
@@ -98,7 +98,7 @@ Scribe.test("an upsert that hits costs one round trip, the same as a read", asyn
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<{ n: number }>({ key: "warm-upsert", ttl: FIVE_MINUTES });
+    const cache = new Valkery<{ n: number }>({ key: "warm-upsert", ttl: FIVE_MINUTES });
     await cache.upsert("k", () => Promise.resolve({ n: 1 }));
     redis.clear();
 
@@ -128,7 +128,7 @@ Scribe.test("two hundred ids cost one round trip, not two hundred", async () => 
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<string>({ key: "batch", ttl: FIVE_MINUTES });
+    const cache = new Valkery<string>({ key: "batch", ttl: FIVE_MINUTES });
     const ids = Array.from({ length: 200 }, (_, at) => `u${at}`);
     for (const id of ids) await cache.add(id, id);
     redis.clear();
@@ -146,7 +146,7 @@ Scribe.test("a batch read walks its ids twice, once for an answer it will not us
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<string>({ key: "walked", ttl: FIVE_MINUTES });
+    const cache = new Valkery<string>({ key: "walked", ttl: FIVE_MINUTES });
     const counted = counting(Array.from({ length: 200 }, (_, at) => `u${at}`));
 
     await cache.getMany(counted.list);
@@ -166,7 +166,7 @@ Scribe.test("a batch write costs one pipeline, not one call per entry", async ()
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<string>({ key: "many", ttl: FIVE_MINUTES });
+    const cache = new Valkery<string>({ key: "many", ttl: FIVE_MINUTES });
     const entries = Array.from({ length: 200 }, (_, at) => [`u${at}`, `v${at}`] as [string, string]);
 
     await cache.addMany(entries);
@@ -182,7 +182,7 @@ Scribe.test("a sweep of a thousand keys costs one scan and one unlink", async ()
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<string>({ key: "sweep", ttl: FIVE_MINUTES });
+    const cache = new Valkery<string>({ key: "sweep", ttl: FIVE_MINUTES });
     await cache.addMany(Array.from({ length: 1_000 }, (_, at) => [`u${at}`, "v"] as [string, string]));
     redis.clear();
 

@@ -40,7 +40,7 @@ import { installDrivers } from "../../testing/drivers.ts";
 import { DistributedFlight } from "../../../lib/src/cache/flight/distributed_flight.ts";
 import type { DistributedLock, LockOutcome } from "../../../lib/src/cache/lock/distributed_lock.ts";
 import { LocalFlight } from "../../../lib/src/cache/flight/local_flight.ts";
-import { RedisCache } from "../../../lib/src/cache/redis_cache.ts";
+import { Valkery } from "../../../lib/src/cache/cache.ts";
 import { installFakeRedis } from "./support/redis.ts";
 const FIVE_MINUTES = Duration.minutes(5);
 
@@ -77,7 +77,7 @@ Scribe.test("a hundred callers of one key pay one computation and one read", asy
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<string>({ key: "burst", ttl: FIVE_MINUTES });
+    const cache = new Valkery<string>({ key: "burst", ttl: FIVE_MINUTES });
     let computed = 0;
     const asked = [];
 
@@ -103,8 +103,8 @@ Scribe.test("two replicas of one key share one computation when the lease covers
 
   try {
     const budget = Duration.seconds(2);
-    const one = new RedisCache<string>({ key: "pair", ttl: FIVE_MINUTES, deadline: budget });
-    const two = new RedisCache<string>({ key: "pair", ttl: FIVE_MINUTES, deadline: budget });
+    const one = new Valkery<string>({ key: "pair", ttl: FIVE_MINUTES, deadline: budget });
+    const two = new Valkery<string>({ key: "pair", ttl: FIVE_MINUTES, deadline: budget });
     let computed = 0;
     const compute = (tag: string) => () => {
       computed++;
@@ -124,8 +124,8 @@ Scribe.test("two replicas of one key answer two different values when the comput
   const redis = installFakeRedis();
 
   try {
-    const one = new RedisCache<string>({ key: "split", ttl: FIVE_MINUTES });
-    const two = new RedisCache<string>({ key: "split", ttl: FIVE_MINUTES });
+    const one = new Valkery<string>({ key: "split", ttl: FIVE_MINUTES });
+    const two = new Valkery<string>({ key: "split", ttl: FIVE_MINUTES });
     let computed = 0;
     const compute = (tag: string) => () => {
       computed++;
@@ -153,7 +153,7 @@ Scribe.test("a computation that rejects frees the lock and lets the next caller 
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<string>({ key: "boom", ttl: FIVE_MINUTES });
+    const cache = new Valkery<string>({ key: "boom", ttl: FIVE_MINUTES });
 
     await expectLater(
       () => cache.upsert("k", () => Promise.reject(new Error("origin down"))),
@@ -171,7 +171,7 @@ Scribe.test("a rejection reaches every caller that joined the run", async () => 
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<string>({ key: "shared-boom", ttl: FIVE_MINUTES });
+    const cache = new Valkery<string>({ key: "shared-boom", ttl: FIVE_MINUTES });
     let computed = 0;
     const failing = () => {
       computed++;
@@ -192,7 +192,7 @@ Scribe.test("a computation that never answers wedges its key in this process for
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<string>({ key: "hung", ttl: FIVE_MINUTES });
+    const cache = new Valkery<string>({ key: "hung", ttl: FIVE_MINUTES });
     let started = 0;
     const hangs = () => {
       started++;
@@ -228,7 +228,7 @@ Scribe.test("a loser that waits out its budget computes without the lock and say
 
   try {
     redis.place("lock:waited/k", "another replica", 60_000);
-    const cache = new RedisCache<string>({
+    const cache = new Valkery<string>({
       key: "waited",
       ttl: FIVE_MINUTES,
       deadline: Duration.milliseconds(250),
@@ -253,7 +253,7 @@ Scribe.test("a loser pays one lock attempt and one read back per poll, and nothi
 
   try {
     redis.place("lock:polled/k", "another replica", 60_000);
-    const cache = new RedisCache<string>({
+    const cache = new Valkery<string>({
       key: "polled",
       ttl: FIVE_MINUTES,
       deadline: Duration.milliseconds(250),
@@ -288,7 +288,7 @@ Scribe.test("a winner that dies without releasing frees the key when the lease r
 
   try {
     redis.place("lock:dead/k", "a replica that will not come back", 250);
-    const cache = new RedisCache<string>({ key: "dead", ttl: FIVE_MINUTES });
+    const cache = new Valkery<string>({ key: "dead", ttl: FIVE_MINUTES });
 
     expect(redis.raw("lock:dead/k"), equals("a replica that will not come back"));
     at.pass(Duration.milliseconds(251));

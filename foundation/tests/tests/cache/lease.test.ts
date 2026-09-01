@@ -38,7 +38,7 @@ import { DateTime, Duration, Now } from "@scribe/alchemy";
 import { installDrivers } from "../../testing/drivers.ts";
 import { encodeCacheEntry } from "../../../lib/src/cache/cache_entry.ts";
 import { DistributedLock } from "../../../lib/src/cache/lock/distributed_lock.ts";
-import { RedisCache, refreshesSettled } from "../../../lib/src/cache/redis_cache.ts";
+import { refreshesSettled, Valkery } from "../../../lib/src/cache/cache.ts";
 import { installFakeRedis } from "./support/redis.ts";
 const FIVE_MINUTES = Duration.minutes(5);
 
@@ -52,7 +52,7 @@ Scribe.test("the lease a fill takes is the caller's budget, which is a quarter o
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<string>({ key: "lease", ttl: FIVE_MINUTES });
+    const cache = new Valkery<string>({ key: "lease", ttl: FIVE_MINUTES });
     await cache.upsert("k", () => Promise.resolve("v"));
 
     expect(
@@ -70,7 +70,7 @@ Scribe.test("one lock key is leased two different lengths depending on which pat
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<string>({ key: "twoways", ttl: FIVE_MINUTES });
+    const cache = new Valkery<string>({ key: "twoways", ttl: FIVE_MINUTES });
     await cache.upsert("k", () => Promise.resolve("filled"));
     const fill = leasesOf(redis.commands)[0];
 
@@ -184,7 +184,7 @@ Scribe.test("a lock lives outside the namespace a sweep walks", async () => {
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<string>({ key: "swept", ttl: FIVE_MINUTES });
+    const cache = new Valkery<string>({ key: "swept", ttl: FIVE_MINUTES });
     redis.place("lock:swept/k", "a replica computing right now", 60_000);
     await cache.add("a", "one");
 

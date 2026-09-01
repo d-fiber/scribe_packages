@@ -42,7 +42,7 @@ import { Duration } from "@scribe/alchemy";
 import { kv } from "../../../lib/src/redis/kv.ts";
 import { installValkeryMock } from "../../testing/cache.ts";
 import { encodeCacheEntry } from "../../../lib/src/cache/cache_entry.ts";
-import { RedisCache, refreshesSettled } from "../../../lib/src/cache/redis_cache.ts";
+import { refreshesSettled, Valkery } from "../../../lib/src/cache/cache.ts";
 import { installMock } from "@scribe/testing/install.ts";
 
 function deferred<T>(): { promise: Promise<T>; resolve: (v: T) => void } {
@@ -78,7 +78,7 @@ const logged = installDrivers();
 
 Scribe.test("upsert computes once and serves the cached value afterwards", async () => {
   const mock = installValkeryMock();
-  const cache = new RedisCache<number>({ key: "test", ttl: Duration.minutes(5) });
+  const cache = new Valkery<number>({ key: "test", ttl: Duration.minutes(5) });
   let computed = 0;
 
   try {
@@ -94,7 +94,7 @@ Scribe.test("upsert computes once and serves the cached value afterwards", async
 
 Scribe.test("upsert collapses concurrent callers before it touches Redis", async () => {
   const mock = installValkeryMock();
-  const cache = new RedisCache<string>({ key: "test", ttl: Duration.minutes(5) });
+  const cache = new Valkery<string>({ key: "test", ttl: Duration.minutes(5) });
   const gate = deferred<string>();
   const get = spyOn(kv(), "get");
   let computed = 0;
@@ -129,7 +129,7 @@ Scribe.test("upsert collapses concurrent callers before it touches Redis", async
 
 Scribe.test("upsert refreshes ahead of the expiry and answers what it already held", async () => {
   const mock = installValkeryMock();
-  const cache = new RedisCache<string>({ key: "test", ttl: Duration.minutes(5) });
+  const cache = new Valkery<string>({ key: "test", ttl: Duration.minutes(5) });
 
   try {
     const secondsLeft = 5_000;
@@ -151,7 +151,7 @@ Scribe.test("upsert refreshes ahead of the expiry and answers what it already he
 
 Scribe.test("upsert serves the cached value rather than recomputing far from the expiry", async () => {
   const mock = installValkeryMock();
-  const cache = new RedisCache<string>({ key: "test", ttl: Duration.minutes(5) });
+  const cache = new Valkery<string>({ key: "test", ttl: Duration.minutes(5) });
   let computed = 0;
 
   try {
@@ -172,7 +172,7 @@ Scribe.test("upsert serves the cached value rather than recomputing far from the
 
 Scribe.test("a refresh that throws still serves the value the cache already holds", async () => {
   const mock = installValkeryMock();
-  const cache = new RedisCache<string>({ key: "test", ttl: Duration.minutes(5) });
+  const cache = new Valkery<string>({ key: "test", ttl: Duration.minutes(5) });
 
   try {
     await seed("test/k", "stale", 5_000, 1_000_000);
@@ -189,9 +189,35 @@ Scribe.test("a refresh that throws still serves the value the cache already hold
   }
 });
 
+Scribe.test("a cache declared with beta at zero never refreshes ahead of its expiry", async () => {
+  const mock = installValkeryMock();
+  const cache = new Valkery<string>({ key: "test", ttl: Duration.minutes(5), beta: 0 });
+
+  try {
+    const secondsLeft = 5_000;
+    const costlyToProduce = 1_000_000;
+    await seed("test/k", "stale", secondsLeft, costlyToProduce);
+
+    expect(
+      await cache.upsert("k", () => Promise.resolve("fresh")),
+      equals("stale"),
+      "an entry this close to expiring and this costly to produce would refresh under the default beta",
+    );
+
+    await refreshesSettled();
+    expect(
+      await cache.get("k"),
+      equals("stale"),
+      "beta at zero must turn the volunteering off, not just make it rarer",
+    );
+  } finally {
+    mock.restore();
+  }
+});
+
 Scribe.test("getMany reads every id in a single round trip", async () => {
   const mock = installValkeryMock();
-  const cache = new RedisCache<number>({ key: "test", ttl: Duration.minutes(5) });
+  const cache = new Valkery<number>({ key: "test", ttl: Duration.minutes(5) });
   const mget = spyOn(kv(), "mget");
 
   try {
@@ -207,9 +233,22 @@ Scribe.test("getMany reads every id in a single round trip", async () => {
   }
 });
 
+Scribe.test("getMany answers one value per id asked, even when an id repeats", async () => {
+  const mock = installValkeryMock();
+  const cache = new Valkery<number>({ key: "test", ttl: Duration.minutes(5) });
+
+  try {
+    await cache.add("a", 1);
+
+    expect(await cache.getMany(["a", "a", "b"]), equals([1, 1, null]), "a repeated id must not collapse in the answer");
+  } finally {
+    mock.restore();
+  }
+});
+
 Scribe.test("getMany on an empty list does not touch Redis at all", async () => {
   const mock = installValkeryMock();
-  const cache = new RedisCache<string>({ key: "test", ttl: Duration.minutes(5) });
+  const cache = new Valkery<string>({ key: "test", ttl: Duration.minutes(5) });
   const mget = spyOn(kv(), "mget");
 
   try {
@@ -223,7 +262,7 @@ Scribe.test("getMany on an empty list does not touch Redis at all", async () => 
 
 Scribe.test("clear removes a namespace with UNLINK, never DEL", async () => {
   const mock = installValkeryMock();
-  const cache = new RedisCache<number>({ key: "test", ttl: Duration.minutes(5) });
+  const cache = new Valkery<number>({ key: "test", ttl: Duration.minutes(5) });
   const unlink = spyOn(kv(), "unlink");
   const del = spyOn(kv(), "del");
 
@@ -245,7 +284,7 @@ Scribe.test("clear removes a namespace with UNLINK, never DEL", async () => {
 
 Scribe.test("delete removes a single entry with UNLINK", async () => {
   const mock = installValkeryMock();
-  const cache = new RedisCache<number>({ key: "test", ttl: Duration.minutes(5) });
+  const cache = new Valkery<number>({ key: "test", ttl: Duration.minutes(5) });
   const unlink = spyOn(kv(), "unlink");
 
   try {
@@ -261,7 +300,7 @@ Scribe.test("delete removes a single entry with UNLINK", async () => {
 });
 
 Scribe.test("a cache stays usable when Redis is down", async () => {
-  const cache = new RedisCache<string>({ key: "test", ttl: Duration.minutes(5) });
+  const cache = new Valkery<string>({ key: "test", ttl: Duration.minutes(5) });
   const broken = installMock(kv(), "get", () => Promise.reject(new Error("no redis")));
   logged.clear();
 

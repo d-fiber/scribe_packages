@@ -73,7 +73,7 @@ Scribe.test("wiring the package answers every slot its drivers are for", () => {
   scribe.wires?.();
 
   expect(every.map((slot) => slot.configured), equals(every.map(() => true)));
-  expect(Caches.get().open({ key: "probe" }).constructor.name, equals("RedisCache"));
+  expect(Caches.get().open({ key: "probe" }).constructor.name, equals("Valkery"));
 });
 
 Scribe.test("wiring the package leaves standing whatever the host already put there", () => {

@@ -69,7 +69,7 @@ export const DEFAULT_TTL: Duration = Duration.days(15);
  * A namespace of cached entries, with one name, one ttl and one value type.
  *
  * ```ts
- * const sessions = new RedisCache<Session>({ key: "session", ttl: Duration.minutes(5) });
+ * const sessions = new Valkery<Session>({ key: "session", ttl: Duration.minutes(5) });
  *
  * await sessions.add("u1", session);   // only a Session goes in
  * const found = await sessions.get("u1");  // Session | null comes out
@@ -86,7 +86,7 @@ export const DEFAULT_TTL: Duration = Duration.days(15);
  * Nothing here throws: an unreachable Redis is reported and read as a miss, so a cache outage
  * degrades into recomputation rather than into an error the caller has to handle.
  */
-export class RedisCache<in out T> {
+export class Valkery<in out T> {
   /** The namespace every key of this cache is written under. */
   readonly key: string;
 

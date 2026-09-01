@@ -43,7 +43,7 @@ import { type Kv, kv } from "../../../lib/src/redis/kv.ts";
 import { installMock } from "../../testing/install.ts";
 import { recordLog } from "../../testing/logger.ts";
 import { installFakeRedis } from "./fake_redis.ts";
-import { RedisCache } from "../../../lib/src/cache/redis_cache.ts";
+import { Valkery } from "../../../lib/src/cache/cache.ts";
 
 function withClock<T>(body: () => T): T {
   const held = Now.configured ? Now.get() : null;
@@ -183,8 +183,8 @@ Scribe.test("a key reopened under other terms is one store, on the terms it was 
     const second = driver.open<string>({ key: "settled", ttl: Duration.days(30) });
 
     expect(first, same(second));
-    expect(second.constructor.name, equals("RedisCache"));
-    expect((second as RedisCache<string>).ttl.inSeconds, equals(Duration.days(30).inSeconds));
+    expect(second.constructor.name, equals("Valkery"));
+    expect((second as Valkery<string>).ttl.inSeconds, equals(Duration.days(30).inSeconds));
     expect(logged.actions.includes("cache.key_declared_twice"), isTrue);
   } finally {
     logged.restore();

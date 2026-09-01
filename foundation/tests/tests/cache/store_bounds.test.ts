@@ -36,9 +36,11 @@ import "@scribe/runtime/scholium/runner.ts";
 import { equals, expect, isTrue, Scribe } from "@scribe/alchemy/test";
 import { Duration } from "@scribe/alchemy";
 import { installDrivers } from "../../testing/drivers.ts";
-import { RedisCache } from "../../../lib/src/cache/redis_cache.ts";
+import { type Kv, kv } from "../../../lib/src/redis/kv.ts";
+import { Valkery } from "../../../lib/src/cache/cache.ts";
 import { RedisCaches } from "../../../lib/src/cache/redis_caches.ts";
 import { installFakeRedis } from "./support/redis.ts";
+import { installMock } from "@scribe/testing/install.ts";
 const FIVE_MINUTES = Duration.minutes(5);
 
 installDrivers();
@@ -47,7 +49,7 @@ Scribe.test("a ttl that is not a whole number of seconds makes every write fail"
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<string>({ key: "half", ttl: Duration.milliseconds(1_500) });
+    const cache = new Valkery<string>({ key: "half", ttl: Duration.milliseconds(1_500) });
     await cache.add("k", "v");
     const written = redis.commands.find((one) => one.name === "setex");
 
@@ -66,7 +68,7 @@ Scribe.test("a ttl of a second and a half turns every upsert into a computation 
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<string>({ key: "stampede", ttl: Duration.milliseconds(1_500) });
+    const cache = new Valkery<string>({ key: "stampede", ttl: Duration.milliseconds(1_500) });
     let computed = 0;
     for (let call = 0; call < 3; call++) {
       await cache.upsert("k", () => {
@@ -91,7 +93,7 @@ Scribe.test("a ttl of zero is refused before it reaches Redis, and it is reporte
   const logged = installDrivers();
 
   try {
-    const cache = new RedisCache<string>({ key: "none", ttl: Duration.seconds(0) });
+    const cache = new Valkery<string>({ key: "none", ttl: Duration.seconds(0) });
     await cache.add("k", "v");
 
     expect(redis.countOf("setex"), equals(0));
@@ -101,11 +103,61 @@ Scribe.test("a ttl of zero is refused before it reaches Redis, and it is reporte
   }
 });
 
+Scribe.test("a ttl of zero refuses addMany the same way it refuses add, before the pipeline opens", async () => {
+  const redis = installFakeRedis();
+  const logged = installDrivers();
+
+  try {
+    const cache = new Valkery<string>({ key: "batch-none", ttl: Duration.seconds(0) });
+    await cache.addMany([["a", "1"], ["b", "2"]]);
+
+    expect(redis.countOf("pipeline.exec"), equals(0));
+    expect(logged.actions.includes("cache.operation_failed"), isTrue);
+  } finally {
+    redis.restore();
+  }
+});
+
+Scribe.test("a sweep walks every page a scan hands back before it stops", async () => {
+  const redis = installFakeRedis();
+
+  try {
+    const cache = new Valkery<string>({ key: "paged", ttl: FIVE_MINUTES });
+    redis.place("paged/a", "1");
+    redis.place("paged/b", "2");
+
+    const pages: [string, string[]][] = [
+      ["17", ["paged/a"]],
+      ["0", ["paged/b"]],
+    ];
+    const scan = installMock(
+      kv(),
+      "scan",
+      (() => {
+        const [next, keys] = pages.shift() ?? ["0", []];
+        return Promise.resolve([next, keys]);
+      }) as unknown as Kv["scan"],
+    );
+
+    try {
+      await cache.clear();
+    } finally {
+      scan.restore();
+    }
+
+    expect(redis.countOf("scan"), equals(2), "a non-zero cursor must send the sweep back for another page");
+    expect(await cache.get("a"), equals(null));
+    expect(await cache.get("b"), equals(null), "the second page must be walked too, not just the first");
+  } finally {
+    redis.restore();
+  }
+});
+
 Scribe.test("an id of ten thousand characters survives the round trip", async () => {
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<string>({ key: "long", ttl: FIVE_MINUTES });
+    const cache = new Valkery<string>({ key: "long", ttl: FIVE_MINUTES });
     const huge = "x".repeat(10_000);
 
     await cache.add(huge, "v");
@@ -121,7 +173,7 @@ Scribe.test("an empty id is its own entry and not the namespace", async () => {
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<string>({ key: "empty", ttl: FIVE_MINUTES });
+    const cache = new Valkery<string>({ key: "empty", ttl: FIVE_MINUTES });
     await cache.add("", "the nameless one");
 
     expect(await cache.get(""), equals("the nameless one"));
@@ -135,7 +187,7 @@ Scribe.test("an id that carries the separator stays its own entry", async () => 
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<string>({ key: "sep", ttl: FIVE_MINUTES });
+    const cache = new Valkery<string>({ key: "sep", ttl: FIVE_MINUTES });
     await cache.add("a:b", "one");
     await cache.add("a", "two");
 
@@ -150,8 +202,8 @@ Scribe.test("two caches whose names nest write one entry under one key", async (
   const redis = installFakeRedis();
 
   try {
-    const outer = new RedisCache<string>({ key: "auth", ttl: FIVE_MINUTES });
-    const inner = new RedisCache<string>({ key: "auth:device", ttl: FIVE_MINUTES });
+    const outer = new Valkery<string>({ key: "auth", ttl: FIVE_MINUTES });
+    const inner = new Valkery<string>({ key: "auth:device", ttl: FIVE_MINUTES });
 
     await outer.add("device:d1", "a session");
     await inner.add("d1", "a device");
@@ -171,8 +223,8 @@ Scribe.test("a cache whose name prefixes another wipes it on clear", async () =>
   const redis = installFakeRedis();
 
   try {
-    const outer = new RedisCache<string>({ key: "auth", ttl: FIVE_MINUTES });
-    const inner = new RedisCache<string>({ key: "auth:device", ttl: FIVE_MINUTES });
+    const outer = new Valkery<string>({ key: "auth", ttl: FIVE_MINUTES });
+    const inner = new Valkery<string>({ key: "auth:device", ttl: FIVE_MINUTES });
     await outer.add("u1", "a session");
     await inner.add("d1", "a device");
 
@@ -193,7 +245,7 @@ Scribe.test("a star handed to clear sweeps the whole namespace, because the argu
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<string>({ key: "glob", ttl: FIVE_MINUTES });
+    const cache = new Valkery<string>({ key: "glob", ttl: FIVE_MINUTES });
     await cache.add("kept", "one");
 
     await cache.clear("*");
@@ -212,7 +264,7 @@ Scribe.test("a delete of an id that looks like a glob removes that id alone", as
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<string>({ key: "star", ttl: FIVE_MINUTES });
+    const cache = new Valkery<string>({ key: "star", ttl: FIVE_MINUTES });
     await cache.add("*", "the star itself");
     await cache.add("kept", "one");
 
@@ -229,7 +281,7 @@ Scribe.test("an empty list of anything costs nothing at all", async () => {
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<string>({ key: "nothing", ttl: FIVE_MINUTES });
+    const cache = new Valkery<string>({ key: "nothing", ttl: FIVE_MINUTES });
 
     expect(await cache.getMany([]), equals([]));
     await cache.addMany([]);
@@ -246,7 +298,7 @@ Scribe.test("a store that cuts out between two calls reads as a miss and stays u
   const logged = installDrivers();
 
   try {
-    const cache = new RedisCache<string>({ key: "flaky", ttl: FIVE_MINUTES });
+    const cache = new Valkery<string>({ key: "flaky", ttl: FIVE_MINUTES });
     await cache.add("k", "v");
 
     redis.failNext("get", new Error("connection reset"));
@@ -263,7 +315,7 @@ Scribe.test("a batch read that fails answers one null per id asked for", async (
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<string>({ key: "batch", ttl: FIVE_MINUTES });
+    const cache = new Valkery<string>({ key: "batch", ttl: FIVE_MINUTES });
     redis.failNext("mget", new Error("connection reset"));
 
     expect(await cache.getMany(["a", "b", "c"]), equals([null, null, null]));
@@ -276,7 +328,7 @@ Scribe.test("a payload that does not decode reads as a miss", async () => {
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<string>({ key: "junk", ttl: FIVE_MINUTES });
+    const cache = new Valkery<string>({ key: "junk", ttl: FIVE_MINUTES });
     redis.place("junk/k", "{not json");
 
     expect(await cache.get("k"), equals(null));
@@ -289,7 +341,7 @@ Scribe.test("a value that carries the envelope's own marker survives the round t
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<Record<string, unknown>>({ key: "lookalike", ttl: FIVE_MINUTES });
+    const cache = new Valkery<Record<string, unknown>>({ key: "lookalike", ttl: FIVE_MINUTES });
     const hostile = { $k: 1, v: "not the real value", e: 0, d: 0 };
 
     await cache.add("k", hostile);
@@ -302,13 +354,26 @@ Scribe.test("a value that carries the envelope's own marker survives the round t
 
 Scribe.test("one key opened twice with two policies keeps the first, and says nothing", () => {
   const caches = new RedisCaches();
-  const first = caches.open<string>({ key: "twice", ttl: Duration.minutes(5) }) as RedisCache<string>;
-  const second = caches.open<string>({ key: "twice", ttl: Duration.days(30) }) as RedisCache<string>;
+  const first = caches.open<string>({ key: "twice", ttl: Duration.minutes(5) }) as Valkery<string>;
+  const second = caches.open<string>({ key: "twice", ttl: Duration.days(30) }) as Valkery<string>;
 
   expect(first === second, isTrue, "the port promises one store per key");
   expect(
     second.ttl.inSeconds,
     equals(Duration.days(30).inSeconds),
     "the second declaration asked for thirty days and was handed five minutes without a word",
+  );
+});
+
+Scribe.test("reopening a key without naming a ttl keeps whatever the first declaration set", () => {
+  const caches = new RedisCaches();
+  const first = caches.open<string>({ key: "reopened", ttl: Duration.hours(2) }) as Valkery<string>;
+  const second = caches.open<string>({ key: "reopened" }) as Valkery<string>;
+
+  expect(first === second, isTrue);
+  expect(
+    second.ttl.inSeconds,
+    equals(Duration.hours(2).inSeconds),
+    "a caller that names no ttl is not a declaration that asked for the fifteen day default",
   );
 });

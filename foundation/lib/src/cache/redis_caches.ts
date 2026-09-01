@@ -35,10 +35,10 @@
 
 import type { Cache, CacheDriver, CacheOptions } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
-import { RedisCache } from "./redis_cache.ts";
+import { Valkery } from "./cache.ts";
 
 /**
- * What opens a {@link RedisCache} for a package that asked the port for one.
+ * What opens a {@link Valkery} for a package that asked the port for one.
  *
  * @remarks
  * A store is kept per key, because the port promises that opening one key twice answers one
@@ -54,11 +54,11 @@ export class RedisCaches implements CacheDriver {
   open<T>(options: CacheOptions): Cache<T> {
     const held = _opened.get(options.key);
     if (held !== undefined) {
-      _reconcile(options, held as RedisCache<unknown>);
+      _reconcile(options, held as Valkery<unknown>);
       return held as Cache<T>;
     }
 
-    const opened = new RedisCache<T>(options);
+    const opened = new Valkery<T>(options);
     _opened.set(options.key, opened as Cache<unknown>);
     return opened;
   }
@@ -88,7 +88,7 @@ const _opened: Map<string, Cache<unknown>> = new Map();
  * meant to keep short. That is what the record is for: whichever of the two is wrong, the line
  * names both and the key they were declared under.
  */
-function _reconcile(asked: CacheOptions, inForce: RedisCache<unknown>): void {
+function _reconcile(asked: CacheOptions, inForce: Valkery<unknown>): void {
   const wanted = asked.ttl;
   if (wanted === undefined || wanted.inMilliseconds === inForce.ttl.inMilliseconds) return;
 

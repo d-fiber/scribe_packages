@@ -43,7 +43,7 @@ export {
   type LockOutcome,
 } from "./src/cache/lock/distributed_lock.ts";
 export { DEFAULT_BETA } from "./src/cache/early_expiry.ts";
-export { DEFAULT_TTL, RedisCache, refreshesSettled } from "./src/cache/redis_cache.ts";
+export { DEFAULT_TTL, refreshesSettled, Valkery } from "./src/cache/cache.ts";
 export { KeySpace } from "./src/cache/key_space.ts";
 export { RedisCaches } from "./src/cache/redis_caches.ts";
 export { cacheSettings } from "./src/cache/cache_settings.ts";

@@ -39,7 +39,7 @@ import { installDrivers } from "../../testing/drivers.ts";
 import { decodeCacheEntry, encodeCacheEntry } from "../../../lib/src/cache/cache_entry.ts";
 import type { CacheEntry } from "../../../lib/src/cache/cache_entry.ts";
 import { shouldRefreshEarly } from "../../../lib/src/cache/early_expiry.ts";
-import { RedisCache, refreshesSettled } from "../../../lib/src/cache/redis_cache.ts";
+import { refreshesSettled, Valkery } from "../../../lib/src/cache/cache.ts";
 import { withJitter } from "../../../lib/src/cache/ttl_jitter.ts";
 import { installFakeRedis } from "./support/redis.ts";
 const NOW = 1_700_000_000_000;
@@ -111,7 +111,7 @@ Scribe.test("every volunteering reader pays a lock round trip the algorithm neve
   try {
     const replicas = Array.from(
       { length: 50 },
-      () => new RedisCache<string>({ key: "fleet", ttl: Duration.seconds(1) }),
+      () => new Valkery<string>({ key: "fleet", ttl: Duration.seconds(1) }),
     );
     redis.place(
       "fleet/k",
@@ -169,7 +169,7 @@ Scribe.test("the reader that volunteers to refresh waits for the whole recompute
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<string>({ key: "waits", ttl: Duration.seconds(1) });
+    const cache = new Valkery<string>({ key: "waits", ttl: Duration.seconds(1) });
     redis.place(
       "waits/k",
       encodeCacheEntry("still good", DateTime.now().millisecondsSinceEpoch + 5_000, 1_000_000),
@@ -218,7 +218,7 @@ Scribe.test("a refresh that loses the lock serves what the reader already held",
   const redis = installFakeRedis();
 
   try {
-    const cache = new RedisCache<string>({ key: "loser", ttl: Duration.minutes(5) });
+    const cache = new Valkery<string>({ key: "loser", ttl: Duration.minutes(5) });
     redis.place(
       "loser/k",
       encodeCacheEntry("held", DateTime.now().millisecondsSinceEpoch + 5_000, 1_000_000),

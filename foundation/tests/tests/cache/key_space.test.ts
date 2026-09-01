@@ -59,6 +59,20 @@ Scribe.test("KeySpace takes a glob, not a prefix", () => {
   expect(keys.matching("u1"), equals("auth:device/u1"));
 });
 
+Scribe.test("KeySpace escapes a glob character that lives in the namespace itself", () => {
+  const literal = new KeySpace("a*b?c[d]e");
+  expect(
+    literal.matching(),
+    equals("a\\*b\\?c\\[d\\]e/*"),
+    "a namespace is a literal, and a glob character inside it must not widen what a sweep matches",
+  );
+});
+
+Scribe.test("KeySpace escapes a namespace nesting a slash, so it cannot be read as a separator", () => {
+  const nested = new KeySpace("a/b");
+  expect(nested.keyOf("id"), equals("a\\/b/id"));
+});
+
 Scribe.test("withJitter never returns less than the ttl", () => {
   const ttl = Duration.seconds(100);
 
