@@ -156,6 +156,24 @@ Scribe.test("a transition naming only what it reaches ignores where the column c
   expect(matches.length, equals(1));
 });
 
+Scribe.test("a transition naming only where it starts ignores where the column lands", () => {
+  const matches = matchesOf(
+    [trigger({ fields: ["status"], when: { from: "pending" } })],
+    event({ after: { id: "order-1", status: "shipped", total: 10 } }),
+  );
+
+  expect(matches.length, equals(1));
+});
+
+Scribe.test("a transition naming only where it starts is not delivered when the column left another value", () => {
+  const matches = matchesOf(
+    [trigger({ fields: ["status"], when: { from: "draft" } })],
+    event(),
+  );
+
+  expect(matches, equals([]));
+});
+
 Scribe.test("a column that gained a value is delivered, and its absence reads as null", () => {
   const matches = matchesOf(
     [trigger({ fields: ["status"], when: { from: null, to: "paid" } })],

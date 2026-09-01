@@ -135,6 +135,16 @@ Scribe.test("onFieldChange refuses a transition on a path that names no column",
   );
 });
 
+Scribe.test("two declarations on one table naming different key columns are refused", () => {
+  orders.onInsert("carts/{cartId}", noop);
+  orders.onUpdate({ path: "carts/{cid}", key: "cid" }, noop);
+
+  expect(
+    () => triggerRegistry.sources(),
+    throwsA(allOf(isA(Error), withMessage("the table is declared with two key columns"))),
+  );
+});
+
 Scribe.test("the report counts the declarations and the tables they sit on", () => {
   const report = triggerRegistry.report();
 
