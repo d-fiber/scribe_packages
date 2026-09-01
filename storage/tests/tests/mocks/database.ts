@@ -54,9 +54,15 @@ export interface InstalledDatabase extends InstalledMock {
  * The service client is what the index reaches, since a row is written with the key that
  * bypasses row level security. Replacing it leaves the query builder, the table name and the
  * filters under test rather than replacing them with a second implementation.
+ *
+ * `path` is declared unique by default, the same constraint the real table carries, so a test
+ * that writes two rows at the same path exercises what the schema actually enforces instead of
+ * a fake that stays silent about it.
  */
 export function installDatabaseFake(seed: FakePostgrestSeed = {}): InstalledDatabase {
   const fake = new FakePostgrestClient({ __storage_objects__: [], ...seed });
+  fake.declareUniqueKey("__storage_objects__", ["path"]);
+
   const installed = installMock(
     PostgrestClients,
     "service",
@@ -73,6 +79,7 @@ export function installRefusingDatabase(): InstalledMock {
       select: () => builderOf(null),
       insert: () => builderOf(null, { message: "index is read only" }),
       update: () => builderOf(null, { message: "index is read only" }),
+      upsert: () => builderOf(null, { message: "index is read only" }),
       delete: () => builderOf(null, { message: "index is read only" }),
     }),
   };

@@ -175,6 +175,23 @@ Scribe.test("upload: an extension this package carries no signature for is trust
   database.restore();
 });
 
+Scribe.test("upload: two uploads racing to the same new key both land in the index, none refused", async () => {
+  const database = installDatabaseFake();
+  const transport = installStorageMock();
+
+  const [first, second] = await Promise.all([
+    sheet.upload(json(1), "race"),
+    sheet.upload(json(2), "race"),
+  ]);
+
+  expect(first.ok, equals(true));
+  expect(second.ok, equals(true));
+  expect(database.fake.rows("__storage_objects__").length, equals(1));
+
+  transport.restore();
+  database.restore();
+});
+
 Scribe.test("upload: an index that refuses the row fails the upload", async () => {
   const database = installRefusingDatabase();
   const transport = installStorageMock();

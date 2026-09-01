@@ -74,32 +74,31 @@ export interface RecordedWrite {
  * Writes what `object` says, and answers what that did.
  *
  * @remarks
- * The row is read before being written because a path is unique in the index and PostgREST is
- * reached without an upsert here: a second upload to the same path updates the row it already
- * has. The read is the same indexed lookup the write needs anyway, so it also answers whether
- * the object changed bucket.
+ * The write itself is a single upsert on `path`, so two uploads racing to the same new key no
+ * longer depend on which one PostgREST sees first: both converge on one row instead of one of
+ * them tripping the primary key and losing bytes it already wrote. The read that decides
+ * {@link RecordedWrite.displaced} stays a plain lookup taken before the write, which keeps it
+ * possible, in that same race, to miss a bucket change: a rarer case than the one this fixes,
+ * since it only fires when a folder's declared bucket itself changes between two racing uploads,
+ * not on ordinary concurrent traffic to one key.
  */
 export async function recordObject(object: RecordedObject): Promise<RecordedWrite> {
   const stored = await storedObject(object.path);
-  const row = {
-    visibility: object.visibility,
-    mime_type: object.mimeType,
-    byte_size: object.byteSize,
-    blur_hash: object.blurHash,
-    updated_at: new Date().toISOString(),
-  };
-
   const displaced = stored !== null && stored.visibility !== object.visibility
     ? stored.visibility as StorageVisibility
     : null;
 
-  if (stored === null) {
-    return { stored: wrote(await storageObjects().insert({ path: object.path, ...row })), displaced };
-  }
-
-  const written = await storageObjects()
-    .where((f) => f.path.eq(object.path))
-    .update(row);
+  const written = await storageObjects().upsert(
+    {
+      path: object.path,
+      visibility: object.visibility,
+      mime_type: object.mimeType,
+      byte_size: object.byteSize,
+      blur_hash: object.blurHash,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "path" },
+  );
 
   return { stored: wrote(written), displaced };
 }
