@@ -89,7 +89,7 @@ prepare_stack() {
 
   # shellcheck disable=SC2086
   STACK=$( cd "$WORK" && SCRIBE_STACK_HOME="$OUT/cache" "$TOOLS/out/scribe" run $render_arguments \
-    | awk '/^Assembled /{ print $NF }' )
+    | awk '/^Assembled /{ sub(/\.$/, "", $NF); print $NF }' )
   [ -n "$STACK" ] || fail "the CLI wrote no stack."
 
   PROJECT="e2e-$SCENARIO"
