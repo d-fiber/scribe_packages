@@ -16,9 +16,17 @@ export function hears(accountId: string): Promise<boolean> {
   return orders.topic("seller").allows(accountId);
 }
 
-/** Who hears it, up to a thousand accounts. */
-export function audience(): Promise<string[]> {
-  return orders.topic("seller").grants();
+/** Every account granted on the topic, walking pages until the index runs dry. */
+export async function audience(): Promise<string[]> {
+  const accounts: string[] = [];
+  let after = "";
+
+  for (;;) {
+    const page = await orders.topic("seller").grants(after);
+    accounts.push(...page.accounts);
+    if (!page.full) return accounts;
+    after = page.last ?? "";
+  }
 }
 
 /**

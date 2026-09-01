@@ -37,13 +37,20 @@
 import { wrote } from "@scribe/foundation/database";
 import { realtimeGrants } from "./tables.ts";
 
-/**
- * How many accounts one listing answers with.
- *
- * A channel with more listeners than this is one a project addresses by writing its own query,
- * not by pulling every identifier into a process.
- */
-const MAX_LISTENERS = 1_000;
+/** How many accounts one call to {@link grantedAccounts} answers with at most. */
+export const GRANT_PAGE_SIZE = 1_000;
+
+/** One page of the accounts granted on a channel, in account order. */
+export interface GrantPage {
+  /** The account identifiers on this page. */
+  readonly accounts: readonly string[];
+
+  /** The last account identifier the database answered with, or null when it answered none. */
+  readonly last: string | null;
+
+  /** Whether the database filled the page, which is what says more accounts may follow. */
+  readonly full: boolean;
+}
 
 /** Lets `accountId` listen to `channel`, and answers whether the grant is now in place. */
 export async function grantChannel(channel: string, accountId: string): Promise<boolean> {
@@ -89,23 +96,29 @@ export async function isGranted(channel: string, accountId: string): Promise<boo
 }
 
 /**
- * The accounts that may listen to `channel`, up to {@link MAX_LISTENERS}.
+ * One page of the accounts that may listen to `channel`, in account order.
  *
- * Reaching the cap is reported, because a truncated listing is indistinguishable from a
- * complete one at the call site and reads as a channel that lost its listeners.
+ * @param limit - How many accounts one page carries at most.
+ * @param after - The account identifier to resume after, exclusive. Empty starts at the
+ * beginning.
  */
-export async function grantedAccounts(channel: string): Promise<string[]> {
+export async function grantedAccounts(
+  channel: string,
+  limit: number,
+  after = "",
+): Promise<GrantPage> {
   const rows = await realtimeGrants()
     .selectRaw("account_id")
-    .where((f) => f.channel.eq(channel))
-    .limit(MAX_LISTENERS)
+    .where((f) => after === "" ? f.channel.eq(channel) : [f.channel.eq(channel), f.account_id.gt(after)])
+    .order("account_id")
+    .limit(limit + 1)
     .get();
 
-  if (rows.length >= MAX_LISTENERS) {
-    console.error(
-      `[realtime:grants] ${JSON.stringify(channel)} has at least ${MAX_LISTENERS} listeners: the listing is truncated.`,
-    );
-  }
-
-  return rows.map((row) => String(row.account_id));
+  const overfetched = rows.length > limit;
+  const accounts = rows.slice(0, limit).map((row) => String(row.account_id));
+  return {
+    accounts,
+    last: accounts.length === 0 ? null : accounts[accounts.length - 1],
+    full: overfetched,
+  };
 }

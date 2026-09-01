@@ -37,6 +37,7 @@
 import "@scribe/runtime/scholium/runner.ts";
 import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { Realtime } from "@scribe/realtime";
+import { grantedAccounts } from "../../lib/src/db/grants.ts";
 import { installDatabaseFake } from "./mocks/database.ts";
 
 interface Order {
@@ -63,7 +64,7 @@ Scribe.test("granting twice leaves one grant behind", async () => {
   await order.topic("seller").grant(ACCOUNT);
   await order.topic("seller").grant(ACCOUNT);
 
-  expect(await order.topic("seller").grants(), equals([ACCOUNT]));
+  expect((await order.topic("seller").grants()).accounts, equals([ACCOUNT]));
   db.restore();
 });
 
@@ -112,8 +113,8 @@ Scribe.test("revoking everyone empties the channel and leaves the others alone",
 
   await order.topic("seller").revokeAll();
 
-  expect(await order.topic("seller").grants(), equals([]));
-  expect(await order.topic("buyer").grants(), equals([ACCOUNT]));
+  expect((await order.topic("seller").grants()).accounts, equals([]));
+  expect((await order.topic("buyer").grants()).accounts, equals([ACCOUNT]));
   db.restore();
 });
 
@@ -123,7 +124,38 @@ Scribe.test("the listing answers the accounts that were granted", async () => {
   await order.topic("seller").grant(ACCOUNT);
   await order.topic("seller").grant(OTHER);
 
-  expect((await order.topic("seller").grants()).sort(), equals([ACCOUNT, OTHER].sort()));
+  const page = await order.topic("seller").grants();
+
+  expect(page.accounts.slice().sort(), equals([ACCOUNT, OTHER].sort()));
+  expect(page.full, equals(false));
+  db.restore();
+});
+
+Scribe.test("an ungranted channel answers an empty page with nothing to resume from", async () => {
+  const db = installDatabaseFake();
+
+  const page = await order.topic("seller").grants();
+
+  expect(page.accounts, equals([]));
+  expect(page.last, equals(null));
+  expect(page.full, equals(false));
+  db.restore();
+});
+
+Scribe.test("a full page reports where the next one resumes", async () => {
+  const db = installDatabaseFake();
+  const seller = order.topic("seller");
+
+  await seller.grant(ACCOUNT);
+  await seller.grant(OTHER);
+
+  const first = await grantedAccounts(seller.channel, 1);
+  expect(first.full, equals(true));
+  expect(first.last, equals(first.accounts[0]));
+
+  const second = await grantedAccounts(seller.channel, 1, first.last ?? "");
+  expect(second.full, equals(false));
+  expect([...first.accounts, ...second.accounts].sort(), equals([ACCOUNT, OTHER].sort()));
   db.restore();
 });
 

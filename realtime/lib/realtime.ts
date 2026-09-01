@@ -65,6 +65,7 @@ export type { RealtimeRow, RealtimeTransport } from "./src/transport/transport.t
 
 export { syncDeclaredChannels } from "./src/db/channels.ts";
 export type { RealtimeChannelRow, RealtimeEventRow, RealtimeGrantRow } from "./src/db/tables.ts";
+export type { GrantPage } from "./src/db/grants.ts";
 
 /**
  * When this package runs: the transport at import, the openness once the database answers.

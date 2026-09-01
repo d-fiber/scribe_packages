@@ -34,7 +34,15 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { grantChannel, grantedAccounts, isGranted, revokeChannel, revokeChannelEntirely } from "../db/grants.ts";
+import {
+  GRANT_PAGE_SIZE,
+  grantChannel,
+  grantedAccounts,
+  type GrantPage,
+  isGranted,
+  revokeChannel,
+  revokeChannelEntirely,
+} from "../db/grants.ts";
 import { emit } from "../transport/registry.ts";
 import { accountTopicChannel, actionName, isValidTopic } from "./name.ts";
 
@@ -138,9 +146,15 @@ export class GrantedDestination<T extends object> extends Destination<T> {
     return isGranted(this.channel, accountId);
   }
 
-  /** The accounts that may listen to this channel. */
-  grants(): Promise<string[]> {
-    return grantedAccounts(this.channel);
+  /**
+   * One page of the accounts that may listen to this channel, in account order.
+   *
+   * @param after - The account identifier to resume after, exclusive. Empty starts at the
+   * beginning, and a caller walks every account by resuming from `page.last` until
+   * `page.full` is false.
+   */
+  grants(after = ""): Promise<GrantPage> {
+    return grantedAccounts(this.channel, GRANT_PAGE_SIZE, after);
   }
 }
 
