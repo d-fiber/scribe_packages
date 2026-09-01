@@ -124,6 +124,15 @@ export enum SearchOperation {
   Delete = "delete",
 }
 
+/** Why a search could not be answered. */
+export enum SearchError {
+  /** No transport is registered, or the cluster did not answer at all. */
+  Unavailable = "unavailable",
+
+  /** The cluster answered and refused the plan. */
+  Refused = "refused",
+}
+
 /**
  * What a project holds once it has declared an index.
  *
@@ -157,7 +166,7 @@ export interface Search<TParams extends SearchParams, TPreview> {
    * throwing: a search is one part of a page, and a caller decides whether an empty section
    * is worse than no page at all.
    */
-  search(params: TParams): Promise<Result<Pagination<TPreview>, void>>;
+  search(params: TParams): Promise<Result<Pagination<TPreview>, SearchError>>;
 
   /**
    * The plan `params` compiles into, without reaching the cluster.

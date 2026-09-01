@@ -34,23 +34,25 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Client } from "@opensearch-project/opensearch";
+import { Client, errors } from "@opensearch-project/opensearch";
+import { Failure, Ok, type Result } from "@scribe/alchemy";
 import type { IndexConfig } from "../../contracts/definition.ts";
+import { SearchError } from "../../contracts/definition.ts";
 import type { IndexedDocument, SearchHits, SearchRequest, SearchTransport } from "../../contracts/transport.ts";
 import { searchSettings } from "../settings.ts";
 
 /** The status an index that exists answers `HEAD` with. */
 const FOUND = 200;
 
+/** The status a bulk line answers when the document it named was already gone. */
+const NOT_FOUND = 404;
+
 /** What one search answered, as much of it as this transport reads. */
 interface ClusterAnswer {
-  /** The matched documents and how many there were in total, absent when nothing matched. */
+  /** The matched documents, absent when nothing matched. */
   hits?: {
     /** One entry per matched document, carrying the identifier it was written under. */
     hits?: { _id?: string }[];
-
-    /** How many documents matched in total, which pagination is computed against. */
-    total?: { value?: number };
   };
 }
 
@@ -59,8 +61,8 @@ interface BulkAnswer {
   /** Whether at least one line of the batch was refused. */
   errors?: boolean;
 
-  /** One entry per line, keyed by the operation it carried. */
-  items?: Record<string, { error?: unknown }>[];
+  /** One entry per line, keyed by the operation it carried, in the order the actions were sent. */
+  items?: Record<string, { status?: number; error?: unknown }>[];
 }
 
 /**
@@ -119,27 +121,27 @@ export class OpenSearchTransport implements SearchTransport {
     }
   }
 
-  /** Writes `documents` into `name`, and answers how many the cluster took. */
-  index(name: string, documents: readonly IndexedDocument[]): Promise<number> {
+  /** Writes `documents` into `name`, and answers the identifiers that went in. */
+  index(name: string, documents: readonly IndexedDocument[]): Promise<readonly string[]> {
     const body = documents.flatMap((one) => [{ index: { _index: name, _id: one.id } }, one.source]);
-    return this.#bulk(name, body, documents.length, "index");
+    return this.#bulk(name, documents.map((one) => one.id), body, "index");
   }
 
-  /** Takes `ids` out of `name`, and answers how many went. */
-  remove(name: string, ids: readonly string[]): Promise<number> {
+  /** Takes `ids` out of `name`, and answers the identifiers now absent from it. */
+  remove(name: string, ids: readonly string[]): Promise<readonly string[]> {
     const body = ids.map((id) => ({ delete: { _index: name, _id: id } }));
-    return this.#bulk(name, body, ids.length, "delete");
+    return this.#bulk(name, ids, body, "delete");
   }
 
   /**
-   * Answers what `request` matched, or null when the cluster could not answer.
+   * Answers what `request` matched, or why it could not.
    *
    * The identifiers come from the `_id` each hit was written under, which is why no source is
    * fetched at all. Reading them out of the document instead would answer nothing whenever a
    * declaration does not map its key column as a field, and mapping it is something no
    * declaration has a reason to do.
    */
-  async search(request: SearchRequest): Promise<SearchHits | null> {
+  async search(request: SearchRequest): Promise<Result<SearchHits, SearchError>> {
     try {
       const { body } = await this.#cluster().search({
         index: request.index,
@@ -157,34 +159,47 @@ export class OpenSearchTransport implements SearchTransport {
         .map((hit) => hit._id)
         .filter((id): id is string => typeof id === "string");
 
-      return { ids, total: answer.hits?.total?.value ?? 0 };
+      return new Ok({ ids });
     } catch (error) {
       console.error(`[search:opensearch] index "${request.index}" refused a search.`, error);
-      return null;
+      return new Failure(error instanceof errors.ResponseError ? SearchError.Refused : SearchError.Unavailable);
     }
   }
 
   /**
-   * Sends `body` as one bulk call, and answers how many of its `sent` lines went through.
+   * Sends `body` as one bulk call, and answers the identifiers of `ids` that went through.
    *
    * A bulk call answers per line, so a batch where one document is refused still writes the
-   * others. Counting the refused ones is what lets the drain leave those in the outbox and
-   * take the rest out.
+   * others: each answer is read back against the identifier that named its line, in the order
+   * both were sent. A `delete` line the cluster answers with {@link NOT_FOUND} counts as
+   * succeeded regardless of `error`, since the document being gone is the caller's goal and it
+   * already holds.
    */
-  async #bulk(name: string, body: Record<string, unknown>[], sent: number, operation: string): Promise<number> {
-    if (sent === 0) return 0;
+  async #bulk(
+    name: string,
+    ids: readonly string[],
+    body: Record<string, unknown>[],
+    operation: "index" | "delete",
+  ): Promise<readonly string[]> {
+    if (ids.length === 0) return [];
 
     try {
       const answer = (await this.#cluster().bulk({ body })).body as BulkAnswer;
-      if (!answer.errors) return sent;
+      if (!answer.errors) return [...ids];
 
-      const refused = (answer.items ?? []).filter((item) => item[operation]?.error !== undefined);
-      console.error(`[search:opensearch] index "${name}" refused ${refused.length} of ${sent} documents.`);
+      const items = answer.items ?? [];
+      const succeeded = ids.filter((_, at) => {
+        const item = items[at]?.[operation];
+        return item?.error === undefined || (operation === "delete" && item.status === NOT_FOUND);
+      });
 
-      return sent - refused.length;
+      console.error(
+        `[search:opensearch] index "${name}" refused ${ids.length - succeeded.length} of ${ids.length} documents.`,
+      );
+      return succeeded;
     } catch (error) {
-      console.error(`[search:opensearch] index "${name}" refused a batch of ${sent} documents.`, error);
-      return 0;
+      console.error(`[search:opensearch] index "${name}" refused a batch of ${ids.length} documents.`, error);
+      return [];
     }
   }
 }

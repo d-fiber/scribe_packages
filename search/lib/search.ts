@@ -69,6 +69,8 @@ export type {
   QueryContext,
   QueryStep,
 } from "./src/core/search.ts";
+export { SearchError } from "./contracts/definition.ts";
+export type { QueryPlan, SearchParams } from "./contracts/definition.ts";
 export { SearchIndex } from "./src/core/search_index.ts";
 export { declaredIndices, indexNamed } from "./src/core/registry.ts";
 export type { AnySearchIndex } from "./src/core/registry.ts";

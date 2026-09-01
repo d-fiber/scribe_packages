@@ -39,7 +39,7 @@ import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { installValkeryMock } from "@scribe/foundation/testing";
 import type { SearchParams } from "../../lib/contracts/definition.ts";
 import { installSearchMock } from "../testing/mock.ts";
-import { Field, Search } from "@scribe/search";
+import { Field, Search, SearchError } from "@scribe/search";
 import { installDatabaseFake } from "./mocks/database.ts";
 
 interface StoreRow {
@@ -93,16 +93,16 @@ Scribe.test("a search asks the cluster for the declared index, with the plan it 
   }
 });
 
-Scribe.test("a caller asking for no size gets the page size the declaration named", async () => {
+Scribe.test("a caller asking for no size gets the page size the declaration named, plus one", async () => {
   const { transport, restore } = harness();
 
   try {
     transport.answer([]);
     await stores.search({});
-    expect(transport.lastRequest?.size, equals(2));
+    expect(transport.lastRequest?.size, equals(3));
 
     await stores.search({ page: { size: 50, from: 10 } });
-    expect(transport.lastRequest?.size, equals(50));
+    expect(transport.lastRequest?.size, equals(51));
     expect(transport.lastRequest?.from, equals(10));
   } finally {
     restore();
@@ -129,21 +129,35 @@ Scribe.test("the previews answered are the rows the cluster ranked, in the order
   }
 });
 
-Scribe.test("a page that does not reach the total says there is more to read", async () => {
+Scribe.test("a page that reads no more than its size says there is nothing after it", async () => {
   const { transport, restore } = harness();
 
   try {
     transport.answer(["a", "b"]);
     const answered = await stores.search({});
 
-    expect(answered.ok && answered.data.offset, equals(2));
+    expect(answered.ok && answered.data.offset, equals(0));
     expect(answered.ok && answered.data.hasMore, equals(false));
   } finally {
     restore();
   }
 });
 
-Scribe.test("a cluster that answers nothing yields a failure rather than an empty page", async () => {
+Scribe.test("a page that reads one row past its size says there is more to read", async () => {
+  const { transport, restore } = harness();
+
+  try {
+    transport.answer(["a", "b", "c"]);
+    const answered = await stores.search({});
+
+    expect(answered.ok && answered.data.items.length, equals(2));
+    expect(answered.ok && answered.data.hasMore, equals(true));
+  } finally {
+    restore();
+  }
+});
+
+Scribe.test("a cluster that answers nothing yields an unavailable failure rather than an empty page", async () => {
   const { transport, restore } = harness();
 
   try {
@@ -151,6 +165,21 @@ Scribe.test("a cluster that answers nothing yields a failure rather than an empt
     const answered = await stores.search({ text: "unreachable" });
 
     expect(answered.ok, equals(false));
+    expect(!answered.ok && answered.error, equals(SearchError.Unavailable));
+  } finally {
+    restore();
+  }
+});
+
+Scribe.test("a cluster that refuses the plan yields a refused failure", async () => {
+  const { transport, restore } = harness();
+
+  try {
+    transport.refuse();
+    const answered = await stores.search({ text: "bad plan" });
+
+    expect(answered.ok, equals(false));
+    expect(!answered.ok && answered.error, equals(SearchError.Refused));
   } finally {
     restore();
   }

@@ -116,6 +116,15 @@ export interface IndexOptions {
   /** How long a page and a preview are kept. Five minutes when absent. */
   readonly ttl?: Duration;
 
+  /**
+   * How long a call to this index's page or preview cache has, before it is treated as a miss.
+   *
+   * The cache's own default when absent, which is short enough that a slow cache never holds
+   * up a request. An index that draws real contention on a hot key raises it here rather than
+   * everywhere it is searched.
+   */
+  readonly cacheDeadline?: Duration;
+
   /** The analysis the index is created with. Lowercased and accent-folded when absent. */
   readonly settings?: IndexSettings;
 }
@@ -195,6 +204,9 @@ interface Draft {
   /** How long a page and a preview are kept. */
   ttl: Duration;
 
+  /** How long a call to the page or preview cache has. The cache's own default when null. */
+  cacheDeadline: Duration | null;
+
   /** The analysis the index is created with. */
   settings: IndexSettings;
 }
@@ -255,6 +267,7 @@ export const Search: {
       key,
       pageSize: options.pageSize ?? DEFAULT_PAGE_SIZE,
       ttl: options.ttl ?? DEFAULT_TTL,
+      cacheDeadline: options.cacheDeadline ?? null,
       settings: options.settings ?? DEFAULT_SETTINGS,
     });
   },

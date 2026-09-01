@@ -38,7 +38,7 @@ import "@scribe/runtime/scholium/runner.ts";
 import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { installSearchMock } from "../testing/mock.ts";
 import { searchTransport } from "../../lib/src/transport/registry.ts";
-import { SearchTransports } from "@scribe/search";
+import { SearchError, SearchTransports } from "@scribe/search";
 
 Scribe.test("installing the mock replaces the transport, and restoring puts the previous one back", () => {
   const before = searchTransport();
@@ -78,13 +78,13 @@ Scribe.test("a document written twice under one identifier is held once, with th
   }
 });
 
-Scribe.test("removing answers how many identifiers were actually held", async () => {
+Scribe.test("removing an identifier the index does not hold still counts as removed", async () => {
   const recording = installSearchMock();
 
   try {
     await recording.index("stores", [{ id: "a", source: {} }]);
 
-    expect(await recording.remove("stores", ["a", "gone"]), equals(1));
+    expect(await recording.remove("stores", ["a", "gone"]), equals(["a", "gone"]));
     expect(recording.held("stores"), equals([]));
   } finally {
     recording.restore();
@@ -108,11 +108,36 @@ Scribe.test("a mock that was told to answer nothing is how an unreachable cluste
 
   try {
     recording.answerNothing();
+    const answered = await recording.search({
+      index: "stores",
+      plan: { bool: {}, sort: [] },
+      key: "id",
+      from: 0,
+      size: 10,
+    });
 
-    expect(
-      await recording.search({ index: "stores", plan: { bool: {}, sort: [] }, key: "id", from: 0, size: 10 }),
-      equals(null),
-    );
+    expect(answered.ok, equals(false));
+    expect(!answered.ok && answered.error, equals(SearchError.Unavailable));
+  } finally {
+    recording.restore();
+  }
+});
+
+Scribe.test("a mock told to refuse is how a cluster that answers but rejects the plan is exercised", async () => {
+  const recording = installSearchMock();
+
+  try {
+    recording.refuse();
+    const answered = await recording.search({
+      index: "stores",
+      plan: { bool: {}, sort: [] },
+      key: "id",
+      from: 0,
+      size: 10,
+    });
+
+    expect(answered.ok, equals(false));
+    expect(!answered.ok && answered.error, equals(SearchError.Refused));
   } finally {
     recording.restore();
   }

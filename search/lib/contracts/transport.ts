@@ -34,7 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { IndexConfig } from "./definition.ts";
+import type { Result } from "@scribe/alchemy";
+import type { IndexConfig, SearchError } from "./definition.ts";
 import type { QueryPlan } from "./definition.ts";
 
 /** One document on its way into the index. */
@@ -71,9 +72,6 @@ export interface SearchRequest {
 export interface SearchHits {
   /** The identifiers of the matched documents, in the order the cluster ranked them. */
   readonly ids: readonly string[];
-
-  /** How many documents matched in total, which is what pagination is computed against. */
-  readonly total: number;
 }
 
 /**
@@ -93,12 +91,22 @@ export interface SearchTransport {
    */
   ensure(name: string, config: IndexConfig): Promise<boolean>;
 
-  /** Writes `documents` into the index `name`, and answers how many went in. */
-  index(name: string, documents: readonly IndexedDocument[]): Promise<number>;
+  /**
+   * Writes `documents` into the index `name`, and answers the identifiers that went in.
+   *
+   * A bulk write answers per document, so a batch where one is refused still writes the
+   * others: only the identifiers this call actually answers for are the caller's to retry.
+   */
+  index(name: string, documents: readonly IndexedDocument[]): Promise<readonly string[]>;
 
-  /** Takes `ids` out of the index `name`, and answers how many went. */
-  remove(name: string, ids: readonly string[]): Promise<number>;
+  /**
+   * Takes `ids` out of the index `name`, and answers the identifiers now absent from it.
+   *
+   * An identifier already absent counts as answered: the caller's goal, the document being
+   * gone, already holds, and retrying it forever would never make that more true.
+   */
+  remove(name: string, ids: readonly string[]): Promise<readonly string[]>;
 
-  /** Answers what `request` matched, or null when the cluster could not answer. */
-  search(request: SearchRequest): Promise<SearchHits | null>;
+  /** Answers what `request` matched, or why it could not. */
+  search(request: SearchRequest): Promise<Result<SearchHits, SearchError>>;
 }

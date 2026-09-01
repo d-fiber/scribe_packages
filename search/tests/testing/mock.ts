@@ -38,6 +38,8 @@ import { installSearchTestSettings } from "./settings.ts";
 
 installSearchTestSettings();
 import type { InstalledMock } from "@scribe/testing/install.ts";
+import { Failure, Ok, type Result } from "@scribe/alchemy";
+import { SearchError } from "../../lib/contracts/definition.ts";
 import type { IndexConfig } from "../../lib/contracts/definition.ts";
 import type { IndexedDocument, SearchHits, SearchRequest, SearchTransport } from "../../lib/contracts/transport.ts";
 import { SearchTransports } from "../../lib/src/transport/registry.ts";
@@ -56,16 +58,27 @@ export class RecordingTransport implements SearchTransport {
   /** Every request handed over since this transport was installed, oldest first. */
   readonly requests: SearchRequest[] = [];
 
-  #hits: SearchHits | null = { ids: [], total: 0 };
+  readonly #refused = new Set<string>();
+  #hits: Result<SearchHits, SearchError> = new Ok({ ids: [] });
 
-  /** Makes every following search answer `ids`, and a total of as many. */
+  /** Makes `index` and `remove` refuse every one of `ids` from here on, and take the rest. */
+  refuseIds(ids: readonly string[]): void {
+    for (const id of ids) this.#refused.add(id);
+  }
+
+  /** Makes every following search answer `ids`. */
   answer(ids: readonly string[]): void {
-    this.#hits = { ids, total: ids.length };
+    this.#hits = new Ok({ ids });
   }
 
   /** Makes every following search answer nothing at all, which is what an unreachable cluster does. */
   answerNothing(): void {
-    this.#hits = null;
+    this.#hits = new Failure(SearchError.Unavailable);
+  }
+
+  /** Makes every following search fail as a cluster that answered and refused the plan. */
+  refuse(): void {
+    this.#hits = new Failure(SearchError.Refused);
   }
 
   /** Keeps `config` under `name` and answers that the index now matches it. */
@@ -74,25 +87,41 @@ export class RecordingTransport implements SearchTransport {
     return Promise.resolve(true);
   }
 
-  /** Keeps `documents` under `name` and answers how many were kept. */
-  index(name: string, documents: readonly IndexedDocument[]): Promise<number> {
+  /** Keeps `documents` under `name` and answers the identifiers that were kept. */
+  index(name: string, documents: readonly IndexedDocument[]): Promise<readonly string[]> {
     const held = this.#held(name);
-    for (const one of documents) held.set(one.id, one.source);
-    return Promise.resolve(documents.length);
-  }
+    const succeeded: string[] = [];
 
-  /** Drops `ids` from `name` and answers how many were actually held. */
-  remove(name: string, ids: readonly string[]): Promise<number> {
-    const held = this.#held(name);
-    let dropped = 0;
-    for (const id of ids) {
-      if (held.delete(id)) dropped += 1;
+    for (const one of documents) {
+      if (this.#refused.has(one.id)) continue;
+      held.set(one.id, one.source);
+      succeeded.push(one.id);
     }
-    return Promise.resolve(dropped);
+
+    return Promise.resolve(succeeded);
   }
 
-  /** Keeps `request` and answers what the last call to `answer` decided. */
-  search(request: SearchRequest): Promise<SearchHits | null> {
+  /**
+   * Drops `ids` from `name` and answers the ones not named to `refuseIds`, held or not.
+   *
+   * A document already absent counts as removed, the same way a real cluster answers `404` to
+   * the deletion of a document that is already gone: the caller's goal already holds.
+   */
+  remove(name: string, ids: readonly string[]): Promise<readonly string[]> {
+    const held = this.#held(name);
+    const succeeded: string[] = [];
+
+    for (const id of ids) {
+      if (this.#refused.has(id)) continue;
+      held.delete(id);
+      succeeded.push(id);
+    }
+
+    return Promise.resolve(succeeded);
+  }
+
+  /** Keeps `request` and answers what the last call to `answer`, `answerNothing` or `refuse` decided. */
+  search(request: SearchRequest): Promise<Result<SearchHits, SearchError>> {
     this.requests.push(request);
     return Promise.resolve(this.#hits);
   }

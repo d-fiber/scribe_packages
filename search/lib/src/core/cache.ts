@@ -52,9 +52,9 @@ export class SearchCache<TPreview> {
   readonly #pages: Cache<unknown>;
   readonly #previews: Cache<TPreview>;
 
-  constructor(name: string, ttl: Duration = DEFAULT_TTL) {
-    this.#pages = cache<unknown>({ key: `search:${name}:page`, ttl });
-    this.#previews = cache<TPreview>({ key: `search:${name}:item`, ttl });
+  constructor(name: string, ttl: Duration = DEFAULT_TTL, deadline?: Duration) {
+    this.#pages = cache<unknown>({ key: `search:${name}:page`, ttl, deadline });
+    this.#previews = cache<TPreview>({ key: `search:${name}:item`, ttl, deadline });
   }
 
   /** What `key` holds, produced and kept when it holds nothing. */
@@ -65,12 +65,13 @@ export class SearchCache<TPreview> {
   /**
    * Drops the previews of `ids` and every page of this index, which a written document makes stale.
    *
-   * The pages are cleared once for the whole batch rather than once per document, since the
-   * namespace holds no page that survives the first clear anyway.
+   * The previews are dropped in one call rather than one per identifier, and the pages are
+   * cleared once for the whole batch rather than once per document, since the namespace holds
+   * no page that survives the first clear anyway.
    */
   async invalidate(ids: readonly string[]): Promise<void> {
     if (ids.length === 0) return;
-    await Promise.all([...ids.map((id) => this.#previews.delete(id)), this.#pages.clear()]);
+    await Promise.all([this.#previews.deleteMany(...ids), this.#pages.clear()]);
   }
 
   /**
