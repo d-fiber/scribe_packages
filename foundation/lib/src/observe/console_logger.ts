@@ -37,6 +37,39 @@ import type { LoggedLevel, Logger, LogInput } from "@scribe/alchemy/observe";
 import type { UnmodifiableList } from "@scribe/alchemy";
 import { atLeast } from "@scribe/alchemy/observe";
 
+/** How many buffered lines force a flush, whatever {@link FLUSH_AFTER_MS} says. */
+const FLUSH_AFTER_LINES = 200;
+
+/** How long an unfinished buffer of lines waits before it is written anyway. */
+const FLUSH_AFTER_MS = 10;
+
+/** One buffered call, kept as the level it was recorded at and the arguments it will replay with. */
+interface Buffered {
+  /** Which console member {@link _writeAt} calls at flush. */
+  readonly level: LoggedLevel;
+  /** `line` followed by whatever {@link LogInput} carried, in the order the console prints them. */
+  readonly args: unknown[];
+}
+
+/**
+ * Calls the console member `level` names, read off `console` at the moment of the call rather than
+ * captured ahead of it.
+ *
+ * @remarks
+ * Reading `console.error` once and calling it later without `console` as the receiver would still
+ * work, since none of the four platform methods reads `this`, but it would also survive whatever
+ * replaces `console.error` afterwards: a test that installs a mock, or a host that redirects the
+ * console once it wires its own collector. Reading the member fresh at flush is what keeps a
+ * buffered line playing through whichever implementation is current when it is written, the same
+ * as an unbuffered call already did.
+ */
+function _writeAt(level: LoggedLevel, args: unknown[]): void {
+  if (level === "error") return void console.error(...args);
+  if (level === "warn") return void console.warn(...args);
+  if (level === "info") return void console.info(...args);
+  console.debug(...args);
+}
+
 /**
  * The logger that writes to the process console, and what fills `Loggers` when nothing better has.
  *
@@ -53,6 +86,12 @@ import { atLeast } from "@scribe/alchemy/observe";
 export class ConsoleLogger implements Logger {
   /** The least severe level this writes, which everything is compared against. */
   readonly #floor: LoggedLevel;
+
+  /** What has been recorded and is waiting for a flush. */
+  #buffered: Buffered[] = [];
+
+  /** What flushes an unfinished buffer anyway, or null when nothing is waiting. */
+  #timer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(floor: LoggedLevel = "debug") {
     this.#floor = floor;
@@ -82,9 +121,10 @@ export class ConsoleLogger implements Logger {
    * Records at `level`, dropping the line when `level` is below the floor this was opened with.
    *
    * @remarks
-   * What a line carries beyond its action is passed to the console as a value rather than folded
-   * into the string, so a terminal expands it and a collector that reads this process keeps the
-   * shape instead of a sentence it would have to parse back.
+   * The call is buffered rather than written at once, and replayed through the console at flush,
+   * which is what keeps what a line carries beyond its action a value passed to the console rather
+   * than folded into the string: a terminal still expands it, and a collector that reads this
+   * process still keeps the shape instead of a sentence it would have to parse back.
    *
    * The level opens the text and not only the console method it was written with. A collector
    * reads the stream, where an info and a debug arrive on the same descriptor and the colour a
@@ -94,12 +134,39 @@ export class ConsoleLogger implements Logger {
     if (!atLeast(level, this.#floor)) return;
 
     const line = `${level} [${_onOneLine(action)}]`;
-    const carried = _carriedBy(input);
+    this.#buffered.push({ level, args: [line, ..._carriedBy(input)] });
 
-    if (level === "error") return void console.error(line, ...carried);
-    if (level === "warn") return void console.warn(line, ...carried);
-    if (level === "info") return void console.info(line, ...carried);
-    console.debug(line, ...carried);
+    if (this.#buffered.length >= FLUSH_AFTER_LINES) this.flush();
+    else this.#arm();
+  }
+
+  /**
+   * Writes every buffered line to the console, in the order it was recorded.
+   *
+   * Called on its own after {@link FLUSH_AFTER_MS} or {@link FLUSH_AFTER_LINES}, and worth calling
+   * by hand from a host that is about to stop: nothing else flushes what is still buffered when
+   * the process ends.
+   */
+  flush(): void {
+    this.#disarm();
+    if (this.#buffered.length === 0) return;
+
+    const held = this.#buffered;
+    this.#buffered = [];
+    for (const { level, args } of held) _writeAt(level, args);
+  }
+
+  /** Starts the timer that flushes an unfinished buffer anyway, unless one is already running. */
+  #arm(): void {
+    if (this.#timer !== null) return;
+    this.#timer = setTimeout(() => this.flush(), FLUSH_AFTER_MS);
+  }
+
+  /** Stops the timer, if one is running. */
+  #disarm(): void {
+    if (this.#timer === null) return;
+    clearTimeout(this.#timer);
+    this.#timer = null;
   }
 }
 
@@ -124,7 +191,9 @@ function _carriedBy(input?: LogInput): UnmodifiableList<unknown> {
  * same actor even when neither has a name to give.
  */
 function _whoBy(input: LogInput): string | null {
-  if (input.actorId !== undefined) return `${input.actorType ?? "actor"}=${_onOneLine(input.actorId)}`;
+  if (input.actorId !== undefined) {
+    return `${input.actorType ?? "actor"}=${_onOneLine(input.actorId)}`;
+  }
   return input.actorType === undefined ? null : _onOneLine(input.actorType);
 }
 

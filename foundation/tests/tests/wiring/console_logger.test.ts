@@ -74,8 +74,12 @@ Scribe.test("each of the four levels reaches the console member that carries it"
     logger.info("a");
     logger.warn("a");
     logger.error("a");
+    logger.flush();
 
-    expect(written.map((one) => one.level), equals(["debug", "info", "warn", "error"]));
+    expect(
+      written.map((one) => one.level),
+      equals(["debug", "info", "warn", "error"]),
+    );
   });
 });
 
@@ -86,6 +90,7 @@ Scribe.test("a line below the floor is dropped, unread", () => {
     logger.info("a");
     logger.warn("a");
     logger.error("a");
+    logger.flush();
 
     expect(written.map((one) => one.level), equals(["warn", "error"]));
   });
@@ -94,7 +99,10 @@ Scribe.test("a line below the floor is dropped, unread", () => {
 Scribe.test("a floor at the most serious level keeps that level alone", () => {
   writing((written) => {
     const logger = new ConsoleLogger("error");
-    for (const level of ["debug", "info", "warn", "error"] as const) logger.at(level, "a");
+    for (const level of ["debug", "info", "warn", "error"] as const) {
+      logger.at(level, "a");
+    }
+    logger.flush();
 
     expect(written.map((one) => one.level), equals(["error"]));
   });
@@ -102,7 +110,9 @@ Scribe.test("a floor at the most serious level keeps that level alone", () => {
 
 Scribe.test("a level nobody declared is dropped rather than written at the bottom", () => {
   writing((written) => {
-    new ConsoleLogger("debug").at("trace" as LoggedLevel, "a");
+    const logger = new ConsoleLogger("debug");
+    logger.at("trace" as LoggedLevel, "a");
+    logger.flush();
 
     expect(written.length, equals(0));
   });
@@ -110,7 +120,9 @@ Scribe.test("a level nobody declared is dropped rather than written at the botto
 
 Scribe.test("the action is written between brackets and nothing else is when nothing was carried", () => {
   writing((written) => {
-    new ConsoleLogger().info("cache.filled");
+    const logger = new ConsoleLogger();
+    logger.info("cache.filled");
+    logger.flush();
 
     expect(actionOf(written[0]), equals("[cache.filled]"));
     expect(written[0].args.length, equals(1));
@@ -119,7 +131,9 @@ Scribe.test("the action is written between brackets and nothing else is when not
 
 Scribe.test("who acted is written as one argument, kind and identifier together", () => {
   writing((written) => {
-    new ConsoleLogger().info("a", { actorType: "user", actorId: "7" });
+    const logger = new ConsoleLogger();
+    logger.info("a", { actorType: "user", actorId: "7" });
+    logger.flush();
 
     expect(actionOf(written[0]), equals("[a]"));
     expect(written[0].args[1], equals("user=7"));
@@ -128,7 +142,9 @@ Scribe.test("who acted is written as one argument, kind and identifier together"
 
 Scribe.test("an identifier with no kind is written under a kind of its own", () => {
   writing((written) => {
-    new ConsoleLogger().info("a", { actorId: "7" });
+    const logger = new ConsoleLogger();
+    logger.info("a", { actorId: "7" });
+    logger.flush();
 
     expect(written[0].args[1], equals("actor=7"));
   });
@@ -137,7 +153,9 @@ Scribe.test("an identifier with no kind is written under a kind of its own", () 
 Scribe.test("metadata is handed over as a value rather than folded into the sentence", () => {
   writing((written) => {
     const carried = { queue: "orders", attempts: 2 };
-    new ConsoleLogger().info("a", { metadata: carried });
+    const logger = new ConsoleLogger();
+    logger.info("a", { metadata: carried });
+    logger.flush();
 
     expect(written[0].args.length, equals(2));
     expect(written[0].args[1], equals(carried));
@@ -149,6 +167,7 @@ Scribe.test("metadata left out carries nothing, where metadata set to null carri
     const logger = new ConsoleLogger();
     logger.info("a", { metadata: undefined });
     logger.info("b", { metadata: null });
+    logger.flush();
 
     expect(written[0].args.length, equals(1));
     expect(actionOf(written[1]), equals("[b]"));
@@ -161,7 +180,9 @@ Scribe.test("metadata that refers to itself is written without the console being
     const circular: Record<string, unknown> = { name: "self" };
     circular.again = circular;
 
-    new ConsoleLogger().info("a", { metadata: circular });
+    const logger = new ConsoleLogger();
+    logger.info("a", { metadata: circular });
+    logger.flush();
 
     expect(written[0].args[1], equals(circular));
   });
@@ -180,6 +201,7 @@ Scribe.test("metadata fifty deep and metadata holding a bigint are both written"
     const logger = new ConsoleLogger();
     logger.info("deep", { metadata: root });
     logger.info("big", { metadata: { counted: 9_007_199_254_740_993n } });
+    logger.flush();
 
     expect(written.length, equals(2));
     expect(written[1].args[1], equals({ counted: 9_007_199_254_740_993n }));
@@ -191,7 +213,9 @@ Scribe.test("an error carrying no message is written as the value it is", () => 
     const raised = new Error();
     Object.defineProperty(raised, "message", { value: undefined });
 
-    new ConsoleLogger().error("failed", { metadata: { error: raised } });
+    const logger = new ConsoleLogger();
+    logger.error("failed", { metadata: { error: raised } });
+    logger.flush();
 
     expect(written[0].level, equals("error"));
     expect(written[0].args[1], equals({ error: raised }));
@@ -200,7 +224,9 @@ Scribe.test("an error carrying no message is written as the value it is", () => 
 
 Scribe.test("an action of ten thousand characters is written whole", () => {
   writing((written) => {
-    new ConsoleLogger().info("x".repeat(10_000));
+    const logger = new ConsoleLogger();
+    logger.info("x".repeat(10_000));
+    logger.flush();
 
     expect(actionOf(written[0]).length, equals(10_002));
     expect(actionOf(written[0]), contains("x".repeat(10_000)));
@@ -209,7 +235,9 @@ Scribe.test("an action of ten thousand characters is written whole", () => {
 
 Scribe.test("an action that is empty still writes a pair of brackets", () => {
   writing((written) => {
-    new ConsoleLogger().info("");
+    const logger = new ConsoleLogger();
+    logger.info("");
+    logger.flush();
 
     expect(actionOf(written[0]), equals("[]"));
     expect(written[0].args.length, equals(1));
@@ -228,9 +256,14 @@ Scribe.test("a line under the floor costs nothing to build", () => {
     };
 
     for (let at = 0; at < 1_000; at++) logger.debug("a", carried);
+    logger.flush();
 
     expect(written.length, equals(0));
-    expect(read, equals(0), "a dropped line must not touch what it would have carried");
+    expect(
+      read,
+      equals(0),
+      "a dropped line must not touch what it would have carried",
+    );
   });
 });
 
@@ -241,15 +274,26 @@ Scribe.test("the written line says which level it is, where today an info and a 
     logger.info("a");
     logger.warn("a");
     logger.error("a");
+    logger.flush();
 
-    expect(String(written[0].args[0]), isNot(equals(String(written[1].args[0]))), "debug and info read alike");
-    expect(String(written[2].args[0]), isNot(equals(String(written[3].args[0]))), "warn and error read alike");
+    expect(
+      String(written[0].args[0]),
+      isNot(equals(String(written[1].args[0]))),
+      "debug and info read alike",
+    );
+    expect(
+      String(written[2].args[0]),
+      isNot(equals(String(written[3].args[0]))),
+      "warn and error read alike",
+    );
   });
 });
 
 Scribe.test("an action holding a line break cannot write a second line that reads like a record of its own", () => {
   writing((written) => {
-    new ConsoleLogger().info("noise]\n[auth.sign_in_succeeded");
+    const logger = new ConsoleLogger();
+    logger.info("noise]\n[auth.sign_in_succeeded");
+    logger.flush();
 
     expect(
       String(written[0].args[0]).includes("\n"),
@@ -261,8 +305,52 @@ Scribe.test("an action holding a line break cannot write a second line that read
 
 Scribe.test("a kind of actor with no identifier is still written, where today it is dropped whole", () => {
   writing((written) => {
-    new ConsoleLogger().info("a", { actorType: "cron" });
+    const logger = new ConsoleLogger();
+    logger.info("a", { actorType: "cron" });
+    logger.flush();
 
     expect(written[0].args.length, equals(2));
+  });
+});
+
+Scribe.test("a buffer that reaches its line cap flushes on its own, without waiting for the timer", () => {
+  writing((written) => {
+    const logger = new ConsoleLogger();
+    for (let at = 0; at < 200; at++) logger.info(`line-${at}`);
+
+    expect(
+      written.length,
+      equals(200),
+      "200 buffered lines must flush themselves rather than wait for the timer",
+    );
+    logger.flush();
+  });
+});
+
+Scribe.test("a buffer under the line cap waits for flush, and flush writes every line in order", () => {
+  writing((written) => {
+    const logger = new ConsoleLogger();
+    logger.info("first");
+    logger.info("second");
+
+    expect(
+      written.length,
+      equals(0),
+      "under the line cap, nothing is written before flush",
+    );
+
+    logger.flush();
+    expect(
+      written.map((one) => actionOf(one)),
+      equals(["[first]", "[second]"]),
+    );
+  });
+});
+
+Scribe.test("flushing an empty buffer writes nothing", () => {
+  writing((written) => {
+    new ConsoleLogger().flush();
+
+    expect(written.length, equals(0));
   });
 });

@@ -87,6 +87,14 @@ export type { CacheSettings, DatabaseSettings, QueueSettings } from "./src/setti
 export const declares = { queues: Queue, crons: Cron };
 
 /**
+ * The console logger this package wired, so `stops` can flush what it is still holding.
+ *
+ * Null when a host filled `Loggers` first: `wires` never constructs one in that case, and there
+ * is nothing here to flush on the way out.
+ */
+let _consoleLogger: ConsoleLogger | null = null;
+
+/**
  * When this package runs, which is once, at import, to answer the slots its drivers are for.
  *
  * @remarks
@@ -101,14 +109,21 @@ export const declares = { queues: Queue, crons: Cron };
 export const scribe: LifecycleSteps = {
   wires: () => {
     if (!extensions.declares(EXTENSION_QUEUE)) {
-      extensions.register(new OptionalExtension(EXTENSION_QUEUE, () => runDeclarations("queues")));
+      extensions.register(
+        new OptionalExtension(EXTENSION_QUEUE, () => runDeclarations("queues")),
+      );
     }
     if (!extensions.declares(EXTENSION_CRON)) {
-      extensions.register(new OptionalExtension(EXTENSION_CRON, () => runDeclarations("crons")));
+      extensions.register(
+        new OptionalExtension(EXTENSION_CRON, () => runDeclarations("crons")),
+      );
     }
 
     if (!Clients.configured) Clients.use(new FetchClients());
-    if (!Loggers.configured) Loggers.use(new ConsoleLogger());
+    if (!Loggers.configured) {
+      _consoleLogger = new ConsoleLogger();
+      Loggers.use(_consoleLogger);
+    }
     if (!Now.configured) Now.use(new SystemNow());
     if (!Caches.configured) Caches.use(new RedisCaches());
     if (!Claims.configured) Claims.use(new RedisClaims());
@@ -139,5 +154,6 @@ export const scribe: LifecycleSteps = {
     cronRunner.stop();
     queueRunner.stop();
     triggerRunner.stop();
+    _consoleLogger?.flush();
   },
 };
