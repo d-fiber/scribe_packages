@@ -1,4 +1,5 @@
 {
   "project": "my-gcp-project",
+  "region": "europe-west1",
   "location": "EU"
 }
