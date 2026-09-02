@@ -12,7 +12,7 @@ services:
     environment:
       ANON_KEY: ${ANON_KEY}
       SERVICE_KEY: ${SERVICE_KEY}
-      POSTGREST_URL: "{{resource_rest_url}}"
+      POSTGREST_URL: "${REST_INTERNAL_URL:-http://rest:3000}"
       AUTH_JWT_SECRET: ${JWT_SECRET}
       DATABASE_URL: "postgres://supabase_storage_admin:${STORAGE_ADMIN_PASSWORD}@{{resource_postgres_host}}:{{resource_postgres_port}}/{{resource_postgres_database}}"
       FILE_SIZE_LIMIT: "{{setting_storage_max_object_bytes}}"
