@@ -34,12 +34,12 @@
 -- This header is a summary written for convenience. Where it differs from the
 -- LICENSE file, the LICENSE file governs.
 
-create table if not exists public.__trigger_sources__ (
+create table if not exists foundation.__trigger_sources__ (
   table_name text primary key,
   key_column text not null default 'id'
 );
 
-create table if not exists public.__trigger_events__ (
+create table if not exists foundation.__trigger_events__ (
   id          bigserial primary key,
   table_name  text not null,
   op          text not null check (op in ('insert', 'update', 'delete')),
@@ -49,17 +49,17 @@ create table if not exists public.__trigger_events__ (
   occurred_at timestamptz not null default now()
 );
 
-alter table public.__trigger_sources__ enable row level security;
-alter table public.__trigger_events__ enable row level security;
+alter table foundation.__trigger_sources__ enable row level security;
+alter table foundation.__trigger_events__ enable row level security;
 
-revoke all on public.__trigger_sources__ from anon, authenticated;
-revoke all on public.__trigger_events__ from anon, authenticated;
+revoke all on foundation.__trigger_sources__ from anon, authenticated;
+revoke all on foundation.__trigger_events__ from anon, authenticated;
 
-create or replace function public.log_table_change()
+create or replace function foundation.log_table_change()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = foundation
 as $$
 declare
   v_key_column text;
@@ -68,7 +68,7 @@ declare
   v_entity_id  text;
 begin
   select key_column into v_key_column
-  from public.__trigger_sources__
+  from foundation.__trigger_sources__
   where table_name = tg_table_name;
 
   if not found then
@@ -90,7 +90,7 @@ begin
     return case when tg_op = 'DELETE' then old else new end;
   end if;
 
-  insert into public.__trigger_events__ (table_name, op, entity_id, before, after)
+  insert into foundation.__trigger_events__ (table_name, op, entity_id, before, after)
   values (tg_table_name, lower(tg_op), v_entity_id, v_before, v_after);
 
   return case when tg_op = 'DELETE' then old else new end;
@@ -102,11 +102,11 @@ exception when others then
 end;
 $$;
 
-create or replace function public.log_table_change_bulk_insert()
+create or replace function foundation.log_table_change_bulk_insert()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = foundation
 as $$
 declare
   v_key_column text;
@@ -114,7 +114,7 @@ declare
   v_inserted   bigint;
 begin
   select key_column into v_key_column
-  from public.__trigger_sources__
+  from foundation.__trigger_sources__
   where table_name = tg_table_name;
 
   if not found then
@@ -123,7 +123,7 @@ begin
 
   select count(*) into v_total from new_rows;
 
-  insert into public.__trigger_events__ (table_name, op, entity_id, before, after)
+  insert into foundation.__trigger_events__ (table_name, op, entity_id, before, after)
   select tg_table_name, 'insert', to_jsonb(new_rows) ->> v_key_column, null, to_jsonb(new_rows)
   from new_rows
   where to_jsonb(new_rows) ->> v_key_column is not null;
@@ -145,7 +145,7 @@ exception when others then
 end;
 $$;
 
-create or replace function public.attach_table_change(p_table text)
+create or replace function foundation.attach_table_change(p_table text)
 returns void
 language plpgsql
 as $$
@@ -157,7 +157,7 @@ begin
   execute format(
     'create or replace trigger __scribe_table_change__ '
     'after update or delete on public.%I '
-    'for each row execute function public.log_table_change()',
+    'for each row execute function foundation.log_table_change()',
     p_table
   );
 
@@ -165,13 +165,13 @@ begin
     'create or replace trigger __scribe_table_change_insert__ '
     'after insert on public.%I '
     'referencing new table as new_rows '
-    'for each statement execute function public.log_table_change_bulk_insert()',
+    'for each statement execute function foundation.log_table_change_bulk_insert()',
     p_table
   );
 end;
 $$;
 
-create or replace function public.attach_table_change_on_create()
+create or replace function foundation.attach_table_change_on_create()
 returns event_trigger
 language plpgsql
 as $$
@@ -182,7 +182,7 @@ begin
     select objid from pg_event_trigger_ddl_commands()
     where object_type = 'table' and schema_name = 'public'
   loop
-    perform public.attach_table_change(c.relname)
+    perform foundation.attach_table_change(c.relname)
     from pg_class c
     where c.oid = r.objid and c.relkind = 'r' and c.relpersistence = 'p';
   end loop;
@@ -199,7 +199,7 @@ begin
     join pg_namespace n on n.oid = c.relnamespace
     where n.nspname = 'public' and c.relkind = 'r' and c.relpersistence = 'p'
   loop
-    perform public.attach_table_change(r.relname);
+    perform foundation.attach_table_change(r.relname);
   end loop;
 end;
 $$;
@@ -207,4 +207,4 @@ $$;
 drop event trigger if exists __scribe_attach_table_change__;
 create event trigger __scribe_attach_table_change__
   on ddl_command_end when tag in ('CREATE TABLE', 'CREATE TABLE AS')
-  execute function public.attach_table_change_on_create();
+  execute function foundation.attach_table_change_on_create();
