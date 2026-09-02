@@ -25,8 +25,8 @@ services:
       SEED_SELF_HOST: "true"
       RUN_JANITOR: "true"
       DISABLE_HEALTHCHECK_LOGGING: "true"
-      MAX_CONNECTIONS: "100"
-      NUM_ACCEPTORS: "10"
+      MAX_CONNECTIONS: "{{setting_realtime_max_connections}}"
+      NUM_ACCEPTORS: "{{setting_realtime_num_acceptors}}"
     healthcheck:
       test:
         [
