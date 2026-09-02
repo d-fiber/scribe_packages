@@ -61,6 +61,7 @@ interface Promotion {
 async function promote(scenario: Promotion) {
   const removed: string[] = [];
   const published: string[] = [];
+  let zremCalls = 0;
 
   const mocks = [
     installMock(
@@ -71,9 +72,10 @@ async function promote(scenario: Promotion) {
     installMock(
       kv(),
       "zrem",
-      ((_key: string, raw: string) => {
-        removed.push(raw);
-        return Promise.resolve(1);
+      ((_key: string, ...raws: string[]) => {
+        zremCalls++;
+        removed.push(...raws);
+        return Promise.resolve(raws.length);
       }) as unknown as Kv["zrem"],
     ),
     installMock(topology, "publish", (subject: string) => {
@@ -83,7 +85,7 @@ async function promote(scenario: Promotion) {
   ];
 
   try {
-    return { promoted: await promoteDue(), removed, published };
+    return { promoted: await promoteDue(), removed, published, zremCalls };
   } finally {
     for (const mock of mocks) mock.restore();
   }
@@ -100,7 +102,10 @@ Scribe.test("decodeMember rejects a member no promotion could ever use", () => {
   expect(decodeMember("not json at all"), equals(null));
   expect(decodeMember(JSON.stringify({ queue: "emails" })), equals(null));
   expect(decodeMember(JSON.stringify({ id: "m", queue: "e" })), equals(null));
-  expect(decodeMember(JSON.stringify({ id: "m", subject: "q.e" })), equals(null));
+  expect(
+    decodeMember(JSON.stringify({ id: "m", subject: "q.e" })),
+    equals(null),
+  );
 });
 
 Scribe.test("promoteDue publishes a due job then forgets it", async () => {
@@ -135,6 +140,40 @@ Scribe.test("promoteDue keeps a job it could not publish, for the next pass", as
 
   expect(promoted, equals(0));
   expect(removed, equals([]));
+});
+
+Scribe.test("promoteDue removes a whole pass of published members in one ZREM call", async () => {
+  const raws = Array.from({ length: 12 }, (_, at) => member({ id: `m${at}` }));
+
+  const { promoted, removed, zremCalls } = await promote({ due: raws });
+
+  expect(promoted, equals(12));
+  expect(removed.length, equals(12));
+  expect(
+    zremCalls,
+    equals(1),
+    "12 published members must cost one ZREM, not one per member",
+  );
+});
+
+Scribe.test("promoteDue removes unreadable members separately from published ones, both batched", async () => {
+  const healthy = Array.from(
+    { length: 5 },
+    (_, at) => member({ id: `m${at}` }),
+  );
+  const poison = ["{ broken", "]]]", "not json"];
+
+  const { promoted, removed, zremCalls } = await promote({
+    due: [...poison, ...healthy],
+  });
+
+  expect(promoted, equals(5));
+  expect(removed.length, equals(8));
+  expect(
+    zremCalls,
+    equals(2),
+    "the unreadable members and the published ones are two groups, so two calls, not eight",
+  );
 });
 
 Scribe.test("promoteDue reports nothing promoted when the delayed set is unreadable", async () => {

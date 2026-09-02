@@ -73,10 +73,13 @@ function holdKv() {
     installMock(
       kv(),
       "zrem",
-      ((_key: string, raw: string) => {
-        const already = removed.includes(raw);
-        removed.push(raw);
-        return Promise.resolve(already ? 0 : 1);
+      ((_key: string, ...raws: string[]) => {
+        let newlyRemoved = 0;
+        for (const raw of raws) {
+          if (!removed.includes(raw)) newlyRemoved++;
+          removed.push(raw);
+        }
+        return Promise.resolve(newlyRemoved);
       }) as unknown as Kv["zrem"],
     ),
   ];
@@ -106,7 +109,10 @@ function member(over: Record<string, unknown> = {}): string {
   });
 }
 
-new Queue<{ to: string }>({ name: "test:delayed:target" }, () => Promise.resolve());
+new Queue<{ to: string }>(
+  { name: "test:delayed:target" },
+  () => Promise.resolve(),
+);
 
 Scribe.test("a delay of zero is published now instead of being parked", async () => {
   const store = holdKv();
@@ -170,7 +176,9 @@ Scribe.test("a parked job scores the instant it becomes due, read from the clock
   const clock = holdClock(EPOCH);
 
   try {
-    await pushDelayed("test:delayed:target", "q.test_delayed_target", { to: "a" }, 90_000);
+    await pushDelayed("test:delayed:target", "q.test_delayed_target", {
+      to: "a",
+    }, 90_000);
 
     expect(store.parked.length, equals(1));
     expect(store.parked[0].score, equals(EPOCH + 90_000));
@@ -196,10 +204,16 @@ Scribe.test("a clock that walks back between the push and the pass holds the job
       );
     }) as unknown as Kv["zrangebyscore"],
   );
-  const publishing = installMock(topology, "publish", () => Promise.resolve("1"));
+  const publishing = installMock(
+    topology,
+    "publish",
+    () => Promise.resolve("1"),
+  );
 
   try {
-    await pushDelayed("test:delayed:target", "q.test_delayed_target", { to: "a" }, 1_000);
+    await pushDelayed("test:delayed:target", "q.test_delayed_target", {
+      to: "a",
+    }, 1_000);
 
     clock.set(EPOCH - Duration.hours(1).inMilliseconds);
     expect(await promoteDue(), equals(0));
@@ -224,11 +238,16 @@ Scribe.test("an infinite delay parks a job no pass will ever find", async () => 
   const clock = holdClock(EPOCH);
 
   try {
-    await pushDelayed("test:delayed:target", "q.test_delayed_target", { to: "a" }, Infinity);
+    await pushDelayed("test:delayed:target", "q.test_delayed_target", {
+      to: "a",
+    }, Infinity);
 
     expect(store.parked[0].score, equals(Infinity));
     clock.pass(Duration.days(3_650));
-    expect(store.parked[0].score > clock.millisecondsSinceEpoch(), equals(true));
+    expect(
+      store.parked[0].score > clock.millisecondsSinceEpoch(),
+      equals(true),
+    );
   } finally {
     store.restore();
     installDrivers();
@@ -297,7 +316,9 @@ Scribe.test("the scan cap is defeated by a backlog of unreadable members", async
     "zscan",
     (() => {
       pages++;
-      return Promise.resolve([pages >= 400 ? "0" : String(pages), page] as [string, string[]]);
+      return Promise.resolve(
+        [pages >= 400 ? "0" : String(pages), page] as [string, string[]],
+      );
     }) as unknown as Kv["zscan"],
   );
 
@@ -316,7 +337,10 @@ Scribe.test("the scan cap is defeated by a backlog of unreadable members", async
 });
 
 Scribe.test("a scan that reaches its cap says the count is a lower bound", async () => {
-  const page = Array.from({ length: 250 }, (_, at) => [member({ id: `p${at}` }), "1"]).flat();
+  const page = Array.from(
+    { length: 250 },
+    (_, at) => [member({ id: `p${at}` }), "1"],
+  ).flat();
   let pages = 0;
   const mock = installMock(
     kv(),

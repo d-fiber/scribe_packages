@@ -49,17 +49,43 @@ const PROMOTE_CONCURRENCY = 16;
  *
  * The order is publish then remove, never the reverse: a crash between the two leaves a job
  * duplicated rather than lost, which is the side the at-least-once contract already sits on.
+ *
+ * @remarks
+ * Every member this pass is done with, published or unreadable, is removed with one `ZREM`
+ * carrying the whole list rather than one call per member. A member whose publish failed is left
+ * out and stays in the set for the next pass to retry.
  */
 export async function promoteDue(): Future<number> {
   const due = await dueMembers();
   if (due.length === 0) return 0;
 
-  let promoted = 0;
+  const toDrop: string[] = [];
+  const published: string[] = [];
+
   await runPooled(due, PROMOTE_CONCURRENCY, async (raw) => {
-    if (await promote(raw)) promoted++;
+    const member = decodeMember(raw);
+    if (member === null) {
+      log.error("queue.delayed_member_unreadable", {
+        metadata: { member: raw, consequence: "the member is dropped" },
+      });
+      toDrop.push(raw);
+      return;
+    }
+
+    try {
+      await publish(member);
+    } catch (error) {
+      log.error("queue.promote_failed", {
+        metadata: { queue: member.queue, error },
+      });
+      return;
+    }
+
+    published.push(raw);
   });
 
-  return promoted;
+  if (toDrop.length > 0) await forgetAll(toDrop);
+  return published.length === 0 ? 0 : await forgetAll(published);
 }
 
 /** The delayed members whose due date has passed, at most {@link PROMOTE_BATCH} of them. */
@@ -80,35 +106,6 @@ async function dueMembers(): Future<string[]> {
 }
 
 /**
- * Publishes one delayed member and forgets it, answering whether this pass is the one that moved it.
- *
- * @remarks
- * What decides that is the removal and not the publication. Two passes running at once both see
- * the member as due and both publish it, which the stream's duplicate window absorbs, but only
- * one of them takes it out of the set. Counting the publication instead made a status screen
- * report one parked job promoted twice.
- */
-async function promote(raw: string): Future<boolean> {
-  const member = decodeMember(raw);
-  if (member === null) {
-    log.error("queue.delayed_member_unreadable", {
-      metadata: { member: raw, consequence: "the member is dropped" },
-    });
-    await forget(raw, "unknown");
-    return false;
-  }
-
-  try {
-    await publish(member);
-  } catch (error) {
-    log.error("queue.promote_failed", { metadata: { queue: member.queue, error } });
-    return false;
-  }
-
-  return await forget(raw, member.queue);
-}
-
-/**
  * Publishes a due member on its queue's subject.
  *
  * The message id lets JetStream drop a duplicate on its own when two replicas promote the same
@@ -122,14 +119,27 @@ function publish(member: DelayedMember): Future<string> {
   );
 }
 
-/** Takes a member out of the delayed set, answering whether this call is what removed it. */
-async function forget(raw: string, queue: string): Future<boolean> {
+/**
+ * Takes every member of `raws` out of the delayed set in one round trip, answering how many of
+ * them this call is what removed.
+ *
+ * @remarks
+ * What decides that is the removal and not the publication. Two passes running at once both see
+ * a member as due and both publish it, which the stream's duplicate window absorbs, but only one
+ * of them takes it out of the set. `ZREM` answers exactly that count on its own, so it is read
+ * straight through rather than compared per member the way a loop of individual removals had to.
+ */
+async function forgetAll(raws: readonly string[]): Future<number> {
   try {
-    return await kv().zrem(DELAYED_KEY, raw) > 0;
+    return await kv().zrem(DELAYED_KEY, ...raws);
   } catch (error) {
     log.error("queue.promoted_not_forgotten", {
-      metadata: { queue, consequence: "the job will run again", error },
+      metadata: {
+        count: raws.length,
+        consequence: "these jobs will run again",
+        error,
+      },
     });
-    return false;
+    return 0;
   }
 }
