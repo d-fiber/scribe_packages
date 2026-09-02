@@ -77,7 +77,7 @@ DROP POLICY IF EXISTS "storage_select_public" ON storage.objects;
 DROP POLICY IF EXISTS "storage_select_app_bucket" ON storage.objects;
 DROP POLICY IF EXISTS "storage_select_admin_bucket" ON storage.objects;
 
-create table if not exists public.__storage_objects__ (
+create table if not exists storage.__storage_objects__ (
   path       text primary key,
   visibility text not null check (visibility in ('public', 'private')),
   mime_type  text not null,
@@ -87,7 +87,7 @@ create table if not exists public.__storage_objects__ (
 );
 
 create index if not exists __storage_objects_prefix__
-  on public.__storage_objects__ (path text_pattern_ops);
+  on storage.__storage_objects__ (path text_pattern_ops);
 
-alter table public.__storage_objects__ enable row level security;
-revoke all on public.__storage_objects__ from authenticated, anon;
+alter table storage.__storage_objects__ enable row level security;
+revoke all on storage.__storage_objects__ from authenticated, anon;
