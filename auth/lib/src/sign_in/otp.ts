@@ -304,7 +304,7 @@ export class OtpChallenge {
       return new Failure(OtpError.InvalidOrExpired);
     }
 
-    const [consumed, deviceToken] = await Future.wait([
+    const [consumed, deviceToken] = await Promise.all([
       this.#token.consume(token),
       devices.register(session.user.id),
     ]);

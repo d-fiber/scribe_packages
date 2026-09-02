@@ -63,7 +63,7 @@ class RoleCache {
 
   /** Remembers that `email` belongs to `id`, and holds that role. */
   async setByEmail(id: string, email: string, role: AccountRole): Future<void> {
-    await Future.wait([
+    await Promise.all([
       this.#email.add(email, role),
       this.#index.remember(id, `${EMAIL_ENTRY}${email}`),
     ]);
@@ -76,7 +76,7 @@ class RoleCache {
 
   /** Remembers that `phone` belongs to `id`, and holds that role. */
   async setByPhone(id: string, phone: string, role: AccountRole): Future<void> {
-    await Future.wait([
+    await Promise.all([
       this.#phone.add(phone, role),
       this.#index.remember(id, `${PHONE_ENTRY}${phone}`),
     ]);

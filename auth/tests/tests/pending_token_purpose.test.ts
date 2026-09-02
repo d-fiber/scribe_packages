@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import "@scribe/runtime/scholium/runner.ts";
-import { DateTime, type Future, Uuid } from "@scribe/alchemy";
+import { DateTime, type Future } from "@scribe/alchemy";
 import { equals, expect, isNot, Scribe } from "@scribe/alchemy/test";
 import { PendingToken, PendingTokenPurpose } from "../../lib/src/pending_token.ts";
 import { installAuthTestSettings } from "../testing/settings.ts";
@@ -105,7 +105,7 @@ Scribe.test("purpose: a legacy payload without purpose is read as sign-in", asyn
     identifier: "u1@example.com",
     role: "user",
     deviceId: null,
-    jti: Uuid.v4(),
+    jti: crypto.randomUUID(),
     exp: DateTime.now().millisecondsSinceEpoch + 60_000,
   });
 

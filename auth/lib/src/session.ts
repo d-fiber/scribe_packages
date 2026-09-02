@@ -86,7 +86,7 @@ class SessionIdempotence {
 
   /** Remembers what a refresh answered, indexed under the account so a revocation drops it. */
   async rememberRefreshed<T>(id: string, key: string, value: T): Future<void> {
-    await Future.wait([
+    await Promise.all([
       this.#refresh.add(key, value),
       this.#index.remember(id, `${REFRESH_ENTRY}${key}`),
     ]);
@@ -99,7 +99,7 @@ class SessionIdempotence {
 
   /** Remembers what a recovery answered, indexed under the account so a revocation drops it. */
   async rememberRecovered<T>(id: string, key: string, value: T): Future<void> {
-    await Future.wait([
+    await Promise.all([
       this.#recover.add(key, value),
       this.#index.remember(id, `${RECOVER_ENTRY}${key}`),
     ]);
@@ -257,7 +257,7 @@ export class AccountSession {
       role: AuthMapper.account.role(answer.data),
     };
 
-    await Future.wait([
+    await Promise.all([
       sessionIdempotence.rememberRefreshed(session.user.id, key, tokens),
       this.seen(session.user.id),
     ]);
@@ -306,7 +306,7 @@ export class AccountSession {
         role: AuthMapper.account.role(held.data),
       };
 
-      await Future.wait([
+      await Promise.all([
         sessionIdempotence.rememberRecovered(user.id, key, tokens),
         this.seen(user.id),
       ]);
@@ -341,7 +341,7 @@ export class AccountSession {
     const rate = await DELETE.check("", await sha256Hex(who.id));
     if (!rate.ok) return new Failure(SessionError.TooManyRequests);
 
-    await Future.wait([
+    await Promise.all([
       devices.kickAll(who.id),
       goTrue.session.logout(who.token, SignOutScope.Global),
     ]);

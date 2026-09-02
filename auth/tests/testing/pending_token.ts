@@ -38,7 +38,7 @@ import { installAuthTestSettings } from "./settings.ts";
 
 installAuthTestSettings();
 
-import { DateTime, Duration, type Future, Uuid } from "@scribe/alchemy";
+import { DateTime, Duration, type Future } from "@scribe/alchemy";
 import { type PendingToken, PendingTokenPurpose } from "../../lib/src/pending_token.ts";
 import { toHex } from "@scribe/runtime/support/crypto/hash.ts";
 import type { AccountRole } from "../../lib/contracts/role.ts";
@@ -85,7 +85,7 @@ export async function forgeToken(
       role,
       deviceId: options.deviceId ?? null,
       purpose: options.purpose ?? PendingTokenPurpose.SignIn,
-      jti: Uuid.v4(),
+      jti: crypto.randomUUID(),
       exp: options.expiresAt ?? DateTime.now().add(Duration.minutes(10)).millisecondsSinceEpoch,
     }),
   );

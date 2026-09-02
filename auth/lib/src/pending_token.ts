@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { DateTime, Duration, type Future, Uuid } from "@scribe/alchemy";
+import { DateTime, Duration, type Future } from "@scribe/alchemy";
 import { authSettings } from "./settings.ts";
 import { pendingTokens } from "./tables.ts";
 import type { AccountRole } from "../contracts/role.ts";
@@ -134,7 +134,7 @@ export class PendingToken {
         role,
         deviceId,
         purpose: this.#purpose,
-        jti: Uuid.v4(),
+        jti: crypto.randomUUID(),
         exp: expiresAt,
       }),
     );
