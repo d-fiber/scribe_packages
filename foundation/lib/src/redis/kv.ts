@@ -53,11 +53,21 @@ let _client: Kv | null = null;
  *
  * Building it at import would make the url mandatory to import anything that merely touches the
  * cache, tests included.
+ *
+ * @remarks
+ * `enableAutoPipelining` folds every command issued in the same event loop tick into one socket
+ * write instead of one write per command, which is what makes a burst of concurrent callers cost
+ * one round trip instead of many. It is safe on a client shared this widely only because nothing
+ * in the package opens a `MULTI`/`WATCH` transaction on it: ioredis pipelines a transaction's own
+ * commands together regardless, but a transaction issued concurrently with unrelated commands
+ * from another caller would see them interleaved across two separate pipelines, and this client
+ * carries none.
  */
 export function kv(): Kv {
   return (_client ??= new Redis(cacheSettings.get().redisUrl, {
     maxRetriesPerRequest: 3,
     enableReadyCheck: true,
     lazyConnect: true,
+    enableAutoPipelining: true,
   }));
 }
