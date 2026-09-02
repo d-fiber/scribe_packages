@@ -5,7 +5,7 @@ services:
     networks: ["app", "data"]
     build:
       context: "{{sdk_root}}/packages/storage/deploy/services/storage"
-      dockerfile: "Dockerfile.storage"
+      dockerfile: "Dockerfile"
     restart: "unless-stopped"
     volumes:
       - "storage-data:/var/lib/storage"
