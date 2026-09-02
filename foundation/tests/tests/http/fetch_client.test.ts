@@ -48,14 +48,62 @@ import {
   withMessage,
 } from "@scribe/alchemy/test";
 import { Duration } from "@scribe/alchemy";
-import { ClientException } from "@scribe/alchemy/http";
+import { BaseRequest, ByteStream, ClientException } from "@scribe/alchemy/http";
 import { FetchClient } from "../../../lib/src/http/fetch_client.ts";
 import { HttpRequest } from "@scribe/alchemy/http";
+
+class LazySourceRequest extends BaseRequest {
+  override get contentLength(): number | null {
+    return null;
+  }
+
+  override finalize(): ByteStream {
+    super.finalize();
+    return new ByteStream(
+      new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode("first chunk"));
+        },
+        pull() {
+          throw new Error("disk read failed");
+        },
+      }),
+    );
+  }
+}
 const URL_UNDER_TEST = "https://example.test/a";
 
 interface Call {
   input: URL | RequestInfo;
   init: RequestInit;
+}
+
+function duplexOf(call: Call): string | undefined {
+  return (call.init as RequestInit & { duplex?: string }).duplex;
+}
+
+async function bodyBytes(call: Call): Promise<Uint8Array> {
+  const body = call.init.body;
+  if (body === undefined || body === null) return new Uint8Array(0);
+  if (body instanceof Uint8Array) return body;
+  if (!(body instanceof ReadableStream)) {
+    fail("a body carrying bytes must be a stream, not a " + typeof body);
+  }
+
+  const chunks: Uint8Array[] = [];
+  for await (const chunk of body as ReadableStream<Uint8Array>) {
+    chunks.push(chunk);
+  }
+
+  const collected = new Uint8Array(
+    chunks.reduce((total, chunk) => total + chunk.length, 0),
+  );
+  let at = 0;
+  for (const chunk of chunks) {
+    collected.set(chunk, at);
+    at += chunk.length;
+  }
+  return collected;
 }
 
 async function withFetch(
@@ -87,8 +135,22 @@ Scribe.test("a closed client refuses to send", async () => {
   client.close();
 
   const raised = await caught(() => client.get(URL_UNDER_TEST));
-  expect(raised, allOf(isA(ClientException), withMessage("HTTP request failed. Client is already closed.")));
-  expect(raised, having(isA(ClientException), (r) => r.uri?.href, "uri", equals(URL_UNDER_TEST)));
+  expect(
+    raised,
+    allOf(
+      isA(ClientException),
+      withMessage("HTTP request failed. Client is already closed."),
+    ),
+  );
+  expect(
+    raised,
+    having(
+      isA(ClientException),
+      (r) => r.uri?.href,
+      "uri",
+      equals(URL_UNDER_TEST),
+    ),
+  );
 });
 
 Scribe.test("every way of never reaching the server arrives as one exception", async () => {
@@ -100,10 +162,24 @@ Scribe.test("every way of never reaching the server arrives as one exception", a
     const raised = await caught(() => new FetchClient().get(URL_UNDER_TEST));
     expect(
       raised,
-      allOf(isA(ClientException), withMessage("HTTP request failed. error sending request for url")),
+      allOf(
+        isA(ClientException),
+        withMessage("HTTP request failed. error sending request for url"),
+      ),
     );
-    expect(raised, having(isA(ClientException), (r) => r.cause, "cause", equals(cause)));
-    expect(raised, having(isA(ClientException), (r) => r.uri?.href, "uri", equals(URL_UNDER_TEST)));
+    expect(
+      raised,
+      having(isA(ClientException), (r) => r.cause, "cause", equals(cause)),
+    );
+    expect(
+      raised,
+      having(
+        isA(ClientException),
+        (r) => r.uri?.href,
+        "uri",
+        equals(URL_UNDER_TEST),
+      ),
+    );
   } finally {
     globalThis.fetch = original;
   }
@@ -116,7 +192,12 @@ Scribe.test("a failure that is not an Error is still described", async () => {
   try {
     await expectLater(
       () => new FetchClient().get(URL_UNDER_TEST),
-      throwsA(allOf(isA(ClientException), withMessage("HTTP request failed. gave up"))),
+      throwsA(
+        allOf(
+          isA(ClientException),
+          withMessage("HTTP request failed. gave up"),
+        ),
+      ),
     );
   } finally {
     globalThis.fetch = original;
@@ -138,7 +219,10 @@ Scribe.test("GET and HEAD send no body and announce no length", async () => {
         equals(undefined),
         "a body set on a GET is dropped, since the platform refuses to send one at all",
       );
-      expect(new Headers(call.init.headers).get("content-length"), equals(null));
+      expect(
+        new Headers(call.init.headers).get("content-length"),
+        equals(null),
+      );
     }
   });
 });
@@ -148,7 +232,11 @@ Scribe.test("a verb that may carry a body but carries none sends nothing", async
     await new FetchClient().post(URL_UNDER_TEST);
 
     expect(calls[0].init.method, equals("POST"));
-    expect(calls[0].init.body, equals(undefined), "an empty body is no body, not an empty buffer");
+    expect(
+      calls[0].init.body,
+      equals(undefined),
+      "an empty body is no body, not an empty buffer",
+    );
   });
 });
 
@@ -160,10 +248,18 @@ Scribe.test("put, patch and delete carry a body and announce its length, the way
     await client.patch(URL_UNDER_TEST, { body: "up" });
     await client.delete(URL_UNDER_TEST, { body: "up" });
 
-    expect(calls.map((call) => call.init.method), equals(["PUT", "PATCH", "DELETE"]));
+    expect(
+      calls.map((call) => call.init.method),
+      equals(["PUT", "PATCH", "DELETE"]),
+    );
     for (const call of calls) {
-      expect(call.init.body, equals(new TextEncoder().encode("up")));
+      expect(await bodyBytes(call), equals(new TextEncoder().encode("up")));
       expect(new Headers(call.init.headers).get("content-length"), equals("2"));
+      expect(
+        duplexOf(call),
+        equals("half"),
+        "a streamed body must tell fetch the request finishes before the response is read",
+      );
     }
   });
 });
@@ -177,20 +273,63 @@ Scribe.test("put, patch and delete given no body send none, the way post does", 
     await client.delete(URL_UNDER_TEST);
 
     for (const call of calls) {
-      expect(call.init.body, equals(undefined), "an empty body is no body, not an empty buffer");
+      expect(
+        call.init.body,
+        equals(undefined),
+        "an empty body is no body, not an empty buffer",
+      );
     }
   });
 });
 
-Scribe.test("a body is sent as bytes, with its length announced", async () => {
+Scribe.test("a body is sent as a stream, with its length announced", async () => {
   await withFetch(ok, async (calls) => {
     await new FetchClient().post(URL_UNDER_TEST, { body: "héllo" });
 
     const [call] = calls;
     expect(call.init.method, equals("POST"));
-    expect(call.init.body, equals(new TextEncoder().encode("héllo")));
+    expect(
+      call.init.body instanceof ReadableStream,
+      isTrue,
+      "a body is handed to fetch as a stream, not collected first",
+    );
+    expect(await bodyBytes(call), equals(new TextEncoder().encode("héllo")));
     expect(new Headers(call.init.headers).get("content-length"), equals("6"));
   });
+});
+
+Scribe.test("a GET carries no duplex option, since it carries no body to stream", async () => {
+  await withFetch(ok, async (calls) => {
+    await new FetchClient().get(URL_UNDER_TEST);
+
+    expect(duplexOf(calls[0]), equals(undefined));
+  });
+});
+
+Scribe.test("a source that fails partway through a streamed body reaches the caller as one exception", async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (_input: URL | RequestInfo, init: RequestInit = {}) => {
+    for await (const _chunk of init.body as ReadableStream<Uint8Array>) {
+      undefined;
+    }
+    return ok();
+  }) as typeof globalThis.fetch;
+
+  try {
+    const raised = await caught(() => new FetchClient().send(new LazySourceRequest("POST", URL_UNDER_TEST)));
+    expect(
+      raised,
+      allOf(
+        isA(ClientException),
+        withMessage("HTTP request failed. disk read failed"),
+      ),
+      "a source that errors while fetch drains it must still reach the caller as a ClientException, " +
+        "the same shape a connection failure already takes, even though nothing here reads the " +
+        "stream ahead of fetch anymore",
+    );
+  } finally {
+    globalThis.fetch = original;
+  }
 });
 
 Scribe.test("the redirect mode of the request reaches fetch, all three of them", async () => {
@@ -215,7 +354,9 @@ Scribe.test("the url goes over as the URL the request parsed", async () => {
   await withFetch(ok, async (calls) => {
     await new FetchClient().get("https://example.test/a?b=1");
 
-    if (!(calls[0].input instanceof URL)) fail("the url must go over as a URL, not a string or a Request");
+    if (!(calls[0].input instanceof URL)) {
+      fail("the url must go over as a URL, not a string or a Request");
+    }
 
     expect(calls[0].input.href, equals("https://example.test/a?b=1"));
   });
@@ -246,7 +387,10 @@ Scribe.test("a status the server sent no text for has no reason phrase", async (
   await withFetch(
     () => new globalThis.Response("x", { status: 200, statusText: "" }),
     async () => {
-      expect((await new FetchClient().get(URL_UNDER_TEST)).reasonPhrase, equals(null));
+      expect(
+        (await new FetchClient().get(URL_UNDER_TEST)).reasonPhrase,
+        equals(null),
+      );
     },
   );
 });
@@ -319,8 +463,22 @@ Scribe.test("an exchange that runs out of time names the limit it reached", asyn
         timeout: Duration.milliseconds(20),
       })
     );
-    expect(raised, allOf(isA(ClientException), withMessage("HTTP request failed. Timed out after 20 ms.")));
-    expect(raised, having(isA(ClientException), (r) => r.uri?.href, "uri", equals(URL_UNDER_TEST)));
+    expect(
+      raised,
+      allOf(
+        isA(ClientException),
+        withMessage("HTTP request failed. Timed out after 20 ms."),
+      ),
+    );
+    expect(
+      raised,
+      having(
+        isA(ClientException),
+        (r) => r.uri?.href,
+        "uri",
+        equals(URL_UNDER_TEST),
+      ),
+    );
   } finally {
     globalThis.fetch = original;
   }
