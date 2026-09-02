@@ -34,13 +34,13 @@
 -- This header is a summary written for convenience. Where it differs from the
 -- LICENSE file, the LICENSE file governs.
 
-create table if not exists public.__realtime_channels__ (
+create table if not exists realtime.__realtime_channels__ (
   channel text primary key,
   listen  text not null default 'granted'
     check (listen in ('granted', 'authenticated', 'public'))
 );
 
-create table if not exists public.__realtime_grants__ (
+create table if not exists realtime.__realtime_grants__ (
   channel    text not null,
   account_id uuid not null,
   granted_at timestamptz not null default now(),
@@ -48,14 +48,14 @@ create table if not exists public.__realtime_grants__ (
 );
 
 create index if not exists __realtime_grants_account__
-  on public.__realtime_grants__ (account_id);
+  on realtime.__realtime_grants__ (account_id);
 
-alter table public.__realtime_channels__ enable row level security;
-alter table public.__realtime_grants__ enable row level security;
+alter table realtime.__realtime_channels__ enable row level security;
+alter table realtime.__realtime_grants__ enable row level security;
 
 do $$ begin
   create policy "anyone_reads_channel_openness"
-  on public.__realtime_channels__
+  on realtime.__realtime_channels__
   for select
   to authenticated, anon
   using (true);
@@ -64,17 +64,17 @@ end $$;
 
 do $$ begin
   create policy "an_account_reads_its_own_grants"
-  on public.__realtime_grants__
+  on realtime.__realtime_grants__
   for select
   to authenticated
   using (account_id = (auth.jwt()->>'sub')::uuid);
 exception when duplicate_object then null;
 end $$;
 
-grant select on public.__realtime_channels__ to authenticated, anon;
-grant select on public.__realtime_grants__ to authenticated;
-revoke insert, update, delete on public.__realtime_channels__ from authenticated, anon;
-revoke insert, update, delete on public.__realtime_grants__ from authenticated, anon;
+grant select on realtime.__realtime_channels__ to authenticated, anon;
+grant select on realtime.__realtime_grants__ to authenticated;
+revoke insert, update, delete on realtime.__realtime_channels__ from authenticated, anon;
+revoke insert, update, delete on realtime.__realtime_grants__ from authenticated, anon;
 
 alter table realtime.messages enable row level security;
 
@@ -86,7 +86,7 @@ do $$ begin
   using (
     split_part(realtime.topic(), ':', 2) = (auth.jwt()->>'sub')
     and exists (
-      select 1 from public.__realtime_channels__
+      select 1 from realtime.__realtime_channels__
       where channel = split_part(realtime.topic(), ':', 1)
     )
   );
@@ -100,7 +100,7 @@ do $$ begin
   to authenticated
   using (
     exists (
-      select 1 from public.__realtime_channels__
+      select 1 from realtime.__realtime_channels__
       where channel = realtime.topic() and listen = 'authenticated'
     )
   );
@@ -114,7 +114,7 @@ do $$ begin
   to authenticated
   using (
     exists (
-      select 1 from public.__realtime_grants__
+      select 1 from realtime.__realtime_grants__
       where channel = realtime.topic()
         and account_id = (auth.jwt()->>'sub')::uuid
     )
@@ -122,7 +122,7 @@ do $$ begin
 exception when duplicate_object then null;
 end $$;
 
-create table if not exists public.__realtime_events__ (
+create table if not exists realtime.__realtime_events__ (
   id          bigserial primary key,
   channel     text   not null check (length(channel) <= 194),
   action      text   not null check (action ~ '^[a-z][a-z0-9_]*$' and length(action) <= 32),
@@ -132,18 +132,18 @@ create table if not exists public.__realtime_events__ (
 );
 
 create index if not exists __realtime_events_lookup__
-  on public.__realtime_events__ (channel, occurred_at);
+  on realtime.__realtime_events__ (channel, occurred_at);
 
 create index if not exists __realtime_events_entity__
-  on public.__realtime_events__ (channel, entity_id, occurred_at desc);
+  on realtime.__realtime_events__ (channel, entity_id, occurred_at desc);
 
 create index if not exists __realtime_events_occurred_at__
-  on public.__realtime_events__ (occurred_at);
+  on realtime.__realtime_events__ (occurred_at);
 
-alter table public.__realtime_events__ enable row level security;
-revoke all on public.__realtime_events__ from authenticated, anon;
+alter table realtime.__realtime_events__ enable row level security;
+revoke all on realtime.__realtime_events__ from authenticated, anon;
 
-create or replace function public.broadcast_realtime_event()
+create or replace function realtime.broadcast_realtime_event()
 returns trigger
 language plpgsql
 security definer
@@ -153,7 +153,7 @@ declare
   v_listen text;
 begin
   select listen into v_listen
-  from public.__realtime_channels__
+  from realtime.__realtime_channels__
   where channel = split_part(new.channel, ':', 1);
 
   perform realtime.send(
@@ -173,13 +173,13 @@ begin
 end;
 $$;
 
-drop trigger if exists __realtime_events_broadcast__ on public.__realtime_events__;
+drop trigger if exists __realtime_events_broadcast__ on realtime.__realtime_events__;
 create trigger __realtime_events_broadcast__
-  before insert on public.__realtime_events__
+  before insert on realtime.__realtime_events__
   for each row
-  execute function public.broadcast_realtime_event();
+  execute function realtime.broadcast_realtime_event();
 
-create or replace function public.log_realtime_event()
+create or replace function realtime.log_realtime_event()
 returns trigger
 language plpgsql
 security definer
@@ -222,7 +222,7 @@ begin
     end if;
   end if;
 
-  insert into public.__realtime_events__ (channel, action, entity_id, payload)
+  insert into realtime.__realtime_events__ (channel, action, entity_id, payload)
   values (
     case when v_recipient is null then v_channel else v_channel || ':' || v_recipient end,
     lower(tg_op),
@@ -235,7 +235,7 @@ begin
 end;
 $$;
 
-create or replace function public.get_realtime_ids(
+create or replace function realtime.get_realtime_ids(
   p_channel     text,
   p_cursor      bigint,
   p_known_ids   text[],
@@ -266,7 +266,7 @@ begin
 
   select max(occurred_at)
   into   v_max_occurred
-  from   public.__realtime_events__
+  from   realtime.__realtime_events__
   where  channel = p_channel
     and  occurred_at > p_cursor;
 
@@ -281,7 +281,7 @@ begin
 
   with latest as (
     select distinct on (entity_id) entity_id, action
-    from   public.__realtime_events__
+    from   realtime.__realtime_events__
     where  channel = p_channel
       and  occurred_at > p_cursor
     order  by entity_id, occurred_at desc, id desc
@@ -299,12 +299,12 @@ begin
 end;
 $$;
 
-revoke all on function public.get_realtime_ids(text, bigint, text[]) from public, anon, authenticated;
-grant execute on function public.get_realtime_ids(text, bigint, text[]) to service_role;
+revoke all on function realtime.get_realtime_ids(text, bigint, text[]) from public, anon, authenticated;
+grant execute on function realtime.get_realtime_ids(text, bigint, text[]) to service_role;
 
 select cron.schedule(
   'cleanup-realtime-events',
   '0 0 * * *',
-  $$delete from public.__realtime_events__
+  $$delete from realtime.__realtime_events__
     where occurred_at < (extract(epoch from now() - interval '30 days') * 1000)::bigint$$
 );
