@@ -36,7 +36,7 @@
 
 import "@scribe/runtime/scholium/runner.ts";
 import { equals, expect, expectLater, isA, isFalse, isTrue, Scribe, throwsA } from "@scribe/alchemy/test";
-import { Duration } from "@scribe/alchemy";
+import { DateTime, Duration } from "@scribe/alchemy";
 import { AudienceError } from "../../lib/contracts/audience.ts";
 import { Audience } from "../../lib/src/core/declaration.ts";
 import { AudienceKeyError, AudienceMemberError } from "../../lib/src/core/key.ts";
@@ -110,7 +110,7 @@ Scribe.test("a membership that has expired stops answering", async () => {
       audience: "declaration-editors:p1",
       member: "a1",
       created_at: 1,
-      expires_at: Date.now() - 1,
+      expires_at: DateTime.now().millisecondsSinceEpoch - 1,
     }]);
 
     expect(await editors.in("p1").has("a1"), isFalse);
@@ -124,7 +124,7 @@ Scribe.test("the declared delay is what a member inherits when the caller names 
   const audiences = installAudienceMock();
 
   try {
-    const before = Date.now();
+    const before = DateTime.now().millisecondsSinceEpoch;
     await invited.in("p1").add("a1");
 
     const expiresAt = audiences.memberships()[0].expires_at as number;
@@ -205,7 +205,7 @@ Scribe.test("addMany applies the declared delay the same way add does", async ()
   const audiences = installAudienceMock();
 
   try {
-    const before = Date.now();
+    const before = DateTime.now().millisecondsSinceEpoch;
     await invited.in("p1").addMany(["a1", "a2"]);
 
     for (const row of audiences.memberships()) {

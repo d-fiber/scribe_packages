@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Duration } from "@scribe/alchemy";
-import { Failure, Ok, okay, type Result } from "@scribe/alchemy";
+import type { Duration, Future } from "@scribe/alchemy";
+import { DateTime, Failure, Ok, okay, type Result } from "@scribe/alchemy";
 import { AudienceError, type AudienceOptions, type JoinOptions } from "../../contracts/audience.ts";
 import {
   dropAudience,
@@ -77,10 +77,10 @@ export interface Members {
    * character. That is a mistake in what the caller sent, not something a backend outage
    * produces, so it is not swallowed the way a backend failure is.
    */
-  has(member: string): Promise<boolean>;
+  has(member: string): Future<boolean>;
 
   /** Puts `member` in, and moves the expiry when it was already in. */
-  add(member: string, options?: JoinOptions): Promise<Result<void, AudienceError>>;
+  add(member: string, options?: JoinOptions): Future<Result<void, AudienceError>>;
 
   /**
    * Puts every one of `members` in, in a handful of round trips rather than one per member.
@@ -89,10 +89,10 @@ export interface Members {
    * thousand members one at a time each pays a read and a write, where this pays a few. An empty
    * list is a no-op that never reaches the table or the cache.
    */
-  addMany(members: readonly string[], options?: JoinOptions): Promise<Result<void, AudienceError>>;
+  addMany(members: readonly string[], options?: JoinOptions): Future<Result<void, AudienceError>>;
 
   /** Takes `member` out, and answers `NotFound` when it was not in. */
-  remove(member: string): Promise<Result<void, AudienceError>>;
+  remove(member: string): Future<Result<void, AudienceError>>;
 
   /**
    * Moves when `member` is dropped, counting from now, without putting anybody in.
@@ -100,7 +100,7 @@ export interface Members {
    * Null makes the membership never expire. A member this audience does not hold answers
    * `NotFound`, since there is no row to move.
    */
-  ttl(member: string, ttl: Duration | null): Promise<Result<void, AudienceError>>;
+  ttl(member: string, ttl: Duration | null): Future<Result<void, AudienceError>>;
 
   /**
    * One page of this audience's members, live ones only.
@@ -110,7 +110,7 @@ export interface Members {
    * gave up before it could say the page was complete, which is the one thing a caller must check
    * before treating a short page as the whole audience.
    */
-  members(options?: { after?: string; limit?: number }): Promise<MembersPage>;
+  members(options?: { after?: string; limit?: number }): Future<MembersPage>;
 
   /**
    * Empties this audience, and answers whether the wipe went through.
@@ -118,7 +118,7 @@ export interface Members {
    * An audience that stops being used leaves its members behind otherwise, and they come back the
    * day the name is reused for something else.
    */
-  clear(): Promise<Result<void, AudienceError>>;
+  clear(): Future<Result<void, AudienceError>>;
 
   /**
    * Physically removes this audience's rows that have already expired, and answers how many.
@@ -128,7 +128,7 @@ export interface Members {
    * Nothing calls this on its own — a project wires it into a cron of its own, one audience at a
    * time, which is what keeps a reap from touching more than the one audience it was asked about.
    */
-  reap(): Promise<Result<number, AudienceError>>;
+  reap(): Future<Result<number, AudienceError>>;
 }
 
 /**
@@ -253,7 +253,7 @@ export class Audience implements Members, NamespacedAudience {
    * than throwing when the backend cannot be reached, since a closed door costs less than an open
    * one when the answer cannot be trusted.
    */
-  async has(member: string): Promise<boolean> {
+  async has(member: string): Future<boolean> {
     memberSegment(member);
 
     try {
@@ -268,7 +268,7 @@ export class Audience implements Members, NamespacedAudience {
    * The {@link Members.add} implementation: writes the membership, then evicts the cached
    * `has` result so a check right after `add` sees the change instead of a stale answer.
    */
-  async add(member: string, options: JoinOptions = {}): Promise<Result<void, AudienceError>> {
+  async add(member: string, options: JoinOptions = {}): Future<Result<void, AudienceError>> {
     memberSegment(member);
 
     return await guarded(async () => {
@@ -289,7 +289,7 @@ export class Audience implements Members, NamespacedAudience {
    * upserts, then bumps this audience's cache generation once instead of evicting each member's
    * entry in turn.
    */
-  async addMany(members: readonly string[], options: JoinOptions = {}): Promise<Result<void, AudienceError>> {
+  async addMany(members: readonly string[], options: JoinOptions = {}): Future<Result<void, AudienceError>> {
     for (const member of members) memberSegment(member);
     if (members.length === 0) return okay;
 
@@ -307,7 +307,7 @@ export class Audience implements Members, NamespacedAudience {
   }
 
   /** The {@link Members.remove} implementation: drops the membership, then evicts the cache the same way {@link add} does. */
-  async remove(member: string): Promise<Result<void, AudienceError>> {
+  async remove(member: string): Future<Result<void, AudienceError>> {
     memberSegment(member);
 
     return await guarded(async () => {
@@ -322,7 +322,7 @@ export class Audience implements Members, NamespacedAudience {
    * The {@link Members.ttl} implementation: re-times the stored membership without touching
    * whether `member` belongs, then evicts the cache the same way {@link add} does.
    */
-  async ttl(member: string, ttl: Duration | null): Promise<Result<void, AudienceError>> {
+  async ttl(member: string, ttl: Duration | null): Future<Result<void, AudienceError>> {
     memberSegment(member);
 
     return await guarded(async () => {
@@ -330,7 +330,7 @@ export class Audience implements Members, NamespacedAudience {
         this.feature,
         this.name,
         member,
-        ttl === null ? null : Date.now() + ttl.inMilliseconds,
+        ttl === null ? null : DateTime.now().millisecondsSinceEpoch + ttl.inMilliseconds,
       );
 
       await forgetMembership(this.name, member);
@@ -342,7 +342,7 @@ export class Audience implements Members, NamespacedAudience {
    * The {@link Members.members} implementation: lists the audience, and answers an empty,
    * non-truncated page rather than throwing when the backend cannot be reached.
    */
-  async members(options: { after?: string; limit?: number } = {}): Promise<MembersPage> {
+  async members(options: { after?: string; limit?: number } = {}): Future<MembersPage> {
     try {
       return await membersOf(this.feature, this.name, options);
     } catch {
@@ -352,7 +352,7 @@ export class Audience implements Members, NamespacedAudience {
   }
 
   /** The {@link Members.clear} implementation: drops the whole audience, then evicts its cache. */
-  async clear(): Promise<Result<void, AudienceError>> {
+  async clear(): Future<Result<void, AudienceError>> {
     return await guarded(async () => {
       const wiped = await dropAudience(this.feature, this.name);
 
@@ -362,18 +362,18 @@ export class Audience implements Members, NamespacedAudience {
   }
 
   /** The {@link Members.reap} implementation: physically removes this audience's expired rows. */
-  reap(): Promise<Result<number, AudienceError>> {
+  reap(): Future<Result<number, AudienceError>> {
     return guarded(async () => new Ok(await reapExpired(this.feature, this.name)));
   }
 
   /** What `options.ttl` resolves to: the caller's own, this declaration's when absent, forever for null. */
   #expiresAt(options: JoinOptions): number | null {
     const ttl = options.ttl !== undefined ? options.ttl : this.#ttl;
-    return ttl === null ? null : Date.now() + ttl.inMilliseconds;
+    return ttl === null ? null : DateTime.now().millisecondsSinceEpoch + ttl.inMilliseconds;
   }
 
   /** `member`'s row in this audience, read through the cache, or `null` when it is missing or has expired. */
-  async #held(member: string): Promise<AudienceRow | null> {
+  async #held(member: string): Future<AudienceRow | null> {
     const row = await cachedMembership(
       this.name,
       member,

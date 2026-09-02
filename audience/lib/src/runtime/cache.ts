@@ -34,7 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { cache, Duration } from "@scribe/alchemy";
+import { cache, DateTime, Duration } from "@scribe/alchemy";
+import type { Future } from "@scribe/alchemy";
 import type { AudienceRow } from "../db/tables.ts";
 
 /**
@@ -64,7 +65,7 @@ const GENERATION_TTL = Duration.days(1);
  * how long a `clear()` on one replica can take to be seen as a fresh generation by another, and it
  * is a window this process names rather than one the cache hides inside a single method call.
  */
-const LOCAL_GENERATION_TTL_MS = Duration.seconds(2).inMilliseconds;
+const LOCAL_GENERATION_TTL = Duration.seconds(2);
 
 /**
  * What one cached membership holds.
@@ -93,30 +94,32 @@ const generations = cache<number>({ key: "audience:generation", ttl: GENERATION_
  * a real Redis adapter could not actually deliver on.
  */
 class LocalGenerationCache {
-  readonly #ttlMs: number;
+  readonly #ttl: Duration;
   readonly #entries = new Map<string, { readonly value: number; readonly at: number }>();
 
-  constructor(ttlMs: number) {
-    this.#ttlMs = ttlMs;
+  constructor(ttl: Duration) {
+    this.#ttl = ttl;
   }
 
   /** The generation held for `audience`, or undefined when nothing fresh enough is held. */
   get(audience: string): number | undefined {
     const entry = this.#entries.get(audience);
-    if (entry === undefined || Date.now() - entry.at >= this.#ttlMs) return undefined;
+    if (entry === undefined || DateTime.now().millisecondsSinceEpoch - entry.at >= this.#ttl.inMilliseconds) {
+      return undefined;
+    }
     return entry.value;
   }
 
   /** Remembers `value` as the generation of `audience`, fresh as of now. */
   set(audience: string, value: number): void {
-    this.#entries.set(audience, { value, at: Date.now() });
+    this.#entries.set(audience, { value, at: DateTime.now().millisecondsSinceEpoch });
   }
 }
 
-const localGenerations = new LocalGenerationCache(LOCAL_GENERATION_TTL_MS);
+const localGenerations = new LocalGenerationCache(LOCAL_GENERATION_TTL);
 
 /** The generation `audience` is at, trusting a fresh local read before asking the shared cache. */
-async function currentGeneration(audience: string): Promise<number> {
+async function currentGeneration(audience: string): Future<number> {
   const local = localGenerations.get(audience);
   if (local !== undefined) return local;
 
@@ -126,7 +129,7 @@ async function currentGeneration(audience: string): Promise<number> {
 }
 
 /** The generation of each of `audiences`, in the same order, without a local read in front. */
-async function currentGenerations(audiences: readonly string[]): Promise<number[]> {
+async function currentGenerations(audiences: readonly string[]): Future<number[]> {
   const values = await generations.getMany(audiences);
   return values.map((value) => value ?? 0);
 }
@@ -145,8 +148,8 @@ function entryOf(audience: string, generation: number, member: string): string {
 export async function cachedMembership(
   audience: string,
   member: string,
-  load: () => Promise<AudienceRow | null>,
-): Promise<AudienceRow | null> {
+  load: () => Future<AudienceRow | null>,
+): Future<AudienceRow | null> {
   const generation = await currentGeneration(audience);
   const held = await members.upsert(
     entryOf(audience, generation, member),
@@ -156,7 +159,7 @@ export async function cachedMembership(
 }
 
 /** Drops what the cache holds for `member` in `audience`, so the next read goes to the table. */
-export async function forgetMembership(audience: string, member: string): Promise<void> {
+export async function forgetMembership(audience: string, member: string): Future<void> {
   const generation = await currentGeneration(audience);
   await members.delete(entryOf(audience, generation, member));
 }
@@ -168,7 +171,7 @@ export async function forgetMembership(audience: string, member: string): Promis
  * the whole keyspace of every audience this package has ever cached, and cost the same whatever
  * the size of the audiences actually named.
  */
-export async function forgetMemberIn(audiences: readonly string[], member: string): Promise<void> {
+export async function forgetMemberIn(audiences: readonly string[], member: string): Future<void> {
   if (audiences.length === 0) return;
 
   const generationOf = await currentGenerations(audiences);
@@ -188,8 +191,8 @@ export async function forgetMemberIn(audiences: readonly string[], member: strin
  * close enough together to read the same millisecond must still produce two different
  * generations, or the second clear would leave the first one's entries reachable.
  */
-export async function forgetAudience(audience: string): Promise<void> {
-  const next = Math.max(Date.now(), await currentGeneration(audience) + 1);
+export async function forgetAudience(audience: string): Future<void> {
+  const next = Math.max(DateTime.now().millisecondsSinceEpoch, await currentGeneration(audience) + 1);
   await generations.add(audience, next);
   localGenerations.set(audience, next);
 }

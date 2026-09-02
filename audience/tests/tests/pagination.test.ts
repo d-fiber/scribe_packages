@@ -36,6 +36,7 @@
 
 import "@scribe/runtime/scholium/runner.ts";
 import { equals, expect, isFalse, Scribe } from "@scribe/alchemy/test";
+import { DateTime } from "@scribe/alchemy";
 import { Audience } from "../../lib/src/core/declaration.ts";
 import { installAudienceMock } from "../testing/mock.ts";
 import type { Row } from "@scribe/foundation/testing";
@@ -81,7 +82,7 @@ Scribe.test("a page does not under-report live members when expired rows are int
 
   // Interleave so the expired rows sort ahead of some live ones: a raw page of the requested size
   // would previously have been filtered after being capped, undercounting the live members.
-  audiences.seed([...rowsOf(expired, Date.now() - 1), ...rowsOf(live)]);
+  audiences.seed([...rowsOf(expired, DateTime.now().millisecondsSinceEpoch - 1), ...rowsOf(live)]);
 
   try {
     const page = await list.members({ limit: 3 });
@@ -96,7 +97,7 @@ Scribe.test("a page does not under-report live members when expired rows are int
 Scribe.test("a page that gives up scanning says so instead of reading as complete", async () => {
   const audiences = installAudienceMock();
   const allExpired = Array.from({ length: 40 }, (_, i) => `gone${i}`);
-  audiences.seed(rowsOf(allExpired, Date.now() - 1));
+  audiences.seed(rowsOf(allExpired, DateTime.now().millisecondsSinceEpoch - 1));
 
   try {
     const page = await list.members({ limit: 2 });

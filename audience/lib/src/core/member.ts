@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { okay, type Result } from "@scribe/alchemy";
+import { type Future, okay, type Result } from "@scribe/alchemy";
 import type { AudienceError } from "../../contracts/audience.ts";
 import { audiencesOfMember, dropMember } from "../db/members.ts";
 import { forgetMemberIn } from "../runtime/cache.ts";
@@ -48,7 +48,7 @@ import { guarded } from "./guard.ts";
  * be reached answers with an empty, non-truncated listing, reported, and a caller that turns that
  * into a token hands out one that opens nothing.
  */
-export async function audiencesOf(member: string): Promise<{ audiences: string[]; truncated: boolean }> {
+export async function audiencesOf(member: string): Future<{ audiences: string[]; truncated: boolean }> {
   try {
     return await audiencesOfMember(member);
   } catch {
@@ -63,7 +63,7 @@ export async function audiencesOf(member: string): Promise<{ audiences: string[]
  * It is what an account being deleted calls. Without it every caller would have to know which
  * audiences it once put that member in, and one of them would be forgotten.
  */
-export function forgetMember(member: string): Promise<Result<void, AudienceError>> {
+export function forgetMember(member: string): Future<Result<void, AudienceError>> {
   return guarded(async () => {
     const { audiences: held } = await audiencesOfMember(member);
     await dropMember(member);

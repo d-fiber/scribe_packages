@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Duration } from "@scribe/alchemy";
+import { Duration, type Future } from "@scribe/alchemy";
 import { Audience, audiencesOf } from "@scribe/audience";
 
 /**
@@ -68,22 +68,22 @@ export const editors = chat.namespaced("project-editors");
 export const invited = chat.namespaced("project-invited", { ttl: Duration.days(7) });
 
 /** Whether an account is in the global set. */
-export function isBanned(accountId: string): Promise<boolean> {
+export function isBanned(accountId: string): Future<boolean> {
   return banned.has(accountId);
 }
 
 /** Whether it is in the list one scope holds. */
-export function edits(projectId: string, accountId: string): Promise<boolean> {
+export function edits(projectId: string, accountId: string): Future<boolean> {
   return editors.in(projectId).has(accountId);
 }
 
 /** A scope may be nested, which keys the list on the whole path rather than on the first part. */
-export function editsBackend(projectId: string, accountId: string): Promise<boolean> {
+export function editsBackend(projectId: string, accountId: string): Future<boolean> {
   return editors.in(projectId, "backend").has(accountId);
 }
 
 /** Puts a member in for the lifetime the declaration names. */
-export async function invite(projectId: string, accountId: string): Promise<boolean> {
+export async function invite(projectId: string, accountId: string): Future<boolean> {
   const result = await invited.in(projectId).add(accountId);
   return result.ok;
 }
@@ -94,7 +94,7 @@ export async function invite(projectId: string, accountId: string): Promise<bool
  * This is the shape a large, one-shot audience takes: building a twenty-thousand-member list one
  * `add` at a time would pay a read and a write per member, where this pays a few.
  */
-export async function inviteAll(projectId: string, accountIds: readonly string[]): Promise<boolean> {
+export async function inviteAll(projectId: string, accountIds: readonly string[]): Future<boolean> {
   const result = await invited.in(projectId).addMany(accountIds);
   return result.ok;
 }
@@ -105,19 +105,19 @@ export async function inviteAll(projectId: string, accountIds: readonly string[]
  * Null and absent are two answers on purpose: absent means the declaration decides, and null
  * means this member stays.
  */
-export async function inviteForGood(projectId: string, accountId: string): Promise<boolean> {
+export async function inviteForGood(projectId: string, accountId: string): Future<boolean> {
   const result = await invited.in(projectId).add(accountId, { ttl: null });
   return result.ok;
 }
 
 /** Pushes one membership out without writing it again. */
-export async function renew(projectId: string, accountId: string): Promise<boolean> {
+export async function renew(projectId: string, accountId: string): Future<boolean> {
   const result = await invited.in(projectId).ttl(accountId, Duration.days(7));
   return result.ok;
 }
 
 /** Takes one member out, then empties the whole list. */
-export async function close(projectId: string, accountId: string): Promise<boolean> {
+export async function close(projectId: string, accountId: string): Future<boolean> {
   await invited.in(projectId).remove(accountId);
   const cleared = await invited.in(projectId).clear();
   return cleared.ok;
@@ -129,11 +129,11 @@ export async function close(projectId: string, accountId: string): Promise<boole
  * A caller that needs every member of a list too large for one page reads again with `after` set
  * to the cursor the previous page answered, until `cursor` comes back null.
  */
-export function invitees(projectId: string): Promise<{ members: string[]; cursor: string | null; truncated: boolean }> {
+export function invitees(projectId: string): Future<{ members: string[]; cursor: string | null; truncated: boolean }> {
   return invited.in(projectId).members();
 }
 
 /** Which of the declared sets one account belongs to, asked once instead of set by set. */
-export function setsOf(accountId: string): Promise<{ audiences: string[]; truncated: boolean }> {
+export function setsOf(accountId: string): Future<{ audiences: string[]; truncated: boolean }> {
   return audiencesOf(accountId);
 }

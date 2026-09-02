@@ -34,6 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import type { Future } from "@scribe/alchemy";
+import { DateTime } from "@scribe/alchemy";
 import { wrote } from "@scribe/foundation/database";
 import { type AudienceRow, audiences } from "./tables.ts";
 
@@ -104,14 +106,14 @@ export interface MembersPage {
 }
 
 /** The row held for `member` in `feature`'s `audience`, or null when the table holds none. */
-export function membershipOf(feature: string, audience: string, member: string): Promise<AudienceRow | null> {
+export function membershipOf(feature: string, audience: string, member: string): Future<AudienceRow | null> {
   return audiences()
     .where((f) => [f.feature.eq(feature), f.audience.eq(audience), f.member.eq(member)])
     .getOne();
 }
 
 /** Puts `member` in `audience` until `expiresAt`, and answers whether the write went through. */
-export async function writeMembership(write: MembershipWrite): Promise<boolean> {
+export async function writeMembership(write: MembershipWrite): Future<boolean> {
   return wrote(
     await audiences().upsert(
       { feature: write.feature, audience: write.audience, member: write.member, expires_at: write.expiresAt },
@@ -130,7 +132,7 @@ export async function writeMembership(write: MembershipWrite): Promise<boolean> 
  * one that is not is inserted, in the same call. Chunks are sent one after another rather than
  * together, which is what keeps one bulk write from opening thousands of connections at once.
  */
-export async function writeMemberships(writes: readonly MembershipWrite[]): Promise<boolean> {
+export async function writeMemberships(writes: readonly MembershipWrite[]): Future<boolean> {
   if (writes.length === 0) return true;
 
   for (const chunk of _chunksOf(writes, BULK_CHUNK_SIZE)) {
@@ -161,7 +163,7 @@ export async function retimeMembership(
   audience: string,
   member: string,
   expiresAt: number | null,
-): Promise<boolean> {
+): Future<boolean> {
   const held = await membershipOf(feature, audience, member);
   if (held === null || hasExpired(held)) return false;
 
@@ -173,7 +175,7 @@ export async function retimeMembership(
 }
 
 /** Takes `member` out of `feature`'s `audience`, and answers whether a row was removed. */
-export async function dropMembership(feature: string, audience: string, member: string): Promise<boolean> {
+export async function dropMembership(feature: string, audience: string, member: string): Future<boolean> {
   const removed = await audiences()
     .where((f) => [f.feature.eq(feature), f.audience.eq(audience), f.member.eq(member)])
     .deleteOne((s) => ({ member: s.member }));
@@ -182,14 +184,14 @@ export async function dropMembership(feature: string, audience: string, member: 
 }
 
 /** Empties `feature`'s `audience`, and answers whether the wipe went through. */
-export function dropAudience(feature: string, audience: string): Promise<boolean> {
+export function dropAudience(feature: string, audience: string): Future<boolean> {
   return audiences()
     .where((f) => [f.feature.eq(feature), f.audience.eq(audience)])
     .delete().then(wrote);
 }
 
 /** Takes `member` out of every audience of every feature, and answers whether the wipe went through. */
-export function dropMember(member: string): Promise<boolean> {
+export function dropMember(member: string): Future<boolean> {
   return audiences()
     .where((f) => f.member.eq(member))
     .delete().then(wrote);
@@ -209,7 +211,7 @@ export async function membersOf(
   feature: string,
   audience: string,
   options: { after?: string; limit?: number } = {},
-): Promise<MembersPage> {
+): Future<MembersPage> {
   const limit = options.limit ?? DEFAULT_PAGE_SIZE;
   const scanCap = limit * SCAN_MULTIPLIER;
 
@@ -236,7 +238,7 @@ export async function membersOf(
 }
 
 /** One raw page of `feature`'s `audience`, ordered by `member`, unfiltered by expiry. */
-function _rawPage(feature: string, audience: string, after: string | null, limit: number): Promise<AudienceRow[]> {
+function _rawPage(feature: string, audience: string, after: string | null, limit: number): Future<AudienceRow[]> {
   const query = audiences()
     .select((s) => ({ member: s.member, expires_at: s.expires_at }))
     .where((f) => after === null ? [f.feature.eq(feature), f.audience.eq(audience)] : [
@@ -248,7 +250,7 @@ function _rawPage(feature: string, audience: string, after: string | null, limit
     .limit(limit);
 
   // deno-lint-ignore no-explicit-any -- select() narrows the answer to the two projected columns, which is what a raw page needs.
-  return query.get() as Promise<any>;
+  return query.get() as Future<any>;
 }
 
 /**
@@ -264,7 +266,7 @@ function _rawPage(feature: string, audience: string, after: string | null, limit
 export async function audiencesOfMember(
   member: string,
   limit: number = DEFAULT_AUDIENCES_LIMIT,
-): Promise<{ audiences: string[]; truncated: boolean }> {
+): Future<{ audiences: string[]; truncated: boolean }> {
   const scanCap = limit * SCAN_MULTIPLIER;
 
   const rows = await audiences()
@@ -289,9 +291,13 @@ export async function audiencesOfMember(
  * a delete by row count: a project reaping a very large backlog should call this often enough that
  * the backlog stays small, rather than expect one call to chunk itself.
  */
-export async function reapExpired(feature: string, audience: string): Promise<number> {
+export async function reapExpired(feature: string, audience: string): Future<number> {
   const removed = await audiences()
-    .where((f) => [f.feature.eq(feature), f.audience.eq(audience), f.expires_at.lte(Date.now())])
+    .where((f) => [
+      f.feature.eq(feature),
+      f.audience.eq(audience),
+      f.expires_at.lte(DateTime.now().millisecondsSinceEpoch),
+    ])
     .delete();
 
   return removed.ok ? removed.data : 0;
@@ -299,7 +305,7 @@ export async function reapExpired(feature: string, audience: string): Promise<nu
 
 /** Whether the membership `row` describes has stopped counting. */
 export function hasExpired(row: { expires_at: number | null }): boolean {
-  return row.expires_at !== null && row.expires_at <= Date.now();
+  return row.expires_at !== null && row.expires_at <= DateTime.now().millisecondsSinceEpoch;
 }
 
 /** `items`, split into arrays of at most `size`. */
