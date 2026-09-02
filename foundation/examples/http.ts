@@ -33,7 +33,7 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import { Duration, type Future, type UnmodifiableList } from "@scribe/alchemy";
+import { Duration, Future, type UnmodifiableList } from "@scribe/alchemy";
 import { ClientException, http } from "@scribe/alchemy/http";
 import type { HttpResponse } from "@scribe/alchemy/http";
 
@@ -87,7 +87,7 @@ export async function rates(url: string): Future<Rates | null> {
 export async function report(urls: UnmodifiableList<string>): Future<UnmodifiableList<string>> {
   const client = http.open();
   try {
-    return await Promise.all(urls.map((url) => client.read(url)));
+    return await Future.wait(urls.map((url) => client.read(url)));
   } finally {
     client.close();
   }

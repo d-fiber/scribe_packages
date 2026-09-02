@@ -33,14 +33,14 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import type {
-  DeclaredQueue as PortQueue,
-  DeclaredQueueOptions as PortQueueOptions,
+import {
+  type DeclaredQueue as PortQueue,
+  type DeclaredQueueOptions as PortQueueOptions,
   Future,
-  QueueDriver,
-  QueueMessage,
+  type QueueDriver,
+  type QueueMessage,
+  type UnmodifiableList,
 } from "@scribe/alchemy";
-import type { UnmodifiableList } from "@scribe/alchemy";
 import { Queue } from "./queue.ts";
 import type { JobHandler } from "./queue_options.ts";
 
@@ -88,7 +88,7 @@ export class NatsQueues implements QueueDriver {
 
     const handle = options.handle as ((message: QueueMessage<T>) => void | Future<void>) | undefined;
     const body: JobHandler<T> = handle === undefined
-      ? () => Promise.resolve()
+      ? () => Future.value(undefined)
       : (_data, message) => Promise.resolve(handle(message));
 
     const opened = new Queue<T>(

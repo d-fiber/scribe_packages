@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { DateTime, Duration, type Future, type UnmodifiableList } from "@scribe/alchemy";
+import { DateTime, Duration, Future, type UnmodifiableList } from "@scribe/alchemy";
 import { kv } from "../redis/kv.ts";
 import { type CacheEntry, decodeCacheEntry, encodeCacheEntry } from "./cache_entry.ts";
 import type { KeySpace } from "./key_space.ts";
@@ -62,10 +62,10 @@ export class RedisCacheStore {
   }
 
   /** Reads one entry, or `null` when it is missing, unreadable, or Redis is down. */
-  read<T>(id: string, ttlMs: number): Future<CacheEntry<T> | null> {
+  read<T>(id: string, ttl: Duration): Future<CacheEntry<T> | null> {
     return this.#guard("get", _null, async () => {
       const raw = await kv().get(this.#keys.keyOf(id));
-      return raw === null ? null : decodeCacheEntry<T>(raw, ttlMs);
+      return raw === null ? null : decodeCacheEntry<T>(raw, ttl.inMilliseconds);
     });
   }
 
@@ -78,13 +78,13 @@ export class RedisCacheStore {
    */
   readMany<T>(
     ids: UnmodifiableList<string>,
-    ttlMs: number,
+    ttl: Duration,
   ): Future<(CacheEntry<T> | null)[]> {
-    if (ids.length === 0) return Promise.resolve([]);
+    if (ids.length === 0) return Future.value([]);
 
     return this.#guard("mget", () => ids.map(() => null), async () => {
       const raws = await kv().mget(...ids.map((id) => this.#keys.keyOf(id)));
-      return raws.map((raw) => (raw === null ? null : decodeCacheEntry<T>(raw, ttlMs)));
+      return raws.map((raw) => (raw === null ? null : decodeCacheEntry<T>(raw, ttl.inMilliseconds)));
     });
   }
 
@@ -110,7 +110,7 @@ export class RedisCacheStore {
     entries: readonly [string, T][],
     ttlOf: () => number,
   ): Future<void> {
-    if (entries.length === 0) return Promise.resolve();
+    if (entries.length === 0) return Future.value(undefined);
 
     return this.#guard("set", _nothing, async () => {
       const pipeline = kv().pipeline();
@@ -128,7 +128,7 @@ export class RedisCacheStore {
 
   /** Removes entries by id. */
   forget(ids: UnmodifiableList<string>): Future<void> {
-    if (ids.length === 0) return Promise.resolve();
+    if (ids.length === 0) return Future.value(undefined);
 
     return this.#guard("del", _nothing, async () => {
       await kv().unlink(...ids.map((id) => this.#keys.keyOf(id)));

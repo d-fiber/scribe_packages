@@ -117,7 +117,7 @@ export class QueuePublisher<in TJob> {
         this.queue.name,
         this.queue.subject,
         data,
-        opts.delay.inMilliseconds,
+        opts.delay,
       );
     }
 

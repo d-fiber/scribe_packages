@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Duration, type Future, type UnmodifiableList } from "@scribe/alchemy";
+import { Duration, Future, type UnmodifiableList } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
 import { noteHandBack } from "./hand_backs.ts";
 import { queueRegistry } from "../queue_registry.ts";
@@ -78,7 +78,7 @@ export class MessageDispatcher {
   ): Future<void> {
     if (messages.length === 0) return;
 
-    await Promise.all(
+    await Future.wait(
       [...groupBySubject(messages)].map(([subject, group]) => this.#dispatchGroup(subject, group, tally)),
     );
   }
@@ -113,7 +113,7 @@ export class MessageDispatcher {
     for (const message of group) message.nak(HAND_BACK_AFTER.inMilliseconds);
     tally.record("retried", group.length);
 
-    return Promise.all(group.map(noteHandBack)).then(() => undefined);
+    return Future.wait(group.map(noteHandBack)).then(() => undefined);
   }
 
   #dispatchGroup(

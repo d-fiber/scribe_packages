@@ -38,7 +38,7 @@ import {
   type CacheOptions,
   DEFAULT_CACHE_DEADLINE,
   Duration,
-  type Future,
+  Future,
   Stopwatch,
   type UnmodifiableList,
 } from "@scribe/alchemy";
@@ -126,7 +126,7 @@ export class Valkery<in out T> {
 
   /** The value cached under `id`, or `null` when nothing usable is cached. */
   async get(id: string): Future<T | null> {
-    const entry = await this.#store().read<T>(id, this.ttl.inMilliseconds);
+    const entry = await this.#store().read<T>(id, this.ttl);
     return entry === null ? null : entry.value;
   }
 
@@ -136,7 +136,7 @@ export class Valkery<in out T> {
    * One round trip whatever the number of ids.
    */
   async getMany(ids: UnmodifiableList<string>): Future<(T | null)[]> {
-    const entries = await this.#store().readMany<T>(ids, this.ttl.inMilliseconds);
+    const entries = await this.#store().readMany<T>(ids, this.ttl);
     return entries.map((entry) => (entry === null ? null : entry.value));
   }
 
@@ -185,7 +185,7 @@ export class Valkery<in out T> {
    */
   upsert(id: string, compute: () => Future<T>): Future<T> {
     return this.#local().run(this.#keySpace().keyOf(id), async () => {
-      const entry = await this.#store().read<T>(id, this.ttl.inMilliseconds);
+      const entry = await this.#store().read<T>(id, this.ttl);
 
       if (entry !== null) {
         if (!shouldRefreshEarly(entry, this.#beta)) return entry.value;
@@ -331,7 +331,7 @@ const _flight: LocalFlight = new LocalFlight();
  * down would otherwise drop a value it has already paid for, and a test would end while a
  * recompute is still in flight.
  */
-const _refreshing: Set<Promise<unknown>> = new Set();
+const _refreshing: Set<Future<unknown>> = new Set();
 
 /**
  * Waits for every refresh this process started on its own.
@@ -341,5 +341,5 @@ const _refreshing: Set<Promise<unknown>> = new Set();
  * leaving the last one behind.
  */
 export async function refreshesSettled(): Future<void> {
-  while (_refreshing.size > 0) await Promise.all([..._refreshing]);
+  while (_refreshing.size > 0) await Future.wait([..._refreshing]);
 }

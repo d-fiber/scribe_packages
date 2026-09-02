@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { type Future, type UnmodifiableList } from "@scribe/alchemy";
+import { Future, type UnmodifiableList } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
 import { promoteDue } from "../delayed/delayed_promoter.ts";
 import { queueRegistry } from "../queue_registry.ts";
@@ -69,7 +69,7 @@ export class QueueRunner {
   async run(count = FETCH_COUNT): Future<DrainResult> {
     const tally = await this.#prepare();
 
-    const batches = await Promise.all(
+    const batches = await Future.wait(
       this.#allSources().map((source) => source.fetch(count)),
     );
     await this.#dispatcher.dispatch(batches.flat(), tally);

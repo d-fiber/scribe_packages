@@ -34,8 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { DEFAULT_CACHE_DEADLINE, Duration } from "@scribe/alchemy";
-import type { Future } from "@scribe/alchemy";
+import { DateTime, DEFAULT_CACHE_DEADLINE, Duration, Future } from "@scribe/alchemy";
 
 /**
  * Collapses concurrent computations of the same key inside one process.
@@ -74,11 +73,11 @@ export class LocalFlight {
     const running = this.#inFlight.get(key);
 
     if (running !== undefined && _joinable(running)) {
-      const joined = await _boundedBy(running.answer as Promise<T>, within.inMilliseconds);
+      const joined = await _boundedBy(running.answer as Future<T>, within);
       if (joined !== _GAVE_UP) return joined;
     }
 
-    const started: Run = { answer: Promise.resolve(compute()), startedAt: Date.now() };
+    const started: Run = { answer: Future.value(compute()), startedAt: DateTime.now() };
     this.#inFlight.set(key, started);
 
     try {
@@ -103,7 +102,7 @@ const JOIN_WINDOW: Duration = Duration.milliseconds(50);
  * collapses the callers this window does not.
  */
 function _joinable(running: Run): boolean {
-  return Date.now() - running.startedAt <= JOIN_WINDOW.inMilliseconds;
+  return DateTime.now().difference(running.startedAt) <= JOIN_WINDOW;
 }
 
 /**
@@ -116,17 +115,17 @@ function _joinable(running: Run): boolean {
  */
 interface Run {
   /** What the computation will answer, shared by everybody waiting on it. */
-  readonly answer: Promise<unknown>;
+  readonly answer: Future<unknown>;
 
-  /** When it started, on the process clock, as milliseconds since the epoch. */
-  readonly startedAt: number;
+  /** When it started. */
+  readonly startedAt: DateTime;
 }
 
 /** What {@link _boundedBy} answers when the run it joined outlived the budget. */
 const _GAVE_UP: unique symbol = Symbol("gave up");
 
 /**
- * What `running` answered, or {@link _GAVE_UP} when it did not answer inside `leftMs`.
+ * What `running` answered, or {@link _GAVE_UP} when it did not answer inside `left`.
  *
  * @remarks
  * A joiner has to be able to leave. A computation that never answers, an origin hanging on a
@@ -137,11 +136,11 @@ const _GAVE_UP: unique symbol = Symbol("gave up");
  * The timer is cleared whichever way the race ends, so a run that answers on time leaves nothing
  * pending behind it.
  */
-function _boundedBy<T>(running: Promise<T>, leftMs: number): Promise<T | typeof _GAVE_UP> {
-  if (leftMs <= 0) return Promise.resolve(_GAVE_UP);
+function _boundedBy<T>(running: Future<T>, left: Duration): Future<T | typeof _GAVE_UP> {
+  if (left.inMilliseconds <= 0) return Future.value(_GAVE_UP);
 
   return new Promise((answer, refuse) => {
-    const timer = setTimeout(() => answer(_GAVE_UP), leftMs);
+    const timer = setTimeout(() => answer(_GAVE_UP), left.inMilliseconds);
     running.then(
       (value) => {
         clearTimeout(timer);

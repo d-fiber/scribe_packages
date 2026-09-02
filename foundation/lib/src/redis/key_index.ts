@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import type { Future } from "@scribe/alchemy";
 import { kv } from "./kv.ts";
 
 /**
@@ -64,7 +65,7 @@ export class KeyIndex {
   }
 
   /** Adds `entry` to the index of `subject`, and re-arms the expiry. */
-  async remember(subject: string, entry: string): Promise<boolean> {
+  async remember(subject: string, entry: string): Future<boolean> {
     try {
       const key = this.keyOf(subject);
       await kv().sadd(key, entry);
@@ -77,7 +78,7 @@ export class KeyIndex {
   }
 
   /** Everything indexed for `subject`, or nothing when the index cannot answer. */
-  async members(subject: string): Promise<string[]> {
+  async members(subject: string): Future<string[]> {
     try {
       return await kv().smembers(this.keyOf(subject));
     } catch (e) {
@@ -94,7 +95,7 @@ export class KeyIndex {
    * key holding a large set is freed on a background thread instead of blocking Redis's single
    * command thread for as long as the free takes.
    */
-  async forget(subject: string): Promise<void> {
+  async forget(subject: string): Future<void> {
     try {
       await kv().unlink(this.keyOf(subject));
     } catch (e) {

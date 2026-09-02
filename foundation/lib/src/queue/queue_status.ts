@@ -34,9 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Future } from "@scribe/alchemy";
+import { DateTime, Duration, Future } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
-import { Duration } from "@scribe/alchemy";
 import { delayedCounts } from "./delayed/delayed_counts.ts";
 import type { QueueMode, RegisteredQueue } from "./queue_declaration.ts";
 import { DEAD_STREAM, streamOf } from "./queue_naming.ts";
@@ -73,7 +72,7 @@ class QueueStatusReader {
   async all(): Future<QueueStatus[]> {
     const delayed = await this.#delayed();
 
-    return await Promise.all(
+    return await Future.wait(
       queueRegistry
         .list()
         .map((queue) => this.#read(queue, delayed[queue.name] ?? 0)),
@@ -98,7 +97,7 @@ class QueueStatusReader {
   }
 
   async #read(queue: RegisteredQueue, delayed: number): Future<QueueStatus> {
-    const [pending, dead] = await Promise.all([
+    const [pending, dead] = await Future.wait([
       topology.countBySubject(streamOf(queue.dedicated), queue.subject),
       topology.countBySubject(DEAD_STREAM, queue.deadSubject),
     ]);
@@ -127,7 +126,7 @@ class QueueStatusReader {
    */
   async #delayed(): Future<Record<string, number>> {
     const held = _lastCounts;
-    if (held !== null && Date.now() - held.readAt < COUNTS_HELD_FOR.inMilliseconds) {
+    if (held !== null && DateTime.now().difference(held.readAt) < COUNTS_HELD_FOR) {
       return held.counts;
     }
 
@@ -138,7 +137,7 @@ class QueueStatusReader {
       });
     }
 
-    _lastCounts = { counts: counts.counts, readAt: Date.now() };
+    _lastCounts = { counts: counts.counts, readAt: DateTime.now() };
     return counts.counts;
   }
 }
@@ -147,7 +146,7 @@ class QueueStatusReader {
 const COUNTS_HELD_FOR: Duration = Duration.seconds(1);
 
 /** The last reading of the delayed set, and when it was taken. */
-let _lastCounts: { counts: Record<string, number>; readAt: number } | null = null;
+let _lastCounts: { counts: Record<string, number>; readAt: DateTime } | null = null;
 
 /** Reads the standing of one queue or of all of them. */
 export const queueStatus: QueueStatusReader = new QueueStatusReader();

@@ -374,7 +374,7 @@ function changeOf(event: TriggerEvent, param: string): AnyChange {
     table: event.table,
     key: event.key,
     params: { [param]: event.key },
-    at: DateTime.fromMillisecondsSinceEpoch(new Date(event.at).getTime()),
+    at: DateTime.parse(event.at),
   };
 
   if (event.field === null) {

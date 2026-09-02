@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Duration, type Future } from "@scribe/alchemy";
+import { Duration, type Future, Uuid } from "@scribe/alchemy";
 import { kv } from "../../redis/kv.ts";
 import { lockCommands } from "./lock_commands.ts";
 
@@ -87,7 +87,7 @@ export class DistributedLock {
    * would be neither, which is why there is a parameter rather than a policy here.
    */
   async acquire(lockKey: string, heldFor: Duration = DEFAULT_LOCK_HOLD): Future<LockOutcome> {
-    const token = crypto.randomUUID();
+    const token = Uuid.v4();
 
     try {
       const claimed = await kv().set(lockKey, token, "PX", heldFor.inMilliseconds, "NX");

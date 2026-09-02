@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { ClaimDriver, ClaimOptions } from "@scribe/alchemy";
+import type { ClaimDriver, ClaimOptions, Future } from "@scribe/alchemy";
 import { kv } from "./kv.ts";
 
 /**
@@ -51,7 +51,7 @@ export class RedisClaims implements ClaimDriver {
    * caller Redis answers `OK` to. Falls back to `options.whenUnavailable === "allow"` when the
    * store cannot be reached, rather than deciding the claim by default.
    */
-  async claim(key: string, ttlSeconds: number, options: ClaimOptions): Promise<boolean> {
+  async claim(key: string, ttlSeconds: number, options: ClaimOptions): Future<boolean> {
     try {
       return await kv().set(key, "1", "EX", ttlSeconds, "NX") === "OK";
     } catch (raised) {

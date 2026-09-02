@@ -178,7 +178,7 @@ Scribe.test("a parked job scores the instant it becomes due, read from the clock
   try {
     await pushDelayed("test:delayed:target", "q.test_delayed_target", {
       to: "a",
-    }, 90_000);
+    }, Duration.milliseconds(90_000));
 
     expect(store.parked.length, equals(1));
     expect(store.parked[0].score, equals(EPOCH + 90_000));
@@ -213,7 +213,7 @@ Scribe.test("a clock that walks back between the push and the pass holds the job
   try {
     await pushDelayed("test:delayed:target", "q.test_delayed_target", {
       to: "a",
-    }, 1_000);
+    }, Duration.milliseconds(1_000));
 
     clock.set(EPOCH - Duration.hours(1).inMilliseconds);
     expect(await promoteDue(), equals(0));
@@ -240,7 +240,7 @@ Scribe.test("an infinite delay parks a job no pass will ever find", async () => 
   try {
     await pushDelayed("test:delayed:target", "q.test_delayed_target", {
       to: "a",
-    }, Infinity);
+    }, Duration.milliseconds(Infinity));
 
     expect(store.parked[0].score, equals(Infinity));
     clock.pass(Duration.days(3_650));

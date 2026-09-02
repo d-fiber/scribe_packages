@@ -37,7 +37,7 @@
 import { BackgroundChannel } from "./background_channel.ts";
 import type { BackgroundHookHandler, HookHandler } from "./hook_handler.ts";
 import { InlineChain } from "./inline_chain.ts";
-import type { Future } from "@scribe/alchemy";
+import { Future } from "@scribe/alchemy";
 import { isRefusal } from "./is_refusal.ts";
 import { hookRegistry } from "./hook_registry.ts";
 
@@ -97,7 +97,7 @@ export class Hook<T, R = void> {
     this.name = definition.name;
     this.#inline = new InlineChain<T, R>(definition.name, definition.fallback as R);
     this.#background = new BackgroundChannel<T>(definition.name);
-    this.#unhandled = Promise.resolve(definition.fallback as R);
+    this.#unhandled = Future.value(definition.fallback as R);
     hookRegistry.add(this);
   }
 

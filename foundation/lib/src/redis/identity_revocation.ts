@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import type { Future } from "@scribe/alchemy";
 import { KeyIndex } from "./key_index.ts";
 import { kv } from "./kv.ts";
 
@@ -77,7 +78,7 @@ export class IdentityRevocation {
     userId: string,
     fingerprint: string,
     ttlSeconds: number,
-  ): Promise<boolean> {
+  ): Future<boolean> {
     return await _index(ttlSeconds).remember(userId, fingerprint);
   }
 
@@ -86,7 +87,7 @@ export class IdentityRevocation {
    * GoTrue until {@link RECHECK_WINDOW_SECONDS} has passed. Logs rather than throws on failure, so
    * a store outage never turns a revocation into an unhandled error.
    */
-  static async revoke(userId: string): Promise<void> {
+  static async revoke(userId: string): Future<void> {
     try {
       const index = _index(RECHECK_WINDOW_SECONDS);
       const fingerprints = await index.members(userId);
@@ -107,7 +108,7 @@ export class IdentityRevocation {
    * Fails closed: when Redis cannot answer, the caller is told to re-check, so
    * a revocation is never lost to an unavailable cache.
    */
-  static async recheckRequired(userId: string): Promise<boolean> {
+  static async recheckRequired(userId: string): Future<boolean> {
     try {
       return (await kv().exists(recheckKey(userId))) === 1;
     } catch (e) {
