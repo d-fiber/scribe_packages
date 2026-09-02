@@ -1,6 +1,6 @@
 name: auth
 description: "What an account is, from the sign up to a device it trusts: the doors, the sessions, the pending tokens and the bans."
-version: 1.0.1
+version: 1.0.0
 
 environment:
   scribe: "^1.0.0"
