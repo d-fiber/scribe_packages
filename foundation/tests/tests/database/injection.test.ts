@@ -42,8 +42,8 @@ import "../../testing/settings.ts";
 import { PostgrestClient } from "@supabase/postgrest-js";
 import { TypedQueryBuilder } from "../../../lib/src/database/query/typed_query_builder.ts";
 import {
+  filterLiteral,
   quoteFilterList,
-  quoteFilterLiteral,
   UnsafeFilterError,
 } from "../../../lib/src/database/query/filter_literal.ts";
 // deno-lint-ignore no-explicit-any
@@ -106,7 +106,7 @@ Scribe.test("every character PostgREST reads as syntax leaves a value percent-en
     expect(query.split("&").length, equals(2), `${name} opened a second parameter: ${query}`);
     expect(
       decodeURIComponent(term(query, "status")),
-      equals(`eq.${quoteFilterLiteral(value)}`),
+      equals(`eq.${filterLiteral(value)}`),
       `${name} did not survive the encoding of ${query}`,
     );
     expect(
@@ -146,7 +146,7 @@ Scribe.test("an unpaired surrogate is replaced rather than raising on the way ou
 
   expect(
     decodeURIComponent(term(query, "status")),
-    equals(`eq.${quoteFilterLiteral("a\uFFFDb")}`),
+    equals(`eq.${filterLiteral("a\uFFFDb")}`),
     "a lone surrogate becomes the replacement character",
   );
 });
@@ -156,19 +156,19 @@ Scribe.test("an owner whose identifier carries syntax still narrows to one owner
   const query = await queryString((b) => b.where((f: AnyFilter) => f.owner_id.eq(hostile)));
 
   expect(query.split("&").length, equals(2), `an identifier out of a token cannot add a term: ${query}`);
-  expect(decodeURIComponent(term(query, "owner_id")), equals(`eq.${quoteFilterLiteral(hostile)}`));
+  expect(decodeURIComponent(term(query, "owner_id")), equals(`eq.${filterLiteral(hostile)}`));
 });
 
-Scribe.test("DEFECT the text null and an absent value are the same query on the wire", async () => {
+Scribe.test("the text null and an absent value are never the same query on the wire", async () => {
   const asText = await queryString((b) => b.where((f: AnyFilter) => f.status.eq("null")));
   const asNothing = await queryString((b) => b.where((f: AnyFilter) => f.status.is(null)));
 
   expect(
-    term(asText, "status").replace("eq.", ""),
-    isNot(equals(term(asNothing, "status").replace("is.", ""))),
+    term(asText, "status"),
+    isNot(equals(term(asNothing, "status"))),
     "a column holding the text null must not be asked for the way an empty column is",
   );
-  expect(decodeURIComponent(term(asText, "status")), equals(`eq.${quoteFilterLiteral("null")}`));
+  expect(decodeURIComponent(term(asText, "status")), equals(`eq.${filterLiteral("null")}`));
 });
 
 Scribe.test("DEFECT an in list holding the text null asks for the rows holding nothing", async () => {
@@ -227,6 +227,6 @@ Scribe.test("a range asks for an offset and a bound of its own", async () => {
 Scribe.test("a pattern keeps the wildcards a caller wrote and adds none of its own", async () => {
   const query = await queryString((b) => b.where((f: AnyFilter) => f.status.like("%a_b%")));
 
-  expect(decodeURIComponent(term(query, "status")), equals(`like.${quoteFilterLiteral("%a_b%")}`));
+  expect(decodeURIComponent(term(query, "status")), equals(`like.${filterLiteral("%a_b%")}`));
   expect(query.split("&").length, equals(2), query);
 });

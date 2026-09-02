@@ -38,6 +38,7 @@ import "../../testing/settings.ts";
 
 import {
   assertPlainColumn,
+  filterLiteral,
   isFilterKeyword,
   keywordLiteral,
   quoteFilterList,
@@ -79,6 +80,26 @@ Scribe.test("numbers and booleans stay bare-typed rather than becoming strings",
   expect(quoteFilterLiteral(false), equals("false"));
   expect(quoteFilterLiteral(null), equals("null"));
   expect(quoteFilterLiteral(undefined), equals("null"));
+});
+
+Scribe.test("a filter compared on its own carries a reserved character as itself, not quoted", () => {
+  for (const char of RESERVED) {
+    expect(filterLiteral(`a${char}b`), equals(`a${char}b`));
+  }
+});
+
+Scribe.test("DEFECT quoting a filter compared on its own is what used to make it match nothing", () => {
+  expect(filterLiteral("banned"), equals("banned"));
+  expect(filterLiteral("banned") === quoteFilterLiteral("banned"), isFalse);
+});
+
+Scribe.test("numbers, booleans and null stay bare-typed the same way for a filter compared on its own", () => {
+  expect(filterLiteral(42), equals("42"));
+  expect(filterLiteral(-1.5), equals("-1.5"));
+  expect(filterLiteral(true), equals("true"));
+  expect(filterLiteral(false), equals("false"));
+  expect(filterLiteral(null), equals("null"));
+  expect(filterLiteral(undefined), equals("null"));
 });
 
 Scribe.test("a list keeps each element quoted so one member cannot add another", () => {

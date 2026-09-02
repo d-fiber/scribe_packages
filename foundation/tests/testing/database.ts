@@ -124,31 +124,31 @@ class FakeQueryBuilder implements PromiseLike<FakeAnswer> {
   }
 
   eq(col: string, value: unknown): this {
-    return this.#filter(col, (v) => v === value);
+    return this.#filter(col, (v) => v === coercedToRow(v, value));
   }
 
   neq(col: string, value: unknown): this {
-    return this.#filter(col, (v) => v !== value);
+    return this.#filter(col, (v) => v !== coercedToRow(v, value));
   }
 
   gt(col: string, value: unknown): this {
     // deno-lint-ignore no-explicit-any -- a fake row's column holds whatever the test fixture gave it, and this defers to the host's own comparison rather than pretending to know the type.
-    return this.#filter(col, (v) => v !== null && v !== undefined && (v as any) > (value as any));
+    return this.#filter(col, (v) => v !== null && v !== undefined && (v as any) > (coercedToRow(v, value) as any));
   }
 
   gte(col: string, value: unknown): this {
     // deno-lint-ignore no-explicit-any -- see gt: the value's real type is not known here.
-    return this.#filter(col, (v) => v !== null && v !== undefined && (v as any) >= (value as any));
+    return this.#filter(col, (v) => v !== null && v !== undefined && (v as any) >= (coercedToRow(v, value) as any));
   }
 
   lt(col: string, value: unknown): this {
     // deno-lint-ignore no-explicit-any -- see gt: the value's real type is not known here.
-    return this.#filter(col, (v) => v !== null && v !== undefined && (v as any) < (value as any));
+    return this.#filter(col, (v) => v !== null && v !== undefined && (v as any) < (coercedToRow(v, value) as any));
   }
 
   lte(col: string, value: unknown): this {
     // deno-lint-ignore no-explicit-any -- see gt: the value's real type is not known here.
-    return this.#filter(col, (v) => v !== null && v !== undefined && (v as any) <= (value as any));
+    return this.#filter(col, (v) => v !== null && v !== undefined && (v as any) <= (coercedToRow(v, value) as any));
   }
 
   is(col: string, value: unknown): this {
@@ -156,7 +156,7 @@ class FakeQueryBuilder implements PromiseLike<FakeAnswer> {
   }
 
   in(col: string, values: unknown[]): this {
-    return this.#filter(col, (v) => values.includes(v));
+    return this.#filter(col, (v) => values.some((value) => v === coercedToRow(v, value)));
   }
 
   like(col: string, pattern: string): this {
@@ -364,22 +364,51 @@ export class FakePostgrestClient {
   }
 }
 
-/** Decodes one value out of the quoted, escaped form `quoteFilterLiteral` writes for the wire. */
+/**
+ * Decodes one value out of the wire: the quoted, escaped form `quoteFilterLiteral` writes for a
+ * list member, or the bare form `filterLiteral` writes for a filter compared on its own.
+ *
+ * @remarks
+ * A bare literal answers back as the plain string it is, rather than as a number guessed from its
+ * digits: `filterLiteral` writes a real PostgREST server never learns whether "5" started as the
+ * number 5 or the string "5", because it reads the answer off the column's own declared type
+ * instead. This fake has no such schema, so the guess is deferred to {@link coercedToRow}, which
+ * reads it off the row a comparison is actually run against.
+ */
 function readFilterLiteral(literal: string): unknown {
   if (literal === "null") return null;
   if (literal === "unknown") return undefined;
   if (literal === "true") return true;
   if (literal === "false") return false;
-  if (!literal.startsWith('"')) {
-    const asNumber = Number(literal);
-    return literal !== "" && Number.isFinite(asNumber) ? asNumber : literal;
-  }
+  if (!literal.startsWith('"')) return literal;
 
   let read = "";
   for (let at = 1; at < literal.length - 1; at++) {
     read += literal[at] === "\\" ? literal[++at] : literal[at];
   }
   return read;
+}
+
+/**
+ * `value` adjusted to the type `rowValue` actually holds.
+ *
+ * @remarks
+ * `eq`, `neq`, `gt`, `lt`, `gte` and `lte` are called two ways: directly, with a value a test
+ * already typed by hand, and through `filter()`, with a bare wire string `readFilterLiteral` had
+ * no column type to decode against. The second case is what this answers: a row already holding a
+ * number or a boolean is what says the wire string was one too, the same way a real column's
+ * declared type would.
+ */
+function coercedToRow(rowValue: unknown, value: unknown): unknown {
+  if (typeof rowValue === "number" && typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : value;
+  }
+  if (typeof rowValue === "boolean" && typeof value === "string") {
+    if (value === "true") return true;
+    if (value === "false") return false;
+  }
+  return value;
 }
 
 /** Decodes the parenthesized, comma-separated form `quoteFilterList` writes for an `in` filter. */

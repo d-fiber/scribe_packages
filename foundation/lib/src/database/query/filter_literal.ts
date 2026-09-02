@@ -74,7 +74,32 @@ export function assertPlainColumn(column: string): string {
 }
 
 /**
- * `value` as PostgREST's filter syntax expects it to be written.
+ * `value` as a filter compared on its own, never as one term of a comma-delimited group, expects
+ * it to be written.
+ *
+ * @remarks
+ * A bare `column=operator.value` is not comma-delimited the way an `in` list or an `or`/`and`
+ * group is: nothing after the operator's dot is read as a second term, so there is nothing here
+ * for a quote to protect. Quoting one anyway is not a harmless extra: PostgREST does not decode a
+ * quoted value back to itself in this position, so `eq."banned"` matches no row that `eq.banned`
+ * would have. `null`, a boolean, a bigint and a finite number are still written bare, because
+ * PostgREST reads those forms back as themselves rather than as text — a string just passes
+ * through, and the query string's own percent-encoding is what keeps a `&` or a `=` inside it
+ * from being read as the start of another parameter.
+ */
+export function filterLiteral(value: unknown): string {
+  if (value === null || value === undefined) return "null";
+  if (typeof value === "boolean") return String(value);
+
+  if (typeof value === "bigint") return String(value);
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+
+  return typeof value === "string" ? value : JSON.stringify(value);
+}
+
+/**
+ * `value` as one term of a comma-delimited group — an `in` list or an `or`/`and` group — expects
+ * it to be written.
  *
  * @remarks
  * `null`, a boolean, and a finite number are written bare, because PostgREST reads those forms
