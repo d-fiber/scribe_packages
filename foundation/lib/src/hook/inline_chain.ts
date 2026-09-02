@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Duration, type Future, Stopwatch, TimeoutException, withDeadline } from "@scribe/alchemy";
+import { Duration, type Future, Stopwatch, TimeoutException, withDeadlineLite } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
 import type { HookHandler } from "./hook_handler.ts";
 import { isRefusal } from "./is_refusal.ts";
@@ -67,7 +67,11 @@ export class InlineChain<T, R> {
   readonly #within: Duration;
   #insideHandler = false;
 
-  constructor(hookName: string, fallback: R, within: Duration = HANDLER_CEILING) {
+  constructor(
+    hookName: string,
+    fallback: R,
+    within: Duration = HANDLER_CEILING,
+  ) {
     this.#hookName = hookName;
     this.#fallback = fallback;
     this.#within = within;
@@ -154,12 +158,20 @@ export class InlineChain<T, R> {
         }
 
         last = isThenable(answered)
-          ? await withDeadline(`hook:${this.#hookName}`, this.#within, Promise.resolve(answered))
+          ? await withDeadlineLite(
+            `hook:${this.#hookName}`,
+            this.#within,
+            Promise.resolve(answered),
+          )
           : answered;
       } catch (error) {
-        if (error instanceof TimeoutException) return this.#gaveUpOn(error, last);
+        if (error instanceof TimeoutException) {
+          return this.#gaveUpOn(error, last);
+        }
 
-        log.error("hook.handler_failed", { metadata: { hook: this.#hookName, error } });
+        log.error("hook.handler_failed", {
+          metadata: { hook: this.#hookName, error },
+        });
         throw error;
       }
       if (isRefusal(last)) return last;
@@ -199,7 +211,11 @@ export class InlineChain<T, R> {
     if (spent.compareTo(SLOW_CHAIN) < 0) return;
 
     log.warn("hook.chain_slow", {
-      metadata: { hook: this.#hookName, handlers: this.#handlers.length, took: spent.toString() },
+      metadata: {
+        hook: this.#hookName,
+        handlers: this.#handlers.length,
+        took: spent.toString(),
+      },
     });
   }
 }
