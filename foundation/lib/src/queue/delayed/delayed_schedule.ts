@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { DateTime, type Duration, type Future, Uuid } from "@scribe/alchemy";
+import { DateTime, type Duration, type Future } from "@scribe/alchemy";
 import { kv } from "../../redis/kv.ts";
 import { DELAYED_KEY, encodeMember } from "./delayed_member.ts";
 
@@ -50,7 +50,7 @@ export async function pushDelayed(
   data: unknown,
   delay: Duration,
 ): Future<string> {
-  const id = Uuid.v4();
+  const id = crypto.randomUUID();
 
   await kv().zadd(
     DELAYED_KEY,
