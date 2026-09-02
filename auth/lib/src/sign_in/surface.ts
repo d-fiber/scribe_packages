@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Result } from "@scribe/alchemy";
+import type { Future, Result } from "@scribe/alchemy";
 import { Channel } from "../../contracts/channel.ts";
 import {
   EmailCredential,
@@ -50,15 +50,15 @@ import { type SignedIn, SignInDoor, type SignInTarget } from "./runner.ts";
 
 type Door<TCredentials, TRefusal> = (
   input: TCredentials,
-) => Promise<Result<SignedIn, SignInError | TRefusal>>;
+) => Future<Result<SignedIn, SignInError | TRefusal>>;
 
 /** What a door that sends codes offers beyond signing in. */
 export interface OtpDoor {
   /** Sends another code for a challenge already open, and replaces its token. */
-  resend(pendingToken: string): Promise<Result<OtpStarted, OtpError>>;
+  resend(pendingToken: string): Future<Result<OtpStarted, OtpError>>;
 
   /** Exchanges a code for a session, and records the device it came from. */
-  verify(pendingToken: string, code: string): Promise<Result<OtpSession, OtpError>>;
+  verify(pendingToken: string, code: string): Future<Result<OtpSession, OtpError>>;
 }
 
 type Opens<TChannels extends readonly Channel[], C extends Channel, T> = C extends TChannels[number] ? T

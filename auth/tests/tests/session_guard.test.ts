@@ -35,6 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import "@scribe/runtime/scholium/runner.ts";
+import { DateTime } from "@scribe/alchemy";
 import { equals, expect, fail, isFalse, isTrue, Scribe } from "@scribe/alchemy/test";
 import { fakeDevice, withRequest } from "@scribe/testing/runtime/device.ts";
 import { installAuthTestSettings } from "../testing/settings.ts";
@@ -82,7 +83,7 @@ function device() {
     is_physical_device: true,
     device_category: fakeDevice().device_category,
     trusted: true,
-    seen_at: Date.now(),
+    seen_at: DateTime.now().millisecondsSinceEpoch,
   };
 }
 
@@ -90,7 +91,9 @@ function stack(seed: { banned?: boolean; device?: boolean }) {
   const database = installAuthMock({
     __accounts__: [account()],
     __account_devices__: seed.device === false ? [] : [device()],
-    __account_bans__: seed.banned ? [{ account_id: ACCOUNT, since: Date.now(), until: null, reason: "spam" }] : [],
+    __account_bans__: seed.banned
+      ? [{ account_id: ACCOUNT, since: DateTime.now().millisecondsSinceEpoch, until: null, reason: "spam" }]
+      : [],
   });
 
   const gotrue = installGoTrueMock({
@@ -143,8 +146,8 @@ Scribe.test("a ban whose deadline has passed lets the refresh through", async ()
     __account_devices__: [device()],
     __account_bans__: [{
       account_id: ACCOUNT,
-      since: Date.now() - 2000,
-      until: Date.now() - 1000,
+      since: DateTime.now().millisecondsSinceEpoch - 2000,
+      until: DateTime.now().millisecondsSinceEpoch - 1000,
       reason: null,
     }],
   });
@@ -183,7 +186,12 @@ Scribe.test("a recovery is held to the same two conditions as a refresh", async 
 Scribe.test("the role scopes a ban read, so another role's ban is not this one's", async () => {
   const database = installAuthMock({
     __accounts__: [{ id: ACCOUNT, role: "somebody-else", email: null, phone: null }],
-    __account_bans__: [{ account_id: ACCOUNT, since: Date.now(), until: null, reason: "spam" }],
+    __account_bans__: [{
+      account_id: ACCOUNT,
+      since: DateTime.now().millisecondsSinceEpoch,
+      until: null,
+      reason: "spam",
+    }],
   });
 
   try {

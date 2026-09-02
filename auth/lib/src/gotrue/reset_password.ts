@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { AccountRole } from "../../contracts/role.ts";
-import type { Result } from "@scribe/alchemy";
+import type { Future, Result } from "@scribe/alchemy";
 import { anonHeaders, type AuthError, authUrl, requestAuthVoid } from "./transport.ts";
 
 /**
@@ -57,7 +57,7 @@ export class GoTrueResetPassword {
   recoverPasswordByEmail(
     email: string,
     role: AccountRole,
-  ): Promise<Result<void, AuthError>> {
+  ): Future<Result<void, AuthError>> {
     return requestAuthVoid(`${authUrl()}/recover`, {
       method: "POST",
       headers: anonHeaders(),

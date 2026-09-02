@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import type { Future } from "@scribe/alchemy";
 import { wrote } from "@scribe/foundation/database";
 import type { RequestDevice } from "@scribe/contracts/device.ts";
 import type { DeviceCategory, DeviceOs } from "@scribe/contracts/enums.ts";
@@ -100,7 +101,7 @@ export interface DeviceOrigin {
  */
 export class DeviceRepository {
   /** The record identifier of this device, or null when the account has never used it. */
-  async idOf(accountId: string, deviceId: string): Promise<string | null> {
+  async idOf(accountId: string, deviceId: string): Future<string | null> {
     const row = await accountDevices()
       .unscoped()
       .select((s) => ({ id: s.id }))
@@ -111,7 +112,7 @@ export class DeviceRepository {
   }
 
   /** Mints a new token for a device already known, and answers it. */
-  async renew(accountId: string, id: string): Promise<string | null> {
+  async renew(accountId: string, id: string): Future<string | null> {
     const { token, hash } = await DeviceToken.generate();
 
     const renewed = await accountDevices()
@@ -123,7 +124,7 @@ export class DeviceRepository {
   }
 
   /** Writes the device the request came from, and answers the token its client has to keep. */
-  async register(accountId: string): Promise<DeviceRegistration | null> {
+  async register(accountId: string): Future<DeviceRegistration | null> {
     const device = await requestDevice();
     if (!device) return null;
 
@@ -151,7 +152,7 @@ export class DeviceRepository {
   }
 
   /** Writes down where the last request came from. */
-  origin(accountId: string, deviceId: string, origin: DeviceOrigin): Promise<boolean> {
+  origin(accountId: string, deviceId: string, origin: DeviceOrigin): Future<boolean> {
     return accountDevices()
       .unscoped()
       .where((f) => [f.account_id.eq(accountId), f.device_id.eq(deviceId)])
@@ -164,7 +165,7 @@ export class DeviceRepository {
   }
 
   /** Removes the device, which is what a kick does once the hook has been told. */
-  remove(accountId: string, deviceId: string): Promise<boolean> {
+  remove(accountId: string, deviceId: string): Future<boolean> {
     return accountDevices()
       .unscoped()
       .where((f) => [f.account_id.eq(accountId), f.device_id.eq(deviceId)])
@@ -172,7 +173,7 @@ export class DeviceRepository {
   }
 
   /** What the client reported about this device's hardware, or null when it is unknown. */
-  hardware(accountId: string, deviceId: string): Promise<DeviceHardware | null> {
+  hardware(accountId: string, deviceId: string): Future<DeviceHardware | null> {
     return accountDevices()
       .unscoped()
       .select((s) => ({
@@ -186,7 +187,7 @@ export class DeviceRepository {
   }
 
   /** What is known about this device's trust, or null when the account has never used it. */
-  trust(accountId: string, deviceId: string): Promise<DeviceTrust | null> {
+  trust(accountId: string, deviceId: string): Future<DeviceTrust | null> {
     return accountDevices()
       .unscoped()
       .select((s) => ({ hash: s.hash, seen_at: s.seen_at }))
@@ -195,7 +196,7 @@ export class DeviceRepository {
   }
 
   /** One device of this account, or null when it has never used it. */
-  async get(accountId: string, deviceId: string): Promise<AccountDevice | null> {
+  async get(accountId: string, deviceId: string): Future<AccountDevice | null> {
     const row = await accountDevices()
       .unscoped()
       .select((s) => ({
@@ -223,7 +224,7 @@ export class DeviceRepository {
   }
 
   /** Every device this account signs in from. */
-  async all(accountId: string): Promise<AccountDevice[]> {
+  async all(accountId: string): Future<AccountDevice[]> {
     const rows = await accountDevices()
       .unscoped()
       .select((s) => ({

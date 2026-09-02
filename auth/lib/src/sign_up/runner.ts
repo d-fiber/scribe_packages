@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Duration } from "@scribe/alchemy";
-import { Failure, Ok, type Result } from "@scribe/alchemy";
+import { Failure, type Future, Ok, type Result } from "@scribe/alchemy";
 import { requestDevice } from "@scribe/runtime/device/device.ts";
 import { checkCaller } from "@scribe/runtime/http/caller.ts";
 import { rateLimit } from "@scribe/alchemy";
@@ -74,10 +74,10 @@ export interface SignUpTarget<TSignUp extends WriteShape> {
       readonly emailVerified?: boolean;
       readonly phoneVerified?: boolean;
     },
-  ): Promise<boolean>;
+  ): Future<boolean>;
 
   /** Removes the account, which is what undoes a sign-up the hook refused. */
-  forget(id: string): Promise<void>;
+  forget(id: string): Future<void>;
 }
 
 function callerLimit(role: string, channel: Channel): RateLimiter {
@@ -134,7 +134,7 @@ export class SignUpDoor<TInput, TSignUp extends WriteShape> {
   /** Creates the account, or answers what stopped it. */
   async run(
     input: TInput & WriteOf<TSignUp>,
-  ): Promise<SignUpResult<SignUpError>> {
+  ): Future<SignUpResult<SignUpError>> {
     const caller = await checkCaller(this.#caller);
     if (!caller.ok) return new Failure(SignUpError.TooManyRequests);
 
@@ -182,7 +182,7 @@ export class SignUpDoor<TInput, TSignUp extends WriteShape> {
     return new Ok({ device_token: token });
   }
 
-  async #undo(id: string): Promise<void> {
+  async #undo(id: string): Future<void> {
     await this.#target.forget(id);
     await goTrue.user.delete(id);
   }

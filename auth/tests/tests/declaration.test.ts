@@ -36,7 +36,7 @@
 
 import "@scribe/runtime/scholium/runner.ts";
 import { allOf, equals, expect, fail, isA, isTrue, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
-import { Duration } from "@scribe/alchemy";
+import { DateTime, Duration } from "@scribe/alchemy";
 import { Failure, okay } from "@scribe/alchemy";
 import type { RequestDevice } from "@scribe/contracts/device.ts";
 import { BanError } from "../../lib/src/bans.ts";
@@ -210,8 +210,8 @@ Scribe.test("a ban whose deadline has passed stops answering", async () => {
   const auth = seeded();
   auth.seed("__account_bans__", [{
     account_id: "a1",
-    since: Date.now() - Duration.days(2).inMilliseconds,
-    until: Date.now() - Duration.days(1).inMilliseconds,
+    since: DateTime.now().subtract(Duration.days(2)).millisecondsSinceEpoch,
+    until: DateTime.now().subtract(Duration.days(1)).millisecondsSinceEpoch,
     reason: null,
   }]);
 

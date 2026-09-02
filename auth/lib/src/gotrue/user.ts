@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { AccountRole } from "../../contracts/role.ts";
-import { Failure, okay, type Result } from "@scribe/alchemy";
+import { Failure, type Future, okay, type Result } from "@scribe/alchemy";
 import {
   adminHeaders,
   type AuthError,
@@ -56,7 +56,7 @@ class GoTrueUserEmail {
   update(
     userId: string,
     email: string,
-  ): Promise<Result<GoTrueUserRecord, AuthError>> {
+  ): Future<Result<GoTrueUserRecord, AuthError>> {
     return requestAuth(userUrl(userId), {
       method: "PUT",
       headers: adminHeaders(),
@@ -71,7 +71,7 @@ class GoTrueUserPassword {
   update(
     userId: string,
     password: string,
-  ): Promise<Result<GoTrueUserRecord, AuthError>> {
+  ): Future<Result<GoTrueUserRecord, AuthError>> {
     return requestAuth(userUrl(userId), {
       method: "PUT",
       headers: adminHeaders(),
@@ -86,7 +86,7 @@ class GoTrueUserPhone {
   update(
     userId: string,
     phone: string,
-  ): Promise<Result<GoTrueUserRecord, AuthError>> {
+  ): Future<Result<GoTrueUserRecord, AuthError>> {
     return requestAuth(userUrl(userId), {
       method: "PUT",
       headers: adminHeaders(),
@@ -104,7 +104,7 @@ class GoTrueUserRole {
   update(
     userId: string,
     role: AccountRole,
-  ): Promise<Result<GoTrueUserRecord, AuthError>> {
+  ): Future<Result<GoTrueUserRecord, AuthError>> {
     return requestAuth(userUrl(userId), {
       method: "PUT",
       headers: adminHeaders(),
@@ -128,7 +128,7 @@ export class GoTrueUser {
   readonly role = new GoTrueUserRole();
 
   /** Deletes the GoTrue account `userId` names, treating an account already gone as success. */
-  async delete(userId: string): Promise<Result<void, AuthError>> {
+  async delete(userId: string): Future<Result<void, AuthError>> {
     const res = await sendAuth(userUrl(userId), {
       method: "DELETE",
       headers: adminHeaders(),

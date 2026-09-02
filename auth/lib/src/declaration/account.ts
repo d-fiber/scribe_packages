@@ -36,7 +36,7 @@
 
 import type { IpLocation } from "@scribe/alchemy/route";
 import type { RequestDevice } from "@scribe/contracts/device.ts";
-import { Failure, okay, type Result } from "@scribe/alchemy";
+import { Failure, type Future, type FutureOr, okay, type Result } from "@scribe/alchemy";
 import { Table } from "@scribe/foundation/database";
 import type { AccountIdentity, AccountRow, SignInContext } from "../../contracts/account.ts";
 import type { Channel } from "../../contracts/channel.ts";
@@ -127,7 +127,7 @@ export interface AccountOptions<
    */
   readonly signIn?: (
     context: SignInContext<AccountIdentity & ReadOf<TGet>>,
-  ) => Promise<Result<void, TRefusal>> | Result<void, TRefusal>;
+  ) => FutureOr<Result<void, TRefusal>>;
 }
 
 /** Why the engine turned a sign-in away before the role's own condition was asked. */
@@ -151,7 +151,7 @@ export class RoleDevices {
   }
 
   /** Every device this account signs in from, or an empty list when it holds another role. */
-  async of(accountId: string): Promise<AccountDevice[]> {
+  async of(accountId: string): Future<AccountDevice[]> {
     return (await this.#holds(accountId)) ? await devices.of(accountId) : [];
   }
 
@@ -159,22 +159,22 @@ export class RoleDevices {
   async get(
     accountId: string,
     deviceId: string,
-  ): Promise<AccountDevice | null> {
+  ): Future<AccountDevice | null> {
     return (await this.#holds(accountId)) ? await devices.get(accountId, deviceId) : null;
   }
 
   /** Throws one device out, along with every session it holds. */
-  async kick(accountId: string, deviceId: string): Promise<boolean> {
+  async kick(accountId: string, deviceId: string): Future<boolean> {
     return (await this.#holds(accountId)) ? await devices.kick(accountId, deviceId) : false;
   }
 
   /** Throws every device of this account out. */
-  async kickAll(accountId: string): Promise<void> {
+  async kickAll(accountId: string): Future<void> {
     if (await this.#holds(accountId)) await devices.kickAll(accountId);
   }
 
   /** Whether the account `id` names holds this role. */
-  #holds(accountId: string): Promise<boolean> {
+  #holds(accountId: string): Future<boolean> {
     return AccountRoleResolver.holds(accountId, this.#role);
   }
 }
@@ -297,7 +297,7 @@ export class AccountDeclaration<
    * The account, with everything this role folds in, or null when no account of this role has
    * that identifier.
    */
-  async get(id: string): Promise<(AccountIdentity & ReadOf<TGet>) | null> {
+  async get(id: string): Future<(AccountIdentity & ReadOf<TGet>) | null> {
     const row = await accounts()
       .unscoped()
       .selectRaw<Record<string, unknown>>(this.#select)
@@ -336,7 +336,7 @@ export class AccountDeclaration<
       /** Whether the number is already proven. */
       readonly phoneVerified?: boolean;
     },
-  ): Promise<boolean> {
+  ): Future<boolean> {
     const written = await accounts().insert({
       id: identity.id,
       role: this.name,
@@ -365,7 +365,7 @@ export class AccountDeclaration<
   }
 
   /** Removes the account and, by the foreign keys that point at it, everything hanging off it. */
-  async forget(id: string): Promise<void> {
+  async forget(id: string): Future<void> {
     await accounts()
       .unscoped()
       .where((f) => [f.id.eq(id), f.role.eq(this.name)])
@@ -383,7 +383,7 @@ export class AccountDeclaration<
     device: RequestDevice,
     location: IpLocation,
     channel: Channel,
-  ): Promise<Result<void, TRefusal | SignInRefusal>> {
+  ): Future<Result<void, TRefusal | SignInRefusal>> {
     if (account.banned !== null) return new Failure(SignInRefusal.Banned);
 
     const condition = this.#options.signIn;

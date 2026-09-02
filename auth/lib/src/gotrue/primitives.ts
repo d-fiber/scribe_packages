@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { authSettings } from "../settings.ts";
-import { Failure, type Result } from "@scribe/alchemy";
+import { Failure, Future, type Result } from "@scribe/alchemy";
 import { SocialProvider } from "@scribe/contracts/enums.ts";
 import { anonHeaders, type AuthError, authUrl, type GoTrueSessionResponse, requestAuth } from "./transport.ts";
 
@@ -73,9 +73,9 @@ export function requestIdTokenExchange(
   idToken: string,
   nonce: string,
   accessToken?: string,
-): Promise<Result<GoTrueSessionResponse, AuthError>> {
+): Future<Result<GoTrueSessionResponse, AuthError>> {
   if (!isSocialProviderConfigured(provider)) {
-    return Promise.resolve(new Failure(socialNotConfiguredError(provider)));
+    return Future.value(new Failure(socialNotConfiguredError(provider)));
   }
   return requestAuth(`${authUrl()}/token?grant_type=id_token`, {
     method: "POST",

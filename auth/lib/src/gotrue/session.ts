@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { SignOutScope } from "../../contracts/account.ts";
-import type { Result } from "@scribe/alchemy";
+import type { Future, Result } from "@scribe/alchemy";
 import {
   adminHeaders,
   anonHeaders,
@@ -60,7 +60,7 @@ export class GoTrueSession {
   /** Exchanges `refreshToken` for a new session, as GoTrue's own refresh grant answers it. */
   refreshToken(
     refreshToken: string,
-  ): Promise<Result<GoTrueSessionResponse, AuthError>> {
+  ): Future<Result<GoTrueSessionResponse, AuthError>> {
     return requestAuth(`${authUrl()}/token?grant_type=refresh_token`, {
       method: "POST",
       headers: anonHeaders(),
@@ -69,7 +69,7 @@ export class GoTrueSession {
   }
 
   /** The GoTrue user `accessToken` names. */
-  user(accessToken: string): Promise<Result<GoTrueUser, AuthError>> {
+  user(accessToken: string): Future<Result<GoTrueUser, AuthError>> {
     return requestAuth(`${authUrl()}/user`, {
       method: "GET",
       headers: userHeaders(accessToken),
@@ -80,7 +80,7 @@ export class GoTrueSession {
   updateIdentifier(
     accessToken: string,
     identifier: { email: string } | { phone: string },
-  ): Promise<Result<GoTrueUser, AuthError>> {
+  ): Future<Result<GoTrueUser, AuthError>> {
     return requestAuth(`${authUrl()}/user`, {
       method: "PUT",
       headers: userHeaders(accessToken),
@@ -92,7 +92,7 @@ export class GoTrueSession {
   verifyPhoneChange(
     phone: string,
     otp: string,
-  ): Promise<Result<GoTrueUser, AuthError>> {
+  ): Future<Result<GoTrueUser, AuthError>> {
     return requestAuth(`${authUrl()}/verify`, {
       method: "POST",
       headers: anonHeaders(),
@@ -104,7 +104,7 @@ export class GoTrueSession {
   unlinkIdentity(
     accessToken: string,
     identityId: string,
-  ): Promise<Result<void, AuthError>> {
+  ): Future<Result<void, AuthError>> {
     return requestAuthVoid(
       `${authUrl()}/user/identities/${encodeURIComponent(identityId)}`,
       {
@@ -118,7 +118,7 @@ export class GoTrueSession {
   logout(
     accessToken: string,
     scope: SignOutScope,
-  ): Promise<Result<void, AuthError>> {
+  ): Future<Result<void, AuthError>> {
     return requestAuthVoid(`${authUrl()}/logout?scope=${scope}`, {
       method: "POST",
       headers: { ...adminHeaders(), Authorization: `Bearer ${accessToken}` },

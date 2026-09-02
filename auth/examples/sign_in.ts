@@ -1,3 +1,4 @@
+import type { Future } from "@scribe/alchemy";
 import { SignInRefusal } from "@scribe/auth/declaration";
 import { OtpError, SignInError } from "@scribe/auth/sign_in";
 import { user, UserRefusal } from "./declaration.ts";
@@ -15,7 +16,7 @@ export type SignInOutcome =
  * back is what the caller returns with. The two answers are told apart by what the result holds,
  * so a route cannot forget the second case.
  */
-export async function withEmail(email: string, password: string): Promise<SignInOutcome> {
+export async function withEmail(email: string, password: string): Future<SignInOutcome> {
   const answer = await user.signIn.email({ email, password });
 
   if (!answer.ok) return { kind: "refused", reason: reasonOf(answer.error) };
@@ -27,7 +28,7 @@ export async function withEmail(email: string, password: string): Promise<SignIn
 }
 
 /** Ending the challenge, which is where a new device earns its session and its token. */
-export async function withCode(pendingToken: string, code: string): Promise<SignInOutcome> {
+export async function withCode(pendingToken: string, code: string): Future<SignInOutcome> {
   const answer = await user.signIn.email.verify(pendingToken, code);
 
   if (!answer.ok) {
@@ -41,13 +42,13 @@ export async function withCode(pendingToken: string, code: string): Promise<Sign
 }
 
 /** Sending another code, which replaces the pending token rather than keeping it alive. */
-export async function resend(pendingToken: string): Promise<string | null> {
+export async function resend(pendingToken: string): Future<string | null> {
   const answer = await user.signIn.email.resend(pendingToken);
   return answer.ok ? answer.data.pendingToken : null;
 }
 
 /** An identity another provider vouched for never sends a code, so it has no exchange to offer. */
-export async function withGoogle(idToken: string, nonce: string): Promise<SignInOutcome> {
+export async function withGoogle(idToken: string, nonce: string): Future<SignInOutcome> {
   const answer = await user.signIn.google({ idToken, nonce });
 
   if (!answer.ok) return { kind: "refused", reason: reasonOf(answer.error) };

@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Failure, Ok, type Result } from "@scribe/alchemy";
+import { Failure, Future, Ok, type Result } from "@scribe/alchemy";
 import { SocialProvider } from "@scribe/contracts/enums.ts";
 import { isPhoneProviderConfigured, phoneNotConfiguredError, requestIdTokenExchange } from "./primitives.ts";
 import {
@@ -53,7 +53,7 @@ export class GoTrueSignUp {
   createUserWithEmail(
     email: string,
     password: string,
-  ): Promise<Result<GoTrueSessionResponse, AuthError>> {
+  ): Future<Result<GoTrueSessionResponse, AuthError>> {
     return requestAuth(`${authUrl()}/signup`, {
       method: "POST",
       headers: anonHeaders(),
@@ -68,7 +68,7 @@ export class GoTrueSignUp {
   async createConfirmedUserWithEmail(
     email: string,
     password: string,
-  ): Promise<Result<GoTrueSessionResponse, AuthError>> {
+  ): Future<Result<GoTrueSessionResponse, AuthError>> {
     const response = await requestAuth<GoTrueUser>(
       `${authUrl()}/admin/users`,
       {
@@ -92,9 +92,9 @@ export class GoTrueSignUp {
     phone: string,
     password: string,
     channel: "sms" | "whatsapp" = "sms",
-  ): Promise<Result<GoTrueSessionResponse, AuthError>> {
+  ): Future<Result<GoTrueSessionResponse, AuthError>> {
     if (!isPhoneProviderConfigured()) {
-      return Promise.resolve(new Failure(phoneNotConfiguredError));
+      return Future.value(new Failure(phoneNotConfiguredError));
     }
     return requestAuth(`${authUrl()}/signup`, {
       method: "POST",
@@ -108,7 +108,7 @@ export class GoTrueSignUp {
     idToken: string,
     nonce: string,
     accessToken?: string,
-  ): Promise<Result<GoTrueSessionResponse, AuthError>> {
+  ): Future<Result<GoTrueSessionResponse, AuthError>> {
     return requestIdTokenExchange(
       SocialProvider.GOOGLE,
       idToken,
@@ -122,7 +122,7 @@ export class GoTrueSignUp {
     idToken: string,
     nonce: string,
     accessToken?: string,
-  ): Promise<Result<GoTrueSessionResponse, AuthError>> {
+  ): Future<Result<GoTrueSessionResponse, AuthError>> {
     return requestIdTokenExchange(
       SocialProvider.APPLE,
       idToken,

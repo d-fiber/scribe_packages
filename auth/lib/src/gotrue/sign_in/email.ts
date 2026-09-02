@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Result } from "@scribe/alchemy";
+import type { Future, Result } from "@scribe/alchemy";
 import type { AccountRole } from "../../../contracts/role.ts";
 import {
   anonHeaders,
@@ -52,7 +52,7 @@ class GoTrueSignInEmailOtp {
     email: string,
     role: AccountRole,
     createUser = false,
-  ): Promise<Result<void, AuthError>> {
+  ): Future<Result<void, AuthError>> {
     return requestAuthVoid(`${authUrl()}/otp`, {
       method: "POST",
       headers: anonHeaders(),
@@ -64,7 +64,7 @@ class GoTrueSignInEmailOtp {
   verify(
     email: string,
     otp: string,
-  ): Promise<Result<GoTrueSessionResponse, AuthError>> {
+  ): Future<Result<GoTrueSessionResponse, AuthError>> {
     return requestAuth(`${authUrl()}/verify`, {
       method: "POST",
       headers: anonHeaders(),
@@ -95,7 +95,7 @@ export class GoTrueSignInEmail {
   withPassword(
     email: string,
     password: string,
-  ): Promise<Result<GoTrueSessionResponse, AuthError>> {
+  ): Future<Result<GoTrueSessionResponse, AuthError>> {
     return requestAuth(`${authUrl()}/token?grant_type=password`, {
       method: "POST",
       headers: anonHeaders(),
@@ -114,7 +114,7 @@ export class GoTrueSignInEmail {
   verifyToken(
     tokenHash: string,
     type: string,
-  ): Promise<Result<GoTrueSessionResponse, AuthError>> {
+  ): Future<Result<GoTrueSessionResponse, AuthError>> {
     return requestAuth(`${authUrl()}/verify`, {
       method: "POST",
       headers: anonHeaders(),
@@ -132,7 +132,7 @@ export class GoTrueSignInEmail {
   resendConfirmation(
     email: string,
     role: AccountRole,
-  ): Promise<Result<void, AuthError>> {
+  ): Future<Result<void, AuthError>> {
     return requestAuthVoid(`${authUrl()}/resend`, {
       method: "POST",
       headers: anonHeaders(),

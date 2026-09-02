@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import { Future } from "@scribe/alchemy";
 import { SignOutScope } from "../contracts/account.ts";
 import { IdentityRevocation } from "@scribe/foundation/redis";
 import { goTrue } from "./gotrue/gotrue_client.ts";
@@ -50,9 +51,9 @@ import { roleCache } from "./identity.ts";
  */
 export class AccountRevocation {
   /** Ends every session of the account and drops everything remembered about it. */
-  static async sessions(id: string, accessToken: string | null): Promise<void> {
-    await Promise.all([
-      accessToken ? this.session(accessToken, SignOutScope.Global) : Promise.resolve(),
+  static async sessions(id: string, accessToken: string | null): Future<void> {
+    await Future.wait([
+      accessToken ? this.session(accessToken, SignOutScope.Global) : Future.value(undefined),
       this.caches(id),
     ]);
   }
@@ -63,7 +64,7 @@ export class AccountRevocation {
    * It never throws: a sign-out that failed at the provider must not stop the caches from being
    * dropped, since those are what the next request reads.
    */
-  static async session(accessToken: string, scope: SignOutScope = SignOutScope.Local): Promise<void> {
+  static async session(accessToken: string, scope: SignOutScope = SignOutScope.Local): Future<void> {
     try {
       const answer = await goTrue.session.logout(accessToken, scope);
       if (!answer.ok) {
@@ -77,8 +78,8 @@ export class AccountRevocation {
   }
 
   /** Drops every store that remembers something about this account. */
-  static async caches(id: string): Promise<void> {
-    await Promise.all([
+  static async caches(id: string): Future<void> {
+    await Future.wait([
       IdentityRevocation.revoke(id),
       roleCache.invalidate(id),
       sessionIdempotence.invalidate(id),

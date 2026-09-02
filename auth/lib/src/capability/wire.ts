@@ -74,7 +74,7 @@ import {
   RoleListResultSchema,
   RoleSchema,
 } from "@scribe/sdk/gen/scribe/packages/auth/protocol/auth_pb.ts";
-import { Duration } from "@scribe/alchemy";
+import { Duration, Future } from "@scribe/alchemy";
 import { type Ban } from "../../auth.ts";
 import { accountNamed, type AnyAccount, AUTH_EXTENSION, declaredAccounts } from "../../declaration.ts";
 import { extensions } from "@scribe/runtime/support/extensions/mod.ts";
@@ -105,7 +105,7 @@ function failed(scope: string, cause: unknown): { code: string; message: string 
  * can land in a process that never imported the file declaring it, so loading here is what makes a
  * role findable by name wherever the call arrives. The registry runs it once per process.
  */
-async function declarationOf(role: string): Promise<AnyAccount | null> {
+async function declarationOf(role: string): Future<AnyAccount | null> {
   if (!role) return null;
 
   await extensions.load(AUTH_EXTENSION);
@@ -132,7 +132,7 @@ function banOf(ban: Ban): BanMessage {
  * account, because a caller that cannot tell the two apart from a blank answer would treat a
  * typo in a role name as a deleted account.
  */
-export async function authGetAccount(request: AccountRequest): Promise<AccountResult> {
+export async function authGetAccount(request: AccountRequest): Future<AccountResult> {
   const declaration = await declarationOf(request.role);
   if (!declaration) {
     return create(AccountResultSchema, { error: failed("get-account", `no role named "${request.role}"`) });
@@ -172,7 +172,7 @@ export async function authGetAccount(request: AccountRequest): Promise<AccountRe
  * how the package spells a deletion that has already happened and a caller retrying one has
  * nothing different to do in either case.
  */
-export async function authDeleteAccount(request: AccountRequest): Promise<BanResult> {
+export async function authDeleteAccount(request: AccountRequest): Future<BanResult> {
   const declaration = await declarationOf(request.role);
   if (!declaration) {
     return create(BanResultSchema, { error: failed("delete-account", `no role named "${request.role}"`) });
@@ -194,7 +194,7 @@ export async function authDeleteAccount(request: AccountRequest): Promise<BanRes
  * duration. The refusal the package answers is carried through as it is, so a caller can tell a
  * ban that was refused because the account does not exist from one the database would not write.
  */
-export async function authBan(request: BanRequest): Promise<BanResult> {
+export async function authBan(request: BanRequest): Future<BanResult> {
   const declaration = await declarationOf(request.role);
   if (!declaration) return create(BanResultSchema, { error: failed("ban", `no role named "${request.role}"`) });
 
@@ -212,7 +212,7 @@ export async function authBan(request: BanRequest): Promise<BanResult> {
 }
 
 /** Lets an account back in, and refuses when no ban of that role stands over it. */
-export async function authUnban(request: AccountRequest): Promise<BanResult> {
+export async function authUnban(request: AccountRequest): Future<BanResult> {
   const declaration = await declarationOf(request.role);
   if (!declaration) return create(BanResultSchema, { error: failed("unban", `no role named "${request.role}"`) });
 
@@ -232,7 +232,7 @@ export async function authUnban(request: AccountRequest): Promise<BanResult> {
  * something writes over it, and the package drops it on the way out rather than at midnight,
  * so this answers who is shut out now and not who has a row.
  */
-export async function authListBans(request: BanListRequest): Promise<BanListResult> {
+export async function authListBans(request: BanListRequest): Future<BanListResult> {
   const declaration = await declarationOf(request.role);
   if (!declaration) {
     return create(BanListResultSchema, { error: failed("list-bans", `no role named "${request.role}"`) });
@@ -255,7 +255,7 @@ export async function authListBans(request: BanListRequest): Promise<BanListResu
  * The `deviceId` a caller may put in the request is ignored here: it is what names a single
  * device to kick, and listing answers all of them.
  */
-export async function authListDevices(request: DeviceRequest): Promise<DeviceListResult> {
+export async function authListDevices(request: DeviceRequest): Future<DeviceListResult> {
   const declaration = await declarationOf(request.role);
   if (!declaration) {
     return create(DeviceListResultSchema, { error: failed("list-devices", `no role named "${request.role}"`) });
@@ -296,7 +296,7 @@ export async function authListDevices(request: DeviceRequest): Promise<DeviceLis
  * failure: a caller kicking a device that a second operator has already kicked gets the state
  * it asked for.
  */
-export async function authKickDevice(request: DeviceRequest): Promise<KickResult> {
+export async function authKickDevice(request: DeviceRequest): Future<KickResult> {
   const declaration = await declarationOf(request.role);
   if (!declaration) {
     return create(KickResultSchema, { error: failed("kick-device", `no role named "${request.role}"`) });
@@ -317,7 +317,7 @@ export async function authKickDevice(request: DeviceRequest): Promise<KickResult
  * It answers `kicked` true whenever it went through, even for an account that had no device
  * left, because the package answers nothing about how many records it removed.
  */
-export async function authKickAllDevices(request: DeviceRequest): Promise<KickResult> {
+export async function authKickAllDevices(request: DeviceRequest): Future<KickResult> {
   const declaration = await declarationOf(request.role);
   if (!declaration) {
     return create(KickResultSchema, { error: failed("kick-all-devices", `no role named "${request.role}"`) });
@@ -339,8 +339,8 @@ export async function authKickAllDevices(request: DeviceRequest): Promise<KickRe
  * failure, so a caller reading nothing here should suspect the extension was not loaded before
  * suspecting the project.
  */
-export function authListRoles(): Promise<RoleListResult> {
-  return Promise.resolve(create(RoleListResultSchema, {
+export function authListRoles(): Future<RoleListResult> {
+  return Future.value(create(RoleListResultSchema, {
     roles: declaredAccounts().map((account) =>
       create(RoleSchema, { name: account.name, channels: [...account.channels] })
     ),

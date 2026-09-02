@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { cache, Duration } from "@scribe/alchemy";
+import { cache, Duration, Future } from "@scribe/alchemy";
 import type { AccountDevice } from "../../contracts/device.ts";
 
 const DEVICE_TTL = Duration.seconds(300);
@@ -55,38 +55,38 @@ class DeviceCache {
   readonly #hardware = cache<unknown>({ key: "device:hw", ttl: DEVICE_TTL });
 
   /** Every device remembered for this account, or null when none were. */
-  list(accountId: string): Promise<AccountDevice[] | null> {
+  list(accountId: string): Future<AccountDevice[] | null> {
     return this.#list.get(accountId);
   }
 
   /** Remembers the whole list of devices this account signs in from. */
-  rememberList(accountId: string, devices: AccountDevice[]): Promise<void> {
+  rememberList(accountId: string, devices: AccountDevice[]): Future<void> {
     return this.#list.add(accountId, devices);
   }
 
   /** The device remembered under this account and identifier, or null when none was. */
-  get(accountId: string, deviceId: string): Promise<AccountDevice | null> {
+  get(accountId: string, deviceId: string): Future<AccountDevice | null> {
     return this.#one.get(entryOf(accountId, deviceId));
   }
 
   /** Remembers one device of this account. */
-  remember(accountId: string, deviceId: string, device: AccountDevice): Promise<void> {
+  remember(accountId: string, deviceId: string, device: AccountDevice): Future<void> {
     return this.#one.add(entryOf(accountId, deviceId), device);
   }
 
   /** What the client last reported about this device's hardware, or null when nothing was kept. */
-  hardware<T>(accountId: string, deviceId: string): Promise<T | null> {
-    return this.#hardware.get(entryOf(accountId, deviceId)) as Promise<T | null>;
+  hardware<T>(accountId: string, deviceId: string): Future<T | null> {
+    return this.#hardware.get(entryOf(accountId, deviceId)) as Future<T | null>;
   }
 
   /** Remembers what the client reported about this device's hardware. */
-  rememberHardware<T>(accountId: string, deviceId: string, hardware: T): Promise<void> {
+  rememberHardware<T>(accountId: string, deviceId: string, hardware: T): Future<void> {
     return this.#hardware.add(entryOf(accountId, deviceId), hardware);
   }
 
   /** Drops one device and the list it belonged to, since the list now names a device that changed. */
-  async invalidate(accountId: string, deviceId: string): Promise<void> {
-    await Promise.all([
+  async invalidate(accountId: string, deviceId: string): Future<void> {
+    await Future.wait([
       this.#one.delete(entryOf(accountId, deviceId)),
       this.#hardware.delete(entryOf(accountId, deviceId)),
       this.#list.delete(accountId),
@@ -94,8 +94,8 @@ class DeviceCache {
   }
 
   /** Drops everything remembered about this account's devices. */
-  async invalidateAll(accountId: string): Promise<void> {
-    await Promise.all([
+  async invalidateAll(accountId: string): Future<void> {
+    await Future.wait([
       this.#one.clear(`${accountId}:*`),
       this.#hardware.clear(`${accountId}:*`),
       this.#list.delete(accountId),

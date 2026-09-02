@@ -35,6 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import "@scribe/runtime/scholium/runner.ts";
+import { DateTime, type Future } from "@scribe/alchemy";
 import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { AuthMapper } from "../../lib/src/gotrue/mappers.ts";
 import { installAuthTestSettings } from "../testing/settings.ts";
@@ -44,7 +45,7 @@ function base64Url(value: string): string {
   return btoa(value).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-async function sign(header: string, payload: string): Promise<string> {
+async function sign(header: string, payload: string): Future<string> {
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(authSettings.get().jwtSecret),
@@ -61,13 +62,13 @@ async function sign(header: string, payload: string): Promise<string> {
     .replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-const HOUR_AHEAD = () => Math.floor(Date.now() / 1000) + 3600;
-const HOUR_AGO = () => Math.floor(Date.now() / 1000) - 3600;
+const HOUR_AHEAD = () => Math.floor(DateTime.now().millisecondsSinceEpoch / 1000) + 3600;
+const HOUR_AGO = () => Math.floor(DateTime.now().millisecondsSinceEpoch / 1000) - 3600;
 
 async function jwt(
   claims: Record<string, unknown>,
   header: Record<string, unknown> = { alg: "HS256", typ: "JWT" },
-): Promise<string> {
+): Future<string> {
   const h = base64Url(JSON.stringify(header));
   const p = base64Url(JSON.stringify(claims));
   return `${h}.${p}.${await sign(h, p)}`;

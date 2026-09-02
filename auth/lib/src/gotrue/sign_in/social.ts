@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Result } from "@scribe/alchemy";
+import type { Future, Result } from "@scribe/alchemy";
 import { SocialProvider } from "@scribe/contracts/enums.ts";
 import { requestIdTokenExchange } from "../primitives.ts";
 import type { AuthError, GoTrueSessionResponse } from "../transport.ts";
@@ -46,7 +46,7 @@ class GoTrueSignInGoogle {
     idToken: string,
     nonce: string,
     accessToken?: string,
-  ): Promise<Result<GoTrueSessionResponse, AuthError>> {
+  ): Future<Result<GoTrueSessionResponse, AuthError>> {
     return requestIdTokenExchange(
       SocialProvider.GOOGLE,
       idToken,
@@ -63,7 +63,7 @@ class GoTrueSignInApple {
     idToken: string,
     nonce: string,
     accessToken?: string,
-  ): Promise<Result<GoTrueSessionResponse, AuthError>> {
+  ): Future<Result<GoTrueSessionResponse, AuthError>> {
     return requestIdTokenExchange(
       SocialProvider.APPLE,
       idToken,

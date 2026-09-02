@@ -39,7 +39,7 @@ import { Failure, Ok, okay, type Result } from "@scribe/alchemy";
 import { checkCaller } from "@scribe/runtime/http/caller.ts";
 import { sha256Hex } from "@scribe/runtime/support/crypto/hash.ts";
 import { rateLimit } from "@scribe/alchemy";
-import type { RateLimiter } from "@scribe/alchemy";
+import type { Future, RateLimiter } from "@scribe/alchemy";
 import { Channel } from "../contracts/channel.ts";
 import type { AccountRole } from "../contracts/role.ts";
 import { accountPassword, PasswordError } from "./password.ts";
@@ -145,7 +145,7 @@ export class ResetPassword {
   }
 
   /** Sends a link to `email`, which the identity provider turns into a recovery session. */
-  async email(email: string): Promise<ResetPasswordResult> {
+  async email(email: string): Future<ResetPasswordResult> {
     const caller = await checkCaller(callerLimit(this.#role, Channel.Email));
     if (!caller.ok) return new Failure(ResetPasswordError.TooManyRequests);
 
@@ -183,7 +183,7 @@ export class ResetPassword {
   }
 
   /** Sends a code to `phone`, which `confirmPhone` exchanges for a pending token. */
-  async phone(phone: string): Promise<ResetPasswordResult> {
+  async phone(phone: string): Future<ResetPasswordResult> {
     const caller = await checkCaller(callerLimit(this.#role, Channel.Phone));
     if (!caller.ok) return new Failure(ResetPasswordError.TooManyRequests);
 
@@ -220,7 +220,7 @@ export class ResetPassword {
   async confirmPhone(
     phone: string,
     code: string,
-  ): Promise<Result<ResetPasswordPending, ResetPasswordError>> {
+  ): Future<Result<ResetPasswordPending, ResetPasswordError>> {
     const number = AuthValidator.phone.format(phone);
     if (!AuthValidator.phone.isValid(number)) {
       return new Failure(ResetPasswordError.InvalidPhone);
@@ -255,7 +255,7 @@ export class ResetPassword {
   async fromRecovery(
     id: string,
     recoveryToken: string,
-  ): Promise<Result<ResetPasswordPending, ResetPasswordError>> {
+  ): Future<Result<ResetPasswordPending, ResetPasswordError>> {
     await AccountRevocation.session(recoveryToken);
 
     const identifiers = await identifiersOf(id);
@@ -271,7 +271,7 @@ export class ResetPassword {
     token: string,
     next: string,
     confirmation: string,
-  ): Promise<ResetPasswordResult> {
+  ): Future<ResetPasswordResult> {
     const trimmed = token.trim();
     if (!trimmed || trimmed.length > MAX_PENDING_TOKEN_CHARS) {
       return new Failure(ResetPasswordError.InvalidOrExpiredToken);

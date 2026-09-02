@@ -37,6 +37,7 @@
 import { installAuthTestSettings } from "./settings.ts";
 
 installAuthTestSettings();
+import { Future } from "@scribe/alchemy";
 import type { InstalledMock } from "@scribe/testing/install.ts";
 
 /** One call this package made to GoTrue, as this mock recorded it. */
@@ -138,7 +139,7 @@ export function installGoTrueMock(
       if (!_matches(matcher, call)) continue;
       const result = handler(call);
       if (!result) continue;
-      return Promise.resolve(
+      return Future.value(
         new Response(
           result.body === undefined ? null : JSON.stringify(result.body),
           {
@@ -149,7 +150,7 @@ export function installGoTrueMock(
       );
     }
 
-    return Promise.resolve(
+    return Future.value(
       new Response(
         JSON.stringify({
           error_code: "not_mocked",

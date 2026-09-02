@@ -1,3 +1,4 @@
+import type { Future } from "@scribe/alchemy";
 import { requestDevice } from "@scribe/runtime/device/device.ts";
 import { SignUpError } from "@scribe/auth/sign_up";
 import { operator, user } from "./declaration.ts";
@@ -9,7 +10,7 @@ import { operator, user } from "./declaration.ts";
  * ones it marked required, so a missing one is a compilation error rather than a row Postgres
  * refuses at three in the morning.
  */
-export async function withEmail(email: string, password: string): Promise<string | SignUpError> {
+export async function withEmail(email: string, password: string): Future<string | SignUpError> {
   const device = await requestDevice();
   if (!device) return SignUpError.Unexpected;
 
@@ -24,7 +25,7 @@ export async function withEmail(email: string, password: string): Promise<string
 }
 
 /** The same account through a number: only the credentials differ, the rows do not. */
-export async function withPhone(phone: string, password: string): Promise<boolean> {
+export async function withPhone(phone: string, password: string): Future<boolean> {
   const device = await requestDevice();
   if (!device) return false;
 
@@ -39,7 +40,7 @@ export async function withPhone(phone: string, password: string): Promise<boolea
 }
 
 /** Through an identity Google vouched for, where there is no password to pick. */
-export async function withGoogle(idToken: string, nonce: string): Promise<boolean> {
+export async function withGoogle(idToken: string, nonce: string): Future<boolean> {
   const device = await requestDevice();
   if (!device) return false;
 
@@ -59,7 +60,7 @@ export async function withGoogle(idToken: string, nonce: string): Promise<boolea
  * Nothing here says which tables to write: the declaration did, and the input type came out of
  * it.
  */
-export async function inviteOperator(email: string, password: string): Promise<boolean> {
+export async function inviteOperator(email: string, password: string): Future<boolean> {
   const created = await operator.signUp.email({
     email,
     password,

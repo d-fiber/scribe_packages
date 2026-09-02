@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import { DateTime, type Future } from "@scribe/alchemy";
 import { authSettings } from "../settings.ts";
 import type { GoTrueSessionResponse, GoTrueUser } from "./transport.ts";
 import type { Session } from "../../contracts/account.ts";
@@ -90,7 +91,7 @@ class AccountMapper {
  * the signature alone already answers.
  */
 class JwtMapper {
-  static #key: Promise<CryptoKey> | null = null;
+  static #key: Future<CryptoKey> | null = null;
 
   private static decodeSegment(segment: string): Record<string, unknown> {
     const decoded = jsonFromBase64Url(segment);
@@ -100,7 +101,7 @@ class JwtMapper {
     return decoded as Record<string, unknown>;
   }
 
-  private static hmacKey(): Promise<CryptoKey> {
+  private static hmacKey(): Future<CryptoKey> {
     if (!JwtMapper.#key) {
       JwtMapper.#key = crypto.subtle.importKey(
         "raw",
@@ -127,7 +128,7 @@ class JwtMapper {
       const payload = JwtMapper.decodeSegment(jwt.split(".")[1]);
       return Math.max(
         0,
-        (payload.exp as number) - Math.floor(Date.now() / 1000),
+        (payload.exp as number) - Math.floor(DateTime.now().millisecondsSinceEpoch / 1000),
       );
     } catch {
       return 0;
@@ -147,7 +148,7 @@ class JwtMapper {
    */
   static async account(
     jwt: string,
-  ): Promise<{ userId: string; role: AccountRole } | null> {
+  ): Future<{ userId: string; role: AccountRole } | null> {
     if (!authSettings.get().jwtSecret) return null;
 
     try {
@@ -170,7 +171,7 @@ class JwtMapper {
 
       const claims = JwtMapper.decodeSegment(payload);
       const exp = claims.exp as number | undefined;
-      if (typeof exp !== "number" || exp <= Math.floor(Date.now() / 1000)) {
+      if (typeof exp !== "number" || exp <= Math.floor(DateTime.now().millisecondsSinceEpoch / 1000)) {
         return null;
       }
 
@@ -187,7 +188,7 @@ class JwtMapper {
   }
 
   /** The role {@link account} verifies `jwt` to, or `null` when the token does not verify. */
-  static async accountRole(jwt: string): Promise<AccountRole | null> {
+  static async accountRole(jwt: string): Future<AccountRole | null> {
     return (await JwtMapper.account(jwt))?.role ?? null;
   }
 }

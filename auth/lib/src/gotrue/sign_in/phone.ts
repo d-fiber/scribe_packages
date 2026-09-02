@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { AccountRole } from "../../../contracts/role.ts";
-import { Failure, type Result } from "@scribe/alchemy";
+import { Failure, Future, type Result } from "@scribe/alchemy";
 import { isPhoneProviderConfigured, phoneNotConfiguredError } from "../primitives.ts";
 import {
   anonHeaders,
@@ -65,9 +65,9 @@ export class GoTrueSignInPhone {
     phone: string,
     role: AccountRole,
     createUser = false,
-  ): Promise<Result<void, AuthError>> {
+  ): Future<Result<void, AuthError>> {
     if (!isPhoneProviderConfigured()) {
-      return Promise.resolve(new Failure(phoneNotConfiguredError));
+      return Future.value(new Failure(phoneNotConfiguredError));
     }
     return requestAuthVoid(`${authUrl()}/otp`, {
       method: "POST",
@@ -86,9 +86,9 @@ export class GoTrueSignInPhone {
   verify(
     phone: string,
     otp: string,
-  ): Promise<Result<GoTrueSessionResponse, AuthError>> {
+  ): Future<Result<GoTrueSessionResponse, AuthError>> {
     if (!isPhoneProviderConfigured()) {
-      return Promise.resolve(new Failure(phoneNotConfiguredError));
+      return Future.value(new Failure(phoneNotConfiguredError));
     }
     return requestAuth(`${authUrl()}/verify`, {
       method: "POST",
@@ -101,9 +101,9 @@ export class GoTrueSignInPhone {
   withPassword(
     phone: string,
     password: string,
-  ): Promise<Result<GoTrueSessionResponse, AuthError>> {
+  ): Future<Result<GoTrueSessionResponse, AuthError>> {
     if (!isPhoneProviderConfigured()) {
-      return Promise.resolve(new Failure(phoneNotConfiguredError));
+      return Future.value(new Failure(phoneNotConfiguredError));
     }
     return requestAuth(`${authUrl()}/token?grant_type=password`, {
       method: "POST",
@@ -116,9 +116,9 @@ export class GoTrueSignInPhone {
   resendConfirmation(
     phone: string,
     role: AccountRole,
-  ): Promise<Result<void, AuthError>> {
+  ): Future<Result<void, AuthError>> {
     if (!isPhoneProviderConfigured()) {
-      return Promise.resolve(new Failure(phoneNotConfiguredError));
+      return Future.value(new Failure(phoneNotConfiguredError));
     }
     return requestAuthVoid(`${authUrl()}/resend`, {
       method: "POST",

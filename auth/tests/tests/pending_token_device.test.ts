@@ -35,6 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import "@scribe/runtime/scholium/runner.ts";
+import { DateTime } from "@scribe/alchemy";
 import { equals, expect, isNot, Scribe } from "@scribe/alchemy/test";
 import { installAuthTestSettings } from "../testing/settings.ts";
 import { PendingToken } from "../../lib/src/pending_token.ts";
@@ -74,7 +75,7 @@ Scribe.test("an expired token is refused", async () => {
   const raw = await forgeToken("a@example.com", "user", { deviceId: "device-1" });
   const [payloadB64, signature] = raw.split(".");
   const decoded = JSON.parse(atob(payloadB64)) as Record<string, unknown>;
-  decoded.exp = Date.now() - 1;
+  decoded.exp = DateTime.now().millisecondsSinceEpoch - 1;
 
   expect(await token.payload(`${btoa(JSON.stringify(decoded))}.${signature}`), equals(null));
 });

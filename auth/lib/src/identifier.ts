@@ -36,6 +36,7 @@
 
 import { Duration } from "@scribe/alchemy";
 import { Failure, okay, type Result } from "@scribe/alchemy";
+import type { Future } from "@scribe/alchemy";
 import { currentIdentity } from "@scribe/runtime/http/accessors/identity.ts";
 import { checkCaller } from "@scribe/runtime/http/caller.ts";
 import { request } from "@scribe/runtime/http/request.ts";
@@ -90,7 +91,7 @@ const TARGET = rateLimit({
   failOpen: false,
 });
 
-async function held(id: string): Promise<IdentifierError | null> {
+async function held(id: string): Future<IdentifierError | null> {
   const caller = await checkCaller(CALLER);
   if (!caller.ok) return IdentifierError.TooManyRequests;
 
@@ -119,7 +120,7 @@ export class AccountIdentifier {
    * The identity provider sends a link to the new address, so nothing is in force until it is
    * followed. Sessions are left alone for that reason.
    */
-  async email(id: string, email: string): Promise<IdentifierResult> {
+  async email(id: string, email: string): Future<IdentifierResult> {
     const token = sessionOfCaller(id);
     if (token === null) return new Failure(IdentifierError.Unexpected);
 
@@ -141,7 +142,7 @@ export class AccountIdentifier {
    * The new address is in force immediately, so every session goes: they were opened by whoever
    * held the old one.
    */
-  async emailAsOperator(id: string, email: string): Promise<IdentifierResult> {
+  async emailAsOperator(id: string, email: string): Future<IdentifierResult> {
     const checked = AuthValidator.email.check(email);
     if (checked.status !== EmailCheckStatus.Ok) {
       return new Failure(IdentifierError.InvalidEmail);
@@ -162,7 +163,7 @@ export class AccountIdentifier {
    * says which one the holder asked for. It is lifted again if the send fails, so a number is not
    * left marked for a change nobody started.
    */
-  async phone(id: string, phone: string): Promise<IdentifierResult> {
+  async phone(id: string, phone: string): Future<IdentifierResult> {
     const token = sessionOfCaller(id);
     if (token === null) return new Failure(IdentifierError.Unexpected);
 
@@ -194,7 +195,7 @@ export class AccountIdentifier {
     id: string,
     phone: string,
     code: string,
-  ): Promise<IdentifierResult> {
+  ): Future<IdentifierResult> {
     const refusal = await held(id);
     if (refusal !== null) return new Failure(refusal);
 
@@ -217,9 +218,9 @@ export class AccountIdentifier {
 
   async #change(
     id: string,
-    apply: () => Promise<Result<unknown, AuthError>>,
+    apply: () => Future<Result<unknown, AuthError>>,
     endSessions: boolean,
-  ): Promise<IdentifierResult> {
+  ): Future<IdentifierResult> {
     const refusal = await held(id);
     if (refusal !== null) return new Failure(refusal);
 

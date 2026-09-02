@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { cache, Duration } from "@scribe/alchemy";
+import { cache, Duration, type Future } from "@scribe/alchemy";
 
 const INTENT_TTL = Duration.seconds(120);
 
@@ -58,12 +58,12 @@ class SmsIntentStore {
   readonly #cache = cache<SmsIntent>({ key: "sms-intent", ttl: INTENT_TTL });
 
   /** Records what the code just sent to `phone` is for. */
-  mark(phone: string, intent: SmsIntent): Promise<void> {
+  mark(phone: string, intent: SmsIntent): Future<void> {
     return this.#cache.add(phone, intent);
   }
 
   /** Reads what the last code sent to `phone` was for, and forgets it. */
-  async consume(phone: string): Promise<SmsIntent | null> {
+  async consume(phone: string): Future<SmsIntent | null> {
     const intent = await this.#cache.get(phone);
     if (intent === null) return null;
 

@@ -35,6 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import "@scribe/runtime/scholium/runner.ts";
+import { Future } from "@scribe/alchemy";
 import { equals, expect, fail, isTrue, Scribe } from "@scribe/alchemy/test";
 import { fakeDevice, withRequest } from "@scribe/testing/runtime/device.ts";
 import { installAuthTestSettings } from "../testing/settings.ts";
@@ -68,9 +69,9 @@ function sessionFor(role: string) {
 function channelAnswering(answer: unknown): OtpChannel {
   return {
     channel: Channel.Email,
-    send: () => Promise.resolve({ ok: true, data: undefined } as never),
-    verify: () => Promise.resolve({ ok: true, data: answer } as never),
-    roleOf: () => Promise.resolve(DOOR),
+    send: () => Future.value({ ok: true, data: undefined } as never),
+    verify: () => Future.value({ ok: true, data: answer } as never),
+    roleOf: () => Future.value(DOOR),
   } as unknown as OtpChannel;
 }
 
@@ -81,9 +82,9 @@ function door(answer: unknown, registers: string | null = "the-device-token") {
   const mocks = [
     installMock(AccountRevocation, "session", (token: string) => {
       revoked.push(token);
-      return Promise.resolve();
+      return Future.value(undefined);
     }),
-    installMock(devices, "register", () => Promise.resolve(registers)),
+    installMock(devices, "register", () => Future.value(registers)),
   ];
 
   return {
@@ -97,7 +98,7 @@ function door(answer: unknown, registers: string | null = "the-device-token") {
 }
 
 /** Opens a challenge and answers the token it minted, inside a request that carries a device. */
-function openChallenge(challenge: OtpChallenge): Promise<string> {
+function openChallenge(challenge: OtpChallenge): Future<string> {
   return withRequest(fakeDevice(), async () => {
     const started = await challenge.start(IDENTIFIER);
     if (!started.ok) fail("the challenge has to open before anything can be verified");

@@ -36,7 +36,7 @@
 
 import { http } from "@scribe/alchemy/http";
 import { Duration } from "@scribe/alchemy";
-import { Failure, Ok, okay, type Result } from "@scribe/alchemy";
+import { Failure, type Future, Ok, okay, type Result } from "@scribe/alchemy";
 import type { HttpResponse } from "@scribe/alchemy/http";
 import { identitySettings } from "@scribe/runtime/support/settings/identity.ts";
 
@@ -274,7 +274,7 @@ export function parseError(res: HttpResponse): AuthError {
 export async function sendAuth(
   url: string,
   init: AuthRequest,
-): Promise<HttpResponse> {
+): Future<HttpResponse> {
   const client = http.open();
   const options = {
     headers: init.headers,
@@ -311,7 +311,7 @@ export async function sendAuth(
 export async function requestAuth<T>(
   url: string,
   init: AuthRequest,
-): Promise<Result<T, AuthError>> {
+): Future<Result<T, AuthError>> {
   const res = await sendAuth(url, init);
   if (!res.ok) return new Failure(parseError(res));
   return new Ok(res.json<T>());
@@ -321,7 +321,7 @@ export async function requestAuth<T>(
 export async function requestAuthVoid(
   url: string,
   init: AuthRequest,
-): Promise<Result<void, AuthError>> {
+): Future<Result<void, AuthError>> {
   const res = await sendAuth(url, init);
   if (!res.ok) return new Failure(parseError(res));
   return okay;

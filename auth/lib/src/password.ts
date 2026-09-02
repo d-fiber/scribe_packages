@@ -39,6 +39,7 @@ import { Failure, okay, type Result } from "@scribe/alchemy";
 import { checkCaller } from "@scribe/runtime/http/caller.ts";
 import { sha256Hex } from "@scribe/runtime/support/crypto/hash.ts";
 import { rateLimit } from "@scribe/alchemy";
+import type { Future } from "@scribe/alchemy";
 import { devices } from "./devices/devices.ts";
 import { goTrue } from "./gotrue/gotrue_client.ts";
 import { AccountRevocation } from "./revocation.ts";
@@ -87,7 +88,7 @@ const TARGET = rateLimit({
   failOpen: false,
 });
 
-async function held(id: string): Promise<PasswordError | null> {
+async function held(id: string): Future<PasswordError | null> {
   const caller = await checkCaller(CALLER);
   if (!caller.ok) return PasswordError.TooManyRequests;
 
@@ -99,7 +100,7 @@ async function write(
   id: string,
   password: string,
   accessToken: string | null,
-): Promise<PasswordResult> {
+): Future<PasswordResult> {
   const written = await goTrue.user.password.update(id, password);
   if (!written.ok) return new Failure(PasswordError.Unexpected);
 
@@ -129,7 +130,7 @@ export class AccountPassword {
     current: string,
     next: string,
     confirmation: string,
-  ): Promise<PasswordResult> {
+  ): Future<PasswordResult> {
     const refusal = await held(id);
     if (refusal !== null) return new Failure(refusal);
 
@@ -176,7 +177,7 @@ export class AccountPassword {
     id: string,
     next: string,
     confirmation: string,
-  ): Promise<PasswordResult> {
+  ): Future<PasswordResult> {
     const refusal = await held(id);
     if (refusal !== null) return new Failure(refusal);
 

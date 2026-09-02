@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { SignOutScope } from "../contracts/account.ts";
-import { cache, Duration } from "@scribe/alchemy";
+import { cache, Duration, Future } from "@scribe/alchemy";
 import { Failure, Ok, okay, type Result } from "@scribe/alchemy";
 import { requestDevice } from "@scribe/runtime/device/device.ts";
 import { currentIdentity } from "@scribe/runtime/http/accessors/identity.ts";
@@ -80,36 +80,36 @@ class SessionIdempotence {
   );
 
   /** What the last refresh under `key` answered, or null when none did. */
-  refreshed<T>(key: string): Promise<T | null> {
-    return this.#refresh.get(key) as Promise<T | null>;
+  refreshed<T>(key: string): Future<T | null> {
+    return this.#refresh.get(key) as Future<T | null>;
   }
 
   /** Remembers what a refresh answered, indexed under the account so a revocation drops it. */
-  async rememberRefreshed<T>(id: string, key: string, value: T): Promise<void> {
-    await Promise.all([
+  async rememberRefreshed<T>(id: string, key: string, value: T): Future<void> {
+    await Future.wait([
       this.#refresh.add(key, value),
       this.#index.remember(id, `${REFRESH_ENTRY}${key}`),
     ]);
   }
 
   /** What the last recovery under `key` answered, or null when none did. */
-  recovered<T>(key: string): Promise<T | null> {
-    return this.#recover.get(key) as Promise<T | null>;
+  recovered<T>(key: string): Future<T | null> {
+    return this.#recover.get(key) as Future<T | null>;
   }
 
   /** Remembers what a recovery answered, indexed under the account so a revocation drops it. */
-  async rememberRecovered<T>(id: string, key: string, value: T): Promise<void> {
-    await Promise.all([
+  async rememberRecovered<T>(id: string, key: string, value: T): Future<void> {
+    await Future.wait([
       this.#recover.add(key, value),
       this.#index.remember(id, `${RECOVER_ENTRY}${key}`),
     ]);
   }
 
   /** Drops every answer remembered for this account, so a revoked session is not handed back. */
-  async invalidate(id: string): Promise<void> {
+  async invalidate(id: string): Future<void> {
     const entries = await this.#index.members(id);
 
-    await Promise.all(
+    await Future.wait(
       entries.map((entry) =>
         entry.startsWith(REFRESH_ENTRY)
           ? this.#refresh.delete(entry.slice(REFRESH_ENTRY.length))
@@ -219,7 +219,7 @@ export class AccountSession {
    * An access token already issued outlives this by whatever is left of its hour. Closing that
    * window would mean asking the same two questions on every request the process serves.
    */
-  async #stillAllowed(id: string): Promise<boolean> {
+  async #stillAllowed(id: string): Future<boolean> {
     if ((await standingBanOn(id)) !== null) return false;
 
     const device = await devices.verify(id);
@@ -227,7 +227,7 @@ export class AccountSession {
   }
 
   /** Buys a new access token with a refresh token. */
-  async refresh(refreshToken: string): Promise<SessionResult<SessionTokens>> {
+  async refresh(refreshToken: string): Future<SessionResult<SessionTokens>> {
     const key = await sha256Hex(refreshToken);
 
     const rate = await checkCaller(REFRESH, key);
@@ -257,7 +257,7 @@ export class AccountSession {
       role: AuthMapper.account.role(answer.data),
     };
 
-    await Promise.all([
+    await Future.wait([
       sessionIdempotence.rememberRefreshed(session.user.id, key, tokens),
       this.seen(session.user.id),
     ]);
@@ -275,7 +275,7 @@ export class AccountSession {
   async recover(
     accessToken: string,
     refreshToken: string,
-  ): Promise<SessionResult<SessionTokens>> {
+  ): Future<SessionResult<SessionTokens>> {
     if (!accessToken.trim() || !refreshToken.trim()) {
       return new Failure(SessionError.Unauthorized);
     }
@@ -306,7 +306,7 @@ export class AccountSession {
         role: AuthMapper.account.role(held.data),
       };
 
-      await Promise.all([
+      await Future.wait([
         sessionIdempotence.rememberRecovered(user.id, key, tokens),
         this.seen(user.id),
       ]);
@@ -319,7 +319,7 @@ export class AccountSession {
   }
 
   /** Ends the session this request came with, and drops everything that remembered it. */
-  async signOut(): Promise<SessionResult<void>> {
+  async signOut(): Future<SessionResult<void>> {
     const who = caller();
     if (who === null) return new Failure(SessionError.Unauthorized);
 
@@ -334,14 +334,14 @@ export class AccountSession {
    * The rows go by the foreign keys that point at the account, so nothing here has to know what a
    * project put beside it.
    */
-  async delete(): Promise<SessionResult<void>> {
+  async delete(): Future<SessionResult<void>> {
     const who = caller();
     if (who === null) return new Failure(SessionError.Unauthorized);
 
     const rate = await DELETE.check("", await sha256Hex(who.id));
     if (!rate.ok) return new Failure(SessionError.TooManyRequests);
 
-    await Promise.all([
+    await Future.wait([
       devices.kickAll(who.id),
       goTrue.session.logout(who.token, SignOutScope.Global),
     ]);
@@ -355,7 +355,7 @@ export class AccountSession {
   }
 
   /** Writes down where this request came from, so a session list shows where it was last used. */
-  async seen(id: string): Promise<boolean> {
+  async seen(id: string): Future<boolean> {
     const device = await requestDevice();
     if (!device) return false;
 

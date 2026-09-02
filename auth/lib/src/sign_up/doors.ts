@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Failure, Ok, type Result } from "@scribe/alchemy";
+import { Failure, Future, Ok, type Result } from "@scribe/alchemy";
 import { sha256Hex } from "@scribe/runtime/support/crypto/hash.ts";
 import { SocialProvider } from "@scribe/contracts/enums.ts";
 import { Channel } from "../../contracts/channel.ts";
@@ -71,10 +71,10 @@ export interface SignUpCredential<TInput> {
    *
    * A refusal here happens before anything is minted, so nothing has to be undone.
    */
-  read(input: TInput): Promise<Result<{ recipient: string | null }, SignUpError>>;
+  read(input: TInput): Future<Result<{ recipient: string | null }, SignUpError>>;
 
   /** Mints the user at the identity provider, once the credentials have been read. */
-  issue(input: TInput): Promise<Result<IssuedIdentity, SignUpError>>;
+  issue(input: TInput): Future<Result<IssuedIdentity, SignUpError>>;
 }
 
 /** What a caller sends to sign up with an address. */
@@ -132,7 +132,7 @@ export class EmailCredential<TInput extends EmailCredentials> implements SignUpC
   readonly channel = Channel.Email;
 
   /** The {@link SignUpCredential.read} implementation: validates `input.email` and `input.password`. */
-  async read(input: TInput): Promise<Result<{ recipient: string | null }, SignUpError>> {
+  async read(input: TInput): Future<Result<{ recipient: string | null }, SignUpError>> {
     const email = AuthValidator.email.check(input.email);
     if (email.status === EmailCheckStatus.Empty) return new Failure(SignUpError.EmailRequired);
     if (email.status === EmailCheckStatus.Invalid) return new Failure(SignUpError.InvalidEmail);
@@ -144,7 +144,7 @@ export class EmailCredential<TInput extends EmailCredentials> implements SignUpC
   }
 
   /** The {@link SignUpCredential.issue} implementation: creates the GoTrue user with `input.email`. */
-  async issue(input: TInput): Promise<Result<IssuedIdentity, SignUpError>> {
+  async issue(input: TInput): Future<Result<IssuedIdentity, SignUpError>> {
     const email = AuthValidator.email.check(input.email).value ?? input.email;
     const answer = await goTrue.signUp.createUserWithEmail(email, input.password);
 
@@ -177,7 +177,7 @@ export class PhoneCredential<TInput extends PhoneCredentials> implements SignUpC
   readonly channel = Channel.Phone;
 
   /** The {@link SignUpCredential.read} implementation: validates `input.phone` and `input.password`. */
-  async read(input: TInput): Promise<Result<{ recipient: string | null }, SignUpError>> {
+  async read(input: TInput): Future<Result<{ recipient: string | null }, SignUpError>> {
     const phone = AuthValidator.phone.check(input.phone);
     if (phone.status === PhoneCheckStatus.Empty) return new Failure(SignUpError.PhoneRequired);
     if (phone.status === PhoneCheckStatus.Invalid) return new Failure(SignUpError.InvalidPhone);
@@ -189,7 +189,7 @@ export class PhoneCredential<TInput extends PhoneCredentials> implements SignUpC
   }
 
   /** The {@link SignUpCredential.issue} implementation: creates the GoTrue user with `input.phone`. */
-  async issue(input: TInput): Promise<Result<IssuedIdentity, SignUpError>> {
+  async issue(input: TInput): Future<Result<IssuedIdentity, SignUpError>> {
     const phone = AuthValidator.phone.format(input.phone);
     const answer = await goTrue.signUp.createUserWithPhone(phone, input.password);
 
@@ -228,16 +228,16 @@ export class SocialCredential<TInput extends SocialCredentials> implements SignU
   }
 
   /** The {@link SignUpCredential.read} implementation: checks that `input.idToken` and `input.nonce` are non-empty. */
-  read(input: TInput): Promise<Result<{ recipient: string | null }, SignUpError>> {
+  read(input: TInput): Future<Result<{ recipient: string | null }, SignUpError>> {
     const malformed = input.idToken.trim().length === 0 || input.nonce.trim().length === 0;
 
-    return Promise.resolve(
+    return Future.value(
       malformed ? new Failure(SignUpError.InvalidCredentials) : new Ok({ recipient: null }),
     );
   }
 
   /** The {@link SignUpCredential.issue} implementation: exchanges `input.idToken` with this door's own provider. */
-  async issue(input: TInput): Promise<Result<IssuedIdentity, SignUpError>> {
+  async issue(input: TInput): Future<Result<IssuedIdentity, SignUpError>> {
     const answer = this.#provider === SocialProvider.GOOGLE
       ? await goTrue.signUp.createUserWithGoogle(input.idToken, input.nonce, input.accessToken)
       : await goTrue.signUp.createUserWithApple(input.idToken, input.nonce, input.accessToken);

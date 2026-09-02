@@ -35,6 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import "@scribe/runtime/scholium/runner.ts";
+import { DateTime, type Future, Uuid } from "@scribe/alchemy";
 import { equals, expect, isNot, Scribe } from "@scribe/alchemy/test";
 import { PendingToken, PendingTokenPurpose } from "../../lib/src/pending_token.ts";
 import { installAuthTestSettings } from "../testing/settings.ts";
@@ -47,7 +48,7 @@ installAuthMock();
 const signIn = new PendingToken(PendingTokenPurpose.SignIn);
 const reset = new PendingToken(PendingTokenPurpose.PasswordReset);
 
-async function signPayload(claims: Record<string, unknown>): Promise<string> {
+async function signPayload(claims: Record<string, unknown>): Future<string> {
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(authSettings.get().pendingTokenSecret),
@@ -104,8 +105,8 @@ Scribe.test("purpose: a legacy payload without purpose is read as sign-in", asyn
     identifier: "u1@example.com",
     role: "user",
     deviceId: null,
-    jti: crypto.randomUUID(),
-    exp: Date.now() + 60_000,
+    jti: Uuid.v4(),
+    exp: DateTime.now().millisecondsSinceEpoch + 60_000,
   });
 
   expect(

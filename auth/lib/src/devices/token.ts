@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import { DateTime, type Future } from "@scribe/alchemy";
 import { sha256Hex, toHex } from "@scribe/runtime/support/crypto/hash.ts";
 
 const RANDOM_BYTES = 64;
@@ -47,11 +48,13 @@ const RANDOM_BYTES = 64;
  */
 export class DeviceToken {
   /** Mints a token and the digest that is written beside the device. */
-  static async generate(): Promise<{ token: string; hash: string }> {
+  static async generate(): Future<{ token: string; hash: string }> {
     const random = new Uint8Array(RANDOM_BYTES);
     crypto.getRandomValues(random);
 
-    const entropy = new TextEncoder().encode(`${Date.now()}.${performance.now()}`);
+    const entropy = new TextEncoder().encode(
+      `${DateTime.now().millisecondsSinceEpoch}.${performance.now()}`,
+    );
     const material = new Uint8Array(random.length + entropy.length);
     material.set(random);
     material.set(entropy, random.length);

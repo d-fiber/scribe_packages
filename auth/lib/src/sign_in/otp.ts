@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { SignOutScope } from "../../contracts/account.ts";
-import { Duration } from "@scribe/alchemy";
+import { Duration, Future } from "@scribe/alchemy";
 import { Failure, Ok, type Result } from "@scribe/alchemy";
 import { requestDevice } from "@scribe/runtime/device/device.ts";
 import { sha256Hex } from "@scribe/runtime/support/crypto/hash.ts";
@@ -63,16 +63,16 @@ export interface OtpChannel {
   readonly channel: Channel;
 
   /** Sends a code to `identifier`, on behalf of an account holding `role`. */
-  send(identifier: string, role: AccountRole): Promise<Result<void, AuthError>>;
+  send(identifier: string, role: AccountRole): Future<Result<void, AuthError>>;
 
   /** Exchanges a code for a session. */
   verify(
     identifier: string,
     otp: string,
-  ): Promise<Result<GoTrueSessionResponse, AuthError>>;
+  ): Future<Result<GoTrueSessionResponse, AuthError>>;
 
   /** Which role `identifier` belongs to, or null when it belongs to none. */
-  roleOf(identifier: string): Promise<AccountRole | null>;
+  roleOf(identifier: string): Future<AccountRole | null>;
 }
 
 /** How many codes one pending challenge may be tried with before it is spent. */
@@ -123,7 +123,7 @@ type Budget =
 async function attemptsOf(
   prefix: string,
   fingerprint: string,
-): Promise<number | null> {
+): Future<number | null> {
   const key = `rl:${prefix}:global:${fingerprint}`;
 
   try {
@@ -139,7 +139,7 @@ async function attemptsOf(
 async function withinChallenge(
   prefix: string,
   fingerprint: string,
-): Promise<Budget | null> {
+): Future<Budget | null> {
   const attempts = await attemptsOf(prefix, fingerprint);
 
   if (attempts === null) return { ok: false, consume: false };
@@ -200,7 +200,7 @@ export class OtpChallenge {
   }
 
   /** Sends a code to `identifier` and answers the token the caller comes back with. */
-  async start(identifier: string): Promise<Result<OtpStarted, OtpError>> {
+  async start(identifier: string): Future<Result<OtpStarted, OtpError>> {
     const sent = await this.#channel.send(identifier, this.#role);
     if (!sent.ok) {
       return new Failure(
@@ -219,7 +219,7 @@ export class OtpChallenge {
   }
 
   /** Sends another code for a challenge already open, and replaces its token. */
-  async resend(token: string): Promise<Result<OtpStarted, OtpError>> {
+  async resend(token: string): Future<Result<OtpStarted, OtpError>> {
     const opened = await this.#open(token);
     if (!opened.ok) return new Failure(opened.error);
 
@@ -262,7 +262,7 @@ export class OtpChallenge {
   async verify(
     token: string,
     otp: string,
-  ): Promise<Result<OtpSession, OtpError>> {
+  ): Future<Result<OtpSession, OtpError>> {
     if (!CODE.test(otp)) return new Failure(OtpError.InvalidOrExpired);
 
     const opened = await this.#open(token);
@@ -304,7 +304,7 @@ export class OtpChallenge {
       return new Failure(OtpError.InvalidOrExpired);
     }
 
-    const [consumed, deviceToken] = await Promise.all([
+    const [consumed, deviceToken] = await Future.wait([
       this.#token.consume(token),
       devices.register(session.user.id),
     ]);
@@ -332,7 +332,7 @@ export class OtpChallenge {
 
   async #open(
     token: string,
-  ): Promise<
+  ): Future<
     Result<
       { identifier: string; deviceId: string | null; fingerprint: string },
       OtpError
@@ -365,7 +365,7 @@ export class OtpChallenge {
     fingerprint: string,
     identifier: string,
     cadence: boolean,
-  ): Promise<Budget> {
+  ): Future<Budget> {
     const challenge = await withinChallenge(prefix, fingerprint);
     if (challenge !== null) return challenge;
 
@@ -388,7 +388,7 @@ export class OtpChallenge {
   async #spend(
     token: string,
     budget: { ok: false; consume: boolean },
-  ): Promise<OtpError> {
+  ): Future<OtpError> {
     if (!budget.consume) return OtpError.TooManyRequests;
 
     await this.#token.consume(token.trim());

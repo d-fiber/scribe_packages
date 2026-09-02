@@ -38,6 +38,7 @@
 // before the database mock exists. That duplication is only safe as long as both
 // sides stay interchangeable, which is exactly what this file checks.
 import "@scribe/runtime/scholium/runner.ts";
+import { DateTime } from "@scribe/alchemy";
 import { equals, expect, fail, isNot, isTrue, Scribe } from "@scribe/alchemy/test";
 import { installAuthTestSettings } from "../testing/settings.ts";
 import { PendingToken, PendingTokenPurpose } from "../../lib/src/pending_token.ts";
@@ -103,7 +104,7 @@ Scribe.test("issue: the row it stores is the hash of the token it returns", asyn
     expect(rows.length, equals(1));
     expect(rows[0].token_hash, equals(await sha256Hex(token)));
     expect(
-      (rows[0].expires_at as number) > Date.now(),
+      (rows[0].expires_at as number) > DateTime.now().millisecondsSinceEpoch,
       isTrue,
       "an already-expired row would make the token unusable on arrival",
     );
@@ -113,9 +114,9 @@ Scribe.test("issue: the row it stores is the hash of the token it returns", asyn
 });
 
 Scribe.test("issue: a vpn link outlives a sign-in challenge", () => {
-  expect(new PendingToken(PendingTokenPurpose.SignIn).ttlMs, equals(10 * 60 * 1000));
+  expect(new PendingToken(PendingTokenPurpose.SignIn).ttl.inMilliseconds, equals(10 * 60 * 1000));
   expect(
-    new PendingToken(PendingTokenPurpose.VpnAccess).ttlMs,
+    new PendingToken(PendingTokenPurpose.VpnAccess).ttl.inMilliseconds,
     equals(4 * 60 * 60 * 1000),
     "a mailed link survives a working half-day, not a full night",
   );

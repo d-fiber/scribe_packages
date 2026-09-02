@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Duration } from "@scribe/alchemy";
+import { DateTime, Duration, type Future } from "@scribe/alchemy";
 import { requestDevice } from "@scribe/runtime/device/device.ts";
 import { request } from "@scribe/runtime/http/request.ts";
 import { constantTimeEqual } from "@scribe/runtime/support/crypto/constant_time.ts";
@@ -75,7 +75,7 @@ export class Devices {
    * A device already known is given a fresh token rather than a second row, so a client that
    * signs in twice does not accumulate records it cannot tell apart.
    */
-  async register(accountId: string): Promise<string | null> {
+  async register(accountId: string): Future<string | null> {
     const device = await requestDevice();
     if (!device) return null;
 
@@ -103,7 +103,7 @@ export class Devices {
    * recorded, is signed out on the spot: both mean the token is being replayed somewhere it was
    * not issued to.
    */
-  async verify(accountId: string): Promise<DeviceCheck> {
+  async verify(accountId: string): Future<DeviceCheck> {
     const device = await requestDevice();
     if (!device) return DeviceCheck.Unexpected;
 
@@ -132,19 +132,19 @@ export class Devices {
    * The comparison runs in constant time because the token it checks is a secret the caller
    * supplied, and an early exit would say how much of it was right.
    */
-  async isTrusted(accountId: string, deviceId: string): Promise<boolean> {
+  async isTrusted(accountId: string, deviceId: string): Future<boolean> {
     const device = await requestDevice();
     if (!device?.device_token) return false;
 
     const trust = await deviceRepository.trust(accountId, deviceId);
     if (!trust?.hash) return false;
-    if (trust.seen_at < Date.now() - TRUST_WINDOW.inMilliseconds) return false;
+    if (trust.seen_at < DateTime.now().subtract(TRUST_WINDOW).millisecondsSinceEpoch) return false;
 
     return constantTimeEqual(await sha256Hex(device.device_token), trust.hash);
   }
 
   /** Every device this account signs in from. */
-  async of(accountId: string): Promise<AccountDevice[]> {
+  async of(accountId: string): Future<AccountDevice[]> {
     const cached = await deviceCache.list(accountId);
     if (cached !== null) return cached;
 
@@ -155,7 +155,7 @@ export class Devices {
   }
 
   /** One device of this account, or null when it has never used it. */
-  async get(accountId: string, deviceId: string): Promise<AccountDevice | null> {
+  async get(accountId: string, deviceId: string): Future<AccountDevice | null> {
     const cached = await deviceCache.get(accountId, deviceId);
     if (cached !== null) return cached;
 
@@ -171,7 +171,7 @@ export class Devices {
    * A device the account never used answers false rather than pretending to have thrown one out,
    * so a caller that names the wrong one is told.
    */
-  async kick(accountId: string, deviceId: string): Promise<boolean> {
+  async kick(accountId: string, deviceId: string): Future<boolean> {
     const known = await deviceRepository.idOf(accountId, deviceId);
     if (known === null) return false;
 
@@ -183,7 +183,7 @@ export class Devices {
   }
 
   /** Throws out every device of this account. */
-  async kickAll(accountId: string): Promise<void> {
+  async kickAll(accountId: string): Future<void> {
     const devices = await this.of(accountId);
 
     for (const device of devices) {
@@ -192,7 +192,7 @@ export class Devices {
   }
 
   /** Writes down where the last request came from, which is what a session list shows. */
-  async origin(accountId: string, deviceId: string, origin: DeviceOrigin): Promise<boolean> {
+  async origin(accountId: string, deviceId: string, origin: DeviceOrigin): Future<boolean> {
     const written = await deviceRepository.origin(accountId, deviceId, origin);
     if (!written) return false;
 
@@ -200,7 +200,7 @@ export class Devices {
     return true;
   }
 
-  async #hardwareOf(accountId: string, deviceId: string): Promise<DeviceHardware | null> {
+  async #hardwareOf(accountId: string, deviceId: string): Future<DeviceHardware | null> {
     const cached = await deviceCache.hardware<DeviceHardware>(accountId, deviceId);
     if (cached !== null) return cached;
 
@@ -210,7 +210,7 @@ export class Devices {
     return hardware;
   }
 
-  async #signOut(): Promise<void> {
+  async #signOut(): Future<void> {
     const token = request.token();
     if (!token) return;
 

@@ -39,7 +39,7 @@ import { Scribe } from "@scribe/alchemy/test";
 import { installAuthTestSettings } from "../testing/settings.ts";
 import { assertEquals, assertNotEquals } from "@std/assert";
 import { FakeTime } from "@std/testing/time";
-import { Duration } from "@scribe/alchemy";
+import { DateTime, Duration } from "@scribe/alchemy";
 import { PendingToken } from "../../lib/src/pending_token.ts";
 import { forgeToken } from "../testing/pending_token.ts";
 
@@ -73,7 +73,7 @@ Scribe.test("pending token: payload tampered without re-signing is rejected", as
   const forged = JSON.stringify({
     identifier: "u1@example.com",
     role: "admin",
-    exp: Date.now() + 60_000,
+    exp: DateTime.now().millisecondsSinceEpoch + 60_000,
   });
   const forgedB64 = btoa(forged);
 
