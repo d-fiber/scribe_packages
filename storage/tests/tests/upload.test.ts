@@ -39,6 +39,7 @@ import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { installStorageTestSettings } from "../testing/settings.ts";
 
 installStorageTestSettings();
+import { Future } from "@scribe/alchemy";
 import type { Failure } from "@scribe/alchemy";
 import { Bytes, Storage, StorageUploadError, StorageVisibility } from "@scribe/storage";
 import { installStorageMock } from "../testing/mock.ts";
@@ -179,7 +180,7 @@ Scribe.test("upload: two uploads racing to the same new key both land in the ind
   const database = installDatabaseFake();
   const transport = installStorageMock();
 
-  const [first, second] = await Promise.all([
+  const [first, second] = await Future.wait([
     sheet.upload(json(1), "race"),
     sheet.upload(json(2), "race"),
   ]);

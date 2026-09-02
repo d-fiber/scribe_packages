@@ -36,6 +36,7 @@
 
 import "@scribe/runtime/scholium/runner.ts";
 import { equals, expect, isNot, Scribe } from "@scribe/alchemy/test";
+import type { Future } from "@scribe/alchemy";
 import { installStorageTestSettings } from "../testing/settings.ts";
 
 installStorageTestSettings();
@@ -64,7 +65,7 @@ const png = (w = 64, h = 64): Uint8Array<ArrayBuffer> =>
   new Uint8Array(encodePng({ width: w, height: h, data: gradient(w, h), channels: 4, depth: 8 }));
 const jpeg = (w = 64, h = 64): Uint8Array<ArrayBuffer> =>
   new Uint8Array(encodeJpeg({ width: w, height: h, data: gradient(w, h) }, 90).data);
-const webp = async (w = 64, h = 64): Promise<Uint8Array<ArrayBuffer>> =>
+const webp = async (w = 64, h = 64): Future<Uint8Array<ArrayBuffer>> =>
   new Uint8Array(
     await encodeWebp({
       width: w,

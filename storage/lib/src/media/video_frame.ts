@@ -35,6 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Commands, FileSystems } from "@scribe/alchemy";
+import type { Future } from "@scribe/alchemy";
 import type { RgbaImage } from "./rgba.ts";
 
 const BINARY = "ffmpeg";
@@ -81,7 +82,7 @@ function openingFrameArgs(source: string): string[] {
   ];
 }
 
-async function decodeFrames(args: string[]): Promise<Uint8Array | null> {
+async function decodeFrames(args: string[]): Future<Uint8Array | null> {
   try {
     const { code, stdout, stderr } = await Commands.get().run(BINARY, args);
 
@@ -127,8 +128,8 @@ export function pickPosterFrame(raw: Uint8Array): Uint8Array | null {
 
 async function withTempFile<T>(
   file: File,
-  use: (path: string) => Promise<T>,
-): Promise<T | null> {
+  use: (path: string) => Future<T>,
+): Future<T | null> {
   const disk = FileSystems.get().open();
 
   let path: string;
@@ -147,7 +148,7 @@ async function withTempFile<T>(
   }
 }
 
-export function extractPosterFrame(file: File): Promise<RgbaImage | null> {
+export function extractPosterFrame(file: File): Future<RgbaImage | null> {
   return withTempFile(file, async (source) => {
     const sampled = await decodeFrames(samplingArgs(source));
     const raw = sampled !== null && sampled.length >= FRAME_BYTES

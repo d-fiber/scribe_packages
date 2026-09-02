@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import type { Future } from "@scribe/alchemy";
 import { blurhash } from "../media/blurhash.ts";
 import { StorageResource } from "../runtime/resource.ts";
 import type { StorageImage } from "../runtime/result.ts";
@@ -41,7 +42,7 @@ import type { StorageImage } from "../runtime/result.ts";
 /** A picture, whose upload also derives the blur hash a client shows while the bytes travel. */
 export class ImageResource<TArgs extends string[] = []> extends StorageResource<StorageImage, TArgs> {
   /** The {@link StorageResource.decorate} implementation: derives the blur hash from `file` itself. */
-  protected async decorate(path: string, file: File): Promise<StorageImage> {
+  protected async decorate(path: string, file: File): Future<StorageImage> {
     return { path, url: this.urlOf(path), blurHash: await blurhash.fromImage(file) };
   }
 

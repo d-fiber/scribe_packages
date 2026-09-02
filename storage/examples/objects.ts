@@ -1,4 +1,5 @@
 import type { StorageImage, StorageObject } from "@scribe/storage";
+import type { Future } from "@scribe/alchemy";
 import { avatar, contract, documents, users } from "./folders.ts";
 
 /**
@@ -7,13 +8,13 @@ import { avatar, contract, documents, users } from "./folders.ts";
  * The arguments after the file are the placeholders of the folder that declared the resource,
  * in the order the template writes them.
  */
-export async function setAvatar(userId: string, file: File): Promise<StorageImage | null> {
+export async function setAvatar(userId: string, file: File): Future<StorageImage | null> {
   const result = await avatar.upload(file, userId);
   return result.ok ? result.data : null;
 }
 
 /** A resource of a nested folder takes the placeholders of both levels. */
-export async function fileContract(userId: string, docId: string, file: File): Promise<boolean> {
+export async function fileContract(userId: string, docId: string, file: File): Future<boolean> {
   const result = await contract.upload(file, userId, docId);
   return result.ok;
 }
@@ -24,7 +25,7 @@ export function avatarUrl(userId: string): string | null {
 }
 
 /** Removes one object. */
-export async function dropAvatar(userId: string): Promise<boolean> {
+export async function dropAvatar(userId: string): Future<boolean> {
   const result = await avatar.remove(userId);
   return result.ok;
 }
@@ -36,13 +37,13 @@ export async function dropAvatar(userId: string): Promise<boolean> {
  * so it carries the size, the media type and the blur hash of every object, which a listing
  * of keys cannot give.
  */
-export async function documentsOf(userId: string, docId: string): Promise<StorageObject[]> {
+export async function documentsOf(userId: string, docId: string): Future<StorageObject[]> {
   const result = await documents.list(userId, docId);
   return result.ok ? result.data : [];
 }
 
 /** Empties a whole folder, the nested ones included. */
-export async function eraseUser(userId: string): Promise<boolean> {
+export async function eraseUser(userId: string): Future<boolean> {
   const result = await users.clear(userId);
   return result.ok;
 }

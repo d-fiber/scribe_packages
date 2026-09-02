@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import type { Future } from "@scribe/alchemy";
 import { blurhash } from "../media/blurhash.ts";
 import { StorageResource } from "../runtime/resource.ts";
 import type { StorageVideo } from "../runtime/result.ts";
@@ -41,7 +42,7 @@ import type { StorageVideo } from "../runtime/result.ts";
 /** A video, whose upload derives its blur hash from the first frame it can decode. */
 export class VideoResource<TArgs extends string[] = []> extends StorageResource<StorageVideo, TArgs> {
   /** The {@link StorageResource.decorate} implementation: derives the blur hash from the first decodable frame. */
-  protected async decorate(path: string, file: File): Promise<StorageVideo> {
+  protected async decorate(path: string, file: File): Future<StorageVideo> {
     return { path, url: this.urlOf(path), blurHash: await blurhash.fromVideo(file) };
   }
 

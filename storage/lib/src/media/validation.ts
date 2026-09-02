@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Bytes } from "@scribe/alchemy";
+import type { Bytes, Future } from "@scribe/alchemy";
 import { StorageUploadError } from "../runtime/result.ts";
 import { extensionOf } from "./extension.ts";
 import { contentMatchesExtension, SNIFF_PREFIX_BYTES } from "./sniff.ts";
@@ -52,7 +52,7 @@ export async function mediaError(
   file: File,
   extensions: readonly string[],
   maxSize: Bytes,
-): Promise<StorageUploadError | null> {
+): Future<StorageUploadError | null> {
   const extension = extensionOf(file.name);
   if (!extension || !extensions.some((e) => e.toLowerCase() === extension)) {
     return StorageUploadError.InvalidType;

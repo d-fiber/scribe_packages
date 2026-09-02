@@ -35,6 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { encode } from "blurhash";
+import type { Future } from "@scribe/alchemy";
 import { decodeImage } from "./decode.ts";
 import { downsample, type RgbaImage } from "./rgba.ts";
 import { extractPosterFrame } from "./video_frame.ts";
@@ -57,11 +58,11 @@ function fromPixels(image: RgbaImage | null): string | null {
 }
 
 export const blurhash = {
-  async fromImage(file: File): Promise<string | null> {
+  async fromImage(file: File): Future<string | null> {
     return fromPixels(await decodeImage(new Uint8Array(await file.arrayBuffer())));
   },
 
-  async fromVideo(file: File): Promise<string | null> {
+  async fromVideo(file: File): Future<string | null> {
     return fromPixels(await extractPosterFrame(file));
   },
 };

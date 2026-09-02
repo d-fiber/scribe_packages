@@ -35,6 +35,8 @@
 // LICENSE file, the LICENSE file governs.
 
 import { wrote } from "@scribe/foundation/database";
+import { DateTime } from "@scribe/alchemy";
+import type { Future } from "@scribe/alchemy";
 import type { StorageVisibility } from "../core/visibility.ts";
 import { type StorageObjectRow, storageObjects } from "./tables.ts";
 
@@ -82,7 +84,7 @@ export interface RecordedWrite {
  * since it only fires when a folder's declared bucket itself changes between two racing uploads,
  * not on ordinary concurrent traffic to one key.
  */
-export async function recordObject(object: RecordedObject): Promise<RecordedWrite> {
+export async function recordObject(object: RecordedObject): Future<RecordedWrite> {
   const stored = await storedObject(object.path);
   const displaced = stored !== null && stored.visibility !== object.visibility
     ? stored.visibility as StorageVisibility
@@ -95,7 +97,7 @@ export async function recordObject(object: RecordedObject): Promise<RecordedWrit
       mime_type: object.mimeType,
       byte_size: object.byteSize,
       blur_hash: object.blurHash,
-      updated_at: new Date().toISOString(),
+      updated_at: DateTime.now().toIso8601String(),
     },
     { onConflict: "path" },
   );
@@ -104,14 +106,14 @@ export async function recordObject(object: RecordedObject): Promise<RecordedWrit
 }
 
 /** What the index holds about `path`, or null when it holds nothing. */
-export function storedObject(path: string): Promise<StorageObjectRow | null> {
+export function storedObject(path: string): Future<StorageObjectRow | null> {
   return storageObjects()
     .where((f) => f.path.eq(path))
     .getOne();
 }
 
 /** Takes `paths` out of the index, and answers whether the rows went. */
-export async function forgetObjects(paths: readonly string[]): Promise<boolean> {
+export async function forgetObjects(paths: readonly string[]): Future<boolean> {
   if (paths.length === 0) return true;
 
   return wrote(
@@ -158,7 +160,7 @@ export async function objectsUnder(
   prefix: string,
   limit: number,
   after = "",
-): Promise<ObjectPage | null> {
+): Future<ObjectPage | null> {
   const under = `${prefix}/`;
 
   try {

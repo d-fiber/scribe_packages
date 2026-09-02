@@ -37,6 +37,7 @@
 import "@scribe/runtime/scholium/runner.ts";
 import { equals, expect, MemoryCommands, MemoryFileSystemDriver, Scribe } from "@scribe/alchemy/test";
 import { Commands, FileSystems } from "@scribe/alchemy";
+import type { Future } from "@scribe/alchemy";
 import type { CommandAnswer } from "@scribe/alchemy/test";
 import { installStorageTestSettings } from "../testing/settings.ts";
 
@@ -90,7 +91,7 @@ Scribe.test("poster frame: a truncated frame is not decoded as a whole one", () 
   expect(pickPosterFrame(new Uint8Array(FRAME_BYTES - 1)), equals(null));
 });
 
-async function withPoster<T>(answer: CommandAnswer, body: () => Promise<T>): Promise<T> {
+async function withPoster<T>(answer: CommandAnswer, body: () => Future<T>): Future<T> {
   const heldCommands = Commands.configured ? Commands.get() : null;
   const heldFiles = FileSystems.configured ? FileSystems.get() : null;
 

@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Bytes } from "@scribe/alchemy";
+import type { Bytes, Future } from "@scribe/alchemy";
 import { Failure, Ok, okay } from "@scribe/alchemy";
 import { bucketOf } from "../bucket/registry.ts";
 import { forgetObjects, objectsUnder } from "../db/objects.ts";
@@ -213,7 +213,7 @@ export class Storage<P extends string> {
    * carries the size, the media type and the blur hash of every object, which a listing of keys
    * cannot give. It reads at most 5 000 rows and reports when it stops there.
    */
-  async list(...args: PathArgs<P>): Promise<StorageListResult> {
+  async list(...args: PathArgs<P>): Future<StorageListResult> {
     const prefix = this.#prefixOf(args);
     if (prefix === null) return new Failure(StorageListError.InvalidPath);
 
@@ -238,7 +238,7 @@ export class Storage<P extends string> {
    * reach a bucket stops there, and what is already gone stays gone: running it again finishes
    * the job, since removing an object that is no longer there succeeds.
    */
-  async clear(...args: PathArgs<P>): Promise<StorageRemoveResult> {
+  async clear(...args: PathArgs<P>): Future<StorageRemoveResult> {
     const prefix = this.#prefixOf(args);
     if (prefix === null) return new Failure(StorageRemoveError.InvalidPath);
 
@@ -313,7 +313,7 @@ function objectOf(row: StorageObjectRow): StorageObject {
 
 async function removeByBucket(
   objects: readonly StorageObjectRow[],
-): Promise<boolean> {
+): Future<boolean> {
   const grouped = new Map<StorageVisibility, string[]>();
 
   for (const object of objects) {

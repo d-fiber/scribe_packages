@@ -41,6 +41,7 @@ import { type InstalledMock, installMock } from "@scribe/testing/install.ts";
 import { PostgrestClients } from "@scribe/foundation/database";
 import { FakePostgrestClient, type FakePostgrestSeed } from "@scribe/foundation/testing";
 import type { PostgrestClient } from "@supabase/postgrest-js";
+import { Future } from "@scribe/alchemy";
 
 /** A database fake, plus the handle that puts the real client back. */
 export interface InstalledDatabase extends InstalledMock {
@@ -92,7 +93,7 @@ export function installRefusingDatabase(): InstalledMock {
 }
 
 function builderOf(data: unknown, error: unknown = null) {
-  const answer = Promise.resolve({ data, error });
+  const answer = Future.value({ data, error });
   const builder = {
     select: () => builder,
     eq: () => builder,

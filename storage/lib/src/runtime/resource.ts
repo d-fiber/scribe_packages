@@ -35,6 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Failure, Ok, okay } from "@scribe/alchemy";
+import type { Future, FutureOr } from "@scribe/alchemy";
 import { bucketOf } from "../bucket/registry.ts";
 import { objectUrl } from "../core/visibility.ts";
 import { forgetObjects, type RecordedWrite, recordObject } from "../db/objects.ts";
@@ -65,7 +66,7 @@ export abstract class StorageResource<TData, TArgs extends string[]> {
   }
 
   /** What an upload answers, built from the key it wrote and the bytes it was given. */
-  protected abstract decorate(path: string, file: File): TData | Promise<TData>;
+  protected abstract decorate(path: string, file: File): FutureOr<TData>;
 
   /**
    * The blur hash carried by `data`, which the index keeps next to the object.
@@ -87,7 +88,7 @@ export abstract class StorageResource<TData, TArgs extends string[]> {
    * a key designates one object and the stale bytes would otherwise stay readable at their own
    * URL.
    */
-  async upload(file: File, ...args: TArgs): Promise<StorageUploadResult<TData>> {
+  async upload(file: File, ...args: TArgs): Future<StorageUploadResult<TData>> {
     const invalid = await mediaError(file, this.#config.extensions, this.#config.maxSize);
     if (invalid) return new Failure(invalid);
 
@@ -112,7 +113,7 @@ export abstract class StorageResource<TData, TArgs extends string[]> {
   }
 
   /** Removes the object `args` render, and forgets the row that named it. */
-  remove(...args: TArgs): Promise<StorageRemoveResult> {
+  remove(...args: TArgs): Future<StorageRemoveResult> {
     return this.removeMany([args]);
   }
 
@@ -122,7 +123,7 @@ export abstract class StorageResource<TData, TArgs extends string[]> {
    * A path that cannot be rendered stops the whole batch before anything is removed, so a
    * caller never has to work out which half of its list went.
    */
-  async removeMany(argsList: readonly TArgs[]): Promise<StorageRemoveResult> {
+  async removeMany(argsList: readonly TArgs[]): Future<StorageRemoveResult> {
     if (argsList.length === 0) return okay;
 
     const paths: string[] = [];
@@ -157,7 +158,7 @@ export abstract class StorageResource<TData, TArgs extends string[]> {
     file: File,
     mimeType: string,
     data: TData,
-  ): Promise<RecordedWrite | null> {
+  ): Future<RecordedWrite | null> {
     try {
       const written = await recordObject({
         path,
@@ -174,7 +175,7 @@ export abstract class StorageResource<TData, TArgs extends string[]> {
     }
   }
 
-  async #forget(paths: readonly string[]): Promise<boolean> {
+  async #forget(paths: readonly string[]): Future<boolean> {
     try {
       return await forgetObjects(paths);
     } catch (e) {

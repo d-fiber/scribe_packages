@@ -36,6 +36,7 @@
 
 import { http } from "@scribe/alchemy/http";
 import { Duration } from "@scribe/alchemy";
+import type { Future } from "@scribe/alchemy";
 import type { StorageBucket } from "./transport.ts";
 import type { RequestBody } from "@scribe/alchemy/http";
 import type { HttpResponse } from "@scribe/alchemy/http";
@@ -65,7 +66,7 @@ export class Bucket implements StorageBucket {
     path: string,
     body: ArrayBuffer,
     contentType: string,
-  ): Promise<boolean> {
+  ): Future<boolean> {
     const res = await this.#send("POST", `object/${this.#name}/${path}`, {
       headers: { "content-type": contentType, "x-upsert": "true" },
       body: new Uint8Array(body),
@@ -74,7 +75,7 @@ export class Bucket implements StorageBucket {
   }
 
   /** Removes `paths` in one call. */
-  async remove(paths: readonly string[]): Promise<boolean> {
+  async remove(paths: readonly string[]): Future<boolean> {
     if (paths.length === 0) return true;
     const res = await this.#send("DELETE", `object/${this.#name}`, {
       headers: { "content-type": "application/json" },
@@ -94,7 +95,7 @@ export class Bucket implements StorageBucket {
     method: "POST" | "DELETE",
     route: string,
     options: { headers: Record<string, string>; body: RequestBody },
-  ): Promise<HttpResponse | null> {
+  ): Future<HttpResponse | null> {
     const client = http.open();
     const url = `${this.#url}/${route}`;
     const sent = {

@@ -37,6 +37,7 @@
 import decodeWebp from "@jsquash/webp/decode";
 import { decode as decodePng } from "fast-png";
 import { decode as decodeJpeg } from "jpeg-js";
+import type { Future, FutureOr } from "@scribe/alchemy";
 import { type RgbaImage, toRgba } from "./rgba.ts";
 
 const PNG_MAGIC = [0x89, 0x50, 0x4e, 0x47];
@@ -50,7 +51,7 @@ function startsWith(bytes: Uint8Array, magic: readonly number[], at = 0): boolea
 
 const DECODERS: ReadonlyArray<{
   readonly matches: (bytes: Uint8Array) => boolean;
-  readonly decode: (bytes: Uint8Array) => RgbaImage | Promise<RgbaImage>;
+  readonly decode: (bytes: Uint8Array) => FutureOr<RgbaImage>;
 }> = [
   {
     matches: (bytes) => startsWith(bytes, PNG_MAGIC),
@@ -89,7 +90,7 @@ const DECODERS: ReadonlyArray<{
   },
 ];
 
-export async function decodeImage(bytes: Uint8Array): Promise<RgbaImage | null> {
+export async function decodeImage(bytes: Uint8Array): Future<RgbaImage | null> {
   const decoder = DECODERS.find((candidate) => candidate.matches(bytes));
   if (!decoder) {
     console.error("[media] unsupported image format, cannot decode.");
