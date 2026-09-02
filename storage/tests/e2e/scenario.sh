@@ -46,16 +46,13 @@ prepare_stack
 
 say "starting the cluster and what the storage package brings"
 # shellcheck disable=SC2086
-docker compose $COMPOSE up -d --build db kong storage imgproxy storage-init >/dev/null 2>&1 \
+docker compose $COMPOSE up -d --build db kong storage imgproxy >/dev/null 2>&1 \
   || fail "up refused the storage services."
 
 for service in db kong storage imgproxy; do
   wait_for "$service is healthy" 420 healthy "$service" \
     || fail "$service never turned healthy, it is $(state_of $service)"
 done
-
-wait_for "storage-init seeded the schema" 120 finished storage-init \
-  || fail "storage-init never exited zero, it is $(state_of storage-init)"
 
 buckets=$(query_db "select count(*) from storage.buckets where id in ('public_bucket', 'private_bucket')")
 [ "$buckets" = "2" ] || fail "the package declares two buckets and the cluster holds '$buckets'."

@@ -12,9 +12,3 @@ services:
     min: 256Mi
     dev: 256Mi
     cpu_shares_total: 4096
-
-  - name: storage-init
-    weight: 19
-    runtime: oneshot
-    min: 32Mi
-    dev: 32Mi

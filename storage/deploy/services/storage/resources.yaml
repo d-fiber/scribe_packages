@@ -8,11 +8,6 @@ services:
           memory: "{{storage_mem_limit}}"
         reservations:
           memory: "{{storage_mem_res}}"
-  storage-init:
-    deploy:
-      resources:
-        limits:
-          memory: "{{storage_init_mem_limit}}"
   imgproxy:
     cpu_shares: 1024
     memswap_limit: "{{imgproxy_mem_limit}}"
