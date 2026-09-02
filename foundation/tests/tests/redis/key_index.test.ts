@@ -78,7 +78,11 @@ Scribe.test("the expiry is re-armed on every write", async () => {
 
     redis.forget();
     await index.remember("u1", "session:b");
-    expect(redis.countOf("expire"), equals(1), "each write re-arms the expiry once");
+    expect(
+      redis.countOf("expire"),
+      equals(1),
+      "each write re-arms the expiry once",
+    );
   } finally {
     redis.restore();
   }
@@ -140,10 +144,14 @@ Scribe.test("a store that cannot be reached fails forget softly, without throwin
   const redis = installFakeRedis();
   const silenced = installMock(console, "error", () => {});
   try {
-    redis.failNext("del", new Error("ECONNREFUSED"));
+    redis.failNext("unlink", new Error("ECONNREFUSED"));
     const index = new KeyIndex("cache:user", 300, "test");
     await index.forget("u1");
-    expect(true, isTrue, "forget must not throw when the store refuses the delete");
+    expect(
+      true,
+      isTrue,
+      "forget must not throw when the store refuses the delete",
+    );
   } finally {
     silenced.restore();
     redis.restore();

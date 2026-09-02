@@ -64,7 +64,7 @@ interface Held {
 /**
  * Patches the shared `kv()` client's own commands the way `cache/support/redis.ts` does, with the
  * set the redis internals reach for instead of the cache's: `sadd`, `smembers` and `expire` on top
- * of `set`, `setex`, `del` and `exists`.
+ * of `set`, `setex`, `del`, `unlink` and `exists`.
  */
 export function installFakeRedis(): FakeRedis {
   const held = new Map<string, Held>();
@@ -113,7 +113,10 @@ export function installFakeRedis(): FakeRedis {
         const ex = readOption(rest, "EX");
         const px = readOption(rest, "PX");
         const livesFor = ex !== undefined ? Number(ex) : px !== undefined ? Number(px) / 1_000 : null;
-        held.set(key, { value, expiresAtSeconds: livesFor === null ? null : now() + livesFor });
+        held.set(key, {
+          value,
+          expiresAtSeconds: livesFor === null ? null : now() + livesFor,
+        });
         return Promise.resolve("OK" as const);
       }) as unknown as Kv["set"],
     ),
@@ -143,10 +146,27 @@ export function installFakeRedis(): FakeRedis {
     ),
     installMock(
       client,
+      "unlink",
+      ((...keys: string[]) => {
+        record("unlink");
+        let removed = 0;
+        for (const key of keys) {
+          if (alive(key) !== null || sets.has(key)) removed++;
+          held.delete(key);
+          sets.delete(key);
+          setExpiresAtSeconds.delete(key);
+        }
+        return Promise.resolve(removed);
+      }) as unknown as Kv["unlink"],
+    ),
+    installMock(
+      client,
       "exists",
       ((...keys: string[]) => {
         record("exists");
-        return Promise.resolve(keys.filter((key) => alive(key) !== null).length);
+        return Promise.resolve(
+          keys.filter((key) => alive(key) !== null).length,
+        );
       }) as unknown as Kv["exists"],
     ),
     installMock(
@@ -198,7 +218,9 @@ export function installFakeRedis(): FakeRedis {
     },
     ttlOf(key: string): number | null {
       const one = alive(key);
-      if (one !== null && one.expiresAtSeconds !== null) return one.expiresAtSeconds - now();
+      if (one !== null && one.expiresAtSeconds !== null) {
+        return one.expiresAtSeconds - now();
+      }
 
       const setExpiry = setExpiresAtSeconds.get(key);
       return setExpiry === undefined ? null : setExpiry - now();

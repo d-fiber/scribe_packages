@@ -86,10 +86,17 @@ export class KeyIndex {
     }
   }
 
-  /** Drops the index of `subject`, leaving what it pointed at to its own expiry. */
+  /**
+   * Drops the index of `subject`, leaving what it pointed at to its own expiry.
+   *
+   * @remarks
+   * `UNLINK` rather than `DEL`, for the same reason {@link RedisCacheStore} already uses it: a
+   * key holding a large set is freed on a background thread instead of blocking Redis's single
+   * command thread for as long as the free takes.
+   */
   async forget(subject: string): Promise<void> {
     try {
-      await kv().del(this.keyOf(subject));
+      await kv().unlink(this.keyOf(subject));
     } catch (e) {
       console.error(`[${this.#scope}] index clear failed:`, e);
     }

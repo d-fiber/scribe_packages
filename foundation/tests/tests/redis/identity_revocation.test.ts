@@ -79,9 +79,14 @@ Scribe.test("revoking a user with nothing remembered deletes no fingerprint key"
   try {
     await IdentityRevocation.revoke("u2");
     expect(
-      redis.countOf("del"),
+      redis.countOf("unlink"),
       equals(1),
-      "forgetting the empty index is still one delete, but no fingerprint key joins it",
+      "forgetting the empty index is still one unlink, but no fingerprint key joins it",
+    );
+    expect(
+      redis.countOf("del"),
+      equals(0),
+      "no fingerprint means the direct del is never reached",
     );
   } finally {
     redis.restore();
@@ -118,7 +123,11 @@ Scribe.test("an unreachable store does not throw out of revoke", async () => {
   try {
     redis.failNext("smembers", new Error("ECONNREFUSED"));
     await IdentityRevocation.revoke("u1");
-    expect(true, isTrue, "revoke must never turn a store outage into an unhandled error");
+    expect(
+      true,
+      isTrue,
+      "revoke must never turn a store outage into an unhandled error",
+    );
   } finally {
     silenced.restore();
     redis.restore();
