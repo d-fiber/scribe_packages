@@ -49,9 +49,6 @@ create table if not exists public.__trigger_events__ (
   occurred_at timestamptz not null default now()
 );
 
-create index if not exists __trigger_events_order__
-  on public.__trigger_events__ (id);
-
 alter table public.__trigger_sources__ enable row level security;
 alter table public.__trigger_events__ enable row level security;
 
@@ -78,12 +75,12 @@ begin
     return case when tg_op = 'DELETE' then old else new end;
   end if;
 
-  if tg_op = 'UPDATE' and to_jsonb(new) = to_jsonb(old) then
+  if tg_op = 'UPDATE' and new is not distinct from old then
     return new;
   end if;
 
-  v_after  := case when tg_op = 'DELETE' then null else to_jsonb(new) end;
-  v_before := case when tg_op = 'INSERT' then null else to_jsonb(old) end;
+  v_after  := to_jsonb(new);
+  v_before := to_jsonb(old);
   v_entity_id := coalesce(v_after, v_before) ->> v_key_column;
 
   if v_entity_id is null then
@@ -105,6 +102,49 @@ exception when others then
 end;
 $$;
 
+create or replace function public.log_table_change_bulk_insert()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_key_column text;
+  v_total      bigint;
+  v_inserted   bigint;
+begin
+  select key_column into v_key_column
+  from public.__trigger_sources__
+  where table_name = tg_table_name;
+
+  if not found then
+    return null;
+  end if;
+
+  select count(*) into v_total from new_rows;
+
+  insert into public.__trigger_events__ (table_name, op, entity_id, before, after)
+  select tg_table_name, 'insert', to_jsonb(new_rows) ->> v_key_column, null, to_jsonb(new_rows)
+  from new_rows
+  where to_jsonb(new_rows) ->> v_key_column is not null;
+
+  get diagnostics v_inserted = row_count;
+
+  if v_inserted < v_total then
+    raise warning
+      'log_table_change_bulk_insert: % of % rows on % were missing column "%", no event written for them',
+      v_total - v_inserted, v_total, tg_table_name, v_key_column;
+  end if;
+
+  return null;
+exception when others then
+  raise warning
+    'log_table_change_bulk_insert: insert on % was not recorded: %',
+    tg_table_name, sqlerrm;
+  return null;
+end;
+$$;
+
 create or replace function public.attach_table_change(p_table text)
 returns void
 language plpgsql
@@ -116,8 +156,16 @@ begin
 
   execute format(
     'create or replace trigger __scribe_table_change__ '
-    'after insert or update or delete on public.%I '
+    'after update or delete on public.%I '
     'for each row execute function public.log_table_change()',
+    p_table
+  );
+
+  execute format(
+    'create or replace trigger __scribe_table_change_insert__ '
+    'after insert on public.%I '
+    'referencing new table as new_rows '
+    'for each statement execute function public.log_table_change_bulk_insert()',
     p_table
   );
 end;
