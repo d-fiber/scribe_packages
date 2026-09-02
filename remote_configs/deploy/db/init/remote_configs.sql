@@ -34,7 +34,7 @@
 -- This header is a summary written for convenience. Where it differs from the
 -- LICENSE file, the LICENSE file governs.
 
-create table if not exists public.__remote_configs__ (
+create table if not exists remote_configs.__remote_configs__ (
   name       text primary key,
   value      jsonb not null,
   created_at bigint not null,
@@ -42,11 +42,11 @@ create table if not exists public.__remote_configs__ (
   expires_at bigint
 );
 
-alter table public.__remote_configs__ enable row level security;
+alter table remote_configs.__remote_configs__ enable row level security;
 
-revoke all on public.__remote_configs__ from authenticated, anon;
+revoke all on remote_configs.__remote_configs__ from authenticated, anon;
 
-create or replace function public.__remote_configs_touch__()
+create or replace function remote_configs.__remote_configs_touch__()
 returns trigger
 language plpgsql
 security definer
@@ -63,8 +63,8 @@ begin
 end;
 $$;
 
-drop trigger if exists __remote_configs_touch__ on public.__remote_configs__;
+drop trigger if exists __remote_configs_touch__ on remote_configs.__remote_configs__;
 
 create trigger __remote_configs_touch__
-  before insert or update on public.__remote_configs__
-  for each row execute function public.__remote_configs_touch__();
+  before insert or update on remote_configs.__remote_configs__
+  for each row execute function remote_configs.__remote_configs_touch__();
