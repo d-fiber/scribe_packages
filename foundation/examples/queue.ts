@@ -63,7 +63,10 @@ interface PageView {
  * dies between handling and acknowledging gets it again.
  */
 export const emails = new Queue<EmailJob>(
-  { name: "emails", options: { maxRetries: 5, retryBackoff: Duration.seconds(30) } },
+  {
+    name: "emails",
+    options: { maxRetries: 5, retryBackoff: Duration.seconds(30) },
+  },
   async (job: EmailJob, message: QueueMessage<EmailJob>) => {
     if (message.attempts > 1) return;
     await send(job.to, job.template);
@@ -90,16 +93,58 @@ export function welcome(to: string): Future<string> {
 
 /** Pushes a job that only becomes available later. */
 export function remind(to: string): Future<string> {
-  return emails.push({ to, template: "reminder" }, { delay: Duration.hours(24) });
+  return emails.push({ to, template: "reminder" }, {
+    delay: Duration.hours(24),
+  });
 }
 
-/** Pushes a group in one call, which is one publish per item and no round trip in between. */
-export function welcomeAll(recipients: UnmodifiableList<string>): Future<string[]> {
+/**
+ * Pushes a group in one call, bounded to sixty-four publications in flight together.
+ *
+ * @remarks
+ * This is still one NATS round trip per recipient, only pipelined: `pushMany` bounds how many
+ * publications are in flight at once, not how many are made. A producer on a hot path that wants
+ * one round trip for the whole group reaches for {@link welcomeManyAtOnce} instead.
+ */
+export function welcomeAll(
+  recipients: UnmodifiableList<string>,
+): Future<string[]> {
   return emails.pushMany(recipients.map((to) => ({ to, template: "welcome" })));
 }
 
+/**
+ * A queue whose payload is a group, pushed and acknowledged as one message.
+ *
+ * `batch` groups what several separate publications happen to arrive close together; this
+ * groups what the producer already had in hand before it published anything, by carrying an
+ * array as the payload of a single message instead of one message per recipient. The trade sits
+ * on the consuming side: {@link welcomeBatches} acknowledges the whole array at once, so a
+ * handler that throws on one recipient replays every recipient already sent beside it, the same
+ * trade `batch` makes for messages that happened to be grouped by the runner instead.
+ */
+export const welcomeBatches = new Queue<EmailJob[]>(
+  {
+    name: "welcome-batches",
+    options: { maxRetries: 5, retryBackoff: Duration.seconds(30) },
+  },
+  async (jobs: EmailJob[]) => {
+    for (const job of jobs) await send(job.to, job.template);
+  },
+);
+
+/** Pushes every recipient as one message, which is one NATS round trip for the whole group. */
+export function welcomeManyAtOnce(
+  recipients: UnmodifiableList<string>,
+): Future<string> {
+  return welcomeBatches.push(
+    recipients.map((to) => ({ to, template: "welcome" })),
+  );
+}
+
 /** What is waiting, what is due later, and what gave up. */
-export async function backlog(): Future<{ waiting: number; delayed: number; dead: number }> {
+export async function backlog(): Future<
+  { waiting: number; delayed: number; dead: number }
+> {
   return {
     waiting: await emails.size(),
     delayed: await emails.delayedCount(),
