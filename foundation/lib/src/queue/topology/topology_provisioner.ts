@@ -146,6 +146,7 @@ export class TopologyProvisioner {
         ack_policy: AckPolicy.Explicit,
         max_deliver: plan.maxDeliver,
         ack_wait: ackWaitNs,
+        max_ack_pending: plan.maxAckPending,
       });
       return;
     }
@@ -157,12 +158,17 @@ export class TopologyProvisioner {
     if ((existing.config.max_deliver ?? 0) < plan.maxDeliver) {
       widened.max_deliver = plan.maxDeliver;
     }
+    if ((existing.config.max_ack_pending ?? 0) < plan.maxAckPending) {
+      widened.max_ack_pending = plan.maxAckPending;
+    }
     if (Object.keys(widened).length === 0) return;
 
     try {
       await this.#manager.consumers.update(stream, durable, widened);
     } catch (error) {
-      log.error("queue.widen_failed", { metadata: { stream, durable, widened, error } });
+      log.error("queue.widen_failed", {
+        metadata: { stream, durable, widened, error },
+      });
     }
   }
 }

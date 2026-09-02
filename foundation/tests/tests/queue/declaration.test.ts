@@ -41,7 +41,7 @@ import {
   type RegisteredQueue,
   subjectsOf,
 } from "../../../lib/src/queue/queue_declaration.ts";
-import { planFor, planSignature } from "../../../lib/src/queue/topology/topology_plan.ts";
+import { DEFAULT_MAX_ACK_PENDING, planFor, planSignature } from "../../../lib/src/queue/topology/topology_plan.ts";
 import { Queue } from "../../../lib/src/queue/queue.ts";
 import { graceFor, IMMEDIATE_GRACE_MS } from "../../../lib/src/queue/runner/grace_period.ts";
 import { Duration } from "@scribe/alchemy";
@@ -109,14 +109,20 @@ Scribe.test("planFor keeps the most permissive value of the whole declaration se
   ]);
 
   expect(plan.maxPerSubject, equals(500_000));
-  expect(plan.ackWaitMs, equals(QUEUE_DEFAULTS.processingTimeout.inMilliseconds));
+  expect(
+    plan.ackWaitMs,
+    equals(QUEUE_DEFAULTS.processingTimeout.inMilliseconds),
+  );
 });
 
 Scribe.test("planFor never goes below the defaults, however small a queue asks", () => {
   const plan = planFor([queue({ maxLen: 1, processingTimeoutMs: 1 })]);
 
   expect(plan.maxPerSubject, equals(QUEUE_DEFAULTS.maxLen));
-  expect(plan.ackWaitMs, equals(QUEUE_DEFAULTS.processingTimeout.inMilliseconds));
+  expect(
+    plan.ackWaitMs,
+    equals(QUEUE_DEFAULTS.processingTimeout.inMilliseconds),
+  );
 });
 
 Scribe.test("planFor holds without a single queue declared", () => {
@@ -143,6 +149,21 @@ Scribe.test("planFor never lets the server stop before the default policy is don
   expect(plan.maxDeliver > QUEUE_DEFAULTS.maxRetries, equals(true));
 });
 
+Scribe.test("planFor sums the declared concurrency for how many deliveries may be unacknowledged at once", () => {
+  const plan = planFor([
+    queue({ name: "a", concurrency: 700 }),
+    queue({ name: "b", concurrency: 900 }),
+  ]);
+
+  expect(plan.maxAckPending, equals(1_600));
+});
+
+Scribe.test("planFor never lets max_ack_pending fall below the server's own default", () => {
+  const plan = planFor([queue({ concurrency: 1 })]);
+
+  expect(plan.maxAckPending, equals(DEFAULT_MAX_ACK_PENDING));
+});
+
 Scribe.test("planFor lists the dedicated queues only", () => {
   const plan = planFor([
     queue({ name: "shared" }),
@@ -166,7 +187,10 @@ Scribe.test("planSignature ignores the declaration order", () => {
 });
 
 Scribe.test("planSignature separates two plans that provision differently", () => {
-  expect(planSignature(planFor([queue({ maxLen: 200_000 })])), isNot(equals(planSignature(planFor([queue()])))));
+  expect(
+    planSignature(planFor([queue({ maxLen: 200_000 })])),
+    isNot(equals(planSignature(planFor([queue()])))),
+  );
   expect(
     planSignature(planFor([queue({ name: "x", dedicated: true })])),
     isNot(equals(planSignature(planFor([queue({ name: "x" })])))),

@@ -61,6 +61,7 @@ interface Consumer {
   readonly filter: string;
   readonly ackWaitNs: number;
   readonly maxDeliver: number;
+  readonly maxAckPending: number;
 }
 
 interface Server {
@@ -71,7 +72,9 @@ interface Server {
   refuseUpdate: boolean;
 }
 
-function server(over: Partial<Pick<Server, "streams" | "consumers" | "refuseUpdate">> = {}): Server {
+function server(
+  over: Partial<Pick<Server, "streams" | "consumers" | "refuseUpdate">> = {},
+): Server {
   return {
     streams: over.streams ?? new Map<string, number>(),
     consumers: over.consumers ?? new Map<string, Consumer>(),
@@ -86,11 +89,16 @@ function manager(state: Server): JetStreamManager {
     streams: {
       info: (name: string) =>
         state.streams.has(name)
-          ? Promise.resolve({ config: { max_msgs_per_subject: state.streams.get(name) } })
+          ? Promise.resolve({
+            config: { max_msgs_per_subject: state.streams.get(name) },
+          })
           : Promise.reject(new Error("stream not found")),
       add: (config: { name: string; max_msgs_per_subject: number }) => {
         state.streams.set(config.name, config.max_msgs_per_subject);
-        state.added.push({ name: config.name, maxPerSubject: config.max_msgs_per_subject });
+        state.added.push({
+          name: config.name,
+          maxPerSubject: config.max_msgs_per_subject,
+        });
         return Promise.resolve({});
       },
       update: (name: string, config: { max_msgs_per_subject: number }) => {
@@ -102,7 +110,11 @@ function manager(state: Server): JetStreamManager {
       info: (stream: string, durable: string) => {
         const held = state.consumers.get(`${stream}/${durable}`);
         return held === undefined ? Promise.reject(new Error("consumer not found")) : Promise.resolve({
-          config: { ack_wait: held.ackWaitNs, max_deliver: held.maxDeliver },
+          config: {
+            ack_wait: held.ackWaitNs,
+            max_deliver: held.maxDeliver,
+            max_ack_pending: held.maxAckPending,
+          },
         });
       },
       add: (
@@ -112,6 +124,7 @@ function manager(state: Server): JetStreamManager {
           filter_subject: string;
           ack_wait: number;
           max_deliver: number;
+          max_ack_pending: number;
         },
       ) => {
         state.consumers.set(`${stream}/${config.durable_name}`, {
@@ -119,11 +132,18 @@ function manager(state: Server): JetStreamManager {
           filter: config.filter_subject,
           ackWaitNs: config.ack_wait,
           maxDeliver: config.max_deliver,
+          maxAckPending: config.max_ack_pending,
         });
         return Promise.resolve({});
       },
-      update: (stream: string, durable: string, widened: Record<string, number>) => {
-        if (state.refuseUpdate) return Promise.reject(new Error("consumer is locked"));
+      update: (
+        stream: string,
+        durable: string,
+        widened: Record<string, number>,
+      ) => {
+        if (state.refuseUpdate) {
+          return Promise.reject(new Error("consumer is locked"));
+        }
         state.updates.push({ durable, widened });
         const held = state.consumers.get(`${stream}/${durable}`);
         if (held) {
@@ -131,6 +151,7 @@ function manager(state: Server): JetStreamManager {
             ...held,
             ackWaitNs: widened.ack_wait ?? held.ackWaitNs,
             maxDeliver: widened.max_deliver ?? held.maxDeliver,
+            maxAckPending: widened.max_ack_pending ?? held.maxAckPending,
           });
         }
         return Promise.resolve({});
@@ -168,7 +189,10 @@ Scribe.test("provisioning an empty server creates the three streams and the shar
       DEAD_STREAM,
     ]),
   );
-  expect(state.consumers.get(`${SHARED_STREAM}/${SHARED_CONSUMER}`)?.filter, equals("q.>"));
+  expect(
+    state.consumers.get(`${SHARED_STREAM}/${SHARED_CONSUMER}`)?.filter,
+    equals("q.>"),
+  );
 });
 
 Scribe.test("provisioning twice over adds nothing the second time", async () => {
@@ -186,29 +210,68 @@ Scribe.test("provisioning twice over adds nothing the second time", async () => 
 Scribe.test("two queues fighting over the ceiling both live under the larger one", async () => {
   const state = server();
   const plan = planFor([
-    queue({ name: "small", maxLen: 10, maxRetries: 2, processingTimeoutMs: 1_000 }),
-    queue({ name: "large", maxLen: 900_000, maxRetries: 30, processingTimeoutMs: 3_600_000 }),
+    queue({
+      name: "small",
+      maxLen: 10,
+      maxRetries: 2,
+      processingTimeoutMs: 1_000,
+    }),
+    queue({
+      name: "large",
+      maxLen: 900_000,
+      maxRetries: 30,
+      processingTimeoutMs: 3_600_000,
+    }),
   ]);
 
   await provision(state, plan);
 
   expect(state.streams.get(SHARED_STREAM), equals(900_000));
-  expect(state.consumers.get(`${SHARED_STREAM}/${SHARED_CONSUMER}`)?.maxDeliver, equals(31));
-  expect(state.consumers.get(`${SHARED_STREAM}/${SHARED_CONSUMER}`)?.ackWaitNs, equals(3_600_000 * 1_000_000));
+  expect(
+    state.consumers.get(`${SHARED_STREAM}/${SHARED_CONSUMER}`)?.maxDeliver,
+    equals(31),
+  );
+  expect(
+    state.consumers.get(`${SHARED_STREAM}/${SHARED_CONSUMER}`)?.ackWaitNs,
+    equals(3_600_000 * 1_000_000),
+  );
+});
+
+Scribe.test("a fresh shared consumer is provisioned with room for every queue's concurrency at once", async () => {
+  const state = server();
+
+  await provision(
+    state,
+    planFor([
+      queue({ name: "a", concurrency: 700 }),
+      queue({ name: "b", concurrency: 900 }),
+    ]),
+  );
+
+  expect(
+    state.consumers.get(`${SHARED_STREAM}/${SHARED_CONSUMER}`)?.maxAckPending,
+    equals(1_600),
+  );
 });
 
 Scribe.test("a dedicated queue declared after a shared one changes the plan that gets applied", async () => {
   const shared = queue({ name: "first" });
   const later = queue({ name: "second", dedicated: true });
 
-  expect(planSignature(planFor([shared])), isNot(equals(planSignature(planFor([shared, later])))));
+  expect(
+    planSignature(planFor([shared])),
+    isNot(equals(planSignature(planFor([shared, later])))),
+  );
 
   const state = server();
   await provision(state, planFor([shared]));
   expect(state.consumers.has(`${DEDICATED_STREAM}/second`), equals(false));
 
   await provision(state, planFor([shared, later]));
-  expect(state.consumers.get(`${DEDICATED_STREAM}/second`)?.filter, equals("qd.second"));
+  expect(
+    state.consumers.get(`${DEDICATED_STREAM}/second`)?.filter,
+    equals("qd.second"),
+  );
 });
 
 Scribe.test("a consumer an older deployment left too narrow is widened, never narrowed", async () => {
@@ -218,18 +281,39 @@ Scribe.test("a consumer an older deployment left too narrow is widened, never na
       filter: "q.>",
       ackWaitNs: 1_000 * 1_000_000,
       maxDeliver: 2,
+      maxAckPending: 50,
     }]]),
   });
 
-  await provision(state, planFor([queue({ processingTimeoutMs: 60_000, maxRetries: 9 })]));
+  await provision(
+    state,
+    planFor([
+      queue({ processingTimeoutMs: 60_000, maxRetries: 9, concurrency: 1_500 }),
+    ]),
+  );
   const widened = state.consumers.get(`${SHARED_STREAM}/${SHARED_CONSUMER}`);
   expect(widened?.maxDeliver, equals(10));
-  expect(widened?.ackWaitNs, equals(QUEUE_DEFAULTS.processingTimeout.inMilliseconds * 1_000_000));
+  expect(
+    widened?.ackWaitNs,
+    equals(QUEUE_DEFAULTS.processingTimeout.inMilliseconds * 1_000_000),
+  );
+  expect(widened?.maxAckPending, equals(1_500));
 
   state.updates.length = 0;
-  await provision(state, planFor([queue({ processingTimeoutMs: 1, maxRetries: 1 })]));
+  await provision(
+    state,
+    planFor([queue({ processingTimeoutMs: 1, maxRetries: 1, concurrency: 1 })]),
+  );
   expect(state.updates, equals([]));
-  expect(state.consumers.get(`${SHARED_STREAM}/${SHARED_CONSUMER}`)?.maxDeliver, equals(10));
+  expect(
+    state.consumers.get(`${SHARED_STREAM}/${SHARED_CONSUMER}`)?.maxDeliver,
+    equals(10),
+  );
+  expect(
+    state.consumers.get(`${SHARED_STREAM}/${SHARED_CONSUMER}`)?.maxAckPending,
+    equals(1_500),
+    "a plan that now needs less in flight does not narrow what an earlier one already raised",
+  );
 });
 
 Scribe.test("a widening the server refuses is written to the log and does not stop the run", async () => {
@@ -241,6 +325,7 @@ Scribe.test("a widening the server refuses is written to the log and does not st
       filter: "q.>",
       ackWaitNs: 1,
       maxDeliver: 1,
+      maxAckPending: 1,
     }]]),
   });
 
@@ -281,7 +366,10 @@ Scribe.test("a dedicated queue gets a consumer filtered on its own subject alone
 
   await provision(
     state,
-    planFor([queue({ name: "mail.send", dedicated: true }), queue({ name: "other" })]),
+    planFor([
+      queue({ name: "mail.send", dedicated: true }),
+      queue({ name: "other" }),
+    ]),
   );
 
   const own = state.consumers.get(`${DEDICATED_STREAM}/mail_send`);
@@ -294,7 +382,9 @@ Scribe.test("a processing timeout of a year keeps an ack_wait a number can still
 
   await provision(
     state,
-    planFor([queue({ processingTimeoutMs: Duration.days(365).inMilliseconds })]),
+    planFor([
+      queue({ processingTimeoutMs: Duration.days(365).inMilliseconds }),
+    ]),
   );
 
   const ackWaitNs = state.consumers.get(`${SHARED_STREAM}/${SHARED_CONSUMER}`)?.ackWaitNs ?? 0;
