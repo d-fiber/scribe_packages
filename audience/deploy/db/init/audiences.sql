@@ -46,7 +46,8 @@ create table if not exists public.__audiences__ (
 create table if not exists public.__audiences_default__
   partition of public.__audiences__ default;
 
-create index if not exists __audiences_member__ on public.__audiences__ (feature, member);
+create index if not exists __audiences_member__ on public.__audiences__ (member)
+  include (feature, audience, expires_at);
 
 alter table public.__audiences__ enable row level security;
 alter table public.__audiences_default__ enable row level security;
