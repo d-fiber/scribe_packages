@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Failure, Ok, type Result, type UnmodifiableList } from "@scribe/alchemy";
+import { DateTime, Failure, type Future, Ok, type Result, type UnmodifiableList } from "@scribe/alchemy";
 import {
   LinkError,
   type LinkOutcome,
@@ -127,7 +127,7 @@ export class ResolvedLink {
    * @param outcome - What the node serving the link did with it.
    * @param visitor - What the client announced about itself, empty when it announced nothing.
    */
-  async record(outcome: LinkOutcome, visitor: LinkVisitor = {}): Promise<void> {
+  async record(outcome: LinkOutcome, visitor: LinkVisitor = {}): Future<void> {
     await dynamicLinkStatisticsQueue.push({ linkId: this.#id, outcome, visitor });
   }
 }
@@ -140,7 +140,7 @@ export class ResolvedLink {
  * created is what an address scanner asks for, and caching only the links that exist would send
  * every one of those queries to Postgres.
  */
-export function resolveLink(slug: string): Promise<Result<ResolvedLink, ResolveLinkError | LinkError.Backend>> {
+export function resolveLink(slug: string): Future<Result<ResolvedLink, ResolveLinkError | LinkError.Backend>> {
   return guarded(async () => {
     const row = await cachedLink(slug, () => linkBySlug(slug));
     return outcomeOf(row);
@@ -155,11 +155,11 @@ export function resolveLink(slug: string): Promise<Result<ResolvedLink, ResolveL
  * serves one click: it reads the cache and the table in as many round trips as it takes for the
  * whole list rather than one round trip per slug, but it is one call whether `slugs` names ten or
  * ten thousand, so a caller does not have to bound its own concurrency the way fanning `resolveLink`
- * out with `Promise.all` would ask it to. A slug repeated in `slugs` answers once.
+ * out with `Future.wait` would ask it to. A slug repeated in `slugs` answers once.
  */
 export async function resolveMany(
   slugs: UnmodifiableList<string>,
-): Promise<ReadonlyMap<string, Result<ResolvedLink, ResolveLinkError | LinkError.Backend>>> {
+): Future<ReadonlyMap<string, Result<ResolvedLink, ResolveLinkError | LinkError.Backend>>> {
   const outcomes = new Map<string, Result<ResolvedLink, ResolveLinkError | LinkError.Backend>>();
   if (slugs.length === 0) return outcomes;
 
@@ -183,7 +183,9 @@ export async function resolveMany(
 
 function outcomeOf(row: DynamicLinkRow | null): Result<ResolvedLink, ResolveLinkError> {
   if (!row) return new Failure(LinkError.NotFound);
-  if (row.expires_at !== null && row.expires_at < Date.now()) return new Failure(LinkError.Expired);
+  if (row.expires_at !== null && row.expires_at < DateTime.now().millisecondsSinceEpoch) {
+    return new Failure(LinkError.Expired);
+  }
 
   const declaration = linkNamed(row.payload.k);
   if (!declaration) return new Failure(LinkError.Unknown);

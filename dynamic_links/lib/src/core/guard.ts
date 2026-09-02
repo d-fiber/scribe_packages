@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Failure, type Result } from "@scribe/alchemy";
+import { Failure, type Future, type Result } from "@scribe/alchemy";
 import { LinkError } from "../../contracts/link.ts";
 
 /**
@@ -51,8 +51,8 @@ import { LinkError } from "../../contracts/link.ts";
  * by hand for the one failure every operation shares.
  */
 export async function guarded<T, E extends LinkError>(
-  query: () => Promise<Result<T, E>>,
-): Promise<Result<T, E | LinkError.Backend>> {
+  query: () => Future<Result<T, E>>,
+): Future<Result<T, E | LinkError.Backend>> {
   try {
     return await query();
   } catch {

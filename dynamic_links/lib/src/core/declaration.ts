@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Duration, Pagination, UnmodifiableList } from "@scribe/alchemy";
-import { Failure, Ok, okay, Refusal, type Result, runPooled } from "@scribe/alchemy";
+import type { Duration, Future, Pagination, UnmodifiableList } from "@scribe/alchemy";
+import { DateTime, Failure, Ok, okay, Refusal, type Result, runPooled } from "@scribe/alchemy";
 import {
   type CreatedLink,
   type CreateLinkError,
@@ -300,7 +300,7 @@ export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
   create(
     data: T,
     options: CreateLinkOptions = {},
-  ): Promise<Result<CreatedLink, CreateLinkError | LinkError.Backend>> {
+  ): Future<Result<CreatedLink, CreateLinkError | LinkError.Backend>> {
     return guarded(() => this.#createOne(data, options));
   }
 
@@ -327,7 +327,7 @@ export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
   async createMany(
     items: UnmodifiableList<T>,
     options: CreateLinkOptions = {},
-  ): Promise<readonly Result<CreatedLink, CreateLinkError | LinkError.Backend>[]> {
+  ): Future<readonly Result<CreatedLink, CreateLinkError | LinkError.Backend>[]> {
     const results: Result<CreatedLink, CreateLinkError | LinkError.Backend>[] = new Array(items.length);
     if (items.length === 0) return results;
 
@@ -362,7 +362,7 @@ export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
    * belongs to the declaration whose name its row carries, and one declaration reaching into
    * another's links would make a name mean nothing.
    */
-  revoke(slug: string): Promise<Result<void, RevokeLinkError | LinkError.Backend>> {
+  revoke(slug: string): Future<Result<void, RevokeLinkError | LinkError.Backend>> {
     return guarded(async () => {
       const row = await linkBySlug(slug);
       if (!row || row.payload.k !== this.name) {
@@ -381,7 +381,7 @@ export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
   statistics(
     slug: string,
     page: LinkPage = {},
-  ): Promise<Result<Pagination<LinkStatistic>, StatisticsError | LinkError.Backend>> {
+  ): Future<Result<Pagination<LinkStatistic>, StatisticsError | LinkError.Backend>> {
     return guarded(async () => {
       const row = await linkBySlug(slug);
       if (!row || row.payload.k !== this.name) {
@@ -422,7 +422,7 @@ export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
   async #createOne(
     data: T,
     options: CreateLinkOptions,
-  ): Promise<Result<CreatedLink, CreateLinkError | LinkError.Backend>> {
+  ): Future<Result<CreatedLink, CreateLinkError | LinkError.Backend>> {
     if (!this.#accepts(data)) {
       return new Failure(LinkError.Params);
     }
@@ -469,7 +469,7 @@ export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
     options: CreateLinkOptions,
     expiresAt: number | null,
     results: Result<CreatedLink, CreateLinkError | LinkError.Backend>[],
-  ): Promise<void> {
+  ): Future<void> {
     const slugs = indexes.map(() => generateSlug());
     const rows: NewLink[] = indexes.map((index, at) => ({
       slug: slugs[at],
@@ -503,7 +503,7 @@ export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
     });
   }
 
-  async #insertOne(link: NewLink): Promise<Result<DynamicLinkRow, Refusal>> {
+  async #insertOne(link: NewLink): Future<Result<DynamicLinkRow, Refusal>> {
     try {
       return await insertLink(link);
     } catch (cause) {
@@ -511,7 +511,7 @@ export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
     }
   }
 
-  async #insertChunk(rows: readonly NewLink[]): Promise<Result<number, Refusal>> {
+  async #insertChunk(rows: readonly NewLink[]): Future<Result<number, Refusal>> {
     try {
       return await insertLinks(rows);
     } catch (cause) {
@@ -534,6 +534,6 @@ export class DynamicLink<T extends LinkData<T> = AnyLinkData> {
   }
 
   #expiry(): number | null {
-    return this.#ttl === null ? null : Date.now() + this.#ttl.inMilliseconds;
+    return this.#ttl === null ? null : DateTime.now().add(this.#ttl).millisecondsSinceEpoch;
   }
 }

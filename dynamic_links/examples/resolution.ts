@@ -1,3 +1,4 @@
+import type { Future } from "@scribe/alchemy";
 import {
   type LinkDestination,
   type LinkError,
@@ -27,7 +28,7 @@ export interface Landing {
 export async function land(
   slug: string,
   visit: Visit,
-): Promise<Landing | LinkError> {
+): Future<Landing | LinkError> {
   const hit = await resolveLink(slug);
   if (!hit.ok) return hit.error;
 
@@ -46,7 +47,7 @@ export async function land(
  * Before the test `data` is any declaration's data; inside it, it is what the declaration named,
  * so a typo in a field name does not compile.
  */
-export async function codeOf(slug: string): Promise<string | null> {
+export async function codeOf(slug: string): Future<string | null> {
   const hit = await resolveLink(slug);
   if (!hit.ok) return null;
 
@@ -54,7 +55,7 @@ export async function codeOf(slug: string): Promise<string | null> {
 }
 
 /** The visits one slug collected, a page at a time. */
-export async function visits(slug: string): Promise<number> {
+export async function visits(slug: string): Future<number> {
   const page = await invite.statistics(slug, { offset: 0, size: 30 });
   return page.ok ? page.data.items.length : 0;
 }

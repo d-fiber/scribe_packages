@@ -35,6 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import "@scribe/runtime/scholium/runner.ts";
+import { DateTime, Future } from "@scribe/alchemy";
 import { equals, expect, fail, isFalse, isTrue, Scribe } from "@scribe/alchemy/test";
 import { LinkError, LinkOutcome, LinkPlatform } from "../../lib/contracts/link.ts";
 import { DynamicLink } from "../../lib/src/core/declaration.ts";
@@ -152,7 +153,7 @@ Scribe.test("a slug nobody created is cached as absent", async () => {
 
 Scribe.test("a link past its expiry answers expired rather than not found", async () => {
   const database = installDynamicLinksMock({
-    __dynamic_links__: [row({ slug: "expiredslu", expires_at: Date.now() - 1 })],
+    __dynamic_links__: [row({ slug: "expiredslu", expires_at: DateTime.now().millisecondsSinceEpoch - 1 })],
   });
 
   try {
@@ -187,7 +188,7 @@ Scribe.test("recording a visit enqueues it instead of writing it on the request 
     "push",
     ((visit: RecordedVisit) => {
       pushed.push(visit);
-      return Promise.resolve("job-1");
+      return Future.value("job-1");
     }) as typeof dynamicLinkStatisticsQueue.push,
   );
   const database = installDynamicLinksMock({ __dynamic_links__: [row({ slug: "recordslug" })] });

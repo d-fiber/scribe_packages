@@ -34,13 +34,13 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Pagination } from "@scribe/alchemy";
+import { Duration, type Future, Pagination } from "@scribe/alchemy";
 import { Queue } from "@scribe/foundation/queue";
 import type { LinkOutcome, LinkPlatform, LinkStatistic, LinkVisitor } from "../../contracts/link.ts";
 import { type DynamicLinkStatisticRow, dynamicLinkStatistics } from "./tables.ts";
 
 /** How long the queue holds a visit before writing the group it has gathered. */
-const LINGER_MS = 500;
+const LINGER: Duration = Duration.milliseconds(500);
 
 /** One visit as it travels to the queue, which is one row once the group is written. */
 export interface RecordedVisit {
@@ -61,7 +61,7 @@ export interface RecordedVisit {
  * arrives within half a second, and one insert carries the group.
  */
 export const dynamicLinkStatisticsQueue: Queue<RecordedVisit> = new Queue<RecordedVisit>(
-  { name: "dynamic-link-statistics", batch: { lingerMs: LINGER_MS } },
+  { name: "dynamic-link-statistics", batch: { lingerMs: LINGER.inMilliseconds } },
   async (visits) => {
     if (visits.length === 0) return;
 
@@ -88,7 +88,7 @@ export async function statisticsOf(
   linkId: number,
   offset: number,
   size: number,
-): Promise<Pagination<LinkStatistic>> {
+): Future<Pagination<LinkStatistic>> {
   const rows = await dynamicLinkStatistics()
     .select((s) => ({
       statistic_id: s.statistic_id,

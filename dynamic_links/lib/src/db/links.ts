@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { wrote } from "@scribe/foundation/database";
-import { type Refusal, type Result } from "@scribe/alchemy";
+import { type Future, type Refusal, type Result } from "@scribe/alchemy";
 import { type DynamicLinkRow, dynamicLinks, type StoredPayload } from "./tables.ts";
 
 /** What creating one link writes into the table. */
@@ -54,14 +54,14 @@ export interface NewLink {
 }
 
 /** The link answering to `slug`, or null when the table holds none. */
-export function linkBySlug(slug: string): Promise<DynamicLinkRow | null> {
+export function linkBySlug(slug: string): Future<DynamicLinkRow | null> {
   return dynamicLinks()
     .where((f) => f.slug.eq(slug))
     .getOne();
 }
 
 /** The links answering to any of `slugs`, in no particular order and skipping what does not exist. */
-export function linksBySlug(slugs: readonly string[]): Promise<DynamicLinkRow[]> {
+export function linksBySlug(slugs: readonly string[]): Future<DynamicLinkRow[]> {
   return dynamicLinks()
     .where((f) => f.slug.in(slugs as string[]))
     .get();
@@ -73,7 +73,7 @@ export function linksBySlug(slugs: readonly string[]): Promise<DynamicLinkRow[]>
  * The refusal's `kind` is what tells a collision on the unique slug index, worth a retry on a
  * freshly drawn slug, apart from the table not answering at all, which a retry would only repeat.
  */
-export function insertLink(link: NewLink): Promise<Result<DynamicLinkRow, Refusal>> {
+export function insertLink(link: NewLink): Future<Result<DynamicLinkRow, Refusal>> {
   return dynamicLinks().insertOne({
     slug: link.slug,
     payload: link.payload,
@@ -91,7 +91,7 @@ export function insertLink(link: NewLink): Promise<Result<DynamicLinkRow, Refusa
  * not, means none of `links` was written. There is no partial group to salvage from this call
  * alone, and the caller that wants one retries the group's members one at a time instead.
  */
-export function insertLinks(links: readonly NewLink[]): Promise<Result<number, Refusal>> {
+export function insertLinks(links: readonly NewLink[]): Future<Result<number, Refusal>> {
   return dynamicLinks().insert(
     links.map((link) => ({
       slug: link.slug,
@@ -108,7 +108,7 @@ export function insertLinks(links: readonly NewLink[]): Promise<Result<number, R
  * The slug rather than the identifier because it is unique too, and because it is what every
  * caller already holds: a link is asked for by the only part of it an address carries.
  */
-export async function deleteLink(slug: string): Promise<boolean> {
+export async function deleteLink(slug: string): Future<boolean> {
   return wrote(
     await dynamicLinks()
       .where((f) => f.slug.eq(slug))
