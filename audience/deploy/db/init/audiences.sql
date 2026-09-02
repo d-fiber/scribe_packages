@@ -34,7 +34,7 @@
 -- This header is a summary written for convenience. Where it differs from the
 -- LICENSE file, the LICENSE file governs.
 
-create table if not exists public.__audiences__ (
+create table if not exists audience.__audiences__ (
   feature    text not null,
   audience   text not null,
   member     text not null,
@@ -43,19 +43,19 @@ create table if not exists public.__audiences__ (
   primary key (feature, audience, member)
 ) partition by list (feature);
 
-create table if not exists public.__audiences_default__
-  partition of public.__audiences__ default;
+create table if not exists audience.__audiences_default__
+  partition of audience.__audiences__ default;
 
-create index if not exists __audiences_member__ on public.__audiences__ (member)
+create index if not exists __audiences_member__ on audience.__audiences__ (member)
   include (feature, audience, expires_at);
 
-alter table public.__audiences__ enable row level security;
-alter table public.__audiences_default__ enable row level security;
+alter table audience.__audiences__ enable row level security;
+alter table audience.__audiences_default__ enable row level security;
 
-revoke all on public.__audiences__ from authenticated, anon;
-revoke all on public.__audiences_default__ from authenticated, anon;
+revoke all on audience.__audiences__ from authenticated, anon;
+revoke all on audience.__audiences_default__ from authenticated, anon;
 
-create or replace function public.__audiences_touch__()
+create or replace function audience.__audiences_touch__()
 returns trigger
 language plpgsql
 security definer
@@ -67,13 +67,13 @@ begin
 end;
 $$;
 
-drop trigger if exists __audiences_touch__ on public.__audiences__;
+drop trigger if exists __audiences_touch__ on audience.__audiences__;
 
 create trigger __audiences_touch__
-  before insert on public.__audiences__
-  for each row execute function public.__audiences_touch__();
+  before insert on audience.__audiences__
+  for each row execute function audience.__audiences_touch__();
 
-create table if not exists public.__audience_declarations__ (
+create table if not exists audience.__audience_declarations__ (
   feature    text not null,
   name       text not null,
   owner      text not null,
@@ -81,11 +81,11 @@ create table if not exists public.__audience_declarations__ (
   primary key (feature, name)
 );
 
-alter table public.__audience_declarations__ enable row level security;
+alter table audience.__audience_declarations__ enable row level security;
 
-revoke all on public.__audience_declarations__ from authenticated, anon;
+revoke all on audience.__audience_declarations__ from authenticated, anon;
 
-create or replace function public.__audience_declarations_touch__()
+create or replace function audience.__audience_declarations_touch__()
 returns trigger
 language plpgsql
 security definer
@@ -97,8 +97,8 @@ begin
 end;
 $$;
 
-drop trigger if exists __audience_declarations_touch__ on public.__audience_declarations__;
+drop trigger if exists __audience_declarations_touch__ on audience.__audience_declarations__;
 
 create trigger __audience_declarations_touch__
-  before insert on public.__audience_declarations__
-  for each row execute function public.__audience_declarations_touch__();
+  before insert on audience.__audience_declarations__
+  for each row execute function audience.__audience_declarations_touch__();
