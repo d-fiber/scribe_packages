@@ -34,7 +34,7 @@
 -- This header is a summary written for convenience. Where it differs from the
 -- LICENSE file, the LICENSE file governs.
 
-create table if not exists public.__search_indices__ (
+create table if not exists search.__search_indices__ (
   name          text primary key,
   index_name    text not null,
   source_table  text not null,
@@ -44,7 +44,7 @@ create table if not exists public.__search_indices__ (
   synced_at     timestamptz not null default now()
 );
 
-create table if not exists public.__search_sources__ (
+create table if not exists search.__search_sources__ (
   index        text not null,
   source_table text not null,
   source_key   text not null,
@@ -52,9 +52,9 @@ create table if not exists public.__search_sources__ (
 );
 
 create index if not exists __search_sources_table__
-  on public.__search_sources__ (source_table);
+  on search.__search_sources__ (source_table);
 
-create table if not exists public.__search_outbox__ (
+create table if not exists search.__search_outbox__ (
   index       text not null,
   entity_id   text not null,
   operation   text not null check (operation in ('index', 'delete')),
@@ -66,18 +66,18 @@ create table if not exists public.__search_outbox__ (
 );
 
 create index if not exists __search_outbox_line__
-  on public.__search_outbox__ (enqueued_at)
+  on search.__search_outbox__ (enqueued_at)
   where failed_at is null;
 
-alter table public.__search_indices__ enable row level security;
-alter table public.__search_sources__ enable row level security;
-alter table public.__search_outbox__ enable row level security;
+alter table search.__search_indices__ enable row level security;
+alter table search.__search_sources__ enable row level security;
+alter table search.__search_outbox__ enable row level security;
 
-revoke all on public.__search_indices__ from authenticated, anon;
-revoke all on public.__search_sources__ from authenticated, anon;
-revoke all on public.__search_outbox__ from authenticated, anon;
+revoke all on search.__search_indices__ from authenticated, anon;
+revoke all on search.__search_sources__ from authenticated, anon;
+revoke all on search.__search_outbox__ from authenticated, anon;
 
-create or replace function public.__search_enqueue__(
+create or replace function search.__search_enqueue__(
   p_index     text,
   p_ids       text[],
   p_operation text
@@ -90,7 +90,7 @@ as $$
 declare
   v_written integer;
 begin
-  insert into public.__search_outbox__ (index, entity_id, operation)
+  insert into search.__search_outbox__ (index, entity_id, operation)
   select p_index, wanted.entity_id, p_operation
   from   (select distinct unnest(p_ids) as entity_id) wanted
   where  wanted.entity_id is not null
@@ -105,7 +105,7 @@ begin
 end;
 $$;
 
-create or replace function public.__search_fail__(
+create or replace function search.__search_fail__(
   p_index        text,
   p_ids          text[],
   p_error        text,
@@ -119,7 +119,7 @@ as $$
 declare
   v_written integer;
 begin
-  update public.__search_outbox__
+  update search.__search_outbox__
   set attempts   = attempts + 1,
       last_error = p_error,
       failed_at  = case when attempts + 1 >= p_max_attempts then now() end
@@ -132,7 +132,7 @@ begin
 end;
 $$;
 
-create or replace function public.__search_backlog__(
+create or replace function search.__search_backlog__(
   p_index     text,
   out pending bigint,
   out failed  bigint
@@ -145,12 +145,12 @@ begin
   select count(*) filter (where failed_at is null),
          count(*) filter (where failed_at is not null)
   into   pending, failed
-  from   public.__search_outbox__
+  from   search.__search_outbox__
   where  index = p_index;
 end;
 $$;
 
-create or replace function public.__search_track__()
+create or replace function search.__search_track__()
 returns trigger
 language plpgsql
 security definer
@@ -187,7 +187,7 @@ begin
 
   if tg_op = 'DELETE' then
     select source_table into v_indexed
-    from   public.__search_indices__
+    from   search.__search_indices__
     where  name = v_index;
 
     if v_indexed = tg_table_name then
@@ -195,13 +195,13 @@ begin
     end if;
   end if;
 
-  perform public.__search_enqueue__(v_index, array[v_entity_id], v_operation);
+  perform search.__search_enqueue__(v_index, array[v_entity_id], v_operation);
 
   if tg_op = 'UPDATE' then
     v_previous := to_jsonb(old) ->> v_key_col;
 
     if v_previous is not null and v_previous <> v_entity_id then
-      perform public.__search_enqueue__(v_index, array[v_previous], 'index');
+      perform search.__search_enqueue__(v_index, array[v_previous], 'index');
     end if;
   end if;
 
@@ -213,13 +213,13 @@ begin
 end;
 $$;
 
-revoke all on function public.__search_enqueue__(text, text[], text)
+revoke all on function search.__search_enqueue__(text, text[], text)
   from public, anon, authenticated;
-revoke all on function public.__search_fail__(text, text[], text, integer)
+revoke all on function search.__search_fail__(text, text[], text, integer)
   from public, anon, authenticated;
-revoke all on function public.__search_backlog__(text)
+revoke all on function search.__search_backlog__(text)
   from public, anon, authenticated;
 
-grant execute on function public.__search_enqueue__(text, text[], text) to service_role;
-grant execute on function public.__search_fail__(text, text[], text, integer) to service_role;
-grant execute on function public.__search_backlog__(text) to service_role;
+grant execute on function search.__search_enqueue__(text, text[], text) to service_role;
+grant execute on function search.__search_fail__(text, text[], text, integer) to service_role;
+grant execute on function search.__search_backlog__(text) to service_role;
