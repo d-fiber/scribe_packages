@@ -35,6 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { create } from "@bufbuild/protobuf";
+import { Future } from "@scribe/alchemy";
 import {
   type BroadcastRequest,
   type BroadcastResult,
@@ -77,12 +78,12 @@ function granted(channel: string): GrantedDestination<Record<string, unknown>> {
  *
  * A request naming no account writes nothing and answers no failure.
  */
-export async function realtimeGrant(request: GrantRequest): Promise<GrantResult> {
+export async function realtimeGrant(request: GrantRequest): Future<GrantResult> {
   if (!request.channel) return create(GrantResultSchema, { error: failed("grant", "missing channel") });
 
   try {
     const destination = granted(request.channel);
-    const written = await Promise.all(request.accountIds.map((accountId) => destination.grant(accountId)));
+    const written = await Future.wait(request.accountIds.map((accountId) => destination.grant(accountId)));
     const refused = written.filter((landed) => !landed).length;
 
     if (refused > 0) {
@@ -107,12 +108,12 @@ export async function realtimeGrant(request: GrantRequest): Promise<GrantResult>
  *
  * A request naming no account removes nothing and answers no failure.
  */
-export async function realtimeRevoke(request: GrantRequest): Promise<GrantResult> {
+export async function realtimeRevoke(request: GrantRequest): Future<GrantResult> {
   if (!request.channel) return create(GrantResultSchema, { error: failed("revoke", "missing channel") });
 
   try {
     const destination = granted(request.channel);
-    await Promise.all(request.accountIds.map((accountId) => destination.revoke(accountId)));
+    await Future.wait(request.accountIds.map((accountId) => destination.revoke(accountId)));
     return create(GrantResultSchema, {});
   } catch (cause) {
     return create(GrantResultSchema, { error: failed("revoke", cause) });
@@ -131,7 +132,7 @@ export async function realtimeRevoke(request: GrantRequest): Promise<GrantResult
  * that choice, on the grounds that an emission is a side effect nobody has a recovery for, so
  * failing the request that triggered it would cost more than the event it lost.
  */
-export async function realtimeBroadcast(request: BroadcastRequest): Promise<BroadcastResult> {
+export async function realtimeBroadcast(request: BroadcastRequest): Future<BroadcastResult> {
   if (!request.channel) return create(BroadcastResultSchema, { error: failed("broadcast", "missing channel") });
 
   try {

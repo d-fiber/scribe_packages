@@ -34,6 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import { Future } from "@scribe/alchemy";
+
 import {
   GRANT_PAGE_SIZE,
   grantChannel,
@@ -69,17 +71,17 @@ export class Destination<T extends object> {
   }
 
   /** Sends `row` as an insert. */
-  insert(row: T): Promise<boolean> {
+  insert(row: T): Future<boolean> {
     return this.send("insert", row);
   }
 
   /** Sends `row` as an update. */
-  update(row: T): Promise<boolean> {
+  update(row: T): Future<boolean> {
     return this.send("update", row);
   }
 
   /** Sends `row` as a delete, carrying the values it had before it went. */
-  delete(row: T): Promise<boolean> {
+  delete(row: T): Future<boolean> {
     return this.send("delete", row);
   }
 
@@ -89,7 +91,7 @@ export class Destination<T extends object> {
    * @param action - Lowercase snake case, at most 32 characters. It travels beside the payload
    * and a client dispatches on it, so it is part of what the declaration promises.
    */
-  emit(action: string, row: T): Promise<boolean> {
+  emit(action: string, row: T): Future<boolean> {
     return this.send(actionName(action), row);
   }
 
@@ -100,13 +102,13 @@ export class Destination<T extends object> {
    * catch-up a client runs on reconnection reads that identifier, so a row without one is a
    * row no reconnecting client will ever see.
    */
-  protected send(action: string, row: T): Promise<boolean> {
+  protected send(action: string, row: T): Future<boolean> {
     const id = row[this.#key];
     if (id === null || id === undefined || id === "") {
       console.error(
         `[realtime] ${this.#channel} carries no ${String(this.#key)}, broadcast dropped.`,
       );
-      return Promise.resolve(false);
+      return Future.value(false);
     }
 
     return emit({
@@ -127,22 +129,22 @@ export class Destination<T extends object> {
  */
 export class GrantedDestination<T extends object> extends Destination<T> {
   /** Lets `accountId` listen to this channel, and answers whether the grant is in place. */
-  grant(accountId: string): Promise<boolean> {
+  grant(accountId: string): Future<boolean> {
     return grantChannel(this.channel, accountId);
   }
 
   /** Stops `accountId` from listening, and answers whether a grant was removed. */
-  revoke(accountId: string): Promise<boolean> {
+  revoke(accountId: string): Future<boolean> {
     return revokeChannel(this.channel, accountId);
   }
 
   /** Stops everyone from listening, and answers whether the wipe went through. */
-  revokeAll(): Promise<boolean> {
+  revokeAll(): Future<boolean> {
     return revokeChannelEntirely(this.channel);
   }
 
   /** Whether `accountId` may listen to this channel. */
-  allows(accountId: string): Promise<boolean> {
+  allows(accountId: string): Future<boolean> {
     return isGranted(this.channel, accountId);
   }
 
@@ -153,7 +155,7 @@ export class GrantedDestination<T extends object> extends Destination<T> {
    * beginning, and a caller walks every account by resuming from `page.last` until
    * `page.full` is false.
    */
-  grants(after = ""): Promise<GrantPage> {
+  grants(after = ""): Future<GrantPage> {
     return grantedAccounts(this.channel, GRANT_PAGE_SIZE, after);
   }
 }

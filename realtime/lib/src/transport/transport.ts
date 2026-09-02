@@ -34,6 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import type { Future } from "@scribe/alchemy";
+
 /** One emission, addressed and ready to be written wherever the transport writes. */
 export interface RealtimeRow {
   /** The full channel this emission is addressed to, which decides who hears it. */
@@ -60,5 +62,5 @@ export interface RealtimeRow {
  */
 export interface RealtimeTransport {
   /** Sends `row`, and answers whether it left. */
-  send(row: RealtimeRow): Promise<boolean>;
+  send(row: RealtimeRow): Future<boolean>;
 }

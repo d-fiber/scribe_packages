@@ -35,6 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import "@scribe/runtime/scholium/runner.ts";
+import type { Future } from "@scribe/alchemy";
 import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { Listen, Realtime, syncDeclaredChannels } from "@scribe/realtime";
 import { realtimeChannels } from "../../lib/src/db/tables.ts";
@@ -47,7 +48,7 @@ interface Item {
 Realtime.public<Item>("sync_public");
 Realtime.granted<Item>("sync_granted");
 
-async function storedListen(channel: string): Promise<string | null> {
+async function storedListen(channel: string): Future<string | null> {
   const row = await realtimeChannels()
     .selectRaw("listen")
     .where((f) => f.channel.eq(channel))

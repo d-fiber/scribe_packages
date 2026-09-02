@@ -34,6 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import type { Future } from "@scribe/alchemy";
+
 import { wrote } from "@scribe/foundation/database";
 import { realtimeEvents } from "../db/tables.ts";
 import type { RealtimeRow, RealtimeTransport } from "./transport.ts";
@@ -90,7 +92,7 @@ export class EventLogTransport implements RealtimeTransport {
   #scheduled = false;
 
   /** Sends `row` by writing it, and answers whether the insert it travelled in went through. */
-  send(row: RealtimeRow): Promise<boolean> {
+  send(row: RealtimeRow): Future<boolean> {
     return new Promise<boolean>((resolve) => {
       this.#pending.push({
         row: {

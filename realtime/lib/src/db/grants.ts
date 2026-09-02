@@ -34,6 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import type { Future } from "@scribe/alchemy";
+
 import { wrote } from "@scribe/foundation/database";
 import { realtimeGrants } from "./tables.ts";
 
@@ -53,7 +55,7 @@ export interface GrantPage {
 }
 
 /** Lets `accountId` listen to `channel`, and answers whether the grant is now in place. */
-export async function grantChannel(channel: string, accountId: string): Promise<boolean> {
+export async function grantChannel(channel: string, accountId: string): Future<boolean> {
   return wrote(
     await realtimeGrants().upsert(
       { channel, account_id: accountId },
@@ -63,7 +65,7 @@ export async function grantChannel(channel: string, accountId: string): Promise<
 }
 
 /** Stops `accountId` from listening to `channel`, and answers whether a grant was removed. */
-export async function revokeChannel(channel: string, accountId: string): Promise<boolean> {
+export async function revokeChannel(channel: string, accountId: string): Future<boolean> {
   if (!(await isGranted(channel, accountId))) return false;
 
   return wrote(
@@ -79,14 +81,14 @@ export async function revokeChannel(channel: string, accountId: string): Promise
  * A channel that closes leaves its grants behind otherwise, and they come back the day the
  * name is reused for something else.
  */
-export function revokeChannelEntirely(channel: string): Promise<boolean> {
+export function revokeChannelEntirely(channel: string): Future<boolean> {
   return realtimeGrants()
     .where((f) => f.channel.eq(channel))
     .delete().then(wrote);
 }
 
 /** Whether `accountId` may listen to `channel`. */
-export async function isGranted(channel: string, accountId: string): Promise<boolean> {
+export async function isGranted(channel: string, accountId: string): Future<boolean> {
   const row = await realtimeGrants()
     .selectRaw("account_id")
     .where((f) => [f.channel.eq(channel), f.account_id.eq(accountId)])
@@ -106,7 +108,7 @@ export async function grantedAccounts(
   channel: string,
   limit: number,
   after = "",
-): Promise<GrantPage> {
+): Future<GrantPage> {
   const rows = await realtimeGrants()
     .selectRaw("account_id")
     .where((f) => after === "" ? f.channel.eq(channel) : [f.channel.eq(channel), f.account_id.gt(after)])
