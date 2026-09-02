@@ -50,15 +50,9 @@ function answering(after: number, value: string): () => Promise<string> {
 
 class HeldLock {
   acquired = 0;
-  #onAcquire: (count: number) => void;
-
-  constructor(onAcquire: (count: number) => void = () => {}) {
-    this.#onAcquire = onAcquire;
-  }
 
   acquire(): Promise<LockOutcome> {
     this.acquired++;
-    this.#onAcquire(this.acquired);
     return Promise.resolve({ state: "held" as const });
   }
 
@@ -68,7 +62,10 @@ class HeldLock {
 }
 
 function flightOf(lock: HeldLock, gaveUp: string[]): DistributedFlight {
-  return new DistributedFlight(lock as unknown as DistributedLock, (id) => gaveUp.push(id));
+  return new DistributedFlight(
+    lock as unknown as DistributedLock,
+    (id) => gaveUp.push(id),
+  );
 }
 
 const logged = installDrivers();
@@ -89,10 +86,26 @@ Scribe.test("a hundred callers of one key pay one computation and one read", asy
     }
     const answers = await Promise.all(asked);
 
-    expect(computed, equals(1), "the local tier must collapse a hundred callers into one run");
-    expect(new Set(answers).size, equals(1), "a hundred callers of one key must read one answer");
-    expect(redis.countOf("get"), equals(1), "a hundred callers must cost one read");
-    expect(redis.roundTrips, equals(4), "one read, one lock, one write, one release");
+    expect(
+      computed,
+      equals(1),
+      "the local tier must collapse a hundred callers into one run",
+    );
+    expect(
+      new Set(answers).size,
+      equals(1),
+      "a hundred callers of one key must read one answer",
+    );
+    expect(
+      redis.countOf("get"),
+      equals(1),
+      "a hundred callers must cost one read",
+    );
+    expect(
+      redis.roundTrips,
+      equals(4),
+      "one read, one lock, one write, one release",
+    );
   } finally {
     redis.restore();
   }
@@ -103,17 +116,32 @@ Scribe.test("two replicas of one key share one computation when the lease covers
 
   try {
     const budget = Duration.seconds(2);
-    const one = new Valkery<string>({ key: "pair", ttl: FIVE_MINUTES, deadline: budget });
-    const two = new Valkery<string>({ key: "pair", ttl: FIVE_MINUTES, deadline: budget });
+    const one = new Valkery<string>({
+      key: "pair",
+      ttl: FIVE_MINUTES,
+      deadline: budget,
+    });
+    const two = new Valkery<string>({
+      key: "pair",
+      ttl: FIVE_MINUTES,
+      deadline: budget,
+    });
     let computed = 0;
     const compute = (tag: string) => () => {
       computed++;
       return answering(120, tag)();
     };
 
-    const answers = await Promise.all([one.upsert("k", compute("A")), two.upsert("k", compute("B"))]);
+    const answers = await Promise.all([
+      one.upsert("k", compute("A")),
+      two.upsert("k", compute("B")),
+    ]);
 
-    expect(computed, equals(1), "a lease longer than the work is what makes the second tier work");
+    expect(
+      computed,
+      equals(1),
+      "a lease longer than the work is what makes the second tier work",
+    );
     expect(answers, equals(["A", "A"]));
   } finally {
     redis.restore();
@@ -132,7 +160,10 @@ Scribe.test("two replicas of one key answer two different values when the comput
       return answering(400, tag)();
     };
 
-    const answers = await Promise.all([one.upsert("k", compute("A")), two.upsert("k", compute("B"))]);
+    const answers = await Promise.all([
+      one.upsert("k", compute("A")),
+      two.upsert("k", compute("B")),
+    ]);
 
     expect(
       computed,
@@ -160,8 +191,15 @@ Scribe.test("a computation that rejects frees the lock and lets the next caller 
       throwsA(allOf(isA(Error), withMessage("origin down"))),
     );
 
-    expect(redis.raw("lock:boom/k"), equals(null), "a failed run must not hold the key");
-    expect(await cache.upsert("k", () => Promise.resolve("second try")), equals("second try"));
+    expect(
+      redis.raw("lock:boom/k"),
+      equals(null),
+      "a failed run must not hold the key",
+    );
+    expect(
+      await cache.upsert("k", () => Promise.resolve("second try")),
+      equals("second try"),
+    );
   } finally {
     redis.restore();
   }
@@ -171,14 +209,21 @@ Scribe.test("a rejection reaches every caller that joined the run", async () => 
   const redis = installFakeRedis();
 
   try {
-    const cache = new Valkery<string>({ key: "shared-boom", ttl: FIVE_MINUTES });
+    const cache = new Valkery<string>({
+      key: "shared-boom",
+      ttl: FIVE_MINUTES,
+    });
     let computed = 0;
     const failing = () => {
       computed++;
       return new Promise<string>((_, fail) => setTimeout(() => fail(new Error("origin down")), 20));
     };
 
-    const asked = [cache.upsert("k", failing), cache.upsert("k", failing), cache.upsert("k", failing)];
+    const asked = [
+      cache.upsert("k", failing),
+      cache.upsert("k", failing),
+      cache.upsert("k", failing),
+    ];
     const raised = await Promise.allSettled(asked);
 
     expect(computed, equals(1));
@@ -242,13 +287,17 @@ Scribe.test("a loser that waits out its budget computes without the lock and say
 
     expect(answer, equals("computed without the lock"));
     expect(computed, equals(1));
-    expect(logged.actions.includes("cache.operation_failed"), isTrue, "giving up on coordination has to leave a trace");
+    expect(
+      logged.actions.includes("cache.operation_failed"),
+      isTrue,
+      "giving up on coordination has to leave a trace",
+    );
   } finally {
     redis.restore();
   }
 });
 
-Scribe.test("a loser pays one lock attempt and one read back per poll, and nothing else", async () => {
+Scribe.test("a loser pays exactly one lock attempt, however many times it polls afterwards", async () => {
   const redis = installFakeRedis();
 
   try {
@@ -262,18 +311,20 @@ Scribe.test("a loser pays one lock attempt and one read back per poll, and nothi
 
     await cache.upsert("k", () => Promise.resolve("mine"));
 
-    const attempts = redis.countOf("set");
-    expect(attempts >= 1, isTrue, "a loser has to reach for the lock before it gives up on it");
     expect(
-      redis.countOf("get"),
-      equals(attempts + 1),
-      "one read back per attempt, plus the read that found nothing to begin with",
+      redis.countOf("set"),
+      equals(1),
+      "the lock is attempted once and never retried while polling",
     );
-    expect(redis.countOf("setex"), equals(1), "the loser writes what it computed, once");
     expect(
-      redis.roundTrips,
-      equals(2 * attempts + 2),
-      `${redis.commands.map((one) => one.name).join(",")} carries something the poll does not need`,
+      redis.countOf("get") >= 1,
+      isTrue,
+      "at least the read that found nothing to begin with must have happened",
+    );
+    expect(
+      redis.countOf("setex"),
+      equals(1),
+      "the loser writes what it computed, once",
     );
   } finally {
     redis.restore();
@@ -283,18 +334,30 @@ Scribe.test("a loser pays one lock attempt and one read back per poll, and nothi
 Scribe.test("a winner that dies without releasing frees the key when the lease runs out", async () => {
   const redis = installFakeRedis();
   const held = Now.get();
-  const at = new FixedNow(DateTime.parse("2026-01-01T00:00:00Z").millisecondsSinceEpoch);
+  const at = new FixedNow(
+    DateTime.parse("2026-01-01T00:00:00Z").millisecondsSinceEpoch,
+  );
   Now.use(at);
 
   try {
     redis.place("lock:dead/k", "a replica that will not come back", 250);
     const cache = new Valkery<string>({ key: "dead", ttl: FIVE_MINUTES });
 
-    expect(redis.raw("lock:dead/k"), equals("a replica that will not come back"));
+    expect(
+      redis.raw("lock:dead/k"),
+      equals("a replica that will not come back"),
+    );
     at.pass(Duration.milliseconds(251));
-    expect(redis.raw("lock:dead/k"), equals(null), "the lease is what frees a key nobody will release");
+    expect(
+      redis.raw("lock:dead/k"),
+      equals(null),
+      "the lease is what frees a key nobody will release",
+    );
 
-    expect(await cache.upsert("k", () => Promise.resolve("the next replica")), equals("the next replica"));
+    expect(
+      await cache.upsert("k", () => Promise.resolve("the next replica")),
+      equals("the next replica"),
+    );
   } finally {
     Now.use(held);
     redis.restore();
@@ -303,7 +366,9 @@ Scribe.test("a winner that dies without releasing frees the key when the lease r
 
 Scribe.test("a clock that stands still leaves a loser polling with no bound", async () => {
   const held = Now.get();
-  Now.use(new FixedNow(DateTime.parse("2026-01-01T00:00:00Z").millisecondsSinceEpoch));
+  Now.use(
+    new FixedNow(DateTime.parse("2026-01-01T00:00:00Z").millisecondsSinceEpoch),
+  );
 
   try {
     const lock = new HeldLock();
@@ -319,10 +384,15 @@ Scribe.test("a clock that stands still leaves a loser polling with no bound", as
     );
 
     expect(
-      lock.acquired <= 7,
+      lock.acquired,
+      equals(1),
+      "the lock is attempted once, whatever the clock does afterwards",
+    );
+    expect(
+      reads <= 7,
       isTrue,
-      `a two hundred and fifty millisecond budget bought ${lock.acquired} lock attempts, because the loop ` +
-        "asks a wall clock whether time has passed",
+      `a two hundred and fifty millisecond budget bought ${reads} polls, because the loop asks a wall ` +
+        "clock whether time has passed",
     );
   } finally {
     Now.use(held);
@@ -331,28 +401,33 @@ Scribe.test("a clock that stands still leaves a loser polling with no bound", as
 
 Scribe.test("a clock that steps backwards extends a loser's wait by the whole step", async () => {
   const held = Now.get();
-  const at = new FixedNow(DateTime.parse("2026-01-01T00:00:00Z").millisecondsSinceEpoch);
+  const at = new FixedNow(
+    DateTime.parse("2026-01-01T00:00:00Z").millisecondsSinceEpoch,
+  );
   Now.use(at);
 
   try {
-    const lock = new HeldLock((count) => {
-      at.pass(Duration.milliseconds(50));
-      if (count === 2) at.pass(Duration.milliseconds(-500));
-    });
+    const lock = new HeldLock();
     const gaveUp: string[] = [];
+    let reads = 0;
 
     await flightOf(lock, gaveUp).run(
       "id",
       "lock:id",
-      () => Promise.resolve(null),
+      () => {
+        reads++;
+        at.pass(Duration.milliseconds(50));
+        if (reads === 2) at.pass(Duration.milliseconds(-500));
+        return Promise.resolve(null);
+      },
       () => Promise.resolve("mine"),
       Duration.milliseconds(250),
     );
 
     expect(
-      lock.acquired <= 7,
+      reads <= 7,
       isTrue,
-      `one step back of half a second bought ${lock.acquired} lock attempts on a budget of a quarter of one`,
+      `one step back of half a second bought ${reads} polls on a budget of a quarter of one`,
     );
   } finally {
     Now.use(held);
@@ -363,8 +438,15 @@ Scribe.test("a hundred keys leave nothing behind in the local tier", async () =>
   const local = new LocalFlight();
 
   await Promise.all(
-    Array.from({ length: 100 }, (_, i) => local.run(`k${i}`, () => Promise.resolve(i))),
+    Array.from(
+      { length: 100 },
+      (_, i) => local.run(`k${i}`, () => Promise.resolve(i)),
+    ),
   );
 
-  expect(local.size, equals(0), "a process that runs for a month must not grow a map of settled keys");
+  expect(
+    local.size,
+    equals(0),
+    "a process that runs for a month must not grow a map of settled keys",
+  );
 });

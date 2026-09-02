@@ -74,6 +74,14 @@ export class DistributedFlight {
    * is not a budget: a deployment whose clock is corrected backwards, or a test holding it still,
    * would leave this loop asking for the same lock for as long as the clock says no time passed.
    *
+   * @remarks
+   * The lock is attempted once. {@link DEFAULT_LOCK_HOLD} and every lease a caller passes it
+   * structurally outlast a loser's own waiting share of `within`, so a second `SET NX PX` before
+   * the deadline finds the same holder still there and pays a Redis round trip to learn nothing a
+   * loser did not already know: it lost. What decides whether a loser is still waiting or has
+   * something to read is `readBack`, so once the first attempt is not a win the rest of the loop
+   * polls that alone.
+   *
    * @param within - How long the caller is prepared to wait, and the whole of what bounds this
    * loop. It is the caller's budget and not the winner's lease: whoever is waiting decides how
    * long waiting is worth it, and a lease says how long a holder may keep a key, which is a
@@ -91,23 +99,23 @@ export class DistributedFlight {
   ): Future<T> {
     const waiting = _waitingShareOf(within);
     const deadline = DateTime.now().add(waiting);
-    let left = _passesWithin(waiting);
 
-    while (left-- > 0 && DateTime.now().isBefore(deadline)) {
-      const lock = await this.#lock.acquire(lockKey);
-      if (lock.state === "error") break;
-
-      if (lock.state === "acquired") {
-        try {
-          return await compute();
-        } finally {
-          await this.#lock.release(lockKey, lock.token);
-        }
+    const lock = await this.#lock.acquire(lockKey);
+    if (lock.state === "acquired") {
+      try {
+        return await compute();
+      } finally {
+        await this.#lock.release(lockKey, lock.token);
       }
+    }
 
-      await Future.delayed(_untilTheSoonerOf(POLL_EVERY, deadline));
-      const written = await readBack();
-      if (written !== null) return written;
+    if (lock.state !== "error") {
+      let left = _passesWithin(waiting);
+      while (left-- > 0 && DateTime.now().isBefore(deadline)) {
+        await Future.delayed(_untilTheSoonerOf(POLL_EVERY, deadline));
+        const written = await readBack();
+        if (written !== null) return written;
+      }
     }
 
     this.#onGaveUp(id);
@@ -144,7 +152,8 @@ export class DistributedFlight {
  * and the caller pays that overshoot on top of the computation it then has to do itself.
  */
 function _untilTheSoonerOf(period: Duration, deadline: DateTime): Duration {
-  const left = deadline.millisecondsSinceEpoch - DateTime.now().millisecondsSinceEpoch;
+  const left = deadline.millisecondsSinceEpoch -
+    DateTime.now().millisecondsSinceEpoch;
   return left < period.inMilliseconds ? Duration.milliseconds(Math.max(0, left)) : period;
 }
 
@@ -169,5 +178,8 @@ function _waitingShareOf(within: Duration): Duration {
  * still gets its last pass, and never fewer than one so every caller reaches the lock once.
  */
 function _passesWithin(within: Duration): number {
-  return Math.max(1, Math.ceil(within.inMilliseconds / POLL_EVERY.inMilliseconds) + 1);
+  return Math.max(
+    1,
+    Math.ceil(within.inMilliseconds / POLL_EVERY.inMilliseconds) + 1,
+  );
 }

@@ -34,9 +34,13 @@
 // This header is a summary written for convenience. Where it differs from the
 import "@scribe/runtime/scholium/runner.ts";
 import { equals, expect, expectLater, isNotNull, isTrue, Scribe, throwsA } from "@scribe/alchemy/test";
-import { Duration } from "@scribe/alchemy";
+import { DEFAULT_CACHE_DEADLINE, Duration } from "@scribe/alchemy";
 import { installDrivers } from "../../testing/drivers.ts";
-import type { DistributedLock, LockOutcome } from "../../../lib/src/cache/lock/distributed_lock.ts";
+import {
+  DEFAULT_LOCK_HOLD,
+  type DistributedLock,
+  type LockOutcome,
+} from "../../../lib/src/cache/lock/distributed_lock.ts";
 import { DistributedFlight } from "../../../lib/src/cache/flight/distributed_flight.ts";
 import { LocalFlight } from "../../../lib/src/cache/flight/local_flight.ts";
 
@@ -137,7 +141,11 @@ Scribe.test("LocalFlight shares a rejection, then lets the next caller retry", a
 
   await expectLater(() => first, throwsA(isNotNull));
   await expectLater(() => joined, throwsA(isNotNull));
-  expect(attempts, equals(1), "the joiner should share the failure, not repeat it");
+  expect(
+    attempts,
+    equals(1),
+    "the joiner should share the failure, not repeat it",
+  );
   expect(local.size, equals(0), "a rejected flight must not be retained");
 
   expect(await local.run("k", () => Promise.resolve("ok")), equals("ok"));
@@ -237,9 +245,56 @@ Scribe.test("attempt() gives up at once when another replica holds the lock", as
     return Promise.resolve("refreshed");
   });
 
-  expect(value, equals(null), "a refresh must never wait, the old value is still good");
+  expect(
+    value,
+    equals(null),
+    "a refresh must never wait, the old value is still good",
+  );
   expect(computed, equals(0));
   expect(lock.acquired, equals(1), "it must not poll");
+});
+
+Scribe.test("DistributedFlight attempts the lock once, and a loser only reads back afterwards", async () => {
+  const lock = new ScriptedLock([{ state: "held" }, {
+    state: "acquired",
+    token: "should-not-be-taken",
+  }]);
+  const gaveUp: string[] = [];
+  let reads = 0;
+
+  const value = await flight(lock, gaveUp).run(
+    "id",
+    "lock:id",
+    () => Promise.resolve(++reads > 1 ? "from winner" : null),
+    () => Promise.resolve("mine"),
+    Duration.seconds(8),
+  );
+
+  expect(value, equals("from winner"));
+  expect(
+    lock.acquired,
+    equals(1),
+    "a second acquire would have consumed the scripted acquired outcome",
+  );
+  expect(
+    lock.released,
+    equals([]),
+    "the second scripted outcome was never taken, so nothing was released",
+  );
+});
+
+Scribe.test("the default lease outlasts the waiting share of the default cache deadline", () => {
+  const maxWaitingShare = Math.ceil(
+    (DEFAULT_CACHE_DEADLINE.inMilliseconds * 2) / 3,
+  );
+
+  expect(
+    DEFAULT_LOCK_HOLD.inMilliseconds >= maxWaitingShare,
+    isTrue,
+    `DEFAULT_LOCK_HOLD is ${DEFAULT_LOCK_HOLD.inMilliseconds}ms and a caller waiting the default cache ` +
+      `deadline polls for up to ${maxWaitingShare}ms without ever retrying the lock: a lease shorter than ` +
+      "that would let a loser poll past an expiry nobody attempts to take over.",
+  );
 });
 
 Scribe.test("DistributedFlight stops waiting when the caller's budget runs out, not when the lease does", async () => {
