@@ -36,7 +36,7 @@
 
 import "@scribe/runtime/scholium/runner.ts";
 import { allOf, equals, expect, fail, isA, isTrue, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
-import { Duration } from "@scribe/alchemy";
+import { DateTime, Duration } from "@scribe/alchemy";
 import { ConfigError } from "../../lib/contracts/config.ts";
 import { RemoteConfig } from "../../lib/src/core/declaration.ts";
 import { installRemoteConfigsMock } from "../testing/mock.ts";
@@ -131,7 +131,7 @@ Scribe.test("a value written past its ttl answers as an empty table does", async
       value: ADA,
       created_at: 1,
       updated_at: 1,
-      expires_at: Date.now() - 1,
+      expires_at: DateTime.now().millisecondsSinceEpoch - 1,
     }],
   });
 
@@ -146,7 +146,7 @@ Scribe.test("a declaration ttl decides how long a written value lives", async ()
   const database = installRemoteConfigsMock();
 
   try {
-    const before = Date.now();
+    const before = DateTime.now().millisecondsSinceEpoch;
     await key1.set(ADA);
 
     const written = database.values()[0].expires_at as number;
@@ -178,7 +178,11 @@ Scribe.test("set names its own ttl over the declaration's, and null outlives it"
   try {
     await key1.set(ADA, { ttl: Duration.minutes(5) });
     const short = database.values()[0].expires_at as number;
-    expect(short < Date.now() + Duration.hours(1).inMilliseconds, isTrue, `the caller's ttl must win: ${short}`);
+    expect(
+      short < DateTime.now().add(Duration.hours(1)).millisecondsSinceEpoch,
+      isTrue,
+      `the caller's ttl must win: ${short}`,
+    );
 
     await key1.set(ADA, { ttl: null });
     expect(database.values()[0].expires_at, equals(null));

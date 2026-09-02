@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import type { Future } from "@scribe/alchemy";
 import { wrote } from "@scribe/foundation/database";
 import { type RemoteConfigRow, remoteConfigs } from "./tables.ts";
 
@@ -50,7 +51,7 @@ export interface StoredValue {
 }
 
 /** The row held for `name`, or null when the table holds none. */
-export function valueOf(name: string): Promise<RemoteConfigRow | null> {
+export function valueOf(name: string): Future<RemoteConfigRow | null> {
   return remoteConfigs()
     .where((f) => f.name.eq(name))
     .getOne();
@@ -66,7 +67,7 @@ export function valueOf(name: string): Promise<RemoteConfigRow | null> {
  * purpose, not an oversight. A caller that needs to detect the loser needs a different config
  * entirely, one with a version column to condition the write on.
  */
-export async function writeValue(stored: StoredValue): Promise<boolean> {
+export async function writeValue(stored: StoredValue): Future<boolean> {
   return wrote(
     await remoteConfigs().upsert(
       { name: stored.name, value: stored.value, expires_at: stored.expiresAt },
@@ -81,7 +82,7 @@ export async function writeValue(stored: StoredValue): Promise<boolean> {
  * The value is left alone, which is the whole point: a caller that wanted to write it again would
  * have called the other one.
  */
-export async function retimeValue(name: string, expiresAt: number | null): Promise<boolean> {
+export async function retimeValue(name: string, expiresAt: number | null): Future<boolean> {
   const held = await valueOf(name);
   if (held === null) return false;
 
@@ -93,7 +94,7 @@ export async function retimeValue(name: string, expiresAt: number | null): Promi
 }
 
 /** Removes what is stored under `name`, and answers whether a row was removed. */
-export async function dropValue(name: string): Promise<boolean> {
+export async function dropValue(name: string): Future<boolean> {
   const removed = await remoteConfigs()
     .where((f) => f.name.eq(name))
     .deleteOne((s) => ({ name: s.name }));

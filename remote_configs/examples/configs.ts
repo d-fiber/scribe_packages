@@ -1,4 +1,4 @@
-import { Duration } from "@scribe/alchemy";
+import { Duration, type Future } from "@scribe/alchemy";
 import { RemoteConfig } from "@scribe/remote_configs";
 
 /** What the banner key holds. */
@@ -25,35 +25,35 @@ export const banner = RemoteConfig.of<Banner>("banner", {
 export const supportEmail = RemoteConfig.of<string>("support-email", { ttl: Duration.hours(2) });
 
 /** The value, cached for the declared lifetime, never null because the declaration has one. */
-export function currentBanner(): Promise<Banner> {
+export function currentBanner(): Future<Banner> {
   return banner.get();
 }
 
 /** The same read on a key with no default, which answers null when nothing was written. */
-export function currentSupportEmail(): Promise<string | null> {
+export function currentSupportEmail(): Future<string | null> {
   return supportEmail.get();
 }
 
 /** Writes the value, creating the row when it is not there yet. */
-export async function raiseBanner(message: string): Promise<boolean> {
+export async function raiseBanner(message: string): Future<boolean> {
   const result = await banner.set({ message, dismissible: true });
   return result.ok;
 }
 
 /** Writes it for a lifetime this call decides rather than the one the declaration names. */
-export async function raiseBannerForADay(message: string): Promise<boolean> {
+export async function raiseBannerForADay(message: string): Future<boolean> {
   const result = await banner.set({ message, dismissible: false }, { ttl: Duration.days(1) });
   return result.ok;
 }
 
 /** Pushes the expiry out without touching the value. */
-export async function keepBanner(): Promise<boolean> {
+export async function keepBanner(): Future<boolean> {
   const result = await banner.ttl(Duration.hours(5));
   return result.ok;
 }
 
 /** Drops the row, which sends the next read back to the declared default. */
-export async function clearBanner(): Promise<boolean> {
+export async function clearBanner(): Future<boolean> {
   const result = await banner.delete();
   return result.ok;
 }

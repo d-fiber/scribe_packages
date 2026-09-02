@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Duration } from "@scribe/alchemy";
-import { Failure, okay, type Result } from "@scribe/alchemy";
+import type { Duration, Future } from "@scribe/alchemy";
+import { DateTime, Failure, okay, type Result } from "@scribe/alchemy";
 import { ConfigError } from "../../contracts/config.ts";
 import type { RemoteConfigRow } from "../db/tables.ts";
 import { dropValue, retimeValue, valueOf, writeValue } from "../db/values.ts";
@@ -94,10 +94,10 @@ export interface Config<T> {
    * empty table does, and are reported: a caller asking for a ceiling wants a number, or nothing,
    * and can do neither with a failure.
    */
-  get(): Promise<T | null>;
+  get(): Future<T | null>;
 
   /** Writes `value`, replacing what was stored under this name. */
-  set(value: T, options?: SetOptions): Promise<Result<void, ConfigError>>;
+  set(value: T, options?: SetOptions): Future<Result<void, ConfigError>>;
 
   /**
    * Moves when the stored value is dropped, counting from now, without touching the value.
@@ -105,10 +105,10 @@ export interface Config<T> {
    * Null makes it never expire. A config that holds nothing answers `NotFound`, since there is no
    * row to move.
    */
-  ttl(ttl: Duration | null): Promise<Result<void, ConfigError>>;
+  ttl(ttl: Duration | null): Future<Result<void, ConfigError>>;
 
   /** Removes what is stored, so `get` goes back to answering the declared value, or null. */
-  delete(): Promise<Result<void, ConfigError>>;
+  delete(): Future<Result<void, ConfigError>>;
 }
 
 /** One named value a project reads, which always answers because the declaration named one. */
@@ -119,7 +119,7 @@ export interface DefaultedConfig<T> extends Config<T> {
    * It never fails, and it never answers null: that is the whole difference a `default` buys, and
    * it is checked by the compiler rather than promised in prose.
    */
-  get(): Promise<T>;
+  get(): Future<T>;
 }
 
 /**
@@ -180,7 +180,7 @@ export class RemoteConfig<T> implements Config<T> {
    * The {@link Config.get} implementation: reads through the cache, and falls back to the
    * declared default (or `null`) rather than throwing when the row cannot be read at all.
    */
-  async get(): Promise<T | null> {
+  async get(): Future<T | null> {
     let row: RemoteConfigRow | null;
     try {
       row = await this.#held();
@@ -196,13 +196,13 @@ export class RemoteConfig<T> implements Config<T> {
    * The {@link Config.set} implementation: writes `value`, then evicts the cached row so the
    * next `get` reads what was just written instead of a stale cached one.
    */
-  set(value: T, options: SetOptions = {}): Promise<Result<void, ConfigError>> {
+  set(value: T, options: SetOptions = {}): Future<Result<void, ConfigError>> {
     return guarded(async () => {
       const ttl = options.ttl !== undefined ? options.ttl : this.#ttl;
       const written = await writeValue({
         name: this.name,
         value,
-        expiresAt: ttl === null ? null : Date.now() + ttl.inMilliseconds,
+        expiresAt: ttl === null ? null : DateTime.now().add(ttl).millisecondsSinceEpoch,
       });
       if (!written) return new Failure(ConfigError.Backend);
 
@@ -215,9 +215,12 @@ export class RemoteConfig<T> implements Config<T> {
    * The {@link Config.ttl} implementation: re-times the stored row without touching its value,
    * then evicts the cache the same way {@link set} does.
    */
-  ttl(ttl: Duration | null): Promise<Result<void, ConfigError>> {
+  ttl(ttl: Duration | null): Future<Result<void, ConfigError>> {
     return guarded(async () => {
-      const retimed = await retimeValue(this.name, ttl === null ? null : Date.now() + ttl.inMilliseconds);
+      const retimed = await retimeValue(
+        this.name,
+        ttl === null ? null : DateTime.now().add(ttl).millisecondsSinceEpoch,
+      );
       if (!retimed) return new Failure(ConfigError.NotFound);
 
       await forgetValue(this.name);
@@ -226,7 +229,7 @@ export class RemoteConfig<T> implements Config<T> {
   }
 
   /** The {@link Config.delete} implementation: drops the stored row, then evicts the cache. */
-  delete(): Promise<Result<void, ConfigError>> {
+  delete(): Future<Result<void, ConfigError>> {
     return guarded(async () => {
       await dropValue(this.name);
       await forgetValue(this.name);
@@ -235,10 +238,10 @@ export class RemoteConfig<T> implements Config<T> {
   }
 
   /** This config's row, read through the cache, or `null` when it is missing or has expired. */
-  async #held(): Promise<RemoteConfigRow | null> {
+  async #held(): Future<RemoteConfigRow | null> {
     const row = await cachedValue(this.name, () => valueOf(this.name));
     if (row === null) return null;
 
-    return row.expires_at !== null && row.expires_at <= Date.now() ? null : row;
+    return row.expires_at !== null && row.expires_at <= DateTime.now().millisecondsSinceEpoch ? null : row;
   }
 }

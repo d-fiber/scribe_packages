@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Failure, type Result } from "@scribe/alchemy";
+import { Failure, type Future, type Result } from "@scribe/alchemy";
 import { ConfigError } from "../../contracts/config.ts";
 
 /**
@@ -50,8 +50,8 @@ import { ConfigError } from "../../contracts/config.ts";
  * nobody wired up, and nothing short of reading this package's own source told them apart.
  */
 export async function guarded<T>(
-  query: () => Promise<Result<T, ConfigError>>,
-): Promise<Result<T, ConfigError>> {
+  query: () => Future<Result<T, ConfigError>>,
+): Future<Result<T, ConfigError>> {
   try {
     return await query();
   } catch (error) {

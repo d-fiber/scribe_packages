@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { cache, Duration } from "@scribe/alchemy";
+import { cache, Duration, type Future } from "@scribe/alchemy";
 import type { RemoteConfigRow } from "../db/tables.ts";
 
 /**
@@ -69,13 +69,13 @@ const values = cache<CachedValue>({ key: "config:name", ttl: CACHE_TTL });
  */
 export async function cachedValue(
   name: string,
-  load: () => Promise<RemoteConfigRow | null>,
-): Promise<RemoteConfigRow | null> {
+  load: () => Future<RemoteConfigRow | null>,
+): Future<RemoteConfigRow | null> {
   const held = await values.upsert(name, async () => ({ row: await load() }));
   return held.row;
 }
 
 /** Drops what the cache holds for `name`, so the next read goes to the table. */
-export function forgetValue(name: string): Promise<void> {
+export function forgetValue(name: string): Future<void> {
   return values.delete(name);
 }
