@@ -34,7 +34,7 @@
 -- This header is a summary written for convenience. Where it differs from the
 -- LICENSE file, the LICENSE file governs.
 
-create table if not exists public.__dynamic_links__ (
+create table if not exists dynamic_links.__dynamic_links__ (
   link_id    bigint primary key generated always as identity,
   slug       text not null unique,
   payload    jsonb not null,
@@ -45,16 +45,16 @@ create table if not exists public.__dynamic_links__ (
 );
 
 create index if not exists __dynamic_links_user__
-  on public.__dynamic_links__ (user_id)
+  on dynamic_links.__dynamic_links__ (user_id)
   where user_id is not null;
 
 create index if not exists __dynamic_links_expiry__
-  on public.__dynamic_links__ (expires_at)
+  on dynamic_links.__dynamic_links__ (expires_at)
   where expires_at is not null;
 
-create table if not exists public.__dynamic_link_statistics__ (
+create table if not exists dynamic_links.__dynamic_link_statistics__ (
   statistic_id bigint primary key generated always as identity,
-  link_id      bigint not null references public.__dynamic_links__(link_id) on delete cascade,
+  link_id      bigint not null references dynamic_links.__dynamic_links__(link_id) on delete cascade,
   created_at   bigint not null default (extract(epoch from now()) * 1000)::bigint,
   user_id      uuid,
   device_id    varchar(256),
@@ -68,22 +68,22 @@ create table if not exists public.__dynamic_link_statistics__ (
 );
 
 create index if not exists __dynamic_link_statistics_link__
-  on public.__dynamic_link_statistics__ (link_id, created_at);
+  on dynamic_links.__dynamic_link_statistics__ (link_id, created_at);
 
 create index if not exists __dynamic_link_statistics_outcome__
-  on public.__dynamic_link_statistics__ (link_id, outcome, created_at);
+  on dynamic_links.__dynamic_link_statistics__ (link_id, outcome, created_at);
 
 create index if not exists __dynamic_link_statistics_user__
-  on public.__dynamic_link_statistics__ (user_id)
+  on dynamic_links.__dynamic_link_statistics__ (user_id)
   where user_id is not null;
 
-alter table public.__dynamic_links__ enable row level security;
-alter table public.__dynamic_link_statistics__ enable row level security;
+alter table dynamic_links.__dynamic_links__ enable row level security;
+alter table dynamic_links.__dynamic_link_statistics__ enable row level security;
 
-revoke all on public.__dynamic_links__ from authenticated, anon;
-revoke all on public.__dynamic_link_statistics__ from authenticated, anon;
+revoke all on dynamic_links.__dynamic_links__ from authenticated, anon;
+revoke all on dynamic_links.__dynamic_link_statistics__ from authenticated, anon;
 
-create or replace function public.__dynamic_links_touch__()
+create or replace function dynamic_links.__dynamic_links_touch__()
 returns trigger
 language plpgsql
 security definer
@@ -100,13 +100,13 @@ begin
 end;
 $$;
 
-drop trigger if exists __dynamic_links_touch__ on public.__dynamic_links__;
+drop trigger if exists __dynamic_links_touch__ on dynamic_links.__dynamic_links__;
 
 create trigger __dynamic_links_touch__
-  before insert or update on public.__dynamic_links__
-  for each row execute function public.__dynamic_links_touch__();
+  before insert or update on dynamic_links.__dynamic_links__
+  for each row execute function dynamic_links.__dynamic_links_touch__();
 
-create or replace function public.__dynamic_links_prune_statistics__(
+create or replace function dynamic_links.__dynamic_links_prune_statistics__(
   p_days integer default 30,
   p_rows bigint default 10000000
 )
@@ -119,15 +119,15 @@ declare
   v_cutoff bigint := (extract(epoch from now() - make_interval(days => p_days)) * 1000)::bigint;
   v_removed integer;
 begin
-  delete from public.__dynamic_link_statistics__
+  delete from dynamic_links.__dynamic_link_statistics__
   where created_at < v_cutoff;
 
   get diagnostics v_removed = row_count;
 
-  delete from public.__dynamic_link_statistics__
+  delete from dynamic_links.__dynamic_link_statistics__
   where statistic_id in (
     select statistic_id
-    from   public.__dynamic_link_statistics__
+    from   dynamic_links.__dynamic_link_statistics__
     order  by statistic_id desc
     offset p_rows
   );
@@ -139,12 +139,12 @@ $$;
 select cron.schedule(
   'dynamic-links-expire',
   '*/10 * * * *',
-  'DELETE FROM public.__dynamic_links__ WHERE expires_at IS NOT NULL AND expires_at < (extract(epoch from now()) * 1000)::bigint'
+  'DELETE FROM dynamic_links.__dynamic_links__ WHERE expires_at IS NOT NULL AND expires_at < (extract(epoch from now()) * 1000)::bigint'
 );
 
 select cron.schedule(
   'dynamic-links-prune-statistics',
   '0 3 * * *',
-  'SELECT public.__dynamic_links_prune_statistics__()'
+  'SELECT dynamic_links.__dynamic_links_prune_statistics__()'
 );
 
