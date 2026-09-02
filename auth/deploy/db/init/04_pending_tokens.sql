@@ -34,19 +34,19 @@
 -- This header is a summary written for convenience. Where it differs from the
 -- LICENSE file, the LICENSE file governs.
 
-create table if not exists public.__pending_tokens__ (
+create table if not exists auth.__pending_tokens__ (
   token_hash  text    primary key,
   expires_at  bigint  not null
 );
 
-create index if not exists __pending_tokens___expires_at_idx on public.__pending_tokens__ (expires_at);
+create index if not exists __pending_tokens___expires_at_idx on auth.__pending_tokens__ (expires_at);
 
-alter table public.__pending_tokens__ enable row level security;
+alter table auth.__pending_tokens__ enable row level security;
 
-revoke all on public.__pending_tokens__ from anon, authenticated;
+revoke all on auth.__pending_tokens__ from anon, authenticated;
 
 select cron.schedule(
   'cleanup-pending-tokens',
   '*/10 * * * *',
-  'DELETE FROM public.__pending_tokens__ WHERE expires_at < (extract(epoch from now()) * 1000)::bigint'
+  'DELETE FROM auth.__pending_tokens__ WHERE expires_at < (extract(epoch from now()) * 1000)::bigint'
 );

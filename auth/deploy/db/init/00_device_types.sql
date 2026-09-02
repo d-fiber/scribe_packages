@@ -34,13 +34,13 @@
 -- This header is a summary written for convenience. Where it differs from the
 -- LICENSE file, the LICENSE file governs.
 
-create type public.client_type as enum (
+create type auth.client_type as enum (
   'app',
   'web',
   'soft'
 );
 
-create type public.device_os as enum (
+create type auth.device_os as enum (
   'android',
   'ios',
   'linux',
@@ -49,14 +49,14 @@ create type public.device_os as enum (
   'unknown'
 );
 
-create type public.device_category as enum (
+create type auth.device_category as enum (
   'phone',
   'tablet',
   'desktop',
   'unknown'
 );
 
-create type public.location_coordinate as (
+create type auth.location_coordinate as (
   lat double precision,
   lng double precision
 );

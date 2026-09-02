@@ -37,5 +37,5 @@
 select cron.schedule(
   'cleanup-account-bans',
   '0 * * * *',
-  'DELETE FROM public.__account_bans__ WHERE until is not null and until < (extract(epoch from now()) * 1000)::bigint'
+  'DELETE FROM auth.__account_bans__ WHERE until is not null and until < (extract(epoch from now()) * 1000)::bigint'
 );

@@ -34,13 +34,13 @@
 -- This header is a summary written for convenience. Where it differs from the
 -- LICENSE file, the LICENSE file governs.
 
-create table if not exists public.__account_bans__ (
-  account_id  uuid    primary key references public.__accounts__(id) on delete cascade,
+create table if not exists auth.__account_bans__ (
+  account_id  uuid    primary key references auth.__accounts__(id) on delete cascade,
   since       bigint  not null default (extract(epoch from now()) * 1000)::bigint,
   until       bigint,
   reason      text
 );
 
-create index if not exists __account_bans___until_idx on public.__account_bans__ (until) where until is not null;
+create index if not exists __account_bans___until_idx on auth.__account_bans__ (until) where until is not null;
 
-revoke all on public.__account_bans__ from anon, authenticated;
+revoke all on auth.__account_bans__ from anon, authenticated;

@@ -34,7 +34,7 @@
 -- This header is a summary written for convenience. Where it differs from the
 -- LICENSE file, the LICENSE file governs.
 
-create table if not exists public.__accounts__ (
+create table if not exists auth.__accounts__ (
   id              uuid          primary key,
   role            varchar(64)   not null,
   email           varchar(320),
@@ -44,8 +44,8 @@ create table if not exists public.__accounts__ (
   created_at      bigint        not null default (extract(epoch from now()) * 1000)::bigint
 );
 
-create unique index if not exists __accounts___email_idx on public.__accounts__ (lower(email)) where email is not null;
-create unique index if not exists __accounts___phone_idx on public.__accounts__ (phone) where phone is not null;
-create index if not exists __accounts___role_idx on public.__accounts__ (role);
+create unique index if not exists __accounts___email_idx on auth.__accounts__ (lower(email)) where email is not null;
+create unique index if not exists __accounts___phone_idx on auth.__accounts__ (phone) where phone is not null;
+create index if not exists __accounts___role_idx on auth.__accounts__ (role);
 
-revoke all on public.__accounts__ from anon, authenticated;
+revoke all on auth.__accounts__ from anon, authenticated;
