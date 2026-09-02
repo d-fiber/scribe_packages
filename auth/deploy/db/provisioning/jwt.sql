@@ -48,3 +48,12 @@ CREATE OR REPLACE FUNCTION auth.jwt() RETURNS jsonb
 
 REVOKE ALL ON FUNCTION auth.jwt() FROM public;
 GRANT EXECUTE ON FUNCTION auth.jwt() TO authenticated, service_role;
+
+CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid
+  LANGUAGE sql STABLE
+  AS $$
+    SELECT nullif(auth.jwt() ->> 'sub', '')::uuid
+  $$;
+
+REVOKE ALL ON FUNCTION auth.uid() FROM public;
+GRANT EXECUTE ON FUNCTION auth.uid() TO authenticated, service_role;
