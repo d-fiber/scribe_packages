@@ -38,6 +38,7 @@ import { installSearchTestSettings } from "../../testing/settings.ts";
 
 installSearchTestSettings();
 import { type InstalledMock, installMock } from "@scribe/testing/install.ts";
+import { DateTime } from "@scribe/alchemy";
 import { PostgrestClients } from "@scribe/foundation/database";
 import { FakePostgrestClient, type FakePostgrestSeed } from "@scribe/foundation/testing";
 import type { PostgrestClient } from "@supabase/postgrest-js";
@@ -95,7 +96,7 @@ function wireOutbox(fake: FakePostgrestClient): void {
         index,
         entity_id: id,
         operation,
-        enqueued_at: Date.now(),
+        enqueued_at: DateTime.now().millisecondsSinceEpoch,
         attempts: 0,
         failed_at: null,
         last_error: null,
@@ -118,7 +119,7 @@ function wireOutbox(fake: FakePostgrestClient): void {
       const attempts = (row.attempts as number) + 1;
       row.attempts = attempts;
       row.last_error = reason;
-      if (attempts >= maxAttempts) row.failed_at = new Date().toISOString();
+      if (attempts >= maxAttempts) row.failed_at = DateTime.now().toIso8601String();
       written += 1;
     }
 

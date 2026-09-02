@@ -36,6 +36,7 @@
 
 import { Search } from "@scribe/sdk/gen/scribe/packages/search/protocol/search_pb.ts";
 import type { CapabilityWiring } from "@scribe/contracts/capability.ts";
+import { Future } from "@scribe/alchemy";
 import { create } from "@bufbuild/protobuf";
 import {
   type QueueRequest,
@@ -72,7 +73,7 @@ function declared(name: string): AnySearchIndex | null {
  * which is what `queued` carries: a false there is a line that refused the write, not a store
  * that broke. A request naming no document writes nothing and is queued.
  */
-export async function searchAdd(request: QueueRequest): Promise<QueueResult> {
+export async function searchAdd(request: QueueRequest): Future<QueueResult> {
   const index = declared(request.index);
   if (!index) return create(QueueResultSchema, { error: failed("add", `no index is declared as "${request.index}"`) });
 
@@ -92,14 +93,14 @@ export async function searchAdd(request: QueueRequest): Promise<QueueResult> {
  * batch leaves the identifiers it refused unqueued, and the false it answers with is what tells
  * the worker to ask again.
  */
-export async function searchDelete(request: QueueRequest): Promise<QueueResult> {
+export async function searchDelete(request: QueueRequest): Future<QueueResult> {
   const index = declared(request.index);
   if (!index) {
     return create(QueueResultSchema, { error: failed("delete", `no index is declared as "${request.index}"`) });
   }
 
   try {
-    const queued = await Promise.all(request.ids.map((id) => index.delete(id)));
+    const queued = await Future.wait(request.ids.map((id) => index.delete(id)));
     return create(QueueResultSchema, { queued: queued.every((taken) => taken) });
   } catch (cause) {
     return create(QueueResultSchema, { error: failed("delete", cause) });
@@ -117,7 +118,7 @@ export async function searchDelete(request: QueueRequest): Promise<QueueResult> 
  * page: an empty page is an answer, and a caller that cannot tell the two apart shows nothing
  * found where there was an outage.
  */
-export async function searchQuery(request: SearchRequest): Promise<SearchResult> {
+export async function searchQuery(request: SearchRequest): Future<SearchResult> {
   const index = declared(request.index);
   if (!index) {
     return create(SearchResultSchema, { error: failed("search", `no index is declared as "${request.index}"`) });

@@ -36,6 +36,7 @@
 
 import { Client, errors } from "@opensearch-project/opensearch";
 import { Failure, Ok, type Result } from "@scribe/alchemy";
+import type { Future } from "@scribe/alchemy";
 import type { IndexConfig } from "../../contracts/definition.ts";
 import { SearchError } from "../../contracts/definition.ts";
 import type { IndexedDocument, SearchHits, SearchRequest, SearchTransport } from "../../contracts/transport.ts";
@@ -94,7 +95,7 @@ export class OpenSearchTransport implements SearchTransport {
    * empty until they are rebuilt, and a field it retypes is refused by the cluster: that is
    * what an index declared under a second name is for.
    */
-  async ensure(name: string, config: IndexConfig): Promise<boolean> {
+  async ensure(name: string, config: IndexConfig): Future<boolean> {
     try {
       const client = this.#cluster();
       const exists = await client.indices.exists({ index: name });
@@ -122,13 +123,13 @@ export class OpenSearchTransport implements SearchTransport {
   }
 
   /** Writes `documents` into `name`, and answers the identifiers that went in. */
-  index(name: string, documents: readonly IndexedDocument[]): Promise<readonly string[]> {
+  index(name: string, documents: readonly IndexedDocument[]): Future<readonly string[]> {
     const body = documents.flatMap((one) => [{ index: { _index: name, _id: one.id } }, one.source]);
     return this.#bulk(name, documents.map((one) => one.id), body, "index");
   }
 
   /** Takes `ids` out of `name`, and answers the identifiers now absent from it. */
-  remove(name: string, ids: readonly string[]): Promise<readonly string[]> {
+  remove(name: string, ids: readonly string[]): Future<readonly string[]> {
     const body = ids.map((id) => ({ delete: { _index: name, _id: id } }));
     return this.#bulk(name, ids, body, "delete");
   }
@@ -141,7 +142,7 @@ export class OpenSearchTransport implements SearchTransport {
    * declaration does not map its key column as a field, and mapping it is something no
    * declaration has a reason to do.
    */
-  async search(request: SearchRequest): Promise<Result<SearchHits, SearchError>> {
+  async search(request: SearchRequest): Future<Result<SearchHits, SearchError>> {
     try {
       const { body } = await this.#cluster().search({
         index: request.index,
@@ -180,7 +181,7 @@ export class OpenSearchTransport implements SearchTransport {
     ids: readonly string[],
     body: Record<string, unknown>[],
     operation: "index" | "delete",
-  ): Promise<readonly string[]> {
+  ): Future<readonly string[]> {
     if (ids.length === 0) return [];
 
     try {

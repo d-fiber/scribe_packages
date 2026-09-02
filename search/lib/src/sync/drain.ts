@@ -34,7 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Duration } from "@scribe/alchemy";
+import { DateTime, Duration } from "@scribe/alchemy";
+import type { Future } from "@scribe/alchemy";
 import { extensions } from "@scribe/runtime/support/extensions/mod.ts";
 import { Cron, every } from "@scribe/foundation/cron";
 import { SearchOperation } from "../../contracts/definition.ts";
@@ -85,13 +86,13 @@ interface Work {
  * at the head of the line: without this the same batch would be tried pass after pass for the
  * whole budget and the ones behind it would never be reached.
  */
-export async function drainSearchOutbox(): Promise<number> {
+export async function drainSearchOutbox(): Future<number> {
   await extensions.load(SEARCH_EXTENSION);
 
   let drained = 0;
-  const deadline = Date.now() + DRAIN_BUDGET.inMilliseconds;
+  const deadline = DateTime.now().add(DRAIN_BUDGET);
 
-  for (let pass = 0; pass < MIN_PASSES || Date.now() < deadline; pass++) {
+  for (let pass = 0; pass < MIN_PASSES || DateTime.now().isBefore(deadline); pass++) {
     const batch = await claim();
     if (batch.length === 0) break;
 
@@ -105,7 +106,7 @@ export async function drainSearchOutbox(): Promise<number> {
 }
 
 /** Applies one batch, index by index, and answers how many of its rows left the line. */
-async function drainBatch(rows: readonly SearchOutboxRow[]): Promise<number> {
+async function drainBatch(rows: readonly SearchOutboxRow[]): Future<number> {
   let settled = 0;
 
   for (const [name, work] of group(rows)) {
@@ -129,7 +130,7 @@ async function drainBatch(rows: readonly SearchOutboxRow[]): Promise<number> {
  * row's attempts. A row that runs out of attempts stops being claimed and keeps its reason,
  * which is what someone reads when a document is missing from a search.
  */
-async function apply(index: AnySearchIndex, work: Work): Promise<number> {
+async function apply(index: AnySearchIndex, work: Work): Future<number> {
   const removed = await index.erase(work.remove);
   const rebuilt = await index.rebuild(work.rebuild);
 

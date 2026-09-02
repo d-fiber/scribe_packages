@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { type Cache, cache, Duration } from "@scribe/alchemy";
+import { type Cache, cache, Duration, Future } from "@scribe/alchemy";
 
 /** How long a result set and a preview are kept when a declaration asks for nothing else. */
 export const DEFAULT_TTL: Duration = Duration.minutes(5);
@@ -58,8 +58,8 @@ export class SearchCache<TPreview> {
   }
 
   /** What `key` holds, produced and kept when it holds nothing. */
-  page<T>(key: string, produce: () => Promise<T>): Promise<T> {
-    return this.#pages.upsert(key, produce) as Promise<T>;
+  page<T>(key: string, produce: () => Future<T>): Future<T> {
+    return this.#pages.upsert(key, produce) as Future<T>;
   }
 
   /**
@@ -69,9 +69,9 @@ export class SearchCache<TPreview> {
    * cleared once for the whole batch rather than once per document, since the namespace holds
    * no page that survives the first clear anyway.
    */
-  async invalidate(ids: readonly string[]): Promise<void> {
+  async invalidate(ids: readonly string[]): Future<void> {
     if (ids.length === 0) return;
-    await Promise.all([this.#previews.deleteMany(...ids), this.#pages.clear()]);
+    await Future.wait([this.#previews.deleteMany(...ids), this.#pages.clear()]);
   }
 
   /**
@@ -83,8 +83,8 @@ export class SearchCache<TPreview> {
    */
   async hydrate(
     ids: readonly string[],
-    read: (missing: string[]) => Promise<ReadonlyMap<string, TPreview>>,
-  ): Promise<Map<string, TPreview>> {
+    read: (missing: string[]) => Future<ReadonlyMap<string, TPreview>>,
+  ): Future<Map<string, TPreview>> {
     const byId = new Map<string, TPreview>();
     const cached = await this.#previews.getMany([...ids]);
 
@@ -97,7 +97,7 @@ export class SearchCache<TPreview> {
     if (missing.length === 0) return byId;
 
     const found = await read(missing);
-    await Promise.all([...found].map(async ([id, preview]) => {
+    await Future.wait([...found].map(async ([id, preview]) => {
       byId.set(id, preview);
       await this.#previews.add(id, preview);
     }));

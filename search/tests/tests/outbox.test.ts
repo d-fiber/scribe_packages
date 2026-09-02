@@ -35,6 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import "@scribe/runtime/scholium/runner.ts";
+import type { Future } from "@scribe/alchemy";
 import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { installValkeryMock } from "@scribe/foundation/testing";
 import type { SearchParams } from "../../lib/contracts/definition.ts";
@@ -81,7 +82,7 @@ function harness() {
 
   return {
     transport,
-    async restore(): Promise<void> {
+    async restore(): Future<void> {
       await drainSearchOutbox();
       transport.restore();
       valkery.restore();

@@ -35,6 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { Duration } from "@scribe/alchemy";
+import type { Future } from "@scribe/alchemy";
 import { Pagination } from "@scribe/alchemy";
 import { Failure, Ok, type Result } from "@scribe/alchemy";
 import type {
@@ -150,17 +151,17 @@ export class SearchIndex<TParams extends SearchParams, TPreview> implements Sear
   }
 
   /** Queues the document `id` for a rebuild, and answers whether the request was recorded. */
-  add(id: string): Promise<boolean> {
+  add(id: string): Future<boolean> {
     return enqueue(this.name, [id], SearchOperation.Index);
   }
 
   /** Queues every identifier of `ids` for a rebuild, in one write. */
-  addMany(ids: readonly string[]): Promise<boolean> {
+  addMany(ids: readonly string[]): Future<boolean> {
     return enqueue(this.name, ids, SearchOperation.Index);
   }
 
   /** Queues the document `id` for removal, and answers whether the request was recorded. */
-  delete(id: string): Promise<boolean> {
+  delete(id: string): Future<boolean> {
     return enqueue(this.name, [id], SearchOperation.Delete);
   }
 
@@ -179,7 +180,7 @@ export class SearchIndex<TParams extends SearchParams, TPreview> implements Sear
    * rounded by `timeBucket` are what make a search over a place or a period cacheable at all,
    * and both are written inside the declaration's own query.
    */
-  async search(params: TParams): Promise<Result<Pagination<TPreview>, SearchError>> {
+  async search(params: TParams): Future<Result<Pagination<TPreview>, SearchError>> {
     const from = params.page?.from ?? 0;
     const size = params.page?.size ?? this.#resolved.pageSize;
     const plan = this.plan(params);
@@ -205,7 +206,7 @@ export class SearchIndex<TParams extends SearchParams, TPreview> implements Sear
    * reports per identifier, so the ones it refused stay in the outbox to be drained again
    * without holding back the ones that already went in.
    */
-  async rebuild(ids: readonly string[]): Promise<readonly string[]> {
+  async rebuild(ids: readonly string[]): Future<readonly string[]> {
     const transport = searchTransport();
     if (transport === null || ids.length === 0) return [];
 
@@ -232,7 +233,7 @@ export class SearchIndex<TParams extends SearchParams, TPreview> implements Sear
   }
 
   /** Takes `ids` out of the index, and answers the ones that are now, or already were, absent from it. */
-  async erase(ids: readonly string[]): Promise<readonly string[]> {
+  async erase(ids: readonly string[]): Future<readonly string[]> {
     const transport = searchTransport();
     if (transport === null || ids.length === 0) return [];
 
@@ -254,7 +255,7 @@ export class SearchIndex<TParams extends SearchParams, TPreview> implements Sear
    * is what tells {@link Pagination.of} there is a page after this one, which is the contract
    * every other paginated read in this framework already follows.
    */
-  async #answer(plan: QueryPlan, from: number, size: number): Promise<Pagination<TPreview>> {
+  async #answer(plan: QueryPlan, from: number, size: number): Future<Pagination<TPreview>> {
     const transport = searchTransport();
     if (transport === null) throw new AnswerFailure(SearchError.Unavailable);
 
@@ -273,7 +274,7 @@ export class SearchIndex<TParams extends SearchParams, TPreview> implements Sear
   }
 
   /** The previews of `ids`, read in one call and keyed by identifier. */
-  async #previewsOf(ids: readonly string[]): Promise<ReadonlyMap<string, TPreview>> {
+  async #previewsOf(ids: readonly string[]): Future<ReadonlyMap<string, TPreview>> {
     const rows = await projectRows(this.table, this.key, this.#resolved.preview.columns, ids);
     const byId = new Map<string, TPreview>();
 

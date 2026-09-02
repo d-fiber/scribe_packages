@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import type { Future } from "@scribe/alchemy";
 import type { Pagination } from "@scribe/alchemy";
 import type { Result } from "@scribe/alchemy";
 import type { BoolQuery, SearchSort } from "./query.ts";
@@ -151,13 +152,13 @@ export interface Search<TParams extends SearchParams, TPreview> {
    * A project whose table carries the package's trigger never calls this. It is for the
    * documents no table change announces, such as one built from an outside service.
    */
-  add(id: string): Promise<boolean>;
+  add(id: string): Future<boolean>;
 
   /** Queues every identifier of `ids` for a rebuild, in one write. */
-  addMany(ids: readonly string[]): Promise<boolean>;
+  addMany(ids: readonly string[]): Future<boolean>;
 
   /** Queues the document `id` for removal, and answers whether the request was recorded. */
-  delete(id: string): Promise<boolean>;
+  delete(id: string): Future<boolean>;
 
   /**
    * Answers the page of previews `params` asks for.
@@ -166,7 +167,7 @@ export interface Search<TParams extends SearchParams, TPreview> {
    * throwing: a search is one part of a page, and a caller decides whether an empty section
    * is worse than no page at all.
    */
-  search(params: TParams): Promise<Result<Pagination<TPreview>, SearchError>>;
+  search(params: TParams): Future<Result<Pagination<TPreview>, SearchError>>;
 
   /**
    * The plan `params` compiles into, without reaching the cluster.

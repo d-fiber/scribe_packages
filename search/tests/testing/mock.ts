@@ -38,7 +38,7 @@ import { installSearchTestSettings } from "./settings.ts";
 
 installSearchTestSettings();
 import type { InstalledMock } from "@scribe/testing/install.ts";
-import { Failure, Ok, type Result } from "@scribe/alchemy";
+import { Failure, Future, Ok, type Result } from "@scribe/alchemy";
 import { SearchError } from "../../lib/contracts/definition.ts";
 import type { IndexConfig } from "../../lib/contracts/definition.ts";
 import type { IndexedDocument, SearchHits, SearchRequest, SearchTransport } from "../../lib/contracts/transport.ts";
@@ -82,13 +82,13 @@ export class RecordingTransport implements SearchTransport {
   }
 
   /** Keeps `config` under `name` and answers that the index now matches it. */
-  ensure(name: string, config: IndexConfig): Promise<boolean> {
+  ensure(name: string, config: IndexConfig): Future<boolean> {
     this.ensured.set(name, config);
-    return Promise.resolve(true);
+    return Future.value(true);
   }
 
   /** Keeps `documents` under `name` and answers the identifiers that were kept. */
-  index(name: string, documents: readonly IndexedDocument[]): Promise<readonly string[]> {
+  index(name: string, documents: readonly IndexedDocument[]): Future<readonly string[]> {
     const held = this.#held(name);
     const succeeded: string[] = [];
 
@@ -98,7 +98,7 @@ export class RecordingTransport implements SearchTransport {
       succeeded.push(one.id);
     }
 
-    return Promise.resolve(succeeded);
+    return Future.value(succeeded);
   }
 
   /**
@@ -107,7 +107,7 @@ export class RecordingTransport implements SearchTransport {
    * A document already absent counts as removed, the same way a real cluster answers `404` to
    * the deletion of a document that is already gone: the caller's goal already holds.
    */
-  remove(name: string, ids: readonly string[]): Promise<readonly string[]> {
+  remove(name: string, ids: readonly string[]): Future<readonly string[]> {
     const held = this.#held(name);
     const succeeded: string[] = [];
 
@@ -117,13 +117,13 @@ export class RecordingTransport implements SearchTransport {
       succeeded.push(id);
     }
 
-    return Promise.resolve(succeeded);
+    return Future.value(succeeded);
   }
 
   /** Keeps `request` and answers what the last call to `answer`, `answerNothing` or `refuse` decided. */
-  search(request: SearchRequest): Promise<Result<SearchHits, SearchError>> {
+  search(request: SearchRequest): Future<Result<SearchHits, SearchError>> {
     this.requests.push(request);
-    return Promise.resolve(this.#hits);
+    return Future.value(this.#hits);
   }
 
   /** The documents held by the index `name`, in the order they were written. */

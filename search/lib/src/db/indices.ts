@@ -34,6 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import type { Future } from "@scribe/alchemy";
+import { DateTime } from "@scribe/alchemy";
 import { digest } from "../core/cache_key.ts";
 import type { AnySearchIndex } from "../core/registry.ts";
 import { declaredIndices } from "../core/registry.ts";
@@ -63,7 +65,7 @@ function pairOf(table: string, key: string): string {
  * A cluster that refuses is left recorded as it was, so the next boot tries again rather than
  * the row claiming a shape the cluster does not hold.
  */
-export async function syncDeclaredIndices(): Promise<void> {
+export async function syncDeclaredIndices(): Future<void> {
   for (const index of declaredIndices()) {
     await syncIndex(index);
     await syncSources(index);
@@ -71,7 +73,7 @@ export async function syncDeclaredIndices(): Promise<void> {
 }
 
 /** Makes the cluster hold `index` as its declaration describes it, and records what it was told. */
-async function syncIndex(index: AnySearchIndex): Promise<void> {
+async function syncIndex(index: AnySearchIndex): Future<void> {
   const config = index.config();
   const mappings_hash = digest(config.mappings);
   const settings_hash = digest(config.settings ?? {});
@@ -98,7 +100,7 @@ async function syncIndex(index: AnySearchIndex): Promise<void> {
     source_key: index.key,
     mappings_hash,
     settings_hash,
-    synced_at: new Date().toISOString(),
+    synced_at: DateTime.now().toIso8601String(),
   };
 
   if (stored === null) {
@@ -121,7 +123,7 @@ async function syncIndex(index: AnySearchIndex): Promise<void> {
  * declaration stops reading would otherwise keep enqueueing rebuilds for a field nobody
  * indexes any more, and nothing would say which trigger was doing it.
  */
-async function syncSources(index: AnySearchIndex): Promise<void> {
+async function syncSources(index: AnySearchIndex): Future<void> {
   const declared = new Map(index.sources.map((source) => [pairOf(source.table, source.key), source]));
 
   const stored = await searchSources()
