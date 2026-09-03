@@ -68,9 +68,16 @@ const RECEIVE_RETRY_DELAY = Duration.seconds(1);
 
 /** A message as `receiveMessage` answers it, the fields this backend reads and nothing else. */
 export interface SqsMessage {
+  /** The identifier SQS gave this message when it was sent. */
   readonly MessageId?: string;
+
+  /** The token this message must be deleted or have its visibility changed with. */
   readonly ReceiptHandle?: string;
+
+  /** The payload as SQS carries it: text, since a queue's body is never binary. */
   readonly Body?: string;
+
+  /** The system attributes asked for, `ApproximateReceiveCount` among them. */
   readonly Attributes?: Record<string, string>;
 }
 
@@ -84,18 +91,31 @@ export interface SqsMessage {
  * return type. {@link RealSqsClient} is the only file that imports a command class.
  */
 export interface SqsClient {
+  /** Creates a queue, or answers the url of one already named and configured the same way. */
   createQueue(input: { QueueName: string; Attributes?: Record<string, string> }): Future<{ QueueUrl?: string }>;
+
+  /** Reads the named attributes of the queue at `QueueUrl`. */
   getQueueAttributes(
     input: { QueueUrl: string; AttributeNames: string[] },
   ): Future<{ Attributes?: Record<string, string> }>;
+
+  /** Sends one message, and answers the identifier SQS gave it. */
   sendMessage(input: { QueueUrl: string; MessageBody: string }): Future<{ MessageId?: string }>;
+
+  /** Sends up to ten messages in one call; each entry is answered on its own, in `Successful` or `Failed`. */
   sendMessageBatch(
     input: { QueueUrl: string; Entries: { Id: string; MessageBody: string }[] },
   ): Future<{ Successful?: { Id: string; MessageId: string }[]; Failed?: { Id: string; Message?: string }[] }>;
+
+  /** Pulls up to `MaxNumberOfMessages`, waiting up to `WaitTimeSeconds` for at least one to arrive. */
   receiveMessage(
     input: { QueueUrl: string; MaxNumberOfMessages: number; WaitTimeSeconds: number },
   ): Future<{ Messages?: SqsMessage[] }>;
+
+  /** Acknowledges a message, so it is never delivered again. */
   deleteMessage(input: { QueueUrl: string; ReceiptHandle: string }): Future<void>;
+
+  /** Holds a message back from redelivery for `VisibilityTimeout` more seconds. */
   changeMessageVisibility(input: { QueueUrl: string; ReceiptHandle: string; VisibilityTimeout: number }): Future<void>;
 }
 
@@ -107,10 +127,12 @@ export class RealSqsClient implements SqsClient {
     this.#client = new SQSClient({ region });
   }
 
+  /** See {@link SqsClient.createQueue}. */
   async createQueue(input: { QueueName: string; Attributes?: Record<string, string> }): Future<{ QueueUrl?: string }> {
     return await this.#client.send(new CreateQueueCommand(input));
   }
 
+  /** See {@link SqsClient.getQueueAttributes}. */
   async getQueueAttributes(
     input: { QueueUrl: string; AttributeNames: string[] },
   ): Future<{ Attributes?: Record<string, string> }> {
@@ -119,10 +141,19 @@ export class RealSqsClient implements SqsClient {
     );
   }
 
+  /** See {@link SqsClient.sendMessage}. */
   async sendMessage(input: { QueueUrl: string; MessageBody: string }): Future<{ MessageId?: string }> {
     return await this.#client.send(new SendMessageCommand(input));
   }
 
+  /**
+   * See {@link SqsClient.sendMessageBatch}.
+   *
+   * @remarks
+   * The real SDK types `Id` and `MessageId` as possibly absent even on a successful entry, which
+   * AWS never actually sends without them; entries missing either are dropped rather than handed
+   * back with a hole {@link SqsClient}'s own contract does not allow.
+   */
   async sendMessageBatch(
     input: { QueueUrl: string; Entries: { Id: string; MessageBody: string }[] },
   ): Future<{ Successful?: { Id: string; MessageId: string }[]; Failed?: { Id: string; Message?: string }[] }> {
@@ -135,6 +166,7 @@ export class RealSqsClient implements SqsClient {
     };
   }
 
+  /** See {@link SqsClient.receiveMessage}. Always asks for `ApproximateReceiveCount`, which every caller here needs. */
   async receiveMessage(
     input: { QueueUrl: string; MaxNumberOfMessages: number; WaitTimeSeconds: number },
   ): Future<{ Messages?: SqsMessage[] }> {
@@ -143,10 +175,12 @@ export class RealSqsClient implements SqsClient {
     );
   }
 
+  /** See {@link SqsClient.deleteMessage}. */
   async deleteMessage(input: { QueueUrl: string; ReceiptHandle: string }): Future<void> {
     await this.#client.send(new DeleteMessageCommand(input));
   }
 
+  /** See {@link SqsClient.changeMessageVisibility}. */
   async changeMessageVisibility(
     input: { QueueUrl: string; ReceiptHandle: string; VisibilityTimeout: number },
   ): Future<void> {
@@ -225,6 +259,7 @@ export class SqsQueueBackend implements QueueBackend {
     this.#client = new RealSqsClient(settings.region);
   }
 
+  /** Publishes `data`, delayed by `opts.delay` when given, and answers the message's own identifier. */
   async push<T>(queue: RegisteredQueue, data: T, opts: PushOptions): Future<string> {
     if (opts.delay && opts.delay.inMilliseconds > 0) {
       return await pushDelayed(queue.name, await this.addressOf(queue), data, opts.delay);
@@ -235,6 +270,7 @@ export class SqsQueueBackend implements QueueBackend {
     return answer.MessageId ?? crypto.randomUUID();
   }
 
+  /** `queue`'s own queue url, creating the queue and its dead letter first if neither exists yet. */
   addressOf(queue: RegisteredQueue): Future<string> {
     return this.#ensureQueue(queue);
   }
@@ -291,21 +327,25 @@ export class SqsQueueBackend implements QueueBackend {
     return answer.MessageId ?? crypto.randomUUID();
   }
 
+  /** How many messages of this queue are waiting to be delivered. */
   async size(queue: RegisteredQueue): Future<number> {
     const url = await this.#ensureQueue(queue);
     return await this.#approximateCount(url);
   }
 
+  /** How many messages of this queue have exhausted their delivery attempts and moved to the dead letter. */
   async deadCount(queue: RegisteredQueue): Future<number> {
     const { url } = await this.#ensureDeadLetter(queue);
     return await this.#approximateCount(url);
   }
 
+  /** How many messages of this queue are delayed, waiting for their due date. */
   async delayedCount(queue: RegisteredQueue): Future<number> {
     const delayed = await delayedCounts();
     return delayed.counts[queue.name] ?? 0;
   }
 
+  /** This queue's current status: its declaration, and how many messages are pending, dead, or delayed. */
   async status(queue: RegisteredQueue): Future<QueueStatus> {
     const [pending, dead, delayed] = await Future.wait([
       this.size(queue),
@@ -317,6 +357,7 @@ export class SqsQueueBackend implements QueueBackend {
   }
 
   /** Starts one drain loop per registered queue. Does nothing when already draining. */
+  /** Starts one drain loop per registered queue. Does nothing when already draining. */
   startDraining(): void {
     if (!this.#stopped) return;
     this.#stopped = false;
@@ -326,6 +367,7 @@ export class SqsQueueBackend implements QueueBackend {
     }
   }
 
+  /** Signals every drain loop this backend started to stop after its current receive. */
   stopDraining(): void {
     this.#stopped = true;
   }

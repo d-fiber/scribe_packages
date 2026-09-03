@@ -68,6 +68,7 @@ export const PUBLISH_AT_ONCE = 64;
  * deduplication are all NATS mechanisms with no equivalent this backend has to pretend to offer.
  */
 export class NatsQueueBackend implements QueueBackend {
+  /** Publishes `data`, delayed by `opts.delay` when given, and answers the message's own identifier. */
   async push<T>(queue: RegisteredQueue, data: T, opts: PushOptions): Future<string> {
     if (opts.delay && opts.delay.inMilliseconds > 0) {
       return await pushDelayed(queue.name, await this.addressOf(queue), data, opts.delay);
@@ -98,10 +99,12 @@ export class NatsQueueBackend implements QueueBackend {
     return ids;
   }
 
+  /** `queue`'s own subject, which is already all the addressing NATS needs. */
   addressOf(queue: RegisteredQueue): Future<string> {
     return Promise.resolve(queue.subject);
   }
 
+  /** Publishes `payload` straight to the subject `address` names, deduplicated by `idempotencyKey`. */
   async publishEncoded(address: string, payload: Uint8Array, idempotencyKey: string): Future<string> {
     return await topology.publish(address, payload, idempotencyKey);
   }
@@ -137,15 +140,18 @@ export class NatsQueueBackend implements QueueBackend {
     return delayed.counts[queue.name] ?? 0;
   }
 
+  /** This queue's current status: its declaration, and how many messages are pending, dead, or delayed. */
   async status(queue: RegisteredQueue): Future<QueueStatus> {
     await ensureTopology();
     return await queueStatus.one(queue);
   }
 
+  /** Starts `queueRunner`, which drains every NATS queue this process registered. */
   startDraining(): void {
     queueRunner.start();
   }
 
+  /** Signals `queueRunner` to stop after its current pass. */
   stopDraining(): void {
     queueRunner.stop();
   }

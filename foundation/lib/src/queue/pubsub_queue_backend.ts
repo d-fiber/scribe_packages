@@ -52,30 +52,56 @@ const MAX_BATCH = 10;
 
 /** A message as this backend reads it, the surface `@google-cloud/pubsub`'s own `Message` carries that matters here. */
 export interface PubSubMessage {
+  /** The identifier Pub/Sub gave this message when it was published. */
   readonly id: string;
+
+  /** The payload as published, still encoded. */
   readonly data: Uint8Array;
+
+  /** How many times this message has been delivered, present when the subscription carries a dead-letter policy. */
   readonly deliveryAttempt?: number;
+
+  /** Acknowledges the message, so it is never delivered again. */
   ack(): void;
+
+  /** Refuses the message, so the subscription's own retry policy redelivers it. */
   nack(): void;
+
   /** Extends how long this message stays invisible by `deadlineSeconds`, the way SQS's `ChangeMessageVisibility` does. */
   modAck(deadlineSeconds: number): void;
 }
 
 /** A live pull stream for one subscription, opened by {@link PubSubClient.pull}. */
 export interface PubSubStream {
+  /** Arms `handler`, called for every message this stream delivers. */
   on(event: "message", handler: (message: PubSubMessage) => void): void;
+  /** Arms `handler`, called when the stream itself fails. */
   on(event: "error", handler: (error: unknown) => void): void;
+  /** Stops delivering, releasing whatever the stream held open. */
   close(): Future<void>;
 }
 
 /** What ensuring a subscription takes: the deadline, the dead letter, and its own retry backoff. */
 export interface EnsureSubscription {
+  /** The subscription's own id, unique within the project. */
   readonly subscriptionName: string;
+
+  /** The topic this subscription pulls from. */
   readonly topicName: string;
+
+  /** How long Pub/Sub waits for an ack before redelivering, in seconds. */
   readonly ackDeadlineSeconds: number;
+
+  /** The topic a message that exhausted `maxDeliveryAttempts` is copied to. */
   readonly deadLetterTopic: string;
+
+  /** Deliveries after which Pub/Sub's own dead-letter policy takes over, as a backstop past this queue's own retry count. */
   readonly maxDeliveryAttempts: number;
+
+  /** The shortest backoff Pub/Sub's own retry policy waits between redeliveries, in seconds. */
   readonly minimumBackoffSeconds: number;
+
+  /** The longest backoff Pub/Sub's own retry policy waits between redeliveries, in seconds. */
   readonly maximumBackoffSeconds: number;
 }
 
@@ -90,9 +116,15 @@ export interface EnsureSubscription {
  * same queue back.
  */
 export interface PubSubClient {
+  /** Creates a topic, or does nothing when one of that name already exists. */
   ensureTopic(name: string): Future<void>;
+
+  /** Creates a subscription configured as `input` describes, or does nothing when one already exists. */
   ensureSubscription(input: EnsureSubscription): Future<void>;
+
+  /** Publishes `data` to `topicName`, and answers the message's own identifier. */
   publish(topicName: string, data: Uint8Array): Future<string>;
+
   /** Opens a pull stream on `subscriptionName`, delivering at most `maxMessages` unacknowledged at once. */
   pull(subscriptionName: string, maxMessages: number): PubSubStream;
 }
@@ -105,6 +137,7 @@ export class RealPubSubClient implements PubSubClient {
     this.#client = new PubSub({ projectId });
   }
 
+  /** See {@link PubSubClient.ensureTopic}. */
   async ensureTopic(name: string): Future<void> {
     try {
       await this.#client.createTopic(name);
@@ -113,6 +146,7 @@ export class RealPubSubClient implements PubSubClient {
     }
   }
 
+  /** See {@link PubSubClient.ensureSubscription}. */
   async ensureSubscription(input: EnsureSubscription): Future<void> {
     const topic = this.#client.topic(input.topicName);
 
@@ -133,10 +167,12 @@ export class RealPubSubClient implements PubSubClient {
     }
   }
 
+  /** See {@link PubSubClient.publish}. */
   async publish(topicName: string, data: Uint8Array): Future<string> {
     return await this.#client.topic(topicName).publishMessage({ data });
   }
 
+  /** See {@link PubSubClient.pull}. */
   pull(subscriptionName: string, maxMessages: number): PubSubStream {
     const subscription = this.#client.subscription(subscriptionName, { flowControl: { maxMessages } });
 
@@ -238,6 +274,7 @@ export class PubSubQueueBackend implements QueueBackend {
     this.#client = new RealPubSubClient(settings.projectId);
   }
 
+  /** Publishes `data`, delayed by `opts.delay` when given, and answers the message's own identifier. */
   async push<T>(queue: RegisteredQueue, data: T, opts: PushOptions): Future<string> {
     if (opts.delay && opts.delay.inMilliseconds > 0) {
       return await pushDelayed(queue.name, await this.addressOf(queue), data, opts.delay);
@@ -247,6 +284,7 @@ export class PubSubQueueBackend implements QueueBackend {
     return await this.#client.publish(this.#topicOf(queue), encode({ data }));
   }
 
+  /** `queue`'s own topic name, creating its topic, dead-letter topic and subscription first if none exist yet. */
   async addressOf(queue: RegisteredQueue): Future<string> {
     await this.#ensure(queue);
     return this.#topicOf(queue);
@@ -276,6 +314,7 @@ export class PubSubQueueBackend implements QueueBackend {
     return await this.#client.publish(address, payload);
   }
 
+  /** Always 0: see this class's own doc for why counting a subscription's backlog is not attempted. */
   size(_queue: RegisteredQueue): Future<number> {
     log.warn("queue.pubsub_count_unavailable", {
       metadata: { reason: "counting a subscription's backlog needs Cloud Monitoring, which this driver does not call" },
@@ -283,6 +322,7 @@ export class PubSubQueueBackend implements QueueBackend {
     return Promise.resolve(0);
   }
 
+  /** Always 0: see this class's own doc for why counting a subscription's backlog is not attempted. */
   deadCount(_queue: RegisteredQueue): Future<number> {
     log.warn("queue.pubsub_count_unavailable", {
       metadata: { reason: "counting a subscription's backlog needs Cloud Monitoring, which this driver does not call" },
@@ -290,11 +330,13 @@ export class PubSubQueueBackend implements QueueBackend {
     return Promise.resolve(0);
   }
 
+  /** How many messages of this queue are delayed, waiting for their due date. */
   async delayedCount(queue: RegisteredQueue): Future<number> {
     const delayed = await delayedCounts();
     return delayed.counts[queue.name] ?? 0;
   }
 
+  /** This queue's current status: its declaration, and how many messages are pending, dead, or delayed. */
   async status(queue: RegisteredQueue): Future<QueueStatus> {
     const [pending, dead, delayed] = await Future.wait([
       this.size(queue),
@@ -315,6 +357,7 @@ export class PubSubQueueBackend implements QueueBackend {
     }
   }
 
+  /** Signals every stream this backend opened to stop, and closes each of them. */
   stopDraining(): void {
     this.#stopped = true;
     for (const stream of this.#streams.values()) void stream.close();

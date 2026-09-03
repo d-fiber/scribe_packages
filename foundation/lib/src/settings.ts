@@ -45,6 +45,7 @@ export type QueueSettings = NatsQueueSettings | SqsQueueSettings | PubSubQueueSe
 
 /** A queue backed by this package's own NATS driver. */
 export interface NatsQueueSettings {
+  /** The discriminant {@link QueueSettings} switches on. */
   readonly driver: "nats";
 
   /**
@@ -64,6 +65,7 @@ export interface NatsQueueSettings {
  * connection string buys over NATS.
  */
 export interface SqsQueueSettings {
+  /** The discriminant {@link QueueSettings} switches on. */
   readonly driver: "sqs";
 
   /** The region every queue this driver opens is created in and read from. */
@@ -77,6 +79,7 @@ export interface SqsQueueSettings {
  * Application Default Credentials from the service account the compute identity runs as.
  */
 export interface PubSubQueueSettings {
+  /** The discriminant {@link QueueSettings} switches on. */
   readonly driver: "pubsub";
 
   /** The project every topic and subscription this driver opens is created in and read from. */
