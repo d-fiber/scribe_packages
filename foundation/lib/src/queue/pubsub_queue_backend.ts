@@ -36,7 +36,6 @@
 
 import { Duration, ExponentialBackoff, Future, runPooled, type UnmodifiableList, withDeadline } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
-import { Buffer } from "node:buffer";
 import { PubSub } from "@google-cloud/pubsub";
 import type { RegisteredQueue } from "./queue_declaration.ts";
 import type { BatchHandler, JobHandler, PushOptions, QueueMessage } from "./queue_options.ts";
@@ -135,7 +134,7 @@ export class RealPubSubClient implements PubSubClient {
   }
 
   async publish(topicName: string, data: Uint8Array): Future<string> {
-    return await this.#client.topic(topicName).publishMessage({ data: Buffer.from(data) });
+    return await this.#client.topic(topicName).publishMessage({ data });
   }
 
   pull(subscriptionName: string, maxMessages: number): PubSubStream {
