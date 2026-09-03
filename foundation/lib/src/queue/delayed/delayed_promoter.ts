@@ -37,7 +37,7 @@
 import { kv } from "../../redis/kv.ts";
 import { DateTime, type Future, runPooled } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
-import { topology } from "../topology/topology.ts";
+import { queueBackend } from "../queue_backend.ts";
 import { encode } from "../wire_message.ts";
 import { decodeMember, DELAYED_KEY, type DelayedMember } from "./delayed_member.ts";
 
@@ -106,14 +106,22 @@ async function dueMembers(): Future<string[]> {
 }
 
 /**
- * Publishes a due member on its queue's subject.
+ * Publishes a due member at its own resolved address.
  *
- * The message id lets JetStream drop a duplicate on its own when two replicas promote the same
- * member inside the stream's duplicate window.
+ * @remarks
+ * The address was resolved once, by the replica that pushed the job and so had the queue's full
+ * declaration; this replica does not need to declare the queue itself, the same as a plain
+ * message already does not: see `runner/message_dispatcher.ts`'s own hand-back.
+ *
+ * The idempotency key lets a backend that can deduplicate publishes on its own drop a duplicate
+ * when two replicas promote the same member inside the same race window. NATS is the one backend
+ * that honours it today; a backend that cannot says so in its own file, and two replicas racing to
+ * promote the same member costs it a duplicate delivery rather than a lost one, which is the side
+ * of the trade {@link forgetAll}'s own comment already accepts for NATS's own race window.
  */
 function publish(member: DelayedMember): Future<string> {
-  return topology.publish(
-    member.subject,
+  return queueBackend().publishEncoded(
+    member.address,
     encode({ data: member.data }),
     `${member.queue}:${member.id}`,
   );

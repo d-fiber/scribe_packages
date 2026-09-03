@@ -34,27 +34,12 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { type Future, runPooled, type UnmodifiableList } from "@scribe/alchemy";
+import type { Future, UnmodifiableList } from "@scribe/alchemy";
 import type { BatchHandler, JobHandler, PushOptions, QueueOptions } from "./queue_options.ts";
 import { limitsFrom, type RegisteredQueue, subjectsOf } from "./queue_declaration.ts";
-import { delayedCounts } from "./delayed/delayed_counts.ts";
-import { pushDelayed } from "./delayed/delayed_schedule.ts";
-import { DEAD_STREAM, streamOf } from "./queue_naming.ts";
 import { queueRegistry } from "./queue_registry.ts";
-import { type QueueStatus, queueStatus } from "./queue_status.ts";
-import { ensureTopology } from "./topology/ensure_topology.ts";
-import { topology } from "./topology/topology.ts";
-import { encode } from "./wire_message.ts";
-
-/**
- * How many publications one call to {@link Queue.pushMany} keeps in flight.
- *
- * @remarks
- * High enough that a batch is not paced by the round trip time of one publication, low enough
- * that the memory a push costs is decided here and not by the length of the list a caller
- * happened to build.
- */
-export const PUBLISH_AT_ONCE = 64;
+import type { QueueStatus } from "./queue_status.ts";
+import { queueBackend } from "./queue_backend.ts";
 
 /** What declaring a queue takes. */
 export interface QueueDefinition {
@@ -102,82 +87,34 @@ export class QueuePublisher<in TJob> {
     return this.queue.name;
   }
 
-  /**
-   * Publishes `data`, delayed by `opts.delay` when given, and answers the message's own identifier.
-   *
-   * @remarks
-   * A delayed push takes a separate path, `pushDelayed`, rather than a delay parameter on the same
-   * NATS publish: a message the broker delivers immediately has to sit somewhere else until its due
-   * date, so a delayed job is written to Redis and only promoted onto the stream once it is actually
-   * due, not held in NATS the whole time.
-   */
-  async push(data: TJob, opts: PushOptions = {}): Future<string> {
-    if (opts.delay && opts.delay.inMilliseconds > 0) {
-      return await pushDelayed(
-        this.queue.name,
-        this.queue.subject,
-        data,
-        opts.delay,
-      );
-    }
-
-    await ensureTopology();
-    return await this.#publish(data);
+  /** Publishes `data`, delayed by `opts.delay` when given, and answers the message's own identifier. */
+  push(data: TJob, opts: PushOptions = {}): Future<string> {
+    return queueBackend().push(this.queue, data, opts);
   }
 
   /**
-   * Publishes every item of `items`, at most {@link PUBLISH_AT_ONCE} of them in flight together.
+   * Publishes every item of `items`.
    *
-   * @remarks
-   * The pool is what keeps the cost of a push independent of the size of the list. Handing the
-   * whole list over at once opened one publication per item, so the producer's memory and the
-   * server's inbox both grew with what the caller happened to pass: ten thousand items were ten
-   * thousand connections' worth of work asked for in the same tick.
+   * It is not the same as pushing one at a time: either the queue takes them all or it takes none,
+   * so a producer cannot leave half a batch behind by failing in the middle.
    */
-  async pushMany(items: UnmodifiableList<TJob>): Future<string[]> {
-    if (items.length === 0) return [];
-
-    await ensureTopology();
-    const ids: string[] = new Array(items.length);
-    await runPooled([...items.keys()], PUBLISH_AT_ONCE, async (at) => {
-      ids[at] = await this.#publish(items[at]);
-    });
-
-    return ids;
+  pushMany(items: UnmodifiableList<TJob>): Future<string[]> {
+    return queueBackend().pushMany(this.queue, items);
   }
 
-  /**
-   * How many messages of this queue are waiting to be delivered.
-   *
-   * @remarks
-   * Counted against `this.queue.dedicated`'s own stream, shared or not, since a dedicated queue's
-   * messages never sit on the shared stream at all and counting there would always answer zero.
-   */
-  async size(): Future<number> {
-    await ensureTopology();
-    return await topology.countBySubject(
-      streamOf(this.queue.dedicated),
-      this.queue.subject,
-    );
+  /** How many messages of this queue are waiting to be delivered. */
+  size(): Future<number> {
+    return queueBackend().size(this.queue);
   }
 
   /** How many messages of this queue have exhausted their delivery attempts and moved to the dead letter, kept there for an operator to inspect or retry. */
-  async deadCount(): Future<number> {
-    await ensureTopology();
-    return await topology.countBySubject(DEAD_STREAM, this.queue.deadSubject);
+  deadCount(): Future<number> {
+    return queueBackend().deadCount(this.queue);
   }
 
-  /**
-   * How many messages of this queue are delayed, waiting for their due date.
-   *
-   * @remarks
-   * Reads Redis rather than the stream, since a delayed message has not been published to NATS at
-   * all yet: it sits in the same sorted set `pushDelayed` wrote it into, and only reaches the
-   * stream once its due date arrives.
-   */
-  async delayedCount(): Future<number> {
-    const delayed = await delayedCounts();
-    return delayed.counts[this.queue.name] ?? 0;
+  /** How many messages of this queue are delayed, waiting for their due date. */
+  delayedCount(): Future<number> {
+    return queueBackend().delayedCount(this.queue);
   }
 
   /**
@@ -189,13 +126,8 @@ export class QueuePublisher<in TJob> {
    * three separate calls to assemble, for an operator dashboard or a health check that wants the
    * whole picture of one queue in a single call rather than one per figure.
    */
-  async status(): Future<QueueStatus> {
-    await ensureTopology();
-    return await queueStatus.one(this.queue);
-  }
-
-  #publish(data: TJob): Future<string> {
-    return topology.publish(this.queue.subject, encode({ data }));
+  status(): Future<QueueStatus> {
+    return queueBackend().status(this.queue);
   }
 }
 

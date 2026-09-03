@@ -42,7 +42,7 @@ export function installTestSettings(): void {
   if (cacheSettings.configured) return;
 
   cacheSettings.use({ redisUrl: optional("REDIS_URL", "redis://localhost:6379") });
-  queueSettings.use({ natsUrl: optional("NATS_URL", "nats://localhost:4222") });
+  queueSettings.use({ driver: "nats", natsUrl: optional("NATS_URL", "nats://localhost:4222") });
   databaseSettings.use({
     restUrl: optional("REST_INTERNAL_URL", "http://localhost:3000"),
     anonKey: optional("ANON_KEY", "anon"),

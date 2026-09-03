@@ -47,7 +47,7 @@ function member(over: Partial<DelayedMember> = {}): string {
   return encodeMember({
     id: "m1",
     queue: "emails",
-    subject: "q.emails",
+    address: "q.emails",
     data: { to: "a@b.c" },
     ...over,
   });

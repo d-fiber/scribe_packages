@@ -59,13 +59,14 @@ import { Now } from "@scribe/alchemy";
 import type { LifecycleSteps } from "@scribe/alchemy";
 import { EXTENSION_CRON, EXTENSION_QUEUE } from "@scribe/contracts/extensions.ts";
 import { Cron, cronRegistry, cronRunner } from "./cron.ts";
-import { Queue, queueRunner } from "./queue.ts";
+import { Queue } from "./queue.ts";
 import { syncDeclaredSources, triggerRegistry, triggerRunner } from "./trigger.ts";
 import { extensions, OptionalExtension, runDeclarations } from "@scribe/runtime/support/extensions/mod.ts";
 import { FetchClients } from "./src/http/fetch_client.ts";
 import { RedisCaches } from "./src/cache/redis_caches.ts";
 import { RedisClaims } from "./src/redis/claim_once.ts";
-import { NatsQueues } from "./src/queue/nats_queues.ts";
+import { FoundationQueues } from "./src/queue/foundation_queues.ts";
+import { queueBackend } from "./src/queue/queue_backend.ts";
 import { InlineHooks } from "./src/hook/inline_hooks.ts";
 import { ScheduledCrons } from "./src/cron/scheduled_crons.ts";
 import { OutboxTriggers } from "./src/trigger/outbox_triggers.ts";
@@ -128,7 +129,7 @@ export const scribe: LifecycleSteps = {
     if (!Caches.configured) Caches.use(new RedisCaches());
     if (!Claims.configured) Claims.use(new RedisClaims());
     if (!RateLimiters.configured) RateLimiters.use(new RedisRateLimiters());
-    if (!Queues.configured) Queues.use(new NatsQueues());
+    if (!Queues.configured) Queues.use(new FoundationQueues());
     if (!Hooks.configured) Hooks.use(new InlineHooks());
     if (!Crons.configured) Crons.use(new ScheduledCrons());
     if (!Triggers.configured) Triggers.use(new OutboxTriggers());
@@ -140,7 +141,7 @@ export const scribe: LifecycleSteps = {
     console.info(cronRegistry.report());
     cronRunner.start();
 
-    queueRunner.start();
+    queueBackend().startDraining();
 
     console.info(triggerRegistry.report());
     if (triggerRegistry.list().length > 0) {
@@ -152,7 +153,7 @@ export const scribe: LifecycleSteps = {
 
   stops: () => {
     cronRunner.stop();
-    queueRunner.stop();
+    queueBackend().stopDraining();
     triggerRunner.stop();
     _consoleLogger?.flush();
   },

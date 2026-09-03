@@ -46,7 +46,7 @@ import { DELAYED_KEY, encodeMember } from "./delayed_member.ts";
  */
 export async function pushDelayed(
   queue: string,
-  subject: string,
+  address: string,
   data: unknown,
   delay: Duration,
 ): Future<string> {
@@ -55,7 +55,7 @@ export async function pushDelayed(
   await kv().zadd(
     DELAYED_KEY,
     DateTime.now().millisecondsSinceEpoch + delay.inMilliseconds,
-    encodeMember({ id, queue, subject, data }),
+    encodeMember({ id, queue, address, data }),
   );
 
   return id;

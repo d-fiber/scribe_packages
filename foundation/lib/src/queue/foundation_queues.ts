@@ -32,6 +32,7 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
+// LICENSE file, the LICENSE file governs.
 
 import {
   type DeclaredQueue as PortQueue,
@@ -45,7 +46,7 @@ import { Queue } from "./queue.ts";
 import type { JobHandler } from "./queue_options.ts";
 
 /**
- * What opens a NATS-backed queue for a package that asked the port for one.
+ * What opens a queue for a package that asked the port for one.
  *
  * @remarks
  * The port promises two members and this package's own `Queue` carries eight, so what is handed
@@ -53,14 +54,18 @@ import type { JobHandler } from "./queue_options.ts";
  * declares, and nothing more. The identifier a push answers is dropped here, because the port
  * says a push answers nothing and a driver does not get to promise more than the port it answers.
  *
- * A queue is kept per key, because declaring one twice would take the same NATS subject twice and
- * the second declaration would receive the first one's work.
+ * A queue is kept per key, because declaring one twice would take the same broker resource twice
+ * and the second declaration would receive the first one's work.
  *
  * A queue opened without a number of attempts is handed over once, which is what the port says and
  * not what this package's own default says. A declaration that named nothing did not ask for the
  * four retries a job written for this package expects.
+ *
+ * This class names no broker on purpose: `Queue` chooses its own backend from the process's queue
+ * settings, so a package that reaches this adapter runs on whichever driver the deployment
+ * configured without either of them naming it.
  */
-export class NatsQueues implements QueueDriver {
+export class FoundationQueues implements QueueDriver {
   /** The queue `options` names, declared on the first ask and kept from then on. */
   open<T>(options: PortQueueOptions): PortQueue<T> {
     const declared = this.#declared<T>(options);

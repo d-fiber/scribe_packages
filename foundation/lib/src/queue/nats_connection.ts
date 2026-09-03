@@ -122,9 +122,26 @@ async function dial(options: ConnectOptions): Future<NatsConnection> {
   }
 }
 
+/**
+ * The NATS connection string the shared connection dials.
+ *
+ * @throws {Error} When the configured queue driver is not `"nats"`. Reaching this file at all
+ * means something asked for a NATS connection, and asking under another driver is a wiring bug
+ * this refuses rather than dials against a url that was never configured.
+ */
+function natsUrl(): string {
+  const settings = queueSettings.get();
+  if (settings.driver !== "nats") {
+    throw new Error(
+      `A NATS connection was asked for, but the configured queue driver is "${settings.driver}".`,
+    );
+  }
+  return settings.natsUrl;
+}
+
 function connection(): Future<NatsConnection> {
   if (!_connection) {
-    const { server, token, user, pass } = dialFrom(queueSettings.get().natsUrl);
+    const { server, token, user, pass } = dialFrom(natsUrl());
     _connection = dial({ servers: [server], token, user, pass });
   }
   return _connection;

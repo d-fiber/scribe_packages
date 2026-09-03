@@ -53,7 +53,7 @@ import { installDrivers } from "../../testing/drivers.ts";
 import { DateTime, DeclarationError, Duration } from "@scribe/alchemy";
 import type { CronHandler, Scheduled } from "../../../lib/src/cron/schedule.ts";
 import type { QueueMessage as PortMessage } from "@scribe/alchemy";
-import { NatsQueues } from "../../../lib/src/queue/nats_queues.ts";
+import { FoundationQueues } from "../../../lib/src/queue/foundation_queues.ts";
 import { InlineHooks } from "../../../lib/src/hook/inline_hooks.ts";
 import { ScheduledCrons } from "../../../lib/src/cron/scheduled_crons.ts";
 import { OutboxTriggers } from "../../../lib/src/trigger/outbox_triggers.ts";
@@ -82,7 +82,7 @@ function capturedCron(): { armed: Array<[Scheduled, CronHandler]>; restore(): vo
 
 Scribe.test("opening one queue key twice declares it once", () => {
   const key = unique("ports:queue");
-  const driver = new NatsQueues();
+  const driver = new FoundationQueues();
 
   const first = driver.open({ key });
   const second = driver.open({ key });
@@ -94,7 +94,7 @@ Scribe.test("opening one queue key twice declares it once", () => {
 Scribe.test("consuming a key nobody opened declares it, so a runner has something to drain", () => {
   const key = unique("ports:consume");
 
-  new NatsQueues().consume({ key });
+  new FoundationQueues().consume({ key });
 
   expect(queueRegistry.get(key) !== null, isTrue);
 });
@@ -103,7 +103,7 @@ Scribe.test("the handler a queue was opened with is called with the message and 
   const key = unique("ports:handled");
   const seen: PortMessage<never>[] = [];
 
-  new NatsQueues().open({ key, handle: (message) => void seen.push(message) });
+  new FoundationQueues().open({ key, handle: (message) => void seen.push(message) });
   const declared = queueRegistry.get(key);
   if (declared === null) fail("this queue must have registered a handler");
 
@@ -120,7 +120,7 @@ Scribe.test("the handler a queue was opened with is called with the message and 
 Scribe.test("a queue opened without attempts is handed over once, where the driver gives it five", () => {
   const key = unique("ports:attempts");
 
-  new NatsQueues().open({ key });
+  new FoundationQueues().open({ key });
 
   expect(queueRegistry.get(key)?.maxRetries, equals(1));
 });
@@ -128,7 +128,7 @@ Scribe.test("a queue opened without attempts is handed over once, where the driv
 Scribe.test("the visibility a queue was opened with reaches the declaration instead of being dropped", () => {
   const key = unique("ports:visibility");
 
-  new NatsQueues().open({ key, visibility: Duration.seconds(90) });
+  new FoundationQueues().open({ key, visibility: Duration.seconds(90) });
 
   expect(queueRegistry.get(key)?.processingTimeoutMs, equals(90_000));
 });
@@ -136,7 +136,7 @@ Scribe.test("the visibility a queue was opened with reaches the declaration inst
 Scribe.test("the attempts a queue was opened with reach the declaration", () => {
   const key = unique("ports:attempts-given");
 
-  new NatsQueues().open({ key, attempts: 3 });
+  new FoundationQueues().open({ key, attempts: 3 });
 
   expect(queueRegistry.get(key)?.maxRetries, equals(3));
 });

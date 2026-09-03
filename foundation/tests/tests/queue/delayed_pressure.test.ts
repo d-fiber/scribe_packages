@@ -103,7 +103,7 @@ function member(over: Record<string, unknown> = {}): string {
   return encodeMember({
     id: "m1",
     queue: "test:delayed:target",
-    subject: "q.test_delayed_target",
+    address: "q.test_delayed_target",
     data: { to: "a@b.c" },
     ...over,
   });

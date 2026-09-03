@@ -44,14 +44,24 @@ export const DELAYED_KEY = "queue:delayed";
  * and redelivers it, so nothing about a failing job is written to Redis.
  */
 export interface DelayedMember {
-  /** The identifier the push answered, which follows the job onto the subject. */
+  /** The identifier the push answered, which follows the job once it is promoted. */
   readonly id: string;
 
   /** The queue this job belongs to, which is what the per-queue counts are grouped by. */
   readonly queue: string;
 
-  /** The subject the promoter publishes to once the due date has passed. */
-  readonly subject: string;
+  /**
+   * Where the backend that pushed this job publishes it once its due date has passed.
+   *
+   * Opaque and backend-specific: a NATS subject, an SQS queue url, a Pub/Sub topic name. It is
+   * resolved once, by whichever replica called `push` and so had the queue's full declaration,
+   * and carried through Redis so any replica's promoter can publish it later even when that
+   * replica never declared this queue itself, the same as a plain message already can: see
+   * `runner/message_dispatcher.ts`'s own hand-back for a subject nothing in a process declares.
+   * Resolving it again from the queue's name alone would ask a replica that may not have this
+   * queue's settings to guess at a broker resource it has no business creating.
+   */
+  readonly address: string;
 
   /**
    * The payload the producer sent.
@@ -85,7 +95,7 @@ export function decodeMember(raw: string): DelayedMember | null {
 
   const readable = typeof parsed.id === "string" &&
     typeof parsed.queue === "string" &&
-    typeof parsed.subject === "string";
+    typeof parsed.address === "string";
 
   return readable ? (parsed as DelayedMember) : null;
 }

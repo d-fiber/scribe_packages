@@ -40,15 +40,47 @@ export interface CacheSettings {
   readonly redisUrl: string;
 }
 
-/** Where the queue lives. */
-export interface QueueSettings {
+/** Which broker the queue is declared against. */
+export type QueueSettings = NatsQueueSettings | SqsQueueSettings | PubSubQueueSettings;
+
+/** A queue backed by this package's own NATS driver. */
+export interface NatsQueueSettings {
+  readonly driver: "nats";
+
   /**
    * The NATS connection string the shared connection dials.
    *
-   * Credentials travel in it, as a token or as a user and password pair, and `nats.ts` splits
-   * them out of the address before handing them to the client.
+   * Credentials travel in it, as a token or as a user and password pair, and
+   * `nats_connection.ts` splits them out of the address before handing them to the client.
    */
   readonly natsUrl: string;
+}
+
+/**
+ * A queue backed by Amazon SQS.
+ *
+ * Carries no credential: the SDK's own default provider chain resolves them from the role the
+ * compute identity runs as, which is what a queue that authenticates by IAM rather than by a
+ * connection string buys over NATS.
+ */
+export interface SqsQueueSettings {
+  readonly driver: "sqs";
+
+  /** The region every queue this driver opens is created in and read from. */
+  readonly region: string;
+}
+
+/**
+ * A queue backed by Google Cloud Pub/Sub.
+ *
+ * Carries no credential, for the same reason {@link SqsQueueSettings} does not: the SDK reads
+ * Application Default Credentials from the service account the compute identity runs as.
+ */
+export interface PubSubQueueSettings {
+  readonly driver: "pubsub";
+
+  /** The project every topic and subscription this driver opens is created in and read from. */
+  readonly projectId: string;
 }
 
 /** Where PostgREST lives, and the two keys that reach it. */
