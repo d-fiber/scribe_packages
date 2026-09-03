@@ -80,6 +80,10 @@ jobs:
       - name: Put these packages in the framework
         run: bash source/.github/sync/copy.sh "$GITHUB_WORKSPACE/scribe/packages"
 
+      - name: Write deno.json from scribe.workspace.json
+        working-directory: scribe
+        run: bash dev_tools/gen/workspace.sh
+
       - name: Type check, lint and run the suite with them
         working-directory: scribe
         run: |
