@@ -1,7 +1,0 @@
-outputs:
-  backend: "file"
-  name: "stub"
-  endpoint: ""
-  region: ""
-  access_key: ""
-  secret_key: ""
