@@ -57,9 +57,11 @@ import { Clients } from "@scribe/alchemy/http";
 import { Loggers } from "@scribe/alchemy/observe";
 import { Now } from "@scribe/alchemy";
 import type { LifecycleSteps } from "@scribe/alchemy";
-import { EXTENSION_CRON, EXTENSION_QUEUE } from "@scribe/contracts/extensions.ts";
+import { EXTENSION_CRON, EXTENSION_INIT, EXTENSION_QUEUE, EXTENSION_RUN } from "@scribe/contracts/extensions.ts";
 import { Cron, cronRegistry, cronRunner } from "./cron.ts";
+import { Init } from "./init.ts";
 import { Queue } from "./queue.ts";
+import { Run } from "./run.ts";
 import { syncDeclaredSources, triggerRegistry, triggerRunner } from "./trigger.ts";
 import { extensions, OptionalExtension, runDeclarations } from "@scribe/runtime/support/extensions/mod.ts";
 import { FetchClients } from "./src/http/fetch_client.ts";
@@ -82,10 +84,10 @@ export type { CacheSettings, DatabaseSettings, QueueSettings } from "./src/setti
  *
  * @remarks
  * Read by `scribe gen code`, which is the only reader: it is what tells the tool that mounting
- * "foundation" gives a project a "queues" and a "crons" bucket to write into, without either the
- * framework or the tool ever naming this package.
+ * "foundation" gives a project a "queues", a "crons", an "inits" and a "runs" bucket to write
+ * into, without either the framework or the tool ever naming this package.
  */
-export const declares = { queues: Queue, crons: Cron };
+export const declares = { queues: Queue, crons: Cron, inits: Init, runs: Run };
 
 /**
  * The console logger this package wired, so `stops` can flush what it is still holding.
@@ -117,6 +119,16 @@ export const scribe: LifecycleSteps = {
     if (!extensions.declares(EXTENSION_CRON)) {
       extensions.register(
         new OptionalExtension(EXTENSION_CRON, () => runDeclarations("crons")),
+      );
+    }
+    if (!extensions.declares(EXTENSION_INIT)) {
+      extensions.register(
+        new OptionalExtension(EXTENSION_INIT, () => runDeclarations("inits")),
+      );
+    }
+    if (!extensions.declares(EXTENSION_RUN)) {
+      extensions.register(
+        new OptionalExtension(EXTENSION_RUN, () => runDeclarations("runs")),
       );
     }
 
