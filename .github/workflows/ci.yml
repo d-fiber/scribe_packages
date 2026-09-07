@@ -88,9 +88,10 @@ jobs:
         working-directory: scribe
         run: |
           set -eu
-          deno task check
-          deno task lint
-          deno task test
+          bash dev_tools/workspace/dispatch-deno.sh check
+          bash dev_tools/workspace/dispatch-deno.sh lint:builtin
+          bash dev_tools/workspace/dispatch-deno.sh lint:custom
+          bash dev_tools/workspace/dispatch-deno.sh test
 
   # The only job that writes, and it waits for every job that judges.
   #
