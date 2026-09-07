@@ -51,9 +51,7 @@ export {
   type QueueMode,
   type RegisteredQueue,
 } from "./src/queue/queue_declaration.ts";
-export { FoundationQueues } from "./src/queue/foundation_queues.ts";
 export { queueRegistry } from "./src/queue/queue_registry.ts";
-export { queueRunner } from "./src/queue/runner/queue_runner.ts";
 export { queueSettings } from "./src/queue/queue_settings.ts";
 export { type BatchQueueDefinition, Queue, type QueueDefinition, QueuePublisher } from "./src/queue/queue.ts";
 export { type QueueStatus, queueStatus } from "./src/queue/queue_status.ts";

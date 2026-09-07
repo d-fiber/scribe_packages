@@ -54,7 +54,3 @@ export type {
   TriggerTarget,
 } from "./src/trigger/trigger.ts";
 export { Trigger } from "./src/trigger/trigger.ts";
-export { syncDeclaredSources } from "./src/trigger/trigger_sources.ts";
-export { triggerRunner } from "./src/trigger/trigger_runner.ts";
-export { type RegisteredTrigger, triggerRegistry } from "./src/trigger/trigger_registry.ts";
-export { type TriggerSourceRow, triggerSources } from "./src/trigger/trigger_tables.ts";

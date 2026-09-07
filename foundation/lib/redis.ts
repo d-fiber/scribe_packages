@@ -38,5 +38,4 @@
 
 export { IDENTITY_CACHE_KEY, IdentityRevocation } from "./src/redis/identity_revocation.ts";
 export { KeyIndex } from "./src/redis/key_index.ts";
-export { RedisClaims } from "./src/redis/claim_once.ts";
 export { type Kv, kv } from "./src/redis/kv.ts";

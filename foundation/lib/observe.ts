@@ -34,7 +34,11 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-/** What this package writes down about itself, and the clock it reads the time from. */
-
-export { ConsoleLogger } from "./src/observe/console_logger.ts";
-export { SystemNow } from "./src/observe/system_now.ts";
+/**
+ * What this package writes down about itself, and the clock it reads the time from.
+ *
+ * @remarks
+ * Empty on purpose: `ConsoleLogger` and `SystemNow` are the drivers this package wires into
+ * `Loggers`/`Now` at import, in `foundation.ts`, and neither has a reason to be constructed a
+ * second time by whatever mounts this package.
+ */

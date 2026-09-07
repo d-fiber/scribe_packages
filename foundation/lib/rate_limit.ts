@@ -36,13 +36,4 @@
 
 /** How often one caller may ask, and what happens when it asks more. */
 
-export {
-  DEFAULT_MAX_PENALTY,
-  DEFAULT_STRIKE_MEMORY,
-  RedisRateLimiter,
-  RedisRateLimiters,
-  SHARED_ADDRESS_MAX_PENALTY,
-  SHARED_ADDRESS_STRIKE_MEMORY,
-} from "./src/rate_limit/redis_rate_limiter.ts";
 export { RateLimitBucket } from "./src/rate_limit/rate_limit_bucket.ts";
-export { type RateLimitCommands, rateLimitCommands } from "./src/rate_limit/rate_limit_commands.ts";

@@ -43,11 +43,9 @@ export {
   quoteFilterLiteral,
   UnsafeFilterError,
 } from "./src/database/query/filter_literal.ts";
-export { AMBIGUITY_PROBE } from "./src/database/query/query_state.ts";
 export { DatabaseQueryError, TypedQueryBuilder } from "./src/database/query/typed_query_builder.ts";
 export { NOBODY, ownerScope, READS_EVERY_ROW, type ScopeDecision } from "./src/database/query/owner_scope.ts";
 export { PostgrestClients } from "./src/database/postgrest_clients.ts";
-export { PostgrestDatabases } from "./src/database/postgrest_databases.ts";
 export { database, DatabaseClient } from "./src/database/database_client.ts";
 export { databaseSettings } from "./src/database/database_settings.ts";
 export { from, type RpcBuilder, TablesBase } from "./src/database/tables_base.ts";

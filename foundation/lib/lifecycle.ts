@@ -34,6 +34,13 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-/** The table that tracks which `@Init` jobs, declared through `@scribe/alchemy`, already ran. */
-
-export { type InitRow, inits } from "./src/lifecycle/init/init_tables.ts";
+/**
+ * The table that tracks which `@Init` jobs, declared through `@scribe/alchemy`, already ran.
+ *
+ * @remarks
+ * Empty on purpose: `inits`, the query builder for that table, is read only by the engine's own
+ * init runner, which decides what already ran and what still needs to. A package or a project
+ * reaching it directly could mark a job as run without running it, or the reverse, so it is
+ * reached through `@scribe/foundation/internal/lifecycle_tables`, a door the engine's own
+ * `_collection.json` opens and nothing else does.
+ */

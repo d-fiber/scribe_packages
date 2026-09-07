@@ -38,5 +38,3 @@
 
 export type { BackgroundHookHandler, HookHandler } from "./src/hook/hook_handler.ts";
 export { Hook, type HookDefinition } from "./src/hook/hook.ts";
-export { InlineHooks } from "./src/hook/inline_hooks.ts";
-export { hookRegistry, type RegisteredHook } from "./src/hook/hook_registry.ts";

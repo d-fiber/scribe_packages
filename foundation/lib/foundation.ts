@@ -52,7 +52,7 @@
  * needs to happen at import or after boot.
  */
 
-import { Caches, Claims, Crons, Databases, Hooks, Queues, RateLimiters, Triggers } from "@scribe/alchemy";
+import { Caches, Claims, Crons, Databases, Hooks, Init, Queues, RateLimiters, Run, Triggers } from "@scribe/alchemy";
 import { Clients } from "@scribe/alchemy/http";
 import { Loggers } from "@scribe/alchemy/observe";
 import { Now } from "@scribe/alchemy";
@@ -60,11 +60,8 @@ import type { LifecycleSteps } from "@scribe/alchemy";
 import { capabilities } from "@scribe/contracts/capability.ts";
 import { EXTENSION_CRON, EXTENSION_INIT, EXTENSION_QUEUE, EXTENSION_RUN } from "@scribe/contracts/extensions.ts";
 import { wireFoundation } from "./src/capability/wire.ts";
-import { Cron, cronRegistry, cronRunner } from "./cron.ts";
-import { Init } from "./init.ts";
+import { Cron } from "./cron.ts";
 import { Queue } from "./queue.ts";
-import { Run } from "./run.ts";
-import { syncDeclaredSources, triggerRegistry, triggerRunner } from "./trigger.ts";
 import { extensions, OptionalExtension, runDeclarations } from "@scribe/runtime/wiring/extensions/mod.ts";
 import { FetchClients } from "./src/http/fetch_client.ts";
 import { RedisCaches } from "./src/cache/redis_caches.ts";
@@ -73,7 +70,12 @@ import { FoundationQueues } from "./src/queue/foundation_queues.ts";
 import { queueBackend } from "./src/queue/queue_backend.ts";
 import { InlineHooks } from "./src/hook/inline_hooks.ts";
 import { ScheduledCrons } from "./src/cron/scheduled_crons.ts";
+import { cronRegistry } from "./src/cron/cron_registry.ts";
+import { cronRunner } from "./src/cron/cron_runner.ts";
 import { OutboxTriggers } from "./src/trigger/outbox_triggers.ts";
+import { syncDeclaredSources } from "./src/trigger/trigger_sources.ts";
+import { triggerRegistry } from "./src/trigger/trigger_registry.ts";
+import { triggerRunner } from "./src/trigger/trigger_runner.ts";
 import { PostgrestDatabases } from "./src/database/postgrest_databases.ts";
 import { RedisRateLimiters } from "./src/rate_limit/redis_rate_limiter.ts";
 import { ConsoleLogger } from "./src/observe/console_logger.ts";
