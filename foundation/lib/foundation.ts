@@ -63,7 +63,7 @@ import { Init } from "./init.ts";
 import { Queue } from "./queue.ts";
 import { Run } from "./run.ts";
 import { syncDeclaredSources, triggerRegistry, triggerRunner } from "./trigger.ts";
-import { extensions, OptionalExtension, runDeclarations } from "@scribe/runtime/support/extensions/mod.ts";
+import { extensions, OptionalExtension, runDeclarations } from "@scribe/runtime/wiring/extensions/mod.ts";
 import { FetchClients } from "./src/http/fetch_client.ts";
 import { RedisCaches } from "./src/cache/redis_caches.ts";
 import { RedisClaims } from "./src/redis/claim_once.ts";

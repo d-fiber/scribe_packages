@@ -40,7 +40,7 @@ import type { Future } from "@scribe/alchemy";
 import { currentIdentity } from "@scribe/runtime/http/accessors/identity.ts";
 import { checkCaller } from "@scribe/runtime/http/caller.ts";
 import { request } from "@scribe/runtime/http/request.ts";
-import { sha256Hex } from "@scribe/runtime/support/crypto/hash.ts";
+import { sha256Hex } from "@scribe/runtime/primitives/crypto/hash.ts";
 import { rateLimit } from "@scribe/alchemy";
 import { devices } from "./devices/devices.ts";
 import { goTrue } from "./gotrue/gotrue_client.ts";

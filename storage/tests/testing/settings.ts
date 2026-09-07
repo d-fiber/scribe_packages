@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { optional } from "@scribe/runtime/scholium/env.ts";
+import { optional } from "@scribe/scholium/env.ts";
 import { installTestSettings } from "@scribe/testing/settings.ts";
 import { storageSettings } from "../../lib/src/settings.ts";
 

@@ -39,7 +39,7 @@ import { authSettings } from "../settings.ts";
 import type { GoTrueSessionResponse, GoTrueUser } from "./transport.ts";
 import type { Session } from "../../contracts/account.ts";
 import type { AccountRole } from "../../contracts/role.ts";
-import { fromBase64Url, jsonFromBase64Url } from "@scribe/runtime/support/crypto/base64.ts";
+import { fromBase64Url, jsonFromBase64Url } from "@scribe/runtime/primitives/crypto/base64.ts";
 
 /** GoTrue's wire shapes mapped onto this package's own account contract, `AuthMapper.account`'s implementation. */
 class AccountMapper {

@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import "@scribe/runtime/scholium/runner.ts";
+import "@scribe/scholium/runner.ts";
 import { equals, expect, isFalse, Scribe } from "@scribe/alchemy/test";
 import { AudienceError } from "../../lib/contracts/audience.ts";
 import { Audience } from "../../lib/src/core/declaration.ts";

@@ -32,7 +32,7 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-import "@scribe/runtime/scholium/runner.ts";
+import "@scribe/scholium/runner.ts";
 import { allOf, equals, expect, isA, isTrue, same, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import { Caches, Crons, Databases, Duration, Hooks, Now, Queues, RateLimiters, Triggers } from "@scribe/alchemy";
 import { Clients } from "@scribe/alchemy/http";

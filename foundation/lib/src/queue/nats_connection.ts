@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { Future } from "@scribe/alchemy";
-import { currentStack } from "@scribe/runtime/scholium/host.ts";
+import { currentStack } from "@scribe/scholium/host.ts";
 import { queueSettings } from "./queue_settings.ts";
 import type { NatsConnection } from "@nats-io/transport-deno";
 import { jetstream, type JetStreamClient, type JetStreamManager, jetstreamManager } from "@nats-io/jetstream";

@@ -37,8 +37,8 @@
 import { DateTime, Duration, type Future } from "@scribe/alchemy";
 import { requestDevice } from "@scribe/runtime/device/device.ts";
 import { request } from "@scribe/runtime/http/request.ts";
-import { constantTimeEqual } from "@scribe/runtime/support/crypto/constant_time.ts";
-import { sha256Hex } from "@scribe/runtime/support/crypto/hash.ts";
+import { constantTimeEqual } from "@scribe/runtime/primitives/crypto/constant_time.ts";
+import { sha256Hex } from "@scribe/runtime/primitives/crypto/hash.ts";
 import type { AccountDevice } from "../../contracts/device.ts";
 import { AccountRevocation } from "../revocation.ts";
 import { deviceCache } from "./cache.ts";

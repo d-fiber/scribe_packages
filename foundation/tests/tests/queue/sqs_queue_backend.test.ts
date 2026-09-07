@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import "@scribe/runtime/scholium/runner.ts";
+import "@scribe/scholium/runner.ts";
 import { contains, equals, expect, Scribe } from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
 import { SqsQueueBackend } from "../../../lib/src/queue/sqs_queue_backend.ts";

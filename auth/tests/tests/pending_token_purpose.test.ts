@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import "@scribe/runtime/scholium/runner.ts";
+import "@scribe/scholium/runner.ts";
 import { DateTime, type Future } from "@scribe/alchemy";
 import { equals, expect, isNot, Scribe } from "@scribe/alchemy/test";
 import { PendingToken, PendingTokenPurpose } from "../../lib/src/pending_token.ts";

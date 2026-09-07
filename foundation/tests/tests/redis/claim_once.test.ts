@@ -33,7 +33,7 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 import "../../testing/settings.ts";
-import "@scribe/runtime/scholium/runner.ts";
+import "@scribe/scholium/runner.ts";
 import { equals, expect, isFalse, isTrue, Scribe } from "@scribe/alchemy/test";
 import { RedisClaims } from "../../../lib/src/redis/claim_once.ts";
 import { installFakeRedis } from "./support/redis.ts";

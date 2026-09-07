@@ -50,8 +50,8 @@
 import { wireSearch } from "./src/capability/wire.ts";
 import { capabilities } from "@scribe/contracts/capability.ts";
 import type { LifecycleSteps } from "@scribe/alchemy";
-import { extensions, OptionalExtension, runDeclarations } from "@scribe/runtime/support/extensions/mod.ts";
-import { required } from "@scribe/runtime/scholium/env.ts";
+import { extensions, OptionalExtension, runDeclarations } from "@scribe/runtime/wiring/extensions/mod.ts";
+import { required } from "@scribe/scholium/env.ts";
 import { SEARCH_EXTENSION } from "./src/core/extension.ts";
 import { syncDeclaredIndices } from "./src/db/indices.ts";
 import { searchSettings } from "./src/settings.ts";

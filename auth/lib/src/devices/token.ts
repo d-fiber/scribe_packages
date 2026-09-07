@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { DateTime, type Future } from "@scribe/alchemy";
-import { sha256Hex, toHex } from "@scribe/runtime/support/crypto/hash.ts";
+import { sha256Hex, toHex } from "@scribe/runtime/primitives/crypto/hash.ts";
 
 const RANDOM_BYTES = 64;
 

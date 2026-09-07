@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Failure, Future, Ok, type Result } from "@scribe/alchemy";
-import { sha256Hex } from "@scribe/runtime/support/crypto/hash.ts";
+import { sha256Hex } from "@scribe/runtime/primitives/crypto/hash.ts";
 import { SocialProvider } from "@scribe/contracts/enums.ts";
 import { Channel } from "../../contracts/channel.ts";
 import { isRateLimitCode } from "../gotrue/errors.ts";
