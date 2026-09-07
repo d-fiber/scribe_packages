@@ -34,49 +34,51 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-syntax = "proto3";
+import type { List, ProtoMessageBuilder, ProtoServiceBuilder } from "@scribe/alchemy";
+import { Proto, ProtoBuilder, ProtoMessage, ProtoService } from "@scribe/alchemy";
 
-package scribe.runtime.cache.v1;
+@Proto("hook")
+export class HookProtocol extends ProtoBuilder {
+  imports(): List<string> {
+    return ["scribe/protocol/common.proto"];
+  }
 
-import "scribe/protocol/common.proto";
+  @ProtoMessage()
+  event(): ProtoMessageBuilder {
+    return this.builder("Event").fields((f) => ({
+      hookId: f.string().number(1),
+      event: f.string().number(2),
+      traceId: f.string().number(3),
+      payload: f.message("scribe.v1.Json").number(4),
+      emittedAt: f.int64().number(5),
+      capabilityToken: f.string().number(6),
+    }));
+  }
 
-message CacheKey {
-  string namespace = 1;
-  string key = 2;
-}
+  @ProtoMessage()
+  emitResult(): ProtoMessageBuilder {
+    return this.builder("EmitResult").fields((f) => ({
+      handled: f.uint32().number(1),
+      error: f.message("scribe.v1.Failure").number(2),
+    }));
+  }
 
-message GetRequest {
-  CacheKey key = 1;
-}
+  @ProtoMessage()
+  handleResult(): ProtoMessageBuilder {
+    return this.builder("HandleResult").fields((f) => ({
+      halted: f.bool().number(1),
+      mutation: f.message("scribe.v1.Json").number(2),
+      error: f.message("scribe.v1.Failure").number(3),
+    }));
+  }
 
-message GetResult {
-  bool hit = 1;
-  scribe.v1.Json value = 2;
-  scribe.v1.Failure error = 3;
-}
+  @ProtoService()
+  hook(): ProtoServiceBuilder {
+    return this.builder("Hook").rpc((r) => [r.rpc("Emit", "Event", "EmitResult")]);
+  }
 
-message SetRequest {
-  CacheKey key = 1;
-  scribe.v1.Json value = 2;
-  scribe.v1.Time ttl = 3;
-}
-
-message SetResult {
-  scribe.v1.Failure error = 1;
-}
-
-message DeleteRequest {
-  CacheKey key = 1;
-  bool prefix = 2;
-}
-
-message DeleteResult {
-  uint32 deleted = 1;
-  scribe.v1.Failure error = 2;
-}
-
-service Cache {
-  rpc Get(GetRequest) returns (GetResult);
-  rpc Set(SetRequest) returns (SetResult);
-  rpc Delete(DeleteRequest) returns (DeleteResult);
+  @ProtoService()
+  hookDispatch(): ProtoServiceBuilder {
+    return this.builder("HookDispatch").rpc((r) => [r.rpc("Handle", "Event", "HandleResult")]);
+  }
 }

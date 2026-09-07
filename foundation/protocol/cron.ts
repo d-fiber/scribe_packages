@@ -34,94 +34,36 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-syntax = "proto3";
+import type { List, ProtoMessageBuilder, ProtoServiceBuilder } from "@scribe/alchemy";
+import { Proto, ProtoBuilder, ProtoMessage, ProtoService } from "@scribe/alchemy";
 
-package scribe.runtime.database.v1;
+@Proto("cron")
+export class CronProtocol extends ProtoBuilder {
+  imports(): List<string> {
+    return ["scribe/protocol/common.proto"];
+  }
 
-import "scribe/protocol/common.proto";
+  @ProtoMessage()
+  cronTrigger(): ProtoMessageBuilder {
+    return this.builder("CronTrigger").fields((f) => ({
+      cronId: f.string().number(1),
+      traceId: f.string().number(2),
+      scheduledAt: f.int64().number(3),
+      firedAt: f.int64().number(4),
+      capabilityToken: f.string().number(5),
+    }));
+  }
 
-enum Operation {
-  OPERATION_UNSPECIFIED = 0;
-  OPERATION_SELECT = 1;
-  OPERATION_INSERT = 2;
-  OPERATION_UPDATE = 3;
-  OPERATION_UPSERT = 4;
-  OPERATION_DELETE = 5;
-  OPERATION_RPC = 6;
-}
+  @ProtoMessage()
+  cronOutcome(): ProtoMessageBuilder {
+    return this.builder("CronOutcome").fields((f) => ({
+      completed: f.bool().number(1),
+      error: f.message("scribe.v1.Failure").number(2),
+    }));
+  }
 
-enum FilterOperator {
-  FILTER_OPERATOR_UNSPECIFIED = 0;
-  FILTER_OPERATOR_EQ = 1;
-  FILTER_OPERATOR_NEQ = 2;
-  FILTER_OPERATOR_GT = 3;
-  FILTER_OPERATOR_GTE = 4;
-  FILTER_OPERATOR_LT = 5;
-  FILTER_OPERATOR_LTE = 6;
-  FILTER_OPERATOR_LIKE = 7;
-  FILTER_OPERATOR_ILIKE = 8;
-  FILTER_OPERATOR_IN = 9;
-  FILTER_OPERATOR_IS = 10;
-  FILTER_OPERATOR_CONTAINS = 11;
-  FILTER_OPERATOR_CONTAINED_BY = 12;
-  FILTER_OPERATOR_OVERLAPS = 13;
-  FILTER_OPERATOR_TEXT_SEARCH = 14;
-}
-
-message Filter {
-  string column = 1;
-  FilterOperator operator = 2;
-  scribe.v1.Json value = 3;
-  bool negated = 4;
-}
-
-message FilterGroup {
-  repeated Filter filters = 1;
-  repeated FilterGroup groups = 2;
-  bool disjunction = 3;
-}
-
-message Order {
-  string column = 1;
-  bool descending = 2;
-  bool nulls_first = 3;
-}
-
-message Range {
-  uint32 limit = 1;
-  uint32 offset = 2;
-}
-
-message Query {
-  string table = 1;
-  Operation operation = 2;
-  repeated string select = 3;
-  FilterGroup where = 4;
-  repeated Order order = 5;
-  Range range = 6;
-  bool single = 7;
-  bool count_exact = 8;
-  scribe.v1.Json payload = 9;
-  repeated string on_conflict = 10;
-  string rpc_name = 11;
-  scribe.v1.Json rpc_args = 12;
-}
-
-message QueryResult {
-  scribe.v1.Json data = 1;
-  uint64 count = 2;
-  scribe.v1.Failure error = 3;
-}
-
-message QueryBatch {
-  repeated Query queries = 1;
-}
-
-message QueryResultBatch {
-  repeated QueryResult results = 1;
-}
-
-service Database {
-  rpc Execute(Query) returns (QueryResult);
-  rpc ExecuteBatch(QueryBatch) returns (QueryResultBatch);
+  @ProtoService()
+  cronDispatch(): ProtoServiceBuilder {
+    return this.builder("CronDispatch").rpc((r) => [r.rpc("Trigger", "CronTrigger", "CronOutcome")]);
+  }
 }
