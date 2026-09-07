@@ -57,7 +57,9 @@ import { Clients } from "@scribe/alchemy/http";
 import { Loggers } from "@scribe/alchemy/observe";
 import { Now } from "@scribe/alchemy";
 import type { LifecycleSteps } from "@scribe/alchemy";
+import { capabilities } from "@scribe/contracts/capability.ts";
 import { EXTENSION_CRON, EXTENSION_INIT, EXTENSION_QUEUE, EXTENSION_RUN } from "@scribe/contracts/extensions.ts";
+import { wireFoundation } from "./src/capability/wire.ts";
 import { Cron, cronRegistry, cronRunner } from "./cron.ts";
 import { Init } from "./init.ts";
 import { Queue } from "./queue.ts";
@@ -97,19 +99,20 @@ export const declares = { queues: Queue, crons: Cron, inits: Init, runs: Run };
  */
 let _consoleLogger: ConsoleLogger | null = null;
 
-/**
- * When this package runs, which is once, at import, to answer the slots its drivers are for.
- *
- * @remarks
- * Each slot is filled only when nothing has filled it. A step every package runs cannot write
- * over what a host settled: `Slot.use` does not refuse a second call, so an unconditional write
- * makes the last package imported win, and a fallback that wins is not a fallback. A test that
- * put something there keeps it, which is what a test putting something there is for.
- *
- * None of these drivers reads a slot or opens a connection while it is being built, which is what
- * makes import the right moment: the settings they need are read at the first call, not here.
- */
+/** The three moments a host calls into this package: once at import, once at start, once at stop. */
 export const scribe: LifecycleSteps = {
+  /**
+   * Fills every slot this package's drivers answer, once, at import.
+   *
+   * @remarks
+   * Each slot is filled only when nothing has filled it. A step every package runs cannot write
+   * over what a host settled: `Slot.use` does not refuse a second call, so an unconditional write
+   * makes the last package imported win, and a fallback that wins is not a fallback. A test that
+   * put something there keeps it, which is what a test putting something there is for.
+   *
+   * None of these drivers reads a slot or opens a connection while it is being built, which is what
+   * makes import the right moment: the settings they need are read at the first call, not here.
+   */
   wires: () => {
     if (!extensions.declares(EXTENSION_QUEUE)) {
       extensions.register(
@@ -146,8 +149,18 @@ export const scribe: LifecycleSteps = {
     if (!Crons.configured) Crons.use(new ScheduledCrons());
     if (!Triggers.configured) Triggers.use(new OutboxTriggers());
     if (!Databases.configured) Databases.use(new PostgrestDatabases());
+
+    capabilities.register(wireFoundation);
   },
 
+  /**
+   * Brings this package's background work up: the declared crons, the queue backend's own
+   * draining loop, and the trigger runner.
+   *
+   * @remarks
+   * A project with no declared trigger never records a table as emitting, which is why the sync
+   * only runs when {@link triggerRegistry} actually lists one.
+   */
   starts: async () => {
     await extensions.load(EXTENSION_CRON);
     console.info(cronRegistry.report());
@@ -163,6 +176,10 @@ export const scribe: LifecycleSteps = {
     triggerRunner.start();
   },
 
+  /**
+   * Brings this package's background work back down, in the reverse order `starts` brought it up,
+   * and flushes whatever the console logger is still holding.
+   */
   stops: () => {
     cronRunner.stop();
     queueBackend().stopDraining();
