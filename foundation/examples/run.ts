@@ -33,9 +33,7 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import type { Future } from "@scribe/alchemy";
-import { Lifecycle } from "../lib/src/lifecycle/lifecycle.ts";
-import { Run } from "../lib/src/lifecycle/run/run.ts";
+import { type Future, Lifecycle, Run } from "@scribe/alchemy";
 
 /**
  * A job that runs once every launch, after `api`, `worker`, `rest`, `kong` and `caddy` have all

@@ -34,43 +34,33 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-/** A class this framework builds on its own, so its `@Init`/`@Run` methods declare themselves. */
-type Constructible = new () => object;
+import "./settings.ts";
+import { type InstalledMock, installMock } from "./install.ts";
+import { PostgrestClients } from "../../lib/src/database/postgrest_clients.ts";
+import { FakePostgrestClient, type FakePostgrestSeed, type Row } from "./database.ts";
+import type { PostgrestClient } from "@supabase/postgrest-js";
+
+/** An installed fake `foundation.__inits__` table, plus a way to read back what a test wrote to it. */
+export interface InstalledInitDatabase extends InstalledMock {
+  /** Every row currently held under table `name`. */
+  rows(name: string): Row[];
+}
 
 /**
- * Marks a class as one this framework instantiates itself, the moment the class is evaluated.
- *
- * @remarks
- * `@Init` and `@Run` are instance method decorators: the method they mark only really exists once
- * something builds an instance, because that is what a method decorator's `addInitializer` needs
- * `this` for. Left to the author, that would mean writing `new Example()` by hand at the bottom of
- * every file — one more step to forget, and one that a class with only static concerns has no
- * other reason to need. `@Lifecycle` does it instead: applying it to a class calls `new target()`
- * as soon as the class is defined, which is also the moment `@Init`/`@Run` register whatever they
- * marked.
- *
- * ```ts
- * @Lifecycle()
- * export class Seeds {
- *   @Init()
- *   async seedDefaultAdmin(): Future<void> { ... }
- *
- *   @Run()
- *   async warmCache(): Future<void> { ... }
- * }
- * ```
- *
- * A project or a package may write as many `@Lifecycle` classes as it likes. Within one class,
- * `@Init` and `@Run` each read the class's own name as the identity they register under, so a
- * second `@Init` or a second `@Run` on the same class collides with the first the same way two
- * `new Cron("same-name", ...)` would — one class, one of each at most.
- *
- * The constructor must take no arguments: this decorator is the only caller, and it has nothing to
- * pass one. A class with state to share between its own `@Init` and `@Run` methods keeps it on
- * `this`, set in the constructor body.
+ * Stands in for the real `foundation.__inits__` table, so `runDeclaredInits()` can be tested
+ * without a Postgres connection.
  */
-export function Lifecycle() {
-  return function (target: Constructible, _context: ClassDecoratorContext<Constructible>): void {
-    new target();
+export function installInitDatabaseFake(seed: FakePostgrestSeed = {}): InstalledInitDatabase {
+  const filled: FakePostgrestSeed = {
+    __inits__: [],
+    ...seed,
+  };
+
+  const fake = new FakePostgrestClient(filled);
+  const installed = installMock(PostgrestClients, "service", () => fake as unknown as PostgrestClient);
+
+  return {
+    rows: (name: string) => fake.rows(name),
+    restore: () => installed.restore(),
   };
 }

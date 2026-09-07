@@ -47,6 +47,8 @@ export { installRateLimiterMock, installValkeryMock } from "./cache.ts";
 export { FakePostgrestClient } from "./database.ts";
 export type { FakePostgrestSeed, Row, RpcHandler } from "./database.ts";
 export { installDrivers } from "./drivers.ts";
+export { installInitDatabaseFake } from "./init.ts";
+export type { InstalledInitDatabase } from "./init.ts";
 export { installMock } from "./install.ts";
 export type { InstalledMock } from "./install.ts";
 export { recordLog } from "./logger.ts";

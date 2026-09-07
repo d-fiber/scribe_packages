@@ -34,6 +34,6 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-/** A class this framework builds itself, so its `@Init`/`@Run` methods declare themselves. */
+/** The table that tracks which `@Init` jobs, declared through `@scribe/alchemy`, already ran. */
 
-export { Lifecycle } from "./src/lifecycle/lifecycle.ts";
+export { type InitRow, inits } from "./src/lifecycle/init/init_tables.ts";

@@ -33,9 +33,7 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import type { Future } from "@scribe/alchemy";
-import { Lifecycle } from "../lib/src/lifecycle/lifecycle.ts";
-import { Init } from "../lib/src/lifecycle/init/init.ts";
+import { type Future, Init, Lifecycle } from "@scribe/alchemy";
 
 /**
  * A job that runs once, ever, the first time a fresh stack boots — before `api`, `worker` and
