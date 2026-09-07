@@ -161,8 +161,8 @@ export class DatabaseProtocol extends ProtoBuilder {
   @ProtoService()
   database(): ProtoServiceBuilder {
     return this.builder("Database").rpc((r) => [
-      r.rpc("Execute", "Query", "QueryResult"),
-      r.rpc("ExecuteBatch", "QueryBatch", "QueryResultBatch"),
+      r.name("Execute").request("Query").response("QueryResult"),
+      r.name("ExecuteBatch").request("QueryBatch").response("QueryResultBatch"),
     ]);
   }
 }

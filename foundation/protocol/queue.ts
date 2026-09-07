@@ -98,11 +98,11 @@ export class QueueProtocol extends ProtoBuilder {
 
   @ProtoService()
   queue(): ProtoServiceBuilder {
-    return this.builder("Queue").rpc((r) => [r.rpc("Push", "PushRequest", "PushResult")]);
+    return this.builder("Queue").rpc((r) => [r.name("Push").request("PushRequest").response("PushResult")]);
   }
 
   @ProtoService()
   queueDispatch(): ProtoServiceBuilder {
-    return this.builder("QueueDispatch").rpc((r) => [r.rpc("Handle", "Batch", "BatchOutcome")]);
+    return this.builder("QueueDispatch").rpc((r) => [r.name("Handle").request("Batch").response("BatchOutcome")]);
   }
 }

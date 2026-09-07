@@ -64,6 +64,6 @@ export class CronProtocol extends ProtoBuilder {
 
   @ProtoService()
   cronDispatch(): ProtoServiceBuilder {
-    return this.builder("CronDispatch").rpc((r) => [r.rpc("Trigger", "CronTrigger", "CronOutcome")]);
+    return this.builder("CronDispatch").rpc((r) => [r.name("Trigger").request("CronTrigger").response("CronOutcome")]);
   }
 }

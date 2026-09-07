@@ -34,8 +34,17 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { List, ProtoMessageBuilder, ProtoServiceBuilder } from "@scribe/alchemy";
-import { Proto, ProtoBuilder, ProtoMessage, ProtoService } from "@scribe/alchemy";
+import type {
+  List,
+  ProtoMessageBuilder,
+  ProtoServiceBuilder,
+} from "@scribe/alchemy";
+import {
+  Proto,
+  ProtoBuilder,
+  ProtoMessage,
+  ProtoService,
+} from "@scribe/alchemy";
 
 @Proto("cache")
 export class CacheProtocol extends ProtoBuilder {
@@ -102,9 +111,9 @@ export class CacheProtocol extends ProtoBuilder {
   @ProtoService()
   cache(): ProtoServiceBuilder {
     return this.builder("Cache").rpc((r) => [
-      r.rpc("Get", "GetRequest", "GetResult"),
-      r.rpc("Set", "SetRequest", "SetResult"),
-      r.rpc("Delete", "DeleteRequest", "DeleteResult"),
+      r.name("Get").request("GetRequest").response("GetResult"),
+      r.name("Set").request("SetRequest").response("SetResult"),
+      r.name("Delete").request("DeleteRequest").response("DeleteResult"),
     ]);
   }
 }

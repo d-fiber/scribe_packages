@@ -74,11 +74,11 @@ export class HookProtocol extends ProtoBuilder {
 
   @ProtoService()
   hook(): ProtoServiceBuilder {
-    return this.builder("Hook").rpc((r) => [r.rpc("Emit", "Event", "EmitResult")]);
+    return this.builder("Hook").rpc((r) => [r.name("Emit").request("Event").response("EmitResult")]);
   }
 
   @ProtoService()
   hookDispatch(): ProtoServiceBuilder {
-    return this.builder("HookDispatch").rpc((r) => [r.rpc("Handle", "Event", "HandleResult")]);
+    return this.builder("HookDispatch").rpc((r) => [r.name("Handle").request("Event").response("HandleResult")]);
   }
 }
