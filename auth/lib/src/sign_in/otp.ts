@@ -41,7 +41,7 @@ import { requestDevice } from "@scribe/runtime/device/device.ts";
 import { sha256Hex } from "@scribe/runtime/primitives/crypto/hash.ts";
 import { rateLimit } from "@scribe/alchemy";
 import type { RateLimiter } from "@scribe/alchemy";
-import { kv } from "@scribe/foundation/redis";
+import { kv } from "@scribe/foundation";
 import type { Channel } from "../../contracts/channel.ts";
 import type { AccountRole } from "../../contracts/role.ts";
 import { devices } from "../devices/devices.ts";

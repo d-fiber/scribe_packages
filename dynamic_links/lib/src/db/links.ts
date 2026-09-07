@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { wrote } from "@scribe/foundation/database";
+import { wrote } from "@scribe/foundation";
 import { type Future, type Refusal, type Result } from "@scribe/alchemy";
 import { type DynamicLinkRow, dynamicLinks, type StoredPayload } from "./tables.ts";
 

@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { Future } from "@scribe/alchemy";
-import { wrote } from "@scribe/foundation/database";
+import { wrote } from "@scribe/foundation";
 import { type RemoteConfigRow, remoteConfigs } from "./tables.ts";
 
 /** What storing one value puts in the table. */

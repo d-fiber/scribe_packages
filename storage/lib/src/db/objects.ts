@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { wrote } from "@scribe/foundation/database";
+import { wrote } from "@scribe/foundation";
 import { DateTime } from "@scribe/alchemy";
 import type { Future } from "@scribe/alchemy";
 import type { StorageVisibility } from "../core/visibility.ts";

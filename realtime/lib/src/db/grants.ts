@@ -36,7 +36,7 @@
 
 import type { Future } from "@scribe/alchemy";
 
-import { wrote } from "@scribe/foundation/database";
+import { wrote } from "@scribe/foundation";
 import { realtimeGrants } from "./tables.ts";
 
 /** How many accounts one call to {@link grantedAccounts} answers with at most. */

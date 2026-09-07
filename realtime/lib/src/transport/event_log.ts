@@ -36,7 +36,7 @@
 
 import type { Future } from "@scribe/alchemy";
 
-import { wrote } from "@scribe/foundation/database";
+import { wrote } from "@scribe/foundation";
 import { realtimeEvents } from "../db/tables.ts";
 import type { RealtimeRow, RealtimeTransport } from "./transport.ts";
 

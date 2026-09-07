@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { Future } from "@scribe/alchemy";
-import { wrote } from "@scribe/foundation/database";
+import { wrote } from "@scribe/foundation";
 import type { SearchOperation } from "../../contracts/definition.ts";
 import { call } from "./source.ts";
 import { searchOutbox, type SearchOutboxRow } from "./tables.ts";

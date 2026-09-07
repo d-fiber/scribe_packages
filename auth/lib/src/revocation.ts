@@ -36,7 +36,7 @@
 
 import { Future } from "@scribe/alchemy";
 import { SignOutScope } from "../contracts/account.ts";
-import { IdentityRevocation } from "@scribe/foundation/redis";
+import { IdentityRevocation } from "@scribe/foundation";
 import { goTrue } from "./gotrue/gotrue_client.ts";
 import { deviceCache } from "./devices/cache.ts";
 import { sessionIdempotence } from "./session.ts";

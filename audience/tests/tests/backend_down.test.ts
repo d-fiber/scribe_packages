@@ -40,7 +40,7 @@ import { AudienceError } from "../../lib/contracts/audience.ts";
 import { Audience } from "../../lib/src/core/declaration.ts";
 import { audiencesOf } from "../../lib/src/core/member.ts";
 import { installAudienceMock } from "../testing/mock.ts";
-import { PostgrestClients } from "@scribe/foundation/database";
+import { PostgrestClients } from "@scribe/foundation";
 import { type InstalledMock, installMock } from "@scribe/testing/install.ts";
 import type { PostgrestClient } from "@supabase/postgrest-js";
 const editors = Audience.for("down").namespaced("down-editors");

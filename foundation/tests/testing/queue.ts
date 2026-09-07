@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { QueueMessage } from "@scribe/alchemy";
-import { type BatchHandler, type JobHandler, QueuePublisher, type RegisteredQueue } from "../../lib/queue.ts";
+import { type BatchHandler, type JobHandler, QueuePublisher, type RegisteredQueue } from "../../lib/foundation.ts";
 import { type InstalledMock, installMock } from "./install.ts";
 
 /** The protected state every `QueuePublisher` carries, reached from outside its class. */

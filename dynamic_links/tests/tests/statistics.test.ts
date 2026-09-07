@@ -39,8 +39,8 @@ import { equals, expect, fail, Scribe } from "@scribe/alchemy/test";
 import { LinkOutcome, LinkPlatform } from "../../lib/contracts/link.ts";
 import type { RecordedVisit } from "../../lib/src/db/statistics.ts";
 import { installDynamicLinksMock } from "../testing/mock.ts";
-import type { BatchHandler } from "@scribe/foundation/queue";
-import { queueRegistry } from "@scribe/foundation/queue";
+import type { BatchHandler } from "@scribe/foundation";
+import { queueRegistry } from "@scribe/foundation";
 import "../../lib/src/db/statistics.ts";
 
 const QUEUE_NAME = "dynamic-link-statistics";

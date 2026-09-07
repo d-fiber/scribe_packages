@@ -39,12 +39,17 @@
  *
  * @remarks
  * Everything it is made of lives in `src/`, and this is the one file that publishes it. A package
- * writes `@scribe/foundation` and nothing else: each name below is reached from the file that
- * declares it, so there is one list to read and no barrel between it and the code.
+ * writes `@scribe/foundation` and nothing else: every export below is grouped by the subject it
+ * belongs to, so there is one file to read and no second door a name can be published from or
+ * forgotten under.
  *
- * One entry rather than nine, and no `mod.ts` under `src/`, because a barrel is a second place a
- * name can be published from and a second place it can be forgotten. What the package publishes is
- * this list, and a file that is not named here is not published.
+ * `ConsoleLogger`, `SystemNow` and the `inits` query builder are not exported at all, on purpose.
+ * The first two are the drivers this file wires into `Loggers`/`Now` at import, below, and neither
+ * has a reason to be constructed a second time by whatever mounts this package. `inits` is read
+ * only by the engine's own init runner, which decides what already ran and what still needs to; a
+ * package or a project reaching it directly could mark a job as run without running it, or the
+ * reverse, so it stays reached through `@scribe/foundation/internal/lifecycle_tables`, a door the
+ * engine's own `_collection.json` opens and nothing else does.
  *
  * What it wires at import is the drivers it carries: the vocabulary a package writes lives in
  * alchemy, and what answers it is filled here. Nothing else of the package runs at a moment of its
@@ -60,8 +65,8 @@ import type { LifecycleSteps } from "@scribe/alchemy";
 import { capabilities } from "@scribe/contracts/capability.ts";
 import { EXTENSION_CRON, EXTENSION_INIT, EXTENSION_QUEUE, EXTENSION_RUN } from "@scribe/contracts/extensions.ts";
 import { wireFoundation } from "./src/capability/wire.ts";
-import { Cron } from "./cron.ts";
-import { Queue } from "./queue.ts";
+import { Cron } from "./src/cron/cron.ts";
+import { Queue } from "./src/queue/queue.ts";
 import { extensions, OptionalExtension, runDeclarations } from "@scribe/runtime/wiring/extensions/mod.ts";
 import { FetchClients } from "./src/http/fetch_client.ts";
 import { RedisCaches } from "./src/cache/redis_caches.ts";
@@ -82,6 +87,101 @@ import { ConsoleLogger } from "./src/observe/console_logger.ts";
 import { SystemNow } from "./src/observe/system_now.ts";
 
 export type { CacheSettings, DatabaseSettings, QueueSettings } from "./src/settings.ts";
+
+/** Values kept for a while, and the keys they hang under. */
+export {
+  DEFAULT_LOCK_HOLD,
+  DistributedLock,
+  type LockErrorReporter,
+  type LockOutcome,
+} from "./src/cache/lock/distributed_lock.ts";
+export { DEFAULT_BETA } from "./src/cache/early_expiry.ts";
+export { DEFAULT_TTL, refreshesSettled, Valkery } from "./src/cache/cache.ts";
+export { KeySpace } from "./src/cache/key_space.ts";
+export { cacheSettings } from "./src/cache/cache_settings.ts";
+export { withJitter } from "./src/cache/ttl_jitter.ts";
+
+/** Work a schedule runs, and what decides when it next runs. */
+export type { CronHandler, Schedule, Scheduled } from "./src/cron/schedule.ts";
+export { Cron, type CronDefinition } from "./src/cron/cron.ts";
+export { CronTimezone } from "./src/cron/cron_timezone.ts";
+export { at, type TimeOfDay } from "./src/cron/daily_schedule.ts";
+export { every } from "./src/cron/interval_schedule.ts";
+export { type CronExpression, cronExpression } from "./src/cron/cron_expression.ts";
+
+/** Tables, the queries built against them, and what a query is allowed to see. */
+export {
+  assertPlainColumn,
+  keywordLiteral,
+  quoteFilterList,
+  quoteFilterLiteral,
+  UnsafeFilterError,
+} from "./src/database/query/filter_literal.ts";
+export { DatabaseQueryError, TypedQueryBuilder } from "./src/database/query/typed_query_builder.ts";
+export { NOBODY, ownerScope, READS_EVERY_ROW, type ScopeDecision } from "./src/database/query/owner_scope.ts";
+export { PostgrestClients } from "./src/database/postgrest_clients.ts";
+export { database, DatabaseClient } from "./src/database/database_client.ts";
+export { databaseSettings } from "./src/database/database_settings.ts";
+export { from, type RpcBuilder, TablesBase } from "./src/database/tables_base.ts";
+export { ownerOf, registerTableOwners } from "./src/database/table_owners.ts";
+export { Database, type DatabaseSchema, Table, type TableShape } from "./src/database/table.ts";
+export { wrote } from "./src/database/wrote.ts";
+
+/** Events a project emits, and the handlers that answer them. */
+export type { BackgroundHookHandler, HookHandler } from "./src/hook/hook_handler.ts";
+export { Hook, type HookDefinition } from "./src/hook/hook.ts";
+
+/** The client this package makes outgoing calls with, and the driver that opens one. */
+export { FetchClient, FetchClients } from "./src/http/fetch_client.ts";
+
+/** Work handed over to be done later, and what runs it. */
+export type {
+  BatchHandler,
+  DrainResult,
+  JobHandler,
+  PushOptions,
+  QueueMessage,
+  QueueOptions,
+} from "./src/queue/queue_options.ts";
+export {
+  QUEUE_DEFAULTS,
+  type QueueDefaults,
+  type QueueLimits,
+  type QueueMode,
+  type RegisteredQueue,
+} from "./src/queue/queue_declaration.ts";
+export { queueRegistry } from "./src/queue/queue_registry.ts";
+export { queueSettings } from "./src/queue/queue_settings.ts";
+export { type BatchQueueDefinition, Queue, type QueueDefinition, QueuePublisher } from "./src/queue/queue.ts";
+export { type QueueStatus, queueStatus } from "./src/queue/queue_status.ts";
+
+/** How often one caller may ask, and what happens when it asks more. */
+export { RateLimitBucket } from "./src/rate_limit/rate_limit_bucket.ts";
+
+/** The store behind the cache, the claims and the key index. */
+export { IDENTITY_CACHE_KEY, IdentityRevocation } from "./src/redis/identity_revocation.ts";
+export { KeyIndex } from "./src/redis/key_index.ts";
+export { type Kv, kv } from "./src/redis/kv.ts";
+
+/** What a row being written sets off. */
+export type {
+  ChangeHandler,
+  DeleteChange,
+  FieldChange,
+  FieldsChange,
+  InsertChange,
+  TriggerOp,
+  UpdateChange,
+} from "./src/trigger/trigger_change.ts";
+export type {
+  FieldsTarget,
+  FieldTarget,
+  Transition,
+  TriggerMethods,
+  TriggerOptions,
+  TriggerTarget,
+} from "./src/trigger/trigger.ts";
+export { Trigger } from "./src/trigger/trigger.ts";
 
 /**
  * The kinds a project may declare against this package, bucket to the symbol it imports.

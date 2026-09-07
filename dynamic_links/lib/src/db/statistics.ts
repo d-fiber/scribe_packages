@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Duration, type Future, Pagination } from "@scribe/alchemy";
-import { Queue } from "@scribe/foundation/queue";
+import { Queue } from "@scribe/foundation";
 import type { LinkOutcome, LinkPlatform, LinkStatistic, LinkVisitor } from "../../contracts/link.ts";
 import { type DynamicLinkStatisticRow, dynamicLinkStatistics } from "./tables.ts";
 

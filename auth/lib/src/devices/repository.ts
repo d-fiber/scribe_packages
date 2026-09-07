@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { Future } from "@scribe/alchemy";
-import { wrote } from "@scribe/foundation/database";
+import { wrote } from "@scribe/foundation";
 import type { RequestDevice } from "@scribe/contracts/device.ts";
 import type { DeviceCategory, DeviceOs } from "@scribe/contracts/enums.ts";
 import { requestDevice } from "@scribe/runtime/device/device.ts";

@@ -36,7 +36,7 @@
 
 import type { Future } from "@scribe/alchemy";
 import { DateTime } from "@scribe/alchemy";
-import { wrote } from "@scribe/foundation/database";
+import { wrote } from "@scribe/foundation";
 import { type AudienceRow, audiences } from "./tables.ts";
 
 const CONFLICT_KEY = "feature,audience,member";

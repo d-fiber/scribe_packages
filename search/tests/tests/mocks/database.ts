@@ -39,7 +39,7 @@ import { installSearchTestSettings } from "../../testing/settings.ts";
 installSearchTestSettings();
 import { type InstalledMock, installMock } from "@scribe/testing/install.ts";
 import { DateTime } from "@scribe/alchemy";
-import { PostgrestClients } from "@scribe/foundation/database";
+import { PostgrestClients } from "@scribe/foundation";
 import { FakePostgrestClient, type FakePostgrestSeed } from "@scribe/foundation/testing";
 import type { PostgrestClient } from "@supabase/postgrest-js";
 
