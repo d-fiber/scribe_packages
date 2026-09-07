@@ -34,24 +34,18 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type {
-  List,
-  ProtoMessageBuilder,
-  ProtoServiceBuilder,
-} from "@scribe/alchemy";
-import {
-  Proto,
-  ProtoBuilder,
-  ProtoMessage,
-  ProtoService,
-} from "@scribe/alchemy";
+import type { List, ProtoMessageBuilder, ProtoServiceBuilder } from "@scribe/alchemy";
+import { Proto, ProtoBuilder, ProtoMessage, ProtoService } from "@scribe/alchemy";
 
+/** The worker-facing contract for `Cache`: get, set and delete a value by key. */
 @Proto("cache")
 export class CacheProtocol extends ProtoBuilder {
+  /** The socle types this contract references: `scribe.v1.Json`, `scribe.v1.Time`, `scribe.v1.Failure`. */
   imports(): List<string> {
     return ["scribe/protocol/common.proto"];
   }
 
+  /** The namespace and key a cache entry is addressed by. */
   @ProtoMessage()
   cacheKey(): ProtoMessageBuilder {
     return this.builder("CacheKey").fields((f) => ({
@@ -60,6 +54,7 @@ export class CacheProtocol extends ProtoBuilder {
     }));
   }
 
+  /** What `Cache.Get` takes: the key to read. */
   @ProtoMessage()
   getRequest(): ProtoMessageBuilder {
     return this.builder("GetRequest").fields((f) => ({
@@ -67,6 +62,7 @@ export class CacheProtocol extends ProtoBuilder {
     }));
   }
 
+  /** What `Cache.Get` answers: whether the key was held, and its value if it was. */
   @ProtoMessage()
   getResult(): ProtoMessageBuilder {
     return this.builder("GetResult").fields((f) => ({
@@ -76,6 +72,7 @@ export class CacheProtocol extends ProtoBuilder {
     }));
   }
 
+  /** What `Cache.Set` takes: the key, its value, and how long it lives. */
   @ProtoMessage()
   setRequest(): ProtoMessageBuilder {
     return this.builder("SetRequest").fields((f) => ({
@@ -85,6 +82,7 @@ export class CacheProtocol extends ProtoBuilder {
     }));
   }
 
+  /** What `Cache.Set` answers. */
   @ProtoMessage()
   setResult(): ProtoMessageBuilder {
     return this.builder("SetResult").fields((f) => ({
@@ -92,6 +90,7 @@ export class CacheProtocol extends ProtoBuilder {
     }));
   }
 
+  /** What `Cache.Delete` takes: the key, or every key sharing its prefix. */
   @ProtoMessage()
   deleteRequest(): ProtoMessageBuilder {
     return this.builder("DeleteRequest").fields((f) => ({
@@ -100,6 +99,7 @@ export class CacheProtocol extends ProtoBuilder {
     }));
   }
 
+  /** What `Cache.Delete` answers: how many keys it removed. */
   @ProtoMessage()
   deleteResult(): ProtoMessageBuilder {
     return this.builder("DeleteResult").fields((f) => ({
@@ -108,6 +108,7 @@ export class CacheProtocol extends ProtoBuilder {
     }));
   }
 
+  /** `Get`, `Set` and `Delete`, the three procedures a worker calls the host cache with. */
   @ProtoService()
   cache(): ProtoServiceBuilder {
     return this.builder("Cache").rpc((r) => [

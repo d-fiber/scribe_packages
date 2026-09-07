@@ -37,12 +37,15 @@
 import type { List, ProtoEnumBuilder, ProtoMessageBuilder, ProtoServiceBuilder } from "@scribe/alchemy";
 import { Proto, ProtoBuilder, ProtoEnum, ProtoMessage, ProtoService } from "@scribe/alchemy";
 
+/** The worker-facing contract for `Database`: run one PostgREST query, or a batch of them. */
 @Proto("database")
 export class DatabaseProtocol extends ProtoBuilder {
+  /** The socle types this contract references: `scribe.v1.Json`, `scribe.v1.Failure`. */
   imports(): List<string> {
     return ["scribe/protocol/common.proto"];
   }
 
+  /** The kind of statement a `Query` runs against its table. */
   @ProtoEnum()
   operation(): ProtoEnumBuilder {
     return this.builder((e) =>
@@ -58,6 +61,7 @@ export class DatabaseProtocol extends ProtoBuilder {
     );
   }
 
+  /** How a `Filter` compares its column to its value. */
   @ProtoEnum()
   filterOperator(): ProtoEnumBuilder {
     return this.builder((e) =>
@@ -81,6 +85,7 @@ export class DatabaseProtocol extends ProtoBuilder {
     );
   }
 
+  /** One column compared to one value, with the operator that relates them. */
   @ProtoMessage()
   filter(): ProtoMessageBuilder {
     return this.builder("Filter").fields((f) => ({
@@ -91,6 +96,7 @@ export class DatabaseProtocol extends ProtoBuilder {
     }));
   }
 
+  /** A tree of filters and nested groups, joined by conjunction or disjunction. */
   @ProtoMessage()
   filterGroup(): ProtoMessageBuilder {
     return this.builder("FilterGroup").fields((f) => ({
@@ -100,6 +106,7 @@ export class DatabaseProtocol extends ProtoBuilder {
     }));
   }
 
+  /** One column a `Query` sorts by, and the direction nulls fall on. */
   @ProtoMessage()
   order(): ProtoMessageBuilder {
     return this.builder("Order").fields((f) => ({
@@ -109,6 +116,7 @@ export class DatabaseProtocol extends ProtoBuilder {
     }));
   }
 
+  /** The page of a result a `Query` asks for. */
   @ProtoMessage()
   range(): ProtoMessageBuilder {
     return this.builder("Range").fields((f) => ({
@@ -117,6 +125,7 @@ export class DatabaseProtocol extends ProtoBuilder {
     }));
   }
 
+  /** One statement to run against PostgREST: a table, an operation, and everything that shapes it. */
   @ProtoMessage()
   query(): ProtoMessageBuilder {
     return this.builder("Query").fields((f) => ({
@@ -135,6 +144,7 @@ export class DatabaseProtocol extends ProtoBuilder {
     }));
   }
 
+  /** What `Database.Execute` answers: the rows, the exact count when it was asked for, or a failure. */
   @ProtoMessage()
   queryResult(): ProtoMessageBuilder {
     return this.builder("QueryResult").fields((f) => ({
@@ -144,6 +154,7 @@ export class DatabaseProtocol extends ProtoBuilder {
     }));
   }
 
+  /** What `Database.ExecuteBatch` takes: several queries to run together. */
   @ProtoMessage()
   queryBatch(): ProtoMessageBuilder {
     return this.builder("QueryBatch").fields((f) => ({
@@ -151,6 +162,7 @@ export class DatabaseProtocol extends ProtoBuilder {
     }));
   }
 
+  /** What `Database.ExecuteBatch` answers: one result per query, in the order it was asked. */
   @ProtoMessage()
   queryResultBatch(): ProtoMessageBuilder {
     return this.builder("QueryResultBatch").fields((f) => ({
@@ -158,6 +170,7 @@ export class DatabaseProtocol extends ProtoBuilder {
     }));
   }
 
+  /** `Execute` and `ExecuteBatch`, the two procedures a worker calls PostgREST with. */
   @ProtoService()
   database(): ProtoServiceBuilder {
     return this.builder("Database").rpc((r) => [

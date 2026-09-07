@@ -37,48 +37,40 @@
 import type { List, ProtoMessageBuilder, ProtoServiceBuilder } from "@scribe/alchemy";
 import { Proto, ProtoBuilder, ProtoMessage, ProtoService } from "@scribe/alchemy";
 
-@Proto("hook")
-export class HookProtocol extends ProtoBuilder {
+/** The host-facing contract for `CronDispatch`: the host fires a schedule, the worker runs it. */
+@Proto("cron")
+export class CronProtocol extends ProtoBuilder {
+  /** The socle types this contract references: `scribe.v1.Failure`. */
   imports(): List<string> {
     return ["scribe/protocol/common.proto"];
   }
 
+  /** One firing of a declared cron, and the token the worker replays back at the host. */
   @ProtoMessage()
-  event(): ProtoMessageBuilder {
-    return this.builder("Event").fields((f) => ({
-      hookId: f.string().number(1),
-      event: f.string().number(2),
-      traceId: f.string().number(3),
-      payload: f.message("scribe.v1.Json").number(4),
-      emittedAt: f.int64().number(5),
-      capabilityToken: f.string().number(6),
+  cronTrigger(): ProtoMessageBuilder {
+    return this.builder("CronTrigger").fields((f) => ({
+      cronId: f.string().number(1),
+      traceId: f.string().number(2),
+      scheduledAt: f.int64().number(3),
+      firedAt: f.int64().number(4),
+      capabilityToken: f.string().number(5),
     }));
   }
 
+  /** What the worker answers once a fired cron has run. */
   @ProtoMessage()
-  emitResult(): ProtoMessageBuilder {
-    return this.builder("EmitResult").fields((f) => ({
-      handled: f.uint32().number(1),
+  cronOutcome(): ProtoMessageBuilder {
+    return this.builder("CronOutcome").fields((f) => ({
+      completed: f.bool().number(1),
       error: f.message("scribe.v1.Failure").number(2),
     }));
   }
 
-  @ProtoMessage()
-  handleResult(): ProtoMessageBuilder {
-    return this.builder("HandleResult").fields((f) => ({
-      halted: f.bool().number(1),
-      mutation: f.message("scribe.v1.Json").number(2),
-      error: f.message("scribe.v1.Failure").number(3),
-    }));
-  }
-
+  /** `Trigger`, the one procedure the host calls to fire a declared cron. */
   @ProtoService()
-  hook(): ProtoServiceBuilder {
-    return this.builder("Hook").rpc((r) => [r.name("Emit").request("Event").response("EmitResult")]);
-  }
-
-  @ProtoService()
-  hookDispatch(): ProtoServiceBuilder {
-    return this.builder("HookDispatch").rpc((r) => [r.name("Handle").request("Event").response("HandleResult")]);
+  cronDispatch(): ProtoServiceBuilder {
+    return this.builder("CronDispatch").rpc((r) => [
+      r.name("Trigger").request("CronTrigger").response("CronOutcome"),
+    ]);
   }
 }
