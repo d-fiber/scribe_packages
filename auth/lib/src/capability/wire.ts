@@ -78,7 +78,7 @@ import { Duration, Future } from "@scribe/alchemy";
 import { type Ban } from "../../auth.ts";
 import { accountNamed, type AnyAccount, AUTH_EXTENSION, declaredAccounts } from "../../declaration.ts";
 import { extensions } from "@scribe/runtime/wiring/extensions/mod.ts";
-import { encodeJson } from "@scribe/sdk";
+import { encodeJson } from "@scribe/sdk/transport.ts";
 
 const IDENTITY_FIELDS: ReadonlySet<string> = new Set([
   "id",

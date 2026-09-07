@@ -39,7 +39,7 @@ import {
   type FilterGroup,
   FilterOperator,
 } from "@scribe/sdk/gen/scribe/packages/foundation/protocol/database_pb.ts";
-import { decodeJson } from "@scribe/sdk";
+import { decodeJson } from "@scribe/sdk/transport.ts";
 import { assertPlainColumn, keywordLiteral, quoteFilterList, quoteFilterLiteral, UnsafeFilterError } from "./filter_literal.ts";
 
 /**

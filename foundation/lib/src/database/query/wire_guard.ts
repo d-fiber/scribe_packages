@@ -42,7 +42,7 @@ import {
   Operation,
   type Query,
 } from "@scribe/sdk/gen/scribe/packages/foundation/protocol/database_pb.ts";
-import { encodeJson } from "@scribe/sdk";
+import { encodeJson } from "@scribe/sdk/transport.ts";
 import { ownerOf } from "../table_owners.ts";
 import { NOBODY, ownerScope } from "./owner_scope.ts";
 import { namesSomething } from "./wire_filters.ts";

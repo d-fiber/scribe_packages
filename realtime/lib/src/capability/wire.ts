@@ -45,7 +45,7 @@ import {
   GrantResultSchema,
 } from "@scribe/sdk/gen/scribe/packages/realtime/protocol/realtime_pb.ts";
 import { broadcast, GrantedDestination } from "../../realtime.ts";
-import { decodeJson } from "@scribe/sdk";
+import { decodeJson } from "@scribe/sdk/transport.ts";
 import { Realtime } from "@scribe/sdk/gen/scribe/packages/realtime/protocol/realtime_pb.ts";
 import type { CapabilityWiring } from "@scribe/contracts/capability.ts";
 

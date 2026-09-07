@@ -47,7 +47,7 @@ import {
   type SetResult,
   SetResultSchema,
 } from "@scribe/sdk/gen/scribe/packages/foundation/protocol/cache_pb.ts";
-import { decodeJson, encodeJson } from "@scribe/sdk";
+import { decodeJson, encodeJson } from "@scribe/sdk/transport.ts";
 import { causeMessage } from "../error_message.ts";
 import { kv } from "../redis/kv.ts";
 

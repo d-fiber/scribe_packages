@@ -47,7 +47,7 @@ import {
   SearchResultSchema,
 } from "@scribe/sdk/gen/scribe/packages/search/protocol/search_pb.ts";
 import { type AnySearchIndex, indexNamed } from "../../search.ts";
-import { decodeJson, encodeJson } from "@scribe/sdk";
+import { decodeJson, encodeJson } from "@scribe/sdk/transport.ts";
 
 function failed(scope: string, cause: unknown): { code: string; message: string } {
   const message = cause instanceof Error ? cause.message : String(cause);
