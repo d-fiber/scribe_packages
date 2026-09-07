@@ -82,7 +82,7 @@ jobs:
 
       - name: Write deno.json from scribe.workspace.json
         working-directory: scribe
-        run: bash dev_tools/gen/workspace.sh
+        run: bash dev_tools/generate/workspace.sh
 
       - name: Type check, lint and run the suite with them
         working-directory: scribe
