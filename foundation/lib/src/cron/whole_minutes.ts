@@ -41,10 +41,13 @@ const _ONE_MINUTE_IN_MS = 60_000;
 /**
  * Answers `value` back, or refuses it if it is not a positive whole number of minutes.
  *
+ * @remarks
  * The refusal happens where the value is declared rather than where it is used, because what
  * it protects is downstream and invisible: an occurrence is claimed under a key derived from
  * the interval, and a value that does not divide into minutes rounds differently on two
  * machines whose clocks differ, so both would claim and the job would run twice.
+ *
+ * @throws {DeclarationError} When `value` is not a positive whole number of minutes.
  */
 export function wholeMinutes(label: string, value: Duration): Duration {
   const ms = value.inMilliseconds;

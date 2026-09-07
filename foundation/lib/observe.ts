@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-/** What this package writes down about itself. */
+/** What this package writes down about itself, and the clock it reads the time from. */
 
 export { ConsoleLogger } from "./src/observe/console_logger.ts";
 export { SystemNow } from "./src/observe/system_now.ts";

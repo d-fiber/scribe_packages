@@ -80,8 +80,6 @@ function _writeAt(level: LoggedLevel, args: unknown[]): void {
  *
  * The line is `level [action] {metadata}`, which is what the rest of the stack already prints, so
  * a deployment reading two processes side by side reads one format.
- *
- * @param floor - The least severe level this writes. A line below it is dropped, unread.
  */
 export class ConsoleLogger implements Logger {
   /** The least severe level this writes, which everything is compared against. */
@@ -93,6 +91,11 @@ export class ConsoleLogger implements Logger {
   /** What flushes an unfinished buffer anyway, or null when nothing is waiting. */
   #timer: ReturnType<typeof setTimeout> | null = null;
 
+  /**
+   * Opens a logger that drops anything below `floor`.
+   *
+   * @param floor - The least severe level this writes. A line below it is dropped, unread.
+   */
   constructor(floor: LoggedLevel = "debug") {
     this.#floor = floor;
   }

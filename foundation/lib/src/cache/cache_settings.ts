@@ -37,6 +37,7 @@
 import type { CacheSettings } from "../settings.ts";
 import { Slot } from "@scribe/alchemy";
 
+/** The Redis connection this package's cache reaches through, filled once at boot. */
 export const cacheSettings: Slot<CacheSettings> = new Slot<CacheSettings>(
   "cache",
 );

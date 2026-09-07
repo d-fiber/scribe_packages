@@ -53,12 +53,6 @@ import { DistributedLock } from "./lock/distributed_lock.ts";
 import { RedisCacheStore } from "./redis_cache_store.ts";
 
 /**
- * What declaring a cache takes.
- *
- * Only the namespace is required. Everything else has an answer that is right far more often
- * than it is wrong, and an option nobody passes is an option that goes stale unnoticed.
- */
-/**
  * How long an entry lives when its declaration does not say.
  *
  * Fifteen days.

@@ -126,6 +126,7 @@ function _zoneNamed(timezone?: string): CronTimezone {
   );
 }
 
+/** The zone names {@link _zoneNamed} accepts, derived once from {@link CronTimezone}. */
 const _read: ReadonlySet<string> = new Set(Object.values(CronTimezone));
 
 /** An hour and a minute, written the way a calendar reads them. */

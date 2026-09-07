@@ -81,10 +81,20 @@ type FilterOps<V> = {
   ilike(pattern: string): FilterSpec;
 };
 
+/** A `where` builder for a row of shape `T`, one set of operators per column. */
 export type FilterBuilder<T> = {
   readonly [K in keyof T & string]: FilterOps<T[K]>;
 };
 
+/**
+ * A `where` builder typed by the row shape `T`, backed by a proxy so no column has to be
+ * declared ahead of time.
+ *
+ * @remarks
+ * A property access is read by the proxy's `get` trap, which hands back the same {@link FilterOps}
+ * regardless of which column was named: the type parameter is what narrows each column's operators
+ * to its own value type, the proxy itself does no checking at all.
+ */
 export function filter<T>(): FilterBuilder<T> {
   const ops = (col: string): FilterOps<unknown> => ({
     eq: (v) => said(col, "eq", filterLiteral(v)),

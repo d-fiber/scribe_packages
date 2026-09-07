@@ -181,12 +181,6 @@ export class InlineChain<T, R> {
   }
 
   /**
-   * Logs a chain that ran longer than {@link SLOW_CHAIN}, and lets it through.
-   *
-   * A warning rather than a limit: on a framework whose handlers are written by whoever uses
-   * it, this is the difference between diagnosing in five minutes and in five hours.
-   */
-  /**
    * Ends the chain on a handler that never answered, keeping the decision made so far.
    *
    * @remarks
@@ -207,6 +201,12 @@ export class InlineChain<T, R> {
     return last;
   }
 
+  /**
+   * Logs a chain that ran longer than {@link SLOW_CHAIN}, and lets it through.
+   *
+   * A warning rather than a limit: on a framework whose handlers are written by whoever uses
+   * it, this is the difference between diagnosing in five minutes and in five hours.
+   */
   #warnIfSlow(spent: Duration): void {
     if (spent.compareTo(SLOW_CHAIN) < 0) return;
 

@@ -60,6 +60,10 @@ type ExtractValue<Row extends object, V> = V extends {
   : V extends keyof Row ? Row[V]
   : never;
 
+/**
+ * The row a selection shape yields, once every plain column and every embedded relation in
+ * `Shape` is resolved against `Row`.
+ */
 export type ExtractShape<
   Row extends object,
   Shape extends Record<string, unknown>,
@@ -70,6 +74,17 @@ type SubRels<N extends RelNode> = N["relations"] extends Record<string, RelNode>
 
 type IsMany<N extends RelNode> = N extends { many: false } ? false : true;
 
+/**
+ * What a select callback is handed: every column of `Row` as itself, plus an `embed` for
+ * naming a relation of `Rels` and shaping its own columns in turn.
+ *
+ * @remarks
+ * A plain property access answers the column's own name, which is what lets a select builder
+ * read as a list of the columns it names rather than a string built by hand. `embed` is typed
+ * twice because the two calls answer differently: naming a declared relation carries its shape
+ * through {@link ExtractShape} so the result stays typed, while naming a relation `Rels` never
+ * declared answers a bare string, since there is no shape left to track.
+ */
 export type Selector<
   Row extends object,
   Rels extends Record<string, RelNode> = Record<string, never>,
@@ -99,6 +114,15 @@ export type Selector<
   };
 };
 
+/**
+ * A {@link Selector} for `Row`, backed by a proxy so no column has to be declared ahead of time.
+ *
+ * @remarks
+ * A property access other than `embed` is read by the proxy's `get` trap, which hands the key
+ * itself back unchanged: the type parameters are what narrow that to a real column of `Row`, the
+ * proxy does no checking at all. `embed` builds the string PostgREST reads for a nested select by
+ * recursing into a fresh selector for the relation's own row shape.
+ */
 export function selector<
   Row extends object,
   Rels extends Record<string, RelNode> = Record<string, never>,
@@ -119,6 +143,7 @@ export function selector<
   });
 }
 
+/** The comma-joined column list a selection shape reduces to, as PostgREST's `select` expects it. */
 export function columnsOf(shape: Record<string, unknown>): string {
   return Object.values(shape).map(String).join(", ");
 }

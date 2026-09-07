@@ -34,6 +34,6 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-/** The client this package makes outgoing calls with. */
+/** The client this package makes outgoing calls with, and the driver that opens one. */
 
 export { FetchClient, FetchClients } from "./src/http/fetch_client.ts";

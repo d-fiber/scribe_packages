@@ -86,6 +86,7 @@ export interface QueryState {
   readonly rangeVal: readonly [number, number] | null;
 }
 
+/** A `QueryState` with none of a chain's methods called yet. */
 export const DEFAULT_STATE: QueryState = {
   unscoped: false,
   entireTable: false,
@@ -96,13 +97,31 @@ export const DEFAULT_STATE: QueryState = {
   rangeVal: null,
 };
 
+/**
+ * The row count a read is limited to when {@link atMostOneRow} applies no limit of its own.
+ *
+ * @remarks
+ * Two rather than one, because the point is telling a single result from an ambiguous one apart:
+ * a limit of one would silently return the first match instead of surfacing that more than one
+ * row qualified.
+ */
 export const AMBIGUITY_PROBE = 2;
 
+/**
+ * `state`, limited to {@link AMBIGUITY_PROBE} rows unless the caller already set a limit or a
+ * range of their own.
+ *
+ * @remarks
+ * A caller asking for exactly one row still wants to know when its filter matched more than one,
+ * rather than being handed the first silently, so the limit this applies is one past what a
+ * single row would need.
+ */
 export function atMostOneRow(state: QueryState): QueryState {
   if (state.limitCount !== null || state.rangeVal !== null) return state;
   return { ...state, limitCount: AMBIGUITY_PROBE };
 }
 
+/** A PostgREST select against `table`, with every clause `state` accumulated applied in order. */
 // deno-lint-ignore no-explicit-any -- the builder type differs at each chained call, so no single type covers select, order, limit and range together.
 export function buildRead(db: PostgrestClient, table: string, state: QueryState): any {
   let qb = db.from(table).select(state.selectCols ?? "*");
@@ -113,6 +132,14 @@ export function buildRead(db: PostgrestClient, table: string, state: QueryState)
   return qb;
 }
 
+/**
+ * A PostgREST `update` or `delete` against `table`, narrowed by every filter `state` accumulated.
+ *
+ * @remarks
+ * Only the filters apply here, never the ordering, limit or range a read would use: PostgREST
+ * itself has nothing to order, limit or paginate on a write, so a caller that chained one of
+ * those before calling `update` or `delete` would have it silently dropped rather than rejected.
+ */
 export function buildWrite(
   db: PostgrestClient,
   table: string,
