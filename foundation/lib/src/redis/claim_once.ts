@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { ClaimDriver, ClaimOptions, Future } from "@scribe/alchemy";
+import type { ClaimPort, ClaimOptions, Future } from "@scribe/alchemy";
 import { kv } from "./kv.ts";
 
 /**
@@ -45,9 +45,9 @@ import { kv } from "./kv.ts";
  * nothing to every other one until the key runs out. Nothing else is written, so
  * two callers racing on the same key cannot both be told they took it.
  */
-export class RedisClaims implements ClaimDriver {
+export class RedisClaims implements ClaimPort {
   /**
-   * The {@link ClaimDriver.claim} implementation: `SET key NX EX ttlSeconds`, `true` only for the
+   * The {@link ClaimPort.claim} implementation: `SET key NX EX ttlSeconds`, `true` only for the
    * caller Redis answers `OK` to. Falls back to `options.whenUnavailable === "allow"` when the
    * store cannot be reached, rather than deciding the claim by default.
    */

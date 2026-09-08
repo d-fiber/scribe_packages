@@ -44,7 +44,7 @@ import { currentLocation } from "@scribe/runtime/http/accessors/location.ts";
 import { callerBlocked, checkCaller } from "@scribe/runtime/http/caller.ts";
 import { sha256Hex } from "@scribe/runtime/primitives/crypto/hash.ts";
 import { rateLimit } from "@scribe/alchemy";
-import type { RateLimiter } from "@scribe/alchemy";
+import type { RateLimiterPort } from "@scribe/alchemy";
 import type { Channel } from "../../contracts/channel.ts";
 import { devices } from "../devices/devices.ts";
 import { AccountRevocation } from "../revocation.ts";
@@ -78,7 +78,7 @@ export interface SignInTarget<TAccount, TRefusal> {
   ): Future<Result<void, TRefusal>>;
 }
 
-function callerLimit(role: string, channel: Channel): RateLimiter {
+function callerLimit(role: string, channel: Channel): RateLimiterPort {
   return rateLimit({
     key: `sign-in:${role}:${channel}`,
     limit: 10,
@@ -89,7 +89,7 @@ function callerLimit(role: string, channel: Channel): RateLimiter {
   });
 }
 
-function recipientLimit(role: string, channel: Channel): RateLimiter {
+function recipientLimit(role: string, channel: Channel): RateLimiterPort {
   return rateLimit({
     key: `sign-in:${role}:${channel}:to`,
     limit: 10,
@@ -116,8 +116,8 @@ export class SignInDoor<TInput, TAccount, TRefusal> {
   readonly #target: SignInTarget<TAccount, TRefusal>;
   readonly #credential: SignInCredential<TInput>;
   readonly #challenge: OtpChallenge | null;
-  readonly #caller: RateLimiter;
-  readonly #recipient: RateLimiter;
+  readonly #caller: RateLimiterPort;
+  readonly #recipient: RateLimiterPort;
 
   constructor(
     target: SignInTarget<TAccount, TRefusal>,

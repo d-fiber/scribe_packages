@@ -38,7 +38,7 @@ import type { LockCommands } from "../../lib/src/cache/lock/lock_commands.ts";
 import { type Kv, kv } from "../../lib/src/redis/kv.ts";
 import { RateLimiters } from "@scribe/alchemy";
 import { scribe } from "@scribe/foundation";
-import type { RateLimiter, RateLimiterDriver, RateLimitOptions, RateLimitOutcome } from "@scribe/alchemy";
+import type { RateLimiterPort, RateLimiterDriver, RateLimitOptions, RateLimitOutcome } from "@scribe/alchemy";
 import { type InstalledMock, installMock } from "./install.ts";
 import { testRegistrar } from "@scribe/testing/registrar.ts";
 
@@ -182,7 +182,7 @@ export function installValkeryMock(): InstalledMock {
   };
 }
 
-class FixedRateLimiter implements RateLimiter {
+class FixedRateLimiter implements RateLimiterPort {
   readonly #result: RateLimitOutcome;
 
   constructor(key: string, result: RateLimitOutcome) {
@@ -212,7 +212,7 @@ class FixedRateLimiters implements RateLimiterDriver {
     this.#result = result;
   }
 
-  open(options: RateLimitOptions): RateLimiter {
+  open(options: RateLimitOptions): RateLimiterPort {
     return new FixedRateLimiter(options.key, this.#result);
   }
 }

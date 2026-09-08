@@ -39,7 +39,7 @@ import { Failure, Ok, okay, type Result } from "@scribe/alchemy";
 import { checkCaller } from "@scribe/runtime/http/caller.ts";
 import { sha256Hex } from "@scribe/runtime/primitives/crypto/hash.ts";
 import { rateLimit } from "@scribe/alchemy";
-import type { Future, RateLimiter } from "@scribe/alchemy";
+import type { Future, RateLimiterPort } from "@scribe/alchemy";
 import { Channel } from "../contracts/channel.ts";
 import type { AccountRole } from "../contracts/role.ts";
 import { accountPassword, PasswordError } from "./password.ts";
@@ -93,7 +93,7 @@ export interface ResetPasswordPending {
   readonly pendingToken: string;
 }
 
-function callerLimit(role: string, channel: Channel): RateLimiter {
+function callerLimit(role: string, channel: Channel): RateLimiterPort {
   return rateLimit({
     key: `reset-password:${channel}:${role}`,
     limit: 10,
@@ -104,7 +104,7 @@ function callerLimit(role: string, channel: Channel): RateLimiter {
   });
 }
 
-function recipientLimit(role: string, channel: Channel): RateLimiter {
+function recipientLimit(role: string, channel: Channel): RateLimiterPort {
   return rateLimit({
     key: `reset-password:${channel}:${role}:to`,
     limit: 1,

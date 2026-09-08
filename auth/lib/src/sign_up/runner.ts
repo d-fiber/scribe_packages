@@ -39,7 +39,7 @@ import { Failure, type Future, Ok, type Result } from "@scribe/alchemy";
 import { requestDevice } from "@scribe/runtime/device/device.ts";
 import { checkCaller } from "@scribe/runtime/http/caller.ts";
 import { rateLimit } from "@scribe/alchemy";
-import type { RateLimiter } from "@scribe/alchemy";
+import type { RateLimiterPort } from "@scribe/alchemy";
 import type { Channel } from "../../contracts/channel.ts";
 import type { WriteOf, WriteShape } from "../declaration/columns.ts";
 import { devices } from "../devices/devices.ts";
@@ -80,7 +80,7 @@ export interface SignUpTarget<TSignUp extends WriteShape> {
   forget(id: string): Future<void>;
 }
 
-function callerLimit(role: string, channel: Channel): RateLimiter {
+function callerLimit(role: string, channel: Channel): RateLimiterPort {
   return rateLimit({
     key: `sign-up:${role}:${channel}`,
     limit: 5,
@@ -91,7 +91,7 @@ function callerLimit(role: string, channel: Channel): RateLimiter {
   });
 }
 
-function recipientLimit(role: string, channel: Channel): RateLimiter {
+function recipientLimit(role: string, channel: Channel): RateLimiterPort {
   return rateLimit({
     key: `sign-up:${role}:${channel}:to`,
     limit: 3,
@@ -118,8 +118,8 @@ function recipientLimit(role: string, channel: Channel): RateLimiter {
 export class SignUpDoor<TInput, TSignUp extends WriteShape> {
   readonly #target: SignUpTarget<TSignUp>;
   readonly #credential: SignUpCredential<TInput>;
-  readonly #caller: RateLimiter;
-  readonly #recipient: RateLimiter;
+  readonly #caller: RateLimiterPort;
+  readonly #recipient: RateLimiterPort;
 
   constructor(
     target: SignUpTarget<TSignUp>,

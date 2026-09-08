@@ -38,7 +38,7 @@ import type {
   DeclaredFieldChange as PortField,
   DeclaredInsertChange as PortInsert,
   DeclaredTransition as PortTransition,
-  DeclaredTrigger as PortTrigger,
+  TriggerPort as PortTrigger,
   DeclaredTriggerOptions as PortOptions,
   DeclaredUpdateChange as PortUpdate,
   TriggerDriver,

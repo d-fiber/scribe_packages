@@ -40,7 +40,7 @@ import { Failure, Ok, type Result } from "@scribe/alchemy";
 import { requestDevice } from "@scribe/runtime/device/device.ts";
 import { sha256Hex } from "@scribe/runtime/primitives/crypto/hash.ts";
 import { rateLimit } from "@scribe/alchemy";
-import type { RateLimiter } from "@scribe/alchemy";
+import type { RateLimiterPort } from "@scribe/alchemy";
 import { kv } from "@scribe/foundation";
 import type { Channel } from "../../contracts/channel.ts";
 import type { AccountRole } from "../../contracts/role.ts";
@@ -148,7 +148,7 @@ async function withinChallenge(
   return null;
 }
 
-function recipientLimit(prefix: string, role: AccountRole): RateLimiter {
+function recipientLimit(prefix: string, role: AccountRole): RateLimiterPort {
   return rateLimit({
     key: `sign-in:${role}:${prefix}:to`,
     limit: 10,
@@ -159,7 +159,7 @@ function recipientLimit(prefix: string, role: AccountRole): RateLimiter {
   });
 }
 
-function resendCadence(role: AccountRole): RateLimiter {
+function resendCadence(role: AccountRole): RateLimiterPort {
   return rateLimit({
     key: `sign-in:${role}:resend-otp:cadence`,
     limit: 1,
