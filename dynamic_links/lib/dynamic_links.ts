@@ -47,7 +47,7 @@
  * one rather than by exporting nothing.
  */
 
-import type { LifecycleSteps } from "@scribe/alchemy";
+import type { ScribePlugin } from "@scribe/contracts/registrar.ts";
 
 export { DynamicLink } from "./src/core/declaration.ts";
 export type {
@@ -98,4 +98,4 @@ export type {
  * something calls it. The member is written empty rather than left out, because an entry that
  * exports nothing for it and one whose steps are misspelt look the same to the host.
  */
-export const scribe: LifecycleSteps = {};
+export const scribe: ScribePlugin = {};

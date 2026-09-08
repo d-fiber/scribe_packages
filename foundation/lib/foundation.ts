@@ -61,13 +61,13 @@ import { Caches, Claims, Crons, Databases, Hooks, Init, Queues, RateLimiters, Ru
 import { Clients } from "@scribe/alchemy/http";
 import { Loggers } from "@scribe/alchemy/observe";
 import { Now } from "@scribe/alchemy";
-import type { LifecycleSteps } from "@scribe/alchemy";
-import { capabilities } from "@scribe/contracts/capability.ts";
+import type { Future } from "@scribe/alchemy";
+import type { PackageRegistrar, ScribePlugin } from "@scribe/contracts/registrar.ts";
 import { EXTENSION_CRON, EXTENSION_INIT, EXTENSION_QUEUE, EXTENSION_RUN } from "@scribe/contracts/extensions.ts";
 import { wireFoundation } from "./src/capability/wire.ts";
 import { Cron } from "./src/cron/cron.ts";
 import { Queue } from "./src/queue/queue.ts";
-import { extensions, OptionalExtension, runDeclarations } from "@scribe/runtime/wiring/extensions/mod.ts";
+import { extensions } from "@scribe/runtime/wiring/extensions/mod.ts";
 import { FetchClients } from "./src/http/fetch_client.ts";
 import { RedisCaches } from "./src/cache/redis_caches.ts";
 import { RedisClaims } from "./src/redis/claim_once.ts";
@@ -194,17 +194,17 @@ export { Trigger } from "./src/trigger/trigger.ts";
 export const declares = { queues: Queue, crons: Cron, inits: Init, runs: Run };
 
 /**
- * The console logger this package wired, so `stops` can flush what it is still holding.
+ * The console logger this package wired, so `detachFromEngine` can flush what it is still holding.
  *
- * Null when a host filled `Loggers` first: `wires` never constructs one in that case, and there
- * is nothing here to flush on the way out.
+ * Null when a host filled `Loggers` first: `registerWith` never constructs one in that case, and
+ * there is nothing here to flush on the way out.
  */
 let _consoleLogger: ConsoleLogger | null = null;
 
-/** The three moments a host calls into this package: once at import, once at start, once at stop. */
-export const scribe: LifecycleSteps = {
+/** The plugin a host calls into at its three moments: once at import, once at start, once at stop. */
+class FoundationPlugin implements ScribePlugin {
   /**
-   * Fills every slot this package's drivers answer, once, at import.
+   * Registers this package's buckets, and fills every slot its drivers answer, once, at import.
    *
    * @remarks
    * Each slot is filled only when nothing has filled it. A step every package runs cannot write
@@ -215,27 +215,11 @@ export const scribe: LifecycleSteps = {
    * None of these drivers reads a slot or opens a connection while it is being built, which is what
    * makes import the right moment: the settings they need are read at the first call, not here.
    */
-  wires: () => {
-    if (!extensions.declares(EXTENSION_QUEUE)) {
-      extensions.register(
-        new OptionalExtension(EXTENSION_QUEUE, () => runDeclarations("queues")),
-      );
-    }
-    if (!extensions.declares(EXTENSION_CRON)) {
-      extensions.register(
-        new OptionalExtension(EXTENSION_CRON, () => runDeclarations("crons")),
-      );
-    }
-    if (!extensions.declares(EXTENSION_INIT)) {
-      extensions.register(
-        new OptionalExtension(EXTENSION_INIT, () => runDeclarations("inits")),
-      );
-    }
-    if (!extensions.declares(EXTENSION_RUN)) {
-      extensions.register(
-        new OptionalExtension(EXTENSION_RUN, () => runDeclarations("runs")),
-      );
-    }
+  registerWith(registrar: PackageRegistrar): void {
+    registrar.addExtension(EXTENSION_QUEUE, "queues");
+    registrar.addExtension(EXTENSION_CRON, "crons");
+    registrar.addExtension(EXTENSION_INIT, "inits");
+    registrar.addExtension(EXTENSION_RUN, "runs");
 
     if (!Clients.configured) Clients.use(new FetchClients());
     if (!Loggers.configured) {
@@ -252,8 +236,8 @@ export const scribe: LifecycleSteps = {
     if (!Triggers.configured) Triggers.use(new OutboxTriggers());
     if (!Databases.configured) Databases.use(new PostgrestDatabases());
 
-    capabilities.register(wireFoundation);
-  },
+    registrar.addCapability(wireFoundation);
+  }
 
   /**
    * Brings this package's background work up: the declared crons, the queue backend's own
@@ -263,7 +247,7 @@ export const scribe: LifecycleSteps = {
    * A project with no declared trigger never records a table as emitting, which is why the sync
    * only runs when {@link triggerRegistry} actually lists one.
    */
-  starts: async () => {
+  async starts(): Future<void> {
     await extensions.load(EXTENSION_CRON);
     console.info(cronRegistry.report());
     cronRunner.start();
@@ -276,16 +260,19 @@ export const scribe: LifecycleSteps = {
       console.info(`[trigger] ${tables} table(s) recorded as emitting`);
     }
     triggerRunner.start();
-  },
+  }
 
   /**
    * Brings this package's background work back down, in the reverse order `starts` brought it up,
    * and flushes whatever the console logger is still holding.
    */
-  stops: () => {
+  detachFromEngine(): void {
     cronRunner.stop();
     queueBackend().stopDraining();
     triggerRunner.stop();
     _consoleLogger?.flush();
-  },
-};
+  }
+}
+
+/** The three moments a host calls into this package: once at import, once at start, once at stop. */
+export const scribe: ScribePlugin = new FoundationPlugin();

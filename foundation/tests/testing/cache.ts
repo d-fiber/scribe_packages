@@ -40,9 +40,10 @@ import { RateLimiters } from "@scribe/alchemy";
 import { scribe } from "@scribe/foundation";
 import type { RateLimiter, RateLimiterDriver, RateLimitOptions, RateLimitOutcome } from "@scribe/alchemy";
 import { type InstalledMock, installMock } from "./install.ts";
+import { testRegistrar } from "@scribe/testing/registrar.ts";
 
 export function installValkeryMock(): InstalledMock {
-  scribe.wires?.();
+  scribe.registerWith?.(testRegistrar);
 
   const store = new Map<string, string>();
   const sets = new Map<string, Set<string>>();

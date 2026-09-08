@@ -50,7 +50,7 @@
  * moments it chooses.
  */
 
-import type { LifecycleSteps } from "@scribe/alchemy";
+import type { ScribePlugin } from "@scribe/contracts/registrar.ts";
 
 export { Audience } from "./src/core/declaration.ts";
 export type { AudienceFeature, Members, NamespacedAudience } from "./src/core/declaration.ts";
@@ -72,4 +72,4 @@ export type { AudienceOptions, JoinOptions } from "./contracts/audience.ts";
  * something calls it. The member is written empty rather than left out, because an entry that
  * exports nothing for it and one whose steps are misspelt look the same to the host.
  */
-export const scribe: LifecycleSteps = {};
+export const scribe: ScribePlugin = {};
