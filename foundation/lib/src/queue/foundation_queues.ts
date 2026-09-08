@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import {
-  type DeclaredQueue as PortQueue,
+  type QueuePort as PortQueue,
   type DeclaredQueueOptions as PortQueueOptions,
   Future,
   type QueueDriver,

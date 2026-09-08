@@ -34,42 +34,48 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { HookPort as PortHook, Future, HookDriver, HookOptions } from "@scribe/alchemy";
-import { Hook } from "./hook.ts";
+import { cache, Duration, type Future } from "@scribe/alchemy";
+import type { RemoteConfigRow } from "../db/tables.ts";
 
 /**
- * What opens an extension point for a package that asked the port for one.
+ * How long a row is kept, held or not.
  *
- * @remarks
- * The port promises two members, `emit` and `on`, where this package's own `Hook` carries the
- * inline chain, the background channel and a decision to answer. What is handed back is an
- * adapter: a caller that reached the port sees a point it can emit on and subscribe to, and the
- * decision the chain reaches is dropped, because the port says an emit answers nothing.
- *
- * A point is kept per event, because two declarations of one name would be two chains and a
- * subscriber would only ever be called by one of them.
+ * It is long because nothing has to wait for it: writing, retiming and removing all drop the
+ * entry, and the store is shared, so every replica stops serving the old value at the same
+ * instant.
  */
-export class InlineHooks implements HookDriver {
-  /** The point `options` names, declared on the first ask and kept from then on. */
-  open<T>(options: HookOptions): PortHook<T> {
-    const held = _opened.get(options.event);
-    const point = (held ?? new Hook<T, void>({ name: options.event, fallback: undefined })) as Hook<T, void>;
-    if (held === undefined) _opened.set(options.event, point as unknown as Hook<never, void>);
+const VALKERY_TTL = Duration.minutes(10);
 
-    return {
-      emit: (payload: T): Future<void> => point.run(payload).then(() => undefined),
-      on: (listen: (payload: T) => void | Future<void>): void => void point.on(listen),
-    };
-  }
+/**
+ * What one cached config holds.
+ *
+ * The row is wrapped rather than cached on its own so that the absence of a value is cached too.
+ * Most configs never get one written, and an unwrapped null would send every read of every one of
+ * them to Postgres.
+ */
+interface CachedValue {
+  /** The row in the table, null when the table holds none for this config. */
+  readonly row: RemoteConfigRow | null;
 }
 
+const values = cache<CachedValue>({ key: "config:name", ttl: VALKERY_TTL });
+
 /**
- * One hook per event, so opening twice answers the one already declared.
+ * The row held for `name`, loading it through `load` when the cache does not hold it.
  *
- * @remarks
- * It lives beside the class and not inside an instance, because what a declaration writes to is
- * process-global: a host that clears the slot and wires a second driver would meet a registry
- * that already holds the first driver's keys, and every declaration made before the clear would
- * be refused as a duplicate.
+ * What comes back is the row as the table holds it, expiry included and not applied: the moment a
+ * value is dropped is judged by the caller, after this, so it is exact instead of being rounded up
+ * to whatever is left of the cache entry.
  */
-const _opened: Map<string, Hook<never, void>> = new Map();
+export async function cachedValue(
+  name: string,
+  load: () => Future<RemoteConfigRow | null>,
+): Future<RemoteConfigRow | null> {
+  const held = await values.upsert(name, async () => ({ row: await load() }));
+  return held.row;
+}
+
+/** Drops what the cache holds for `name`, so the next read goes to the table. */
+export function forgetValue(name: string): Future<void> {
+  return values.delete(name);
+}

@@ -34,42 +34,51 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { HookPort as PortHook, Future, HookDriver, HookOptions } from "@scribe/alchemy";
-import { Hook } from "./hook.ts";
+import type { Future } from "@scribe/alchemy";
+import { kv } from "../../redis/kv.ts";
 
-/**
- * What opens an extension point for a package that asked the port for one.
- *
- * @remarks
- * The port promises two members, `emit` and `on`, where this package's own `Hook` carries the
- * inline chain, the background channel and a decision to answer. What is handed back is an
- * adapter: a caller that reached the port sees a point it can emit on and subscribe to, and the
- * decision the chain reaches is dropped, because the port says an emit answers nothing.
- *
- * A point is kept per event, because two declarations of one name would be two chains and a
- * subscriber would only ever be called by one of them.
- */
-export class InlineHooks implements HookDriver {
-  /** The point `options` names, declared on the first ask and kept from then on. */
-  open<T>(options: HookOptions): PortHook<T> {
-    const held = _opened.get(options.event);
-    const point = (held ?? new Hook<T, void>({ name: options.event, fallback: undefined })) as Hook<T, void>;
-    if (held === undefined) _opened.set(options.event, point as unknown as Hook<never, void>);
-
-    return {
-      emit: (payload: T): Future<void> => point.run(payload).then(() => undefined),
-      on: (listen: (payload: T) => void | Future<void>): void => void point.on(listen),
-    };
-  }
+/** The Redis client, once the release script has been registered on it. */
+export interface LockCommands {
+  /**
+   * Removes the lock at `key`, and answers one when it was removed and zero otherwise.
+   *
+   * Zero means another holder owns the lock now, which is the normal answer for a caller
+   * whose lease expired while it was working.
+   */
+  releaseLock(key: string, token: string): Future<number>;
 }
 
 /**
- * One hook per event, so opening twice answers the one already declared.
+ * The Lua that compares the token and removes the key in one step.
  *
- * @remarks
- * It lives beside the class and not inside an instance, because what a declaration writes to is
- * process-global: a host that clears the slot and wires a second driver would meet a registry
- * that already holds the first driver's keys, and every declaration made before the clear would
- * be refused as a duplicate.
+ * The two have to happen without anything running in between: a read then a delete issued
+ * from the client would let a holder whose lease has expired delete the lock its successor
+ * has just taken. A script is the only way Redis offers to make the pair atomic.
  */
-const _opened: Map<string, Hook<never, void>> = new Map();
+const RELEASE_LOCK_SCRIPT = `
+if redis.call('GET', KEYS[1]) == ARGV[1] then
+  return redis.call('DEL', KEYS[1])
+end
+return 0
+`;
+
+/**
+ * The Redis client with `releaseLock` available on it.
+ *
+ * Registration happens on first use rather than at import, and only when the command is
+ * missing. The guard is not defensive: tests install their fakes before anything calls
+ * this, and registering unconditionally would overwrite the stub they just put in place.
+ */
+export function lockCommands(): LockCommands {
+  const client = kv();
+  const commands = client as unknown as Partial<LockCommands>;
+
+  if (typeof commands.releaseLock !== "function") {
+    client.defineCommand("releaseLock", {
+      numberOfKeys: 1,
+      lua: RELEASE_LOCK_SCRIPT,
+    });
+  }
+
+  return client as unknown as LockCommands;
+}

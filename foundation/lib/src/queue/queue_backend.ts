@@ -57,7 +57,7 @@ export interface QueueBackend {
   /** Publishes `data`, delayed by `opts.delay` when given, and answers the message's own identifier. */
   push<T>(queue: RegisteredQueue, data: T, opts: PushOptions): Future<string>;
 
-  /** Publishes every item of `items`. See {@link DeclaredQueue.pushMany} for what "every" promises. */
+  /** Publishes every item of `items`. See {@link QueuePort.pushMany} for what "every" promises. */
   pushMany<T>(queue: RegisteredQueue, items: UnmodifiableList<T>): Future<string[]>;
 
   /**

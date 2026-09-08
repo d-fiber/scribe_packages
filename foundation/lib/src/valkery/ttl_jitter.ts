@@ -34,42 +34,24 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { HookPort as PortHook, Future, HookDriver, HookOptions } from "@scribe/alchemy";
-import { Hook } from "./hook.ts";
+import type { Duration } from "@scribe/alchemy";
+
+/** How much of the ttl the spread is drawn from. */
+const JITTER_RATIO = 0.1;
 
 /**
- * What opens an extension point for a package that asked the port for one.
+ * The ttl an entry is actually written with, in seconds, spread out a little.
  *
- * @remarks
- * The port promises two members, `emit` and `on`, where this package's own `Hook` carries the
- * inline chain, the background channel and a decision to answer. What is handed back is an
- * adapter: a caller that reached the port sees a point it can emit on and subscribe to, and the
- * decision the chain reaches is dropped, because the port says an emit answers nothing.
+ * Without the spread, everything written in the same second expires in the same second and
+ * the recomputation departs as one wave. A tenth is enough to break the alignment without
+ * making any entry meaningfully staler than it was asked to be.
  *
- * A point is kept per event, because two declarations of one name would be two chains and a
- * subscriber would only ever be called by one of them.
+ * The result is never below the ttl asked for, and a ttl too small to spread is returned
+ * untouched rather than rounded to nothing.
  */
-export class InlineHooks implements HookDriver {
-  /** The point `options` names, declared on the first ask and kept from then on. */
-  open<T>(options: HookOptions): PortHook<T> {
-    const held = _opened.get(options.event);
-    const point = (held ?? new Hook<T, void>({ name: options.event, fallback: undefined })) as Hook<T, void>;
-    if (held === undefined) _opened.set(options.event, point as unknown as Hook<never, void>);
+export function withJitter(ttl: Duration): number {
+  const spread = Math.ceil(ttl.inSeconds * JITTER_RATIO);
+  if (spread <= 0) return ttl.inSeconds;
 
-    return {
-      emit: (payload: T): Future<void> => point.run(payload).then(() => undefined),
-      on: (listen: (payload: T) => void | Future<void>): void => void point.on(listen),
-    };
-  }
+  return ttl.inSeconds + Math.floor(Math.random() * spread);
 }
-
-/**
- * One hook per event, so opening twice answers the one already declared.
- *
- * @remarks
- * It lives beside the class and not inside an instance, because what a declaration writes to is
- * process-global: a host that clears the slot and wires a second driver would meet a registry
- * that already holds the first driver's keys, and every declaration made before the clear would
- * be refused as a duplicate.
- */
-const _opened: Map<string, Hook<never, void>> = new Map();
