@@ -39,7 +39,6 @@ import {
   Deploy,
   env,
   Image,
-  Outputs,
   Recipe,
   resource,
   Role,
@@ -47,7 +46,6 @@ import {
   setting,
   sizingToken,
   template,
-  Terraform,
 } from "@scribe/alchemy";
 
 const PRE_FUNCTION_ACCESS = `-- Read only, so no write may come through the gateway.
@@ -63,7 +61,7 @@ end
 -- behalf. See storage.md for what used to live here and why it
 -- was decorative.`;
 
-@Deploy({
+Deploy({
   db: {
     provisioning: {
       roles: [
@@ -75,13 +73,13 @@ end
     },
   },
   services: [
-    Service("storage", {
-      source: Build("Dockerfile"),
-      securityOpt: ["no-new-privileges:true"],
-      capDrop: ["ALL"],
-      networks: ["app", "data"],
-      volumes: ["storage-data:/var/lib/storage"],
-      environment: {
+    Service("storage")
+      .source(Build("Dockerfile"))
+      .networks(["app", "data"])
+      .securityOpt(["no-new-privileges:true"])
+      .capDrop(["ALL"])
+      .volumes(["storage-data:/var/lib/storage"])
+      .environment({
         ANON_KEY: env("ANON_KEY"),
         SERVICE_KEY: env("SERVICE_KEY"),
         POSTGREST_URL: template("${REST_INTERNAL_URL:-http://rest:3000}"),
@@ -103,18 +101,18 @@ end
         ENABLE_IMAGE_TRANSFORMATION: setting("image_transformation"),
         IMGPROXY_URL: "http://imgproxy:5001",
         REQUEST_ALLOW_X_FORWARDED_PATH: "true",
-      },
-      healthcheck: {
+      })
+      .healthcheck({
         command: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:5000/status"],
         interval: "5s",
         timeout: "5s",
         retries: 3,
         startPeriod: "60s",
-      },
-      dependsOn: { provision: "completed", rest: "started", imgproxy: "started" },
-      capacity: { weight: 188, runtime: "node", min: "256Mi", dev: "256Mi", cpuSharesTotal: 4096 },
-      tuning: { UV_THREADPOOL_SIZE: sizingToken("storage_uv_threadpool") },
-      kong: {
+      })
+      .dependsOn({ provision: "completed", rest: "started", imgproxy: "started" })
+      .capacity({ weight: 188, runtime: "node", min: "256Mi", dev: "256Mi", cpuSharesTotal: 4096 })
+      .tuning({ UV_THREADPOOL_SIZE: sizingToken("storage_uv_threadpool") })
+      .kong({
         name: "storage-v1",
         url: "http://storage:5000/",
         routes: [{ name: "storage-v1-all", stripPath: true, paths: ["/storage/v1/"] }],
@@ -128,13 +126,13 @@ end
             },
           },
         ],
-      },
-    }),
-    Service("imgproxy", {
-      source: Image("darthsim/imgproxy:v3.30.1"),
-      networks: ["app"],
-      volumes: ["storage-data:/var/lib/storage:ro"],
-      environment: {
+      })
+      .declare(),
+    Service("imgproxy")
+      .source(Image("darthsim/imgproxy:v3.30.1"))
+      .networks(["app"])
+      .volumes(["storage-data:/var/lib/storage:ro"])
+      .environment({
         IMGPROXY_BIND: ":5001",
         IMGPROXY_LOCAL_FILESYSTEM_ROOT: "/",
         IMGPROXY_USE_S3: template("${IMGPROXY_USE_S3:-false}"),
@@ -145,27 +143,27 @@ end
         IMGPROXY_USE_ETAG: "true",
         IMGPROXY_AUTO_WEBP: "true",
         IMGPROXY_MAX_SRC_RESOLUTION: "16.8",
-      },
-      healthcheck: {
+      })
+      .healthcheck({
         command: ["CMD", "imgproxy", "health"],
         interval: "5s",
         timeout: "5s",
         retries: 3,
         startPeriod: "20s",
-      },
-      capacity: { weight: 280, runtime: "go", min: "64Mi", dev: "256Mi", cpuShares: 1024 },
-      tuning: {
+      })
+      .capacity({ weight: 280, runtime: "go", min: "64Mi", dev: "256Mi", cpuShares: 1024 })
+      .tuning({
         IMGPROXY_WORKERS: sizingToken("imgproxy_workers"),
         GOMAXPROCS: sizingToken("imgproxy_gomaxprocs"),
-      },
-    }),
+      })
+      .declare(),
   ],
   recipes: [
-    Recipe("bucket", {
-      contract: ["backend", "name", "endpoint", "region", "access_key", "secret_key"],
-      classes: {
-        container: Outputs({ backend: "file", name: "stub", endpoint: "", region: "", access_key: "", secret_key: "" }),
-        external: Outputs({
+    Recipe("bucket")
+      .contract(["backend", "name", "endpoint", "region", "access_key", "secret_key"])
+      .classes((c) => ({
+        container: c.outputs({ backend: "file", name: "stub", endpoint: "", region: "", access_key: "", secret_key: "" }),
+        external: c.outputs({
           backend: "s3",
           name: env("S3_BUCKET"),
           endpoint: env("S3_ENDPOINT"),
@@ -173,7 +171,7 @@ end
           access_key: env("S3_ACCESS_KEY"),
           secret_key: env("S3_SECRET_KEY"),
         }),
-        "aws-s3": Terraform(
+        "aws-s3": c.terraform(
           {
             terraform: { required_providers: { aws: { source: "hashicorp/aws", version: "6.19.0" } } },
             provider: { aws: { region: "{{region}}" } },
@@ -201,7 +199,7 @@ end
           },
           { region: "eu-west-3" },
         ),
-        "gcp-gcs": Terraform(
+        "gcp-gcs": c.terraform(
           {
             terraform: { required_providers: { google: { source: "hashicorp/google", version: "6.14.1" } } },
             provider: { google: { project: "{{project}}", region: "{{region}}" } },
@@ -232,8 +230,7 @@ end
           },
           { project: "my-gcp-project", region: "europe-west1", location: "EU" },
         ),
-      },
-    }),
+      })),
   ],
   configuration: {
     settings: {
@@ -255,7 +252,4 @@ end
       ADMIN_URL: env("ADMIN_URL"),
     },
   },
-})
-class StorageDeploy {}
-
-export {};
+});
