@@ -242,7 +242,11 @@ Scribe.test("insert into a table with a declared unique key refuses a row that w
     const outcome = await from<{ id: string; label: string }>(clientOf(mock), TABLE)
       .insert({ id: "a", label: "second" });
 
-    expect(kindOf(outcome), equals("conflict"), "a fake table with a declared key refuses a duplicate like Postgres would");
+    expect(
+      kindOf(outcome),
+      equals("conflict"),
+      "a fake table with a declared key refuses a duplicate like Postgres would",
+    );
     expect(mock.rows(TABLE), equals([{ id: "a", label: "first" }]), "the row already there is untouched");
   } finally {
     mock.restore();

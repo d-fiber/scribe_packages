@@ -41,11 +41,7 @@ import "../../testing/settings.ts";
 
 import { PostgrestClient } from "@supabase/postgrest-js";
 import { TypedQueryBuilder } from "../../../lib/src/database/query/typed_query_builder.ts";
-import {
-  filterLiteral,
-  quoteFilterList,
-  UnsafeFilterError,
-} from "../../../lib/src/database/query/filter_literal.ts";
+import { filterLiteral, quoteFilterList, UnsafeFilterError } from "../../../lib/src/database/query/filter_literal.ts";
 // deno-lint-ignore no-explicit-any
 type AnyFilter = any;
 

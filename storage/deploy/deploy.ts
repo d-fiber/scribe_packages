@@ -162,7 +162,14 @@ Deploy({
     Recipe("bucket")
       .contract(["backend", "name", "endpoint", "region", "access_key", "secret_key"])
       .classes((c) => ({
-        container: c.outputs({ backend: "file", name: "stub", endpoint: "", region: "", access_key: "", secret_key: "" }),
+        container: c.outputs({
+          backend: "file",
+          name: "stub",
+          endpoint: "",
+          region: "",
+          access_key: "",
+          secret_key: "",
+        }),
         external: c.outputs({
           backend: "s3",
           name: env("S3_BUCKET"),
@@ -205,7 +212,12 @@ Deploy({
             provider: { google: { project: "{{project}}", region: "{{region}}" } },
             resource: {
               google_storage_bucket: {
-                bucket: { name: "{{name}}", location: "{{location}}", force_destroy: false, uniform_bucket_level_access: true },
+                bucket: {
+                  name: "{{name}}",
+                  location: "{{location}}",
+                  force_destroy: false,
+                  uniform_bucket_level_access: true,
+                },
               },
               google_service_account: {
                 bucket: { account_id: '${substr("scribe-{{name}}", 0, 30)}', display_name: "{{name}}" },

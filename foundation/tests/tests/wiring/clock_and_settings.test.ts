@@ -109,7 +109,10 @@ Scribe.test("a clock moved backwards is read backwards, since nothing here assum
 
 Scribe.test("each settings slot refuses a read before anything fills it, and names itself in the refusal", () => {
   for (
-    const [slot, name] of [[valkerySettings, "cache"], [queueSettings, "queue"], [databaseSettings, "database"]] as const
+    const [slot, name] of [[valkerySettings, "cache"], [queueSettings, "queue"], [
+      databaseSettings,
+      "database",
+    ]] as const
   ) {
     const held = slot.configured ? slot.get() : null;
     slot.clear();

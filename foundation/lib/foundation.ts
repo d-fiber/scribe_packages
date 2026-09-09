@@ -86,7 +86,7 @@ import { RedisRateLimiters } from "./src/rate_limit/redis_rate_limiter.ts";
 import { ConsoleLogger } from "./src/observe/console_logger.ts";
 import { SystemNow } from "./src/observe/system_now.ts";
 
-export type { ValkerySettings, DatabaseSettings, QueueSettings } from "./src/settings.ts";
+export type { DatabaseSettings, QueueSettings, ValkerySettings } from "./src/settings.ts";
 
 /** Values kept for a while, and the keys they hang under. */
 export {

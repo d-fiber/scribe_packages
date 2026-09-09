@@ -241,11 +241,13 @@ export async function membersOf(
 function _rawPage(feature: string, audience: string, after: string | null, limit: number): Future<AudienceRow[]> {
   const query = audiences()
     .select((s) => ({ member: s.member, expires_at: s.expires_at }))
-    .where((f) => after === null ? [f.feature.eq(feature), f.audience.eq(audience)] : [
-      f.feature.eq(feature),
-      f.audience.eq(audience),
-      f.member.gt(after),
-    ])
+    .where((f) =>
+      after === null ? [f.feature.eq(feature), f.audience.eq(audience)] : [
+        f.feature.eq(feature),
+        f.audience.eq(audience),
+        f.member.gt(after),
+      ]
+    )
     .order("member")
     .limit(limit);
 

@@ -38,10 +38,10 @@ import type {
   DeclaredFieldChange as PortField,
   DeclaredInsertChange as PortInsert,
   DeclaredTransition as PortTransition,
-  TriggerPort as PortTrigger,
   DeclaredTriggerOptions as PortOptions,
   DeclaredUpdateChange as PortUpdate,
   TriggerDriver,
+  TriggerPort as PortTrigger,
 } from "@scribe/alchemy";
 import type { DeclaredQueueOptions as PortQueueOptions, Future } from "@scribe/alchemy";
 import type { QueueOptions } from "../queue/queue_options.ts";

@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { ClaimPort, ClaimOptions, Future } from "@scribe/alchemy";
+import type { ClaimOptions, ClaimPort, Future } from "@scribe/alchemy";
 import { kv } from "./kv.ts";
 
 /**

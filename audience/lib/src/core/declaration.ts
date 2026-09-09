@@ -41,9 +41,9 @@ import {
   dropAudience,
   dropMembership,
   hasExpired,
-  type MembersPage,
   membershipOf,
   membersOf,
+  type MembersPage,
   reapExpired,
   retimeMembership,
   writeMembership,
@@ -231,8 +231,7 @@ export class Audience implements Members, NamespacedAudience {
 
     return {
       global: (name, options = {}) => new Audience(claimed, Audience.#declared(claimed, name), options.ttl ?? null),
-      namespaced: (name, options = {}) =>
-        new Audience(claimed, Audience.#declared(claimed, name), options.ttl ?? null),
+      namespaced: (name, options = {}) => new Audience(claimed, Audience.#declared(claimed, name), options.ttl ?? null),
     };
   }
 

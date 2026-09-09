@@ -38,7 +38,7 @@ import type { LockCommands } from "../../lib/src/valkery/lock/lock_commands.ts";
 import { type Kv, kv } from "../../lib/src/redis/kv.ts";
 import { RateLimiters } from "@scribe/alchemy";
 import { scribe } from "@scribe/foundation";
-import type { RateLimiterPort, RateLimiterDriver, RateLimitOptions, RateLimitOutcome } from "@scribe/alchemy";
+import type { RateLimiterDriver, RateLimiterPort, RateLimitOptions, RateLimitOutcome } from "@scribe/alchemy";
 import { type InstalledMock, installMock } from "./install.ts";
 import { testRegistrar } from "@scribe/testing/registrar.ts";
 
