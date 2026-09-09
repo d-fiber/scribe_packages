@@ -57,7 +57,7 @@
  * needs to happen at import or after boot.
  */
 
-import { Caches, Claims, Crons, Databases, Hooks, Init, Queues, RateLimiters, Run, Triggers } from "@scribe/alchemy";
+import { Claims, Crons, Databases, Hooks, Init, Queues, RateLimiters, Run, Triggers, Valkeries } from "@scribe/alchemy";
 import { Clients } from "@scribe/alchemy/http";
 import { Loggers } from "@scribe/alchemy/observe";
 import { Now } from "@scribe/alchemy";
@@ -69,7 +69,7 @@ import { Cron } from "./src/cron/cron.ts";
 import { Queue } from "./src/queue/queue.ts";
 import { extensions } from "@scribe/runtime/wiring/extensions/mod.ts";
 import { FetchClients } from "./src/http/fetch_client.ts";
-import { RedisCaches } from "./src/cache/redis_caches.ts";
+import { RedisValkeries } from "./src/valkery/redis_valkeries.ts";
 import { RedisClaims } from "./src/redis/claim_once.ts";
 import { FoundationQueues } from "./src/queue/foundation_queues.ts";
 import { queueBackend } from "./src/queue/queue_backend.ts";
@@ -86,7 +86,7 @@ import { RedisRateLimiters } from "./src/rate_limit/redis_rate_limiter.ts";
 import { ConsoleLogger } from "./src/observe/console_logger.ts";
 import { SystemNow } from "./src/observe/system_now.ts";
 
-export type { CacheSettings, DatabaseSettings, QueueSettings } from "./src/settings.ts";
+export type { ValkerySettings, DatabaseSettings, QueueSettings } from "./src/settings.ts";
 
 /** Values kept for a while, and the keys they hang under. */
 export {
@@ -94,12 +94,12 @@ export {
   DistributedLock,
   type LockErrorReporter,
   type LockOutcome,
-} from "./src/cache/lock/distributed_lock.ts";
-export { DEFAULT_BETA } from "./src/cache/early_expiry.ts";
-export { DEFAULT_TTL, refreshesSettled, Valkery } from "./src/cache/cache.ts";
-export { KeySpace } from "./src/cache/key_space.ts";
-export { cacheSettings } from "./src/cache/cache_settings.ts";
-export { withJitter } from "./src/cache/ttl_jitter.ts";
+} from "./src/valkery/lock/distributed_lock.ts";
+export { DEFAULT_BETA } from "./src/valkery/early_expiry.ts";
+export { DEFAULT_TTL, refreshesSettled, Valkery } from "./src/valkery/valkery.ts";
+export { KeySpace } from "./src/valkery/key_space.ts";
+export { valkerySettings } from "./src/valkery/valkery_settings.ts";
+export { withJitter } from "./src/valkery/ttl_jitter.ts";
 
 /** Work a schedule runs, and what decides when it next runs. */
 export type { CronHandler, Schedule, Scheduled } from "./src/cron/schedule.ts";
@@ -158,7 +158,7 @@ export { type QueueStatus, queueStatus } from "./src/queue/queue_status.ts";
 /** How often one caller may ask, and what happens when it asks more. */
 export { RateLimitBucket } from "./src/rate_limit/rate_limit_bucket.ts";
 
-/** The store behind the cache, the claims and the key index. */
+/** The store behind Valkery, the claims and the key index. */
 export { IDENTITY_CACHE_KEY, IdentityRevocation } from "./src/redis/identity_revocation.ts";
 export { KeyIndex } from "./src/redis/key_index.ts";
 export { type Kv, kv } from "./src/redis/kv.ts";
@@ -227,7 +227,7 @@ class FoundationPlugin implements ScribePlugin {
       Loggers.use(_consoleLogger);
     }
     if (!Now.configured) Now.use(new SystemNow());
-    if (!Caches.configured) Caches.use(new RedisCaches());
+    if (!Valkeries.configured) Valkeries.use(new RedisValkeries());
     if (!Claims.configured) Claims.use(new RedisClaims());
     if (!RateLimiters.configured) RateLimiters.use(new RedisRateLimiters());
     if (!Queues.configured) Queues.use(new FoundationQueues());

@@ -49,7 +49,7 @@ import {
 import "../../testing/settings.ts";
 import { DateTime, Duration, Now } from "@scribe/alchemy";
 import { SystemNow } from "../../../lib/src/observe/system_now.ts";
-import { cacheSettings } from "../../../lib/src/cache/cache_settings.ts";
+import { valkerySettings } from "../../../lib/src/valkery/valkery_settings.ts";
 import { databaseSettings } from "../../../lib/src/database/database_settings.ts";
 import { queueSettings } from "../../../lib/src/queue/queue_settings.ts";
 import { PostgrestClients } from "../../../lib/src/database/postgrest_clients.ts";
@@ -109,7 +109,7 @@ Scribe.test("a clock moved backwards is read backwards, since nothing here assum
 
 Scribe.test("each settings slot refuses a read before anything fills it, and names itself in the refusal", () => {
   for (
-    const [slot, name] of [[cacheSettings, "cache"], [queueSettings, "queue"], [databaseSettings, "database"]] as const
+    const [slot, name] of [[valkerySettings, "cache"], [queueSettings, "queue"], [databaseSettings, "database"]] as const
   ) {
     const held = slot.configured ? slot.get() : null;
     slot.clear();

@@ -33,7 +33,7 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-import type { LockCommands } from "../../../lib/src/cache/lock/lock_commands.ts";
+import type { LockCommands } from "../../../lib/src/valkery/lock/lock_commands.ts";
 import { type Kv, kv } from "../../../lib/src/redis/kv.ts";
 import { type InstalledMock, installMock } from "../../testing/install.ts";
 
@@ -66,7 +66,7 @@ interface Pipelined {
  *
  * @remarks
  * `pttl` always answers `-1` and there is no way to inject a failure or a delay, unlike
- * `tests/cache/support/redis.ts`'s fake: a wiring test asserts that a port was plugged into the
+ * `tests/valkery/support/redis.ts`'s fake: a wiring test asserts that a port was plugged into the
  * right client, not on Redis's own expiry or error behaviour, so this fake stays a command
  * recorder rather than a faithful re-implementation.
  */

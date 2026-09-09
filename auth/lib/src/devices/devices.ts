@@ -41,7 +41,7 @@ import { constantTimeEqual } from "@scribe/runtime/primitives/crypto/constant_ti
 import { sha256Hex } from "@scribe/runtime/primitives/crypto/hash.ts";
 import type { AccountDevice } from "../../contracts/device.ts";
 import { AccountRevocation } from "../revocation.ts";
-import { deviceCache } from "./cache.ts";
+import { deviceValkery } from "./valkery.ts";
 import { type DeviceHardware, type DeviceOrigin, deviceRepository } from "./repository.ts";
 
 /** How long a device stays trusted without signing in again. */
@@ -85,14 +85,14 @@ export class Devices {
       const token = await deviceRepository.renew(accountId, known);
       if (token === null) return null;
 
-      await deviceCache.invalidate(accountId, device.device_id);
+      await deviceValkery.invalidate(accountId, device.device_id);
       return token;
     }
 
     const registered = await deviceRepository.register(accountId);
     if (registered === null) return null;
 
-    await deviceCache.invalidate(accountId, device.device_id);
+    await deviceValkery.invalidate(accountId, device.device_id);
     return registered.token;
   }
 
@@ -145,22 +145,22 @@ export class Devices {
 
   /** Every device this account signs in from. */
   async of(accountId: string): Future<AccountDevice[]> {
-    const cached = await deviceCache.list(accountId);
+    const cached = await deviceValkery.list(accountId);
     if (cached !== null) return cached;
 
     const devices = await deviceRepository.all(accountId);
-    await deviceCache.rememberList(accountId, devices);
+    await deviceValkery.rememberList(accountId, devices);
 
     return devices;
   }
 
   /** One device of this account, or null when it has never used it. */
   async get(accountId: string, deviceId: string): Future<AccountDevice | null> {
-    const cached = await deviceCache.get(accountId, deviceId);
+    const cached = await deviceValkery.get(accountId, deviceId);
     if (cached !== null) return cached;
 
     const device = await deviceRepository.get(accountId, deviceId);
-    if (device !== null) await deviceCache.remember(accountId, deviceId, device);
+    if (device !== null) await deviceValkery.remember(accountId, deviceId, device);
 
     return device;
   }
@@ -178,7 +178,7 @@ export class Devices {
     const removed = await deviceRepository.remove(accountId, deviceId);
     if (!removed) return false;
 
-    await deviceCache.invalidate(accountId, deviceId);
+    await deviceValkery.invalidate(accountId, deviceId);
     return true;
   }
 
@@ -196,16 +196,16 @@ export class Devices {
     const written = await deviceRepository.origin(accountId, deviceId, origin);
     if (!written) return false;
 
-    await deviceCache.invalidate(accountId, deviceId);
+    await deviceValkery.invalidate(accountId, deviceId);
     return true;
   }
 
   async #hardwareOf(accountId: string, deviceId: string): Future<DeviceHardware | null> {
-    const cached = await deviceCache.hardware<DeviceHardware>(accountId, deviceId);
+    const cached = await deviceValkery.hardware<DeviceHardware>(accountId, deviceId);
     if (cached !== null) return cached;
 
     const hardware = await deviceRepository.hardware(accountId, deviceId);
-    if (hardware !== null) await deviceCache.rememberHardware(accountId, deviceId, hardware);
+    if (hardware !== null) await deviceValkery.rememberHardware(accountId, deviceId, hardware);
 
     return hardware;
   }

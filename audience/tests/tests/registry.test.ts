@@ -39,7 +39,7 @@ import { equals, expect, expectLater, isA, Scribe, throwsA } from "@scribe/alche
 import { Audience } from "../../lib/src/core/declaration.ts";
 import { AudienceClaimError, verifyDeclarations } from "../../lib/src/core/registry.ts";
 import { installAudienceMock } from "../testing/mock.ts";
-import { PostgrestClients } from "@scribe/foundation/database";
+import { PostgrestClients } from "@scribe/foundation";
 import { type InstalledMock, installMock } from "@scribe/testing/install.ts";
 import type { PostgrestClient } from "@supabase/postgrest-js";
 

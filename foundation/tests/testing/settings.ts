@@ -34,14 +34,14 @@
 // This header is a summary written for convenience. Where it differs from the
 
 import { optional } from "@scribe/scholium/env.ts";
-import { cacheSettings } from "../../lib/src/cache/cache_settings.ts";
+import { valkerySettings } from "../../lib/src/valkery/valkery_settings.ts";
 import { databaseSettings } from "../../lib/src/database/database_settings.ts";
 import { queueSettings } from "../../lib/src/queue/queue_settings.ts";
 
 export function installTestSettings(): void {
-  if (cacheSettings.configured) return;
+  if (valkerySettings.configured) return;
 
-  cacheSettings.use({ redisUrl: optional("REDIS_URL", "redis://localhost:6379") });
+  valkerySettings.use({ redisUrl: optional("REDIS_URL", "redis://localhost:6379") });
   queueSettings.use({ driver: "nats", natsUrl: optional("NATS_URL", "nats://localhost:4222") });
   databaseSettings.use({
     restUrl: optional("REST_INTERNAL_URL", "http://localhost:3000"),

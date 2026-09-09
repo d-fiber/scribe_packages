@@ -34,43 +34,10 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Duration, type Future, valkery } from "@scribe/alchemy";
+import type { ValkerySettings } from "../settings.ts";
+import { Slot } from "@scribe/alchemy";
 
-const INTENT_TTL = Duration.seconds(120);
-
-/** What a code sent by text message was sent for. */
-export enum SmsIntent {
-  /** The holder asked to set a new password. */
-  ResetPassword = "reset-password",
-
-  /** The holder asked to move the account to another number. */
-  ChangePhone = "change-phone",
-}
-
-/**
- * What the code a number was just sent is meant to do.
- *
- * The identity provider sends the same message in both cases, so nothing in what comes back says
- * which of the two the holder asked for. The mark laid when the code goes out is what the
- * verification reads, and it is consumed on the way so a second verification cannot reuse it.
- */
-class SmsIntentStore {
-  readonly #cache = valkery<SmsIntent>({ key: "sms-intent", ttl: INTENT_TTL });
-
-  /** Records what the code just sent to `phone` is for. */
-  mark(phone: string, intent: SmsIntent): Future<void> {
-    return this.#cache.add(phone, intent);
-  }
-
-  /** Reads what the last code sent to `phone` was for, and forgets it. */
-  async consume(phone: string): Future<SmsIntent | null> {
-    const intent = await this.#cache.get(phone);
-    if (intent === null) return null;
-
-    await this.#cache.delete(phone);
-    return intent;
-  }
-}
-
-/** What the code a number was just sent is meant to do, for the two minutes it stays valid. */
-export const smsIntent: SmsIntentStore = new SmsIntentStore();
+/** The Redis connection this package's cache reaches through, filled once at boot. */
+export const valkerySettings: Slot<ValkerySettings> = new Slot<ValkerySettings>(
+  "cache",
+);

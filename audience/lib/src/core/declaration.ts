@@ -50,7 +50,7 @@ import {
   writeMemberships,
 } from "../db/members.ts";
 import type { AudienceRow } from "../db/tables.ts";
-import { cachedMembership, forgetAudience, forgetMembership } from "../runtime/cache.ts";
+import { cachedMembership, forgetAudience, forgetMembership } from "../runtime/valkery.ts";
 import { guarded } from "./guard.ts";
 import { audienceKey, audienceSegment, memberSegment } from "./key.ts";
 import { declareAudience } from "./registry.ts";

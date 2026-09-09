@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { cacheSettings } from "../cache/cache_settings.ts";
+import { valkerySettings } from "../valkery/valkery_settings.ts";
 import { Redis } from "ioredis";
 
 /**
@@ -64,7 +64,7 @@ let _client: Kv | null = null;
  * carries none.
  */
 export function kv(): Kv {
-  return (_client ??= new Redis(cacheSettings.get().redisUrl, {
+  return (_client ??= new Redis(valkerySettings.get().redisUrl, {
     maxRetriesPerRequest: 3,
     enableReadyCheck: true,
     lazyConnect: true,

@@ -75,7 +75,7 @@ export { SearchIndex } from "./src/core/search_index.ts";
 export { declaredIndices, indexNamed } from "./src/core/registry.ts";
 export type { AnySearchIndex } from "./src/core/registry.ts";
 export { SEARCH_EXTENSION } from "./src/core/extension.ts";
-export { digest, roundCoord, stableKey, timeBucket } from "./src/core/cache_key.ts";
+export { digest, roundCoord, stableKey, timeBucket } from "./src/core/valkery_key.ts";
 
 export { Field } from "./src/fields/mapping.ts";
 export { DEFAULT_SETTINGS, SORT_NORMALIZER } from "./src/fields/mapping.ts";

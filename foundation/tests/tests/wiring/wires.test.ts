@@ -34,13 +34,13 @@
 // This header is a summary written for convenience. Where it differs from the
 import "@scribe/scholium/runner.ts";
 import { allOf, equals, expect, isA, isTrue, same, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
-import { Caches, Crons, Databases, Duration, Hooks, Now, Queues, RateLimiters, Triggers } from "@scribe/alchemy";
+import { Crons, Databases, Duration, Hooks, Now, Queues, RateLimiters, Triggers, Valkeries } from "@scribe/alchemy";
 import { Clients } from "@scribe/alchemy/http";
 import { Loggers } from "@scribe/alchemy/observe";
 import type { Slot } from "@scribe/alchemy";
 import { scribe } from "@scribe/foundation";
 import { testRegistrar } from "@scribe/testing/registrar.ts";
-import { cacheSettings } from "../../../lib/src/cache/cache_settings.ts";
+import { valkerySettings } from "../../../lib/src/valkery/valkery_settings.ts";
 import { databaseSettings } from "../../../lib/src/database/database_settings.ts";
 import { queueSettings } from "../../../lib/src/queue/queue_settings.ts";
 import { installMock } from "../../testing/install.ts";
@@ -48,7 +48,7 @@ const PORTS: readonly Slot<unknown>[] = [
   Clients,
   Loggers,
   Now,
-  Caches,
+  Valkeries,
   RateLimiters,
   Queues,
   Hooks,
@@ -61,7 +61,7 @@ const NAMES: readonly string[] = [
   "Clients",
   "Loggers",
   "Now",
-  "Caches",
+  "Valkeries",
   "RateLimiters",
   "Queues",
   "Hooks",
@@ -122,14 +122,14 @@ Scribe.test("a partial clear refills only what was cleared", () => {
     scribe.registerWith?.(testRegistrar);
     const first = held();
 
-    Caches.clear();
+    Valkeries.clear();
     Queues.clear();
     scribe.registerWith?.(testRegistrar);
 
     const after = held();
     PORTS.forEach((slot, at) => {
       expect(slot.configured, isTrue, `${NAMES[at]} was left empty by the second mount`);
-      if (slot === Caches || slot === Queues) return;
+      if (slot === Valkeries || slot === Queues) return;
       expect(after[at], same(first[at]), `${NAMES[at]} was untouched and should have been left alone`);
     });
   });
@@ -151,7 +151,7 @@ Scribe.test("two mounts racing over a microtask boundary still leave one driver 
 });
 
 Scribe.test("mounting reads no setting and opens no connection", () => {
-  const settings = [cacheSettings, queueSettings, databaseSettings] as const;
+  const settings = [valkerySettings, queueSettings, databaseSettings] as const;
   const kept = settings.map((slot) => (slot.configured ? slot.get() : null));
   let dialled = 0;
   const refuse = () => {
@@ -189,7 +189,7 @@ Scribe.test("every mounted driver answers the members its port declares", () => 
 
     const members: Record<string, readonly string[]> = {
       Clients: ["open"],
-      Caches: ["open"],
+      Valkeries: ["open"],
       RateLimiters: ["open"],
       Queues: ["open", "consume"],
       Hooks: ["open"],
@@ -248,13 +248,13 @@ Scribe.test("re-wiring after a clear refuses the hook event the driver it replac
 Scribe.test("a mount that follows a clear still answers the store its predecessor opened, rather than a second one", () => {
   mount(() => {
     scribe.registerWith?.(testRegistrar);
-    const opened = Caches.get().open({ key: "wiring:cache" });
+    const opened = Valkeries.get().open({ key: "wiring:valkery" });
 
-    Caches.clear();
+    Valkeries.clear();
     scribe.registerWith?.(testRegistrar);
 
     expect(
-      Caches.get().open({ key: "wiring:cache" }),
+      Valkeries.get().open({ key: "wiring:valkery" }),
       same(opened),
       "the port promises one store per key, and a rebuilt driver hands out a second",
     );

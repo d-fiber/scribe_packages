@@ -71,7 +71,7 @@ export { isSafeRedirectUrl } from "./src/core/url.ts";
 export { field } from "./src/core/field.ts";
 export type { FieldDescriptor, LinkFields } from "./src/core/field.ts";
 
-export { forgetLink } from "./src/runtime/cache.ts";
+export { forgetLink } from "./src/runtime/valkery.ts";
 export { ResolvedLink, resolveLink, resolveMany } from "./src/runtime/resolve.ts";
 
 export { dynamicLinkStatisticsQueue } from "./src/db/statistics.ts";

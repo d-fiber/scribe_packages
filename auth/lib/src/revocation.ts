@@ -38,9 +38,9 @@ import { Future } from "@scribe/alchemy";
 import { SignOutScope } from "../contracts/account.ts";
 import { IdentityRevocation } from "@scribe/foundation";
 import { goTrue } from "./gotrue/gotrue_client.ts";
-import { deviceCache } from "./devices/cache.ts";
+import { deviceValkery } from "./devices/valkery.ts";
 import { sessionIdempotence } from "./session.ts";
-import { roleCache } from "./identity.ts";
+import { roleValkery } from "./identity.ts";
 
 /**
  * What stops answering when an account's credentials change hands.
@@ -81,9 +81,9 @@ export class AccountRevocation {
   static async caches(id: string): Future<void> {
     await Future.wait([
       IdentityRevocation.revoke(id),
-      roleCache.invalidate(id),
+      roleValkery.invalidate(id),
       sessionIdempotence.invalidate(id),
-      deviceCache.invalidateAll(id),
+      deviceValkery.invalidateAll(id),
     ]);
   }
 }

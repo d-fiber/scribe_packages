@@ -43,7 +43,7 @@
  * suites depend on, and changing anything it does not name breaks nobody.
  */
 
-export { installRateLimiterMock, installValkeryMock } from "./cache.ts";
+export { installRateLimiterMock, installValkeryMock } from "./valkery.ts";
 export { FakePostgrestClient } from "./database.ts";
 export type { FakePostgrestSeed, Row, RpcHandler } from "./database.ts";
 export { installDrivers } from "./drivers.ts";

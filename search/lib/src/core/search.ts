@@ -57,7 +57,7 @@ import {
   type TextFields,
 } from "../fields/projection.ts";
 import { QueryBuilder } from "../fields/query.ts";
-import { DEFAULT_TTL } from "./cache.ts";
+import { DEFAULT_TTL } from "./valkery.ts";
 import { declareIndex } from "./registry.ts";
 import { SearchIndex } from "./search_index.ts";
 
@@ -144,7 +144,7 @@ export interface IndexOptions {
    * up a request. An index that draws real contention on a hot key raises it here rather than
    * everywhere it is searched.
    */
-  readonly cacheDeadline?: Duration;
+  readonly valkeryDeadline?: Duration;
 
   /** The analysis the index is created with. Lowercased and accent-folded when absent. */
   readonly settings?: IndexSettings;
@@ -249,7 +249,7 @@ interface Draft {
   ttl: Duration;
 
   /** How long a call to the page or preview cache has. The cache's own default when null. */
-  cacheDeadline: Duration | null;
+  valkeryDeadline: Duration | null;
 
   /** The analysis the index is created with. */
   settings: IndexSettings;
@@ -311,7 +311,7 @@ export const Search: {
       key,
       pageSize: options.pageSize ?? DEFAULT_PAGE_SIZE,
       ttl: options.ttl ?? DEFAULT_TTL,
-      cacheDeadline: options.cacheDeadline ?? null,
+      valkeryDeadline: options.valkeryDeadline ?? null,
       settings: options.settings ?? DEFAULT_SETTINGS,
     });
   },

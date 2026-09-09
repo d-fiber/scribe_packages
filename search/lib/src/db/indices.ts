@@ -36,7 +36,7 @@
 
 import type { Future } from "@scribe/alchemy";
 import { DateTime } from "@scribe/alchemy";
-import { digest } from "../core/cache_key.ts";
+import { digest } from "../core/valkery_key.ts";
 import type { AnySearchIndex } from "../core/registry.ts";
 import { declaredIndices } from "../core/registry.ts";
 import { searchTransport } from "../transport/registry.ts";

@@ -35,42 +35,47 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Duration, type Future, valkery } from "@scribe/alchemy";
-
-const INTENT_TTL = Duration.seconds(120);
-
-/** What a code sent by text message was sent for. */
-export enum SmsIntent {
-  /** The holder asked to set a new password. */
-  ResetPassword = "reset-password",
-
-  /** The holder asked to move the account to another number. */
-  ChangePhone = "change-phone",
-}
+import type { RemoteConfigRow } from "../db/tables.ts";
 
 /**
- * What the code a number was just sent is meant to do.
+ * How long a row is kept, held or not.
  *
- * The identity provider sends the same message in both cases, so nothing in what comes back says
- * which of the two the holder asked for. The mark laid when the code goes out is what the
- * verification reads, and it is consumed on the way so a second verification cannot reuse it.
+ * It is long because nothing has to wait for it: writing, retiming and removing all drop the
+ * entry, and the store is shared, so every replica stops serving the old value at the same
+ * instant.
  */
-class SmsIntentStore {
-  readonly #cache = valkery<SmsIntent>({ key: "sms-intent", ttl: INTENT_TTL });
+const VALKERY_TTL = Duration.minutes(10);
 
-  /** Records what the code just sent to `phone` is for. */
-  mark(phone: string, intent: SmsIntent): Future<void> {
-    return this.#cache.add(phone, intent);
-  }
-
-  /** Reads what the last code sent to `phone` was for, and forgets it. */
-  async consume(phone: string): Future<SmsIntent | null> {
-    const intent = await this.#cache.get(phone);
-    if (intent === null) return null;
-
-    await this.#cache.delete(phone);
-    return intent;
-  }
+/**
+ * What one cached config holds.
+ *
+ * The row is wrapped rather than cached on its own so that the absence of a value is cached too.
+ * Most configs never get one written, and an unwrapped null would send every read of every one of
+ * them to Postgres.
+ */
+interface CachedValue {
+  /** The row in the table, null when the table holds none for this config. */
+  readonly row: RemoteConfigRow | null;
 }
 
-/** What the code a number was just sent is meant to do, for the two minutes it stays valid. */
-export const smsIntent: SmsIntentStore = new SmsIntentStore();
+const values = valkery<CachedValue>({ key: "config:name", ttl: VALKERY_TTL });
+
+/**
+ * The row held for `name`, loading it through `load` when the cache does not hold it.
+ *
+ * What comes back is the row as the table holds it, expiry included and not applied: the moment a
+ * value is dropped is judged by the caller, after this, so it is exact instead of being rounded up
+ * to whatever is left of the cache entry.
+ */
+export async function cachedValue(
+  name: string,
+  load: () => Future<RemoteConfigRow | null>,
+): Future<RemoteConfigRow | null> {
+  const held = await values.upsert(name, async () => ({ row: await load() }));
+  return held.row;
+}
+
+/** Drops what the cache holds for `name`, so the next read goes to the table. */
+export function forgetValue(name: string): Future<void> {
+  return values.delete(name);
+}

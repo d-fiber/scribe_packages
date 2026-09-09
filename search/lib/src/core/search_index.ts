@@ -53,8 +53,8 @@ import { projectRows } from "../db/source.ts";
 import type { CompiledPreview } from "../document/preview.ts";
 import { type CompiledDocument, readDocument } from "../document/projection.ts";
 import { searchTransport } from "../transport/registry.ts";
-import { SearchCache } from "./cache.ts";
-import { stableKey } from "./cache_key.ts";
+import { SearchValkery } from "./valkery.ts";
+import { stableKey } from "./valkery_key.ts";
 
 /** One declaration, once every builder step has been walked and compiled. */
 export interface ResolvedIndex<TParams extends SearchParams, TPreview> {
@@ -86,7 +86,7 @@ export interface ResolvedIndex<TParams extends SearchParams, TPreview> {
   readonly ttl: Duration;
 
   /** How long a call to the page or preview cache has, before it is treated as a miss. The cache's own default when null. */
-  readonly cacheDeadline: Duration | null;
+  readonly valkeryDeadline: Duration | null;
 
   /** What one set of parameters compiles into. */
   readonly plan: (params: TParams) => QueryPlan;
@@ -126,7 +126,7 @@ export class SearchIndex<TParams extends SearchParams, TPreview> implements Sear
   readonly key: string;
 
   readonly #resolved: ResolvedIndex<TParams, TPreview>;
-  readonly #cache: SearchCache<TPreview>;
+  readonly #cache: SearchValkery<TPreview>;
 
   constructor(resolved: ResolvedIndex<TParams, TPreview>) {
     this.name = resolved.name;
@@ -134,7 +134,7 @@ export class SearchIndex<TParams extends SearchParams, TPreview> implements Sear
     this.table = resolved.table;
     this.key = resolved.key;
     this.#resolved = resolved;
-    this.#cache = new SearchCache<TPreview>(resolved.name, resolved.ttl, resolved.cacheDeadline ?? undefined);
+    this.#cache = new SearchValkery<TPreview>(resolved.name, resolved.ttl, resolved.valkeryDeadline ?? undefined);
   }
 
   /** Every table feeding this index, the one it is declared on first. */

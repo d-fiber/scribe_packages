@@ -57,7 +57,7 @@ export type {
   DefaultedConfigOptions,
   SetOptions,
 } from "./src/core/declaration.ts";
-export { forgetValue } from "./src/runtime/cache.ts";
+export { forgetValue } from "./src/runtime/valkery.ts";
 export type { RemoteConfigRow } from "./src/db/tables.ts";
 
 export { ConfigError } from "./contracts/config.ts";

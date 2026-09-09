@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-/** Where the cache lives. */
-export interface CacheSettings {
+/** Where Valkery lives. */
+export interface ValkerySettings {
   /** The Redis connection string the shared client dials, credentials included. */
   readonly redisUrl: string;
 }

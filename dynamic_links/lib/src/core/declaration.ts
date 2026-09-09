@@ -49,7 +49,7 @@ import {
 import { deleteLink, insertLink, insertLinks, linkBySlug, linksBySlug, type NewLink } from "../db/links.ts";
 import { statisticsOf } from "../db/statistics.ts";
 import type { DynamicLinkRow } from "../db/tables.ts";
-import { forgetLink, rememberLink } from "../runtime/cache.ts";
+import { forgetLink, rememberLink } from "../runtime/valkery.ts";
 import { Link, type LinkDestination, type Visit } from "./destination.ts";
 import type { FieldDescriptor, LinkFields } from "./field.ts";
 import { guarded } from "./guard.ts";

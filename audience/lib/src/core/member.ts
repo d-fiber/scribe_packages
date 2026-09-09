@@ -37,7 +37,7 @@
 import { type Future, okay, type Result } from "@scribe/alchemy";
 import type { AudienceError } from "../../contracts/audience.ts";
 import { audiencesOfMember, dropMember } from "../db/members.ts";
-import { forgetMemberIn } from "../runtime/cache.ts";
+import { forgetMemberIn } from "../runtime/valkery.ts";
 import { guarded } from "./guard.ts";
 
 /**

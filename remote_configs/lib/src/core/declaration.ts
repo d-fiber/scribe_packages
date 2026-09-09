@@ -39,7 +39,7 @@ import { DateTime, Failure, okay, type Result } from "@scribe/alchemy";
 import { ConfigError } from "../../contracts/config.ts";
 import type { RemoteConfigRow } from "../db/tables.ts";
 import { dropValue, retimeValue, valueOf, writeValue } from "../db/values.ts";
-import { cachedValue, forgetValue } from "../runtime/cache.ts";
+import { cachedValue, forgetValue } from "../runtime/valkery.ts";
 import { declareConfig } from "./registry.ts";
 import { guarded } from "./guard.ts";
 

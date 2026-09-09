@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { cache, Duration, Future } from "@scribe/alchemy";
+import { Duration, Future, valkery } from "@scribe/alchemy";
 import { KeyIndex } from "@scribe/foundation";
 import type { AccountRole } from "../contracts/role.ts";
 import { accounts } from "./tables.ts";
@@ -50,10 +50,10 @@ const PHONE_ENTRY = "phone:";
  * The address and the number are indexed alongside the identifier because a revocation has to
  * drop them without knowing which of them the account was found by.
  */
-class RoleCache {
-  readonly #email = cache<AccountRole>({ key: "email:role", ttl: ROLE_TTL });
-  readonly #phone = cache<AccountRole>({ key: "phone:role", ttl: ROLE_TTL });
-  readonly #id = cache<AccountRole>({ key: "account:role", ttl: ROLE_TTL });
+class RoleValkery {
+  readonly #email = valkery<AccountRole>({ key: "email:role", ttl: ROLE_TTL });
+  readonly #phone = valkery<AccountRole>({ key: "phone:role", ttl: ROLE_TTL });
+  readonly #id = valkery<AccountRole>({ key: "account:role", ttl: ROLE_TTL });
   readonly #index = new KeyIndex(INDEX_KEY, ROLE_TTL.inSeconds, "auth-cache:role");
 
   /** The role remembered for this address, or null when none was. */
@@ -110,7 +110,7 @@ class RoleCache {
 }
 
 /** What role an identifier holds, for the five seconds a burst of requests lasts. */
-export const roleCache: RoleCache = new RoleCache();
+export const roleValkery: RoleValkery = new RoleValkery();
 
 /**
  * Which declaration an account belongs to, found from whatever the caller has in hand.
@@ -121,7 +121,7 @@ export const roleCache: RoleCache = new RoleCache();
 export class AccountRoleResolver {
   /** The role of the account signing in with `email`, or null when the address is proven by none. */
   static async withEmail(email: string): Future<AccountRole | null> {
-    const cached = await roleCache.getByEmail(email);
+    const cached = await roleValkery.getByEmail(email);
     if (cached !== null) return cached;
 
     const row = await accounts()
@@ -132,13 +132,13 @@ export class AccountRoleResolver {
 
     if (row === null) return null;
 
-    await roleCache.setByEmail(row.id, email, row.role);
+    await roleValkery.setByEmail(row.id, email, row.role);
     return row.role;
   }
 
   /** The role of the account signing in with `phone`, or null when the number is proven by none. */
   static async withPhone(phone: string): Future<AccountRole | null> {
-    const cached = await roleCache.getByPhone(phone);
+    const cached = await roleValkery.getByPhone(phone);
     if (cached !== null) return cached;
 
     const row = await accounts()
@@ -149,13 +149,13 @@ export class AccountRoleResolver {
 
     if (row === null) return null;
 
-    await roleCache.setByPhone(row.id, phone, row.role);
+    await roleValkery.setByPhone(row.id, phone, row.role);
     return row.role;
   }
 
   /** The role of the account `id` names, or null when no account answers to it. */
   static async withId(id: string): Future<AccountRole | null> {
-    const cached = await roleCache.getById(id);
+    const cached = await roleValkery.getById(id);
     if (cached !== null) return cached;
 
     const row = await accounts()
@@ -166,7 +166,7 @@ export class AccountRoleResolver {
 
     if (row === null) return null;
 
-    await roleCache.setById(id, row.role);
+    await roleValkery.setById(id, row.role);
     return row.role;
   }
 
@@ -177,7 +177,7 @@ export class AccountRoleResolver {
 
   /** Forgets what was cached about this account, by identifier and by every address it was indexed under. */
   static invalidate(id: string): Future<void> {
-    return roleCache.invalidate(id);
+    return roleValkery.invalidate(id);
   }
 }
 
