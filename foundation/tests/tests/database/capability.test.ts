@@ -35,11 +35,10 @@
 // LICENSE file, the LICENSE file governs.
 
 import "@scribe/scholium/runner.ts";
-import { Scribe } from "@scribe/alchemy/test";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import "@scribe/testing/settings.ts";
 
 import { create } from "@bufbuild/protobuf";
-import { assertEquals } from "@std/assert";
 import { installMock } from "@scribe/testing/install.ts";
 import { PostgrestClients } from "@scribe/foundation";
 import { FakePostgrestClient } from "@scribe/foundation/testing";
@@ -67,8 +66,8 @@ Scribe.test("a worker delete with no predicate at all is refused, not run", asyn
       create(QuerySchema, { table: UNOWNED, operation: Operation.DELETE }),
     );
 
-    assertEquals(fake.rows(UNOWNED).length, 2, "no row may be removed by a query naming none");
-    assertEquals(answer.error?.code, "unbounded_write");
+    expect(fake.rows(UNOWNED).length, equals(2), "no row may be removed by a query naming none");
+    expect(answer.error?.code, equals("unbounded_write"));
   } finally {
     restore();
   }
