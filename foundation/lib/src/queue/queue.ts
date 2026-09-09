@@ -134,7 +134,7 @@ export class QueuePublisher<in TJob> {
 /**
  * A durable queue: declaring it and holding its producer are the same thing.
  *
- * ```ts
+ * ```ts ignore
  * const emails = new Queue<EmailJob>({ name: "emails" }, async (job) => { ... });
  * await emails.push({ to: "a@b.c" });
  * ```
