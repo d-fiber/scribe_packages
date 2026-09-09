@@ -38,7 +38,7 @@ import { http } from "@scribe/alchemy/http";
 import { Duration } from "@scribe/alchemy";
 import { Failure, type Future, Ok, okay, type Result } from "@scribe/alchemy";
 import type { HttpResponse } from "@scribe/alchemy/http";
-import { identitySettings } from "@scribe/runtime/settings/identity.ts";
+import { identitySettings } from "@scribe/runtime/settings.ts";
 
 /** A GoTrue call's failure, reduced to a stable code and a message meant for a human. */
 export type AuthError = {

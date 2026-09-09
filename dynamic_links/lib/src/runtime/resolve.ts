@@ -49,7 +49,7 @@ import { type AnyDynamicLink, linkNamed } from "../core/registry.ts";
 import { linkBySlug, linksBySlug } from "../db/links.ts";
 import { dynamicLinkStatisticsQueue } from "../db/statistics.ts";
 import type { DynamicLinkRow } from "../db/tables.ts";
-import { cachedLink, cachedLinks } from "./cache.ts";
+import { cachedLink, cachedLinks } from "./valkery.ts";
 
 /**
  * A link that answered, and everything the node serving it needs.
