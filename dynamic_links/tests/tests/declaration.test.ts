@@ -37,6 +37,7 @@
 import "@scribe/scholium/runner.ts";
 import { allOf, equals, expect, fail, isA, isTrue, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import { installMock } from "@scribe/testing/install.ts";
+import { recordLog } from "@scribe/foundation/testing";
 import { LinkError, LinkKind, LinkPlatform } from "../../lib/contracts/link.ts";
 import { DynamicLink } from "../../lib/src/core/declaration.ts";
 import { DestinationKind, Link, type Visit } from "../../lib/src/core/destination.ts";
@@ -280,6 +281,7 @@ Scribe.test("a slug the table already holds is retried, and refused after five c
       return array;
     }) as typeof crypto.getRandomValues,
   );
+  const logged = recordLog();
 
   try {
     const first = await invite.create({ code: "A1B2" });
@@ -291,6 +293,7 @@ Scribe.test("a slug the table already holds is retried, and refused after five c
     expect(second.error, equals(LinkError.SlugConflict));
     expect(database.links().length, equals(1), "a link whose slug collided five times running must not be written");
   } finally {
+    logged.restore();
     fixedSlug.restore();
     database.restore();
   }
