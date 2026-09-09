@@ -1,5 +1,5 @@
 import type { Future } from "@scribe/alchemy";
-import { requestDevice } from "@scribe/runtime/device/device.ts";
+import { requestDevice } from "@scribe/runtime/device/mod.ts";
 import { SignUpError } from "@scribe/auth/sign_up";
 import { operator, user } from "./declaration.ts";
 

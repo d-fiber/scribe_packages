@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import { DateTime, Duration, type Future } from "@scribe/alchemy";
-import { requestDevice } from "@scribe/runtime/device/device.ts";
+import { requestDevice } from "@scribe/runtime/device/mod.ts";
 import { request } from "@scribe/runtime/http/request.ts";
 import { constantTimeEqual } from "@scribe/runtime/primitives/crypto/constant_time.ts";
 import { sha256Hex } from "@scribe/runtime/primitives/crypto/hash.ts";

@@ -36,7 +36,7 @@
 
 import { Duration } from "@scribe/alchemy";
 import { Failure, type Future, Ok, type Result } from "@scribe/alchemy";
-import { requestDevice } from "@scribe/runtime/device/device.ts";
+import { requestDevice } from "@scribe/runtime/device/mod.ts";
 import { checkCaller } from "@scribe/runtime/http/caller.ts";
 import { rateLimit } from "@scribe/alchemy";
 import type { RateLimiterPort } from "@scribe/alchemy";

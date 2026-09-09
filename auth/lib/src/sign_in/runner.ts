@@ -39,7 +39,7 @@ import { Duration } from "@scribe/alchemy";
 import type { IpLocation } from "@scribe/alchemy/route";
 import type { RequestDevice } from "@scribe/contracts/device.ts";
 import { Failure, type Future, Ok, type Result } from "@scribe/alchemy";
-import { requestDevice } from "@scribe/runtime/device/device.ts";
+import { requestDevice } from "@scribe/runtime/device/mod.ts";
 import { currentLocation } from "@scribe/runtime/http/accessors/location.ts";
 import { callerBlocked, checkCaller } from "@scribe/runtime/http/caller.ts";
 import { sha256Hex } from "@scribe/runtime/primitives/crypto/hash.ts";

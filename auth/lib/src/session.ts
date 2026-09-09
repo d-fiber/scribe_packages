@@ -37,7 +37,7 @@
 import { SignOutScope } from "../contracts/account.ts";
 import { Duration, Future, valkery } from "@scribe/alchemy";
 import { Failure, Ok, okay, type Result } from "@scribe/alchemy";
-import { requestDevice } from "@scribe/runtime/device/device.ts";
+import { requestDevice } from "@scribe/runtime/device/mod.ts";
 import { currentIdentity } from "@scribe/runtime/http/accessors/identity.ts";
 import { currentLocation } from "@scribe/runtime/http/accessors/location.ts";
 import { checkCaller } from "@scribe/runtime/http/caller.ts";
