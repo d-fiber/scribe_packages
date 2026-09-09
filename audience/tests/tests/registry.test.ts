@@ -40,6 +40,7 @@ import { Audience } from "../../lib/src/core/declaration.ts";
 import { AudienceClaimError, verifyDeclarations } from "../../lib/src/core/registry.ts";
 import { installAudienceMock } from "../testing/mock.ts";
 import { PostgrestClients } from "@scribe/foundation";
+import { recordLog } from "@scribe/foundation/testing";
 import { type InstalledMock, installMock } from "@scribe/testing/install.ts";
 import type { PostgrestClient } from "@supabase/postgrest-js";
 
@@ -63,6 +64,7 @@ Scribe.test("verifyDeclarations durably claims every pair this process declared"
 
 Scribe.test("verifyDeclarations called again by the same owner is a no-op", async () => {
   const audiences = installAudienceMock();
+  const logged = recordLog();
 
   try {
     await verifyDeclarations("owner-a");
@@ -71,6 +73,7 @@ Scribe.test("verifyDeclarations called again by the same owner is a no-op", asyn
     const claims = audiences.declarations().filter((row) => row.feature === FEATURE && row.name === NAME);
     expect(claims.length, equals(1));
   } finally {
+    logged.restore();
     audiences.restore();
   }
 });
@@ -78,10 +81,12 @@ Scribe.test("verifyDeclarations called again by the same owner is a no-op", asyn
 Scribe.test("verifyDeclarations refuses a pair already durably claimed by a different owner", async () => {
   const audiences = installAudienceMock();
   audiences.seedDeclarations([{ feature: FEATURE, name: NAME, owner: "owner-a", created_at: 1 }]);
+  const logged = recordLog();
 
   try {
     await expectLater(() => verifyDeclarations("owner-b"), throwsA(isA(AudienceClaimError)));
   } finally {
+    logged.restore();
     audiences.restore();
   }
 });
