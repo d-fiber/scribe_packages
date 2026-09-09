@@ -35,12 +35,12 @@
 // LICENSE file, the LICENSE file governs.
 
 import {
-  type ValkeryOptions,
   DEFAULT_VALKERY_DEADLINE,
   Duration,
   Future,
   Stopwatch,
   type UnmodifiableList,
+  type ValkeryOptions,
 } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
 import { DEFAULT_BETA, shouldRefreshEarly } from "./early_expiry.ts";

@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Duration, Future, type ValkeryPort, valkery } from "@scribe/alchemy";
+import { Duration, Future, valkery, type ValkeryPort } from "@scribe/alchemy";
 
 /** How long a result set and a preview are kept when a declaration asks for nothing else. */
 export const DEFAULT_TTL: Duration = Duration.minutes(5);

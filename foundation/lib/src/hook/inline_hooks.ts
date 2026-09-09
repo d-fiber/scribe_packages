@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { HookPort as PortHook, Future, HookDriver, HookOptions } from "@scribe/alchemy";
+import type { Future, HookDriver, HookOptions, HookPort as PortHook } from "@scribe/alchemy";
 import { Hook } from "./hook.ts";
 
 /**

@@ -35,11 +35,11 @@
 // LICENSE file, the LICENSE file governs.
 
 import {
-  type QueuePort as PortQueue,
   type DeclaredQueueOptions as PortQueueOptions,
   Future,
   type QueueDriver,
   type QueueMessage,
+  type QueuePort as PortQueue,
   type UnmodifiableList,
 } from "@scribe/alchemy";
 import { Queue } from "./queue.ts";

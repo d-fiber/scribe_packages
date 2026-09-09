@@ -125,7 +125,11 @@ Scribe.test("two clears in immediate succession each still invalidate what came 
     await editors.in("p1").add("a2");
     await editors.in("p1").clear();
 
-    expect(await editors.in("p1").has("a2"), isFalse, "the second clear must invalidate what the first one did not see");
+    expect(
+      await editors.in("p1").has("a2"),
+      isFalse,
+      "the second clear must invalidate what the first one did not see",
+    );
   } finally {
     audiences.restore();
   }
