@@ -42,6 +42,7 @@ import { type Future, Init, Lifecycle } from "@scribe/alchemy";
  */
 @Lifecycle()
 export class Seeds {
+  /** Creates the account this stack starts with. */
   @Init()
   async seedDefaultAdmin(): Future<void> {
     await createDefaultAdmin();

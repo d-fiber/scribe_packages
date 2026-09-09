@@ -42,6 +42,7 @@ import { type Future, Lifecycle, Run } from "@scribe/alchemy";
  */
 @Lifecycle()
 export class Signals {
+  /** Tells whatever is listening that this deploy just finished. */
   @Run()
   async pingOwnApi(): Future<void> {
     await notifyDeployFinished();
