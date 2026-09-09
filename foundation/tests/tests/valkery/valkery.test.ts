@@ -307,12 +307,12 @@ Scribe.test("a cache stays usable when Redis is down", async () => {
   try {
     expect(await cache.get("k"), equals(null), "an unreachable cache reads as a miss");
 
-    const failure = logged.lines.find((line) => line.action === "cache.operation_failed");
+    const failure = logged.lines.find((line) => line.action === "valkery.operation_failed");
     if (!failure) fail("the bypass should have been recorded, not swallowed");
 
     expect(failure.level, equals("error"));
-    expect((failure.input?.metadata as { cache: string; operation: string }).cache, equals("test"));
-    expect((failure.input?.metadata as { cache: string; operation: string }).operation, equals("get"));
+    expect((failure.input?.metadata as { valkery: string; operation: string }).valkery, equals("test"));
+    expect((failure.input?.metadata as { valkery: string; operation: string }).operation, equals("get"));
   } finally {
     broken.restore();
   }

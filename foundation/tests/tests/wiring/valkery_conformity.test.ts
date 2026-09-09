@@ -185,7 +185,7 @@ Scribe.test("a key reopened under other terms is one store, on the terms it was 
     expect(first, same(second));
     expect(second.constructor.name, equals("Valkery"));
     expect((second as Valkery<string>).ttl.inSeconds, equals(Duration.days(30).inSeconds));
-    expect(logged.actions.includes("cache.key_declared_twice"), isTrue);
+    expect(logged.actions.includes("valkery.key_declared_twice"), isTrue);
   } finally {
     logged.restore();
   }
@@ -237,7 +237,7 @@ Scribe.test("a store that refuses every call is read as a miss and reported once
     const held = new RedisValkeries().open<string>({ key: "down" });
 
     expect(await held.get("anything"), equals(null), "a cache outage degrades into a recomputation");
-    expect(logged.actions, equals(["cache.operation_failed"]));
+    expect(logged.actions, equals(["valkery.operation_failed"]));
   } finally {
     broken.restore();
     logged.restore();

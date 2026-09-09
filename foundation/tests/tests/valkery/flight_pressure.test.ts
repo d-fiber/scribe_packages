@@ -288,7 +288,7 @@ Scribe.test("a loser that waits out its budget computes without the lock and say
     expect(answer, equals("computed without the lock"));
     expect(computed, equals(1));
     expect(
-      logged.actions.includes("cache.operation_failed"),
+      logged.actions.includes("valkery.operation_failed"),
       isTrue,
       "giving up on coordination has to leave a trace",
     );

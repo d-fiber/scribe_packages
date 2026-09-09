@@ -97,7 +97,7 @@ Scribe.test("a ttl of zero is refused before it reaches Redis, and it is reporte
     await cache.add("k", "v");
 
     expect(redis.countOf("setex"), equals(0));
-    expect(logged.actions.includes("cache.operation_failed"), isTrue);
+    expect(logged.actions.includes("valkery.operation_failed"), isTrue);
   } finally {
     redis.restore();
   }
@@ -112,7 +112,7 @@ Scribe.test("a ttl of zero refuses addMany the same way it refuses add, before t
     await cache.addMany([["a", "1"], ["b", "2"]]);
 
     expect(redis.countOf("pipeline.exec"), equals(0));
-    expect(logged.actions.includes("cache.operation_failed"), isTrue);
+    expect(logged.actions.includes("valkery.operation_failed"), isTrue);
   } finally {
     redis.restore();
   }
@@ -305,7 +305,7 @@ Scribe.test("a store that cuts out between two calls reads as a miss and stays u
 
     redis.failNext("get", new Error("connection reset"));
     expect(await cache.get("k"), equals(null));
-    expect(logged.actions.includes("cache.operation_failed"), isTrue);
+    expect(logged.actions.includes("valkery.operation_failed"), isTrue);
 
     expect(await cache.get("k"), equals("v"), "one failed call must not take the cache down with it");
   } finally {
