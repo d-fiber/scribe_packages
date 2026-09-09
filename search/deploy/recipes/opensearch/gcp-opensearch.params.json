@@ -1,0 +1,6 @@
+{
+  "aiven_project": "my-aiven-project",
+  "region": "europe-west1",
+  "plan": "startup-4",
+  "version": "2.19"
+}

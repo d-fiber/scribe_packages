@@ -38,6 +38,14 @@ import type { UnmodifiableList } from "@scribe/alchemy";
 import { QUEUE_DEFAULTS, type RegisteredQueue } from "../queue_declaration.ts";
 
 /**
+ * The server's own default for how many deliveries a consumer may leave unacknowledged at once.
+ *
+ * It is the floor {@link planFor} raises from, never a value provisioning writes on its own:
+ * a plan that needs less than what the server already grants is not entitled to lower it.
+ */
+export const DEFAULT_MAX_ACK_PENDING = 1000;
+
+/**
  * What the streams and consumers must look like for the declared queues to work.
  *
  * The three streams are shared by every queue, so each number here is the most permissive a
@@ -53,6 +61,18 @@ export interface TopologyPlan {
   /** How many times the server will deliver a message before it stops on its own. */
   readonly maxDeliver: number;
 
+  /**
+   * How many deliveries a consumer may leave unacknowledged before the server stops handing out
+   * more.
+   *
+   * Unlike {@link ackWaitMs} and {@link maxDeliver}, which bound one message, this bounds a whole
+   * consumer at once: the shared consumer drains every queue that is not `dedicated`, so what it
+   * needs in flight together is their concurrency added up, not the largest one alone. A fetch
+   * asking for more than the server will still hand out unacknowledged is a fetch that waits on a
+   * ceiling nobody raised.
+   */
+  readonly maxAckPending: number;
+
   /** The names of the queues that asked for a stream of their own, sorted. */
   readonly dedicated: UnmodifiableList<string>;
 }
@@ -66,7 +86,9 @@ export interface TopologyPlan {
  * letter would never be written. The extra delivery covers a replica that dies between
  * receiving the last attempt and answering for it.
  */
-export function planFor(queues: UnmodifiableList<RegisteredQueue>): TopologyPlan {
+export function planFor(
+  queues: UnmodifiableList<RegisteredQueue>,
+): TopologyPlan {
   return {
     maxPerSubject: Math.max(
       QUEUE_DEFAULTS.maxLen,
@@ -80,6 +102,10 @@ export function planFor(queues: UnmodifiableList<RegisteredQueue>): TopologyPlan
       QUEUE_DEFAULTS.maxRetries,
       ...queues.map((queue) => queue.maxRetries),
     ) + 1,
+    maxAckPending: Math.max(
+      DEFAULT_MAX_ACK_PENDING,
+      queues.reduce((sum, queue) => sum + queue.concurrency, 0),
+    ),
     dedicated: queues
       .filter((queue) => queue.dedicated)
       .map((queue) => queue.name)
@@ -93,6 +119,7 @@ export function planSignature(plan: TopologyPlan): string {
     plan.maxPerSubject,
     plan.ackWaitMs,
     plan.maxDeliver,
+    plan.maxAckPending,
     plan.dedicated.join(","),
   ].join("/");
 }

@@ -37,7 +37,7 @@
 import { BackgroundChannel } from "./background_channel.ts";
 import type { BackgroundHookHandler, HookHandler } from "./hook_handler.ts";
 import { InlineChain } from "./inline_chain.ts";
-import type { Future } from "@scribe/alchemy";
+import { Future } from "@scribe/alchemy";
 import { isRefusal } from "./is_refusal.ts";
 import { hookRegistry } from "./hook_registry.ts";
 
@@ -77,6 +77,7 @@ export interface HookDefinition<R> {
  * cannot. The same event can carry both.
  */
 export class Hook<T, R = void> {
+  /** The event name this hook was declared under, and how a subscriber and a caller find it. */
   readonly name: string;
 
   readonly #inline: InlineChain<T, R>;
@@ -96,11 +97,17 @@ export class Hook<T, R = void> {
     this.name = definition.name;
     this.#inline = new InlineChain<T, R>(definition.name, definition.fallback as R);
     this.#background = new BackgroundChannel<T>(definition.name);
-    this.#unhandled = Promise.resolve(definition.fallback as R);
+    this.#unhandled = Future.value(definition.fallback as R);
     hookRegistry.add(this);
   }
 
-  /** How many subscribers this hook has, both kinds counted. */
+  /**
+   * How many subscribers this hook has, both kinds counted.
+   *
+   * @remarks
+   * `run` checks this before doing anything else, so a hook nobody wired short-circuits to the
+   * cached {@link #unhandled} answer instead of building an emission it would immediately discard.
+   */
   handlers(): number {
     return this.#inline.size + this.#background.size;
   }

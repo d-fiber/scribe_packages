@@ -34,9 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-// deno-lint-ignore-file no-explicit-any
-
-import { assertPlainColumn, keywordLiteral, quoteFilterList, quoteFilterLiteral } from "./filter_literal.ts";
+import { assertPlainColumn, filterLiteral, keywordLiteral, quoteFilterList } from "./filter_literal.ts";
 
 /** One condition of a `where`, kept as the column it names and the call that applies it. */
 export interface FilterSpec {
@@ -44,9 +42,11 @@ export interface FilterSpec {
   readonly column: string;
 
   /** Applies this condition to a PostgREST builder and answers it back for chaining. */
+  // deno-lint-ignore no-explicit-any -- the builder type differs at each chained call, so no single type covers every caller of apply.
   apply(qb: any): any;
 }
 
+// deno-lint-ignore no-explicit-any -- see FilterSpec.apply: the builder type differs at each chained call.
 function on(column: string, apply: (qb: any) => any): FilterSpec {
   return { column, apply };
 }
@@ -81,22 +81,32 @@ type FilterOps<V> = {
   ilike(pattern: string): FilterSpec;
 };
 
+/** A `where` builder for a row of shape `T`, one set of operators per column. */
 export type FilterBuilder<T> = {
   readonly [K in keyof T & string]: FilterOps<T[K]>;
 };
 
+/**
+ * A `where` builder typed by the row shape `T`, backed by a proxy so no column has to be
+ * declared ahead of time.
+ *
+ * @remarks
+ * A property access is read by the proxy's `get` trap, which hands back the same {@link FilterOps}
+ * regardless of which column was named: the type parameter is what narrows each column's operators
+ * to its own value type, the proxy itself does no checking at all.
+ */
 export function filter<T>(): FilterBuilder<T> {
-  const ops = (col: string): FilterOps<any> => ({
-    eq: (v) => said(col, "eq", quoteFilterLiteral(v)),
-    neq: (v) => said(col, "neq", quoteFilterLiteral(v)),
-    gt: (v) => said(col, "gt", quoteFilterLiteral(v)),
-    lt: (v) => said(col, "lt", quoteFilterLiteral(v)),
-    gte: (v) => said(col, "gte", quoteFilterLiteral(v)),
-    lte: (v) => said(col, "lte", quoteFilterLiteral(v)),
+  const ops = (col: string): FilterOps<unknown> => ({
+    eq: (v) => said(col, "eq", filterLiteral(v)),
+    neq: (v) => said(col, "neq", filterLiteral(v)),
+    gt: (v) => said(col, "gt", filterLiteral(v)),
+    lt: (v) => said(col, "lt", filterLiteral(v)),
+    gte: (v) => said(col, "gte", filterLiteral(v)),
+    lte: (v) => said(col, "lte", filterLiteral(v)),
     is: (v) => said(col, "is", keywordLiteral(v)),
     in: (v) => said(col, "in", quoteFilterList(v)),
-    like: (p) => said(col, "like", quoteFilterLiteral(p)),
-    ilike: (p) => said(col, "ilike", quoteFilterLiteral(p)),
+    like: (p) => said(col, "like", filterLiteral(p)),
+    ilike: (p) => said(col, "ilike", filterLiteral(p)),
   });
   return new Proxy({} as FilterBuilder<T>, {
     get: (_, col: string) => ops(col),

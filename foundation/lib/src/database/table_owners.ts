@@ -36,6 +36,13 @@
 
 const owners = new Map<string, string>();
 
+/**
+ * Records, for each table in `tableOwners`, which of its columns holds the row's owner.
+ *
+ * @remarks
+ * A later call overwrites an earlier one for the same table, so a package that runs its own
+ * registration after another's takes precedence.
+ */
 export function registerTableOwners(
   tableOwners: Record<string, string>,
 ): void {
@@ -44,6 +51,7 @@ export function registerTableOwners(
   }
 }
 
+/** The column that holds `table`'s owner, or `null` when no package has registered one. */
 export function ownerOf(table: string): string | null {
   return owners.get(table) ?? null;
 }

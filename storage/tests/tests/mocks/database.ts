@@ -38,9 +38,10 @@ import { installStorageTestSettings } from "../../testing/settings.ts";
 
 installStorageTestSettings();
 import { type InstalledMock, installMock } from "@scribe/testing/install.ts";
-import { PostgrestClients } from "@scribe/foundation/database";
+import { PostgrestClients } from "@scribe/foundation";
 import { FakePostgrestClient, type FakePostgrestSeed } from "@scribe/foundation/testing";
 import type { PostgrestClient } from "@supabase/postgrest-js";
+import { Future } from "@scribe/alchemy";
 
 /** A database fake, plus the handle that puts the real client back. */
 export interface InstalledDatabase extends InstalledMock {
@@ -54,9 +55,15 @@ export interface InstalledDatabase extends InstalledMock {
  * The service client is what the index reaches, since a row is written with the key that
  * bypasses row level security. Replacing it leaves the query builder, the table name and the
  * filters under test rather than replacing them with a second implementation.
+ *
+ * `path` is declared unique by default, the same constraint the real table carries, so a test
+ * that writes two rows at the same path exercises what the schema actually enforces instead of
+ * a fake that stays silent about it.
  */
 export function installDatabaseFake(seed: FakePostgrestSeed = {}): InstalledDatabase {
   const fake = new FakePostgrestClient({ __storage_objects__: [], ...seed });
+  fake.declareUniqueKey("__storage_objects__", ["path"]);
+
   const installed = installMock(
     PostgrestClients,
     "service",
@@ -73,6 +80,7 @@ export function installRefusingDatabase(): InstalledMock {
       select: () => builderOf(null),
       insert: () => builderOf(null, { message: "index is read only" }),
       update: () => builderOf(null, { message: "index is read only" }),
+      upsert: () => builderOf(null, { message: "index is read only" }),
       delete: () => builderOf(null, { message: "index is read only" }),
     }),
   };
@@ -85,7 +93,7 @@ export function installRefusingDatabase(): InstalledMock {
 }
 
 function builderOf(data: unknown, error: unknown = null) {
-  const answer = Promise.resolve({ data, error });
+  const answer = Future.value({ data, error });
   const builder = {
     select: () => builder,
     eq: () => builder,

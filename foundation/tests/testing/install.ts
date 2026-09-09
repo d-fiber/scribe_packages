@@ -33,10 +33,23 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
+/** A patch `installMock` applied to an object, undone by calling `restore`. */
 export interface InstalledMock {
+  /** Puts the property back exactly as it stood before the patch, descriptor included. */
   restore(): void;
 }
 
+/**
+ * Replaces `target[property]` with `value`, and returns a handle that restores whatever the
+ * property held before.
+ *
+ * @remarks
+ * Several targets this is used against, `Deno.connect`, a module-level singleton, cannot be swapped
+ * by reassigning a caller's own reference: every other file still holds the original. Patching the
+ * property descriptor in place is what makes the substitution visible everywhere the real target is
+ * imported from, and capturing the original descriptor rather than just the value is what lets
+ * `restore` put back a missing property, a getter, or a non-enumerable one exactly as it was.
+ */
 export function installMock<T extends object, K extends keyof T>(
   target: T,
   property: K,
@@ -54,6 +67,11 @@ export function installMock<T extends object, K extends keyof T>(
   return _restoring(target, property, held);
 }
 
+/**
+ * The {@link installMock} of a computed property: replaces `target`'s `property` accessor with
+ * `get` rather than a static value, for a target where reading the property runs code a test needs
+ * to control instead of a plain field it can overwrite.
+ */
 export function installGetterMock<T extends object, K extends keyof T>(
   target: T,
   property: K,
@@ -70,6 +88,15 @@ export function installGetterMock<T extends object, K extends keyof T>(
   return _restoring(target, property, held);
 }
 
+/**
+ * Patches every own method and field `target` and `stand` share with `stand`'s version, one
+ * {@link installMock} per name, and returns a single handle that restores them all together.
+ *
+ * @remarks
+ * `length`, `name`, `prototype` and `constructor` are skipped because copying them corrupts the
+ * target's own identity rather than its behaviour, and a leading underscore is treated as private
+ * and left alone so a stand-in cannot reach into a target's internals it was never meant to see.
+ */
 export function installAllMock<T extends object>(target: T, stand: T): InstalledMock {
   const carried = ["length", "name", "prototype", "constructor"];
   const names = Object.getOwnPropertyNames(target)

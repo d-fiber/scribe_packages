@@ -1,0 +1,4 @@
+services:
+  provision:
+    volumes:
+      - "{{sdk_root}}/packages/audience/deploy/db/init:/provision/modules/audience:ro"

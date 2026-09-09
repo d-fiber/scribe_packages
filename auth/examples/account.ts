@@ -1,3 +1,4 @@
+import type { Future } from "@scribe/alchemy";
 import { IdentifierError } from "@scribe/auth/identifier";
 import { PasswordError } from "@scribe/auth/password";
 import { user } from "./declaration.ts";
@@ -8,7 +9,7 @@ import { user } from "./declaration.ts";
  * One PostgREST request, however many tables hang off it: the foreign keys are what let them be
  * folded, and the names come from the shape `get` was written as, not from the columns.
  */
-export async function profileOf(accountId: string): Promise<string | null> {
+export async function profileOf(accountId: string): Future<string | null> {
   const account = await user.get(accountId);
   if (account === null) return null;
 
@@ -18,7 +19,7 @@ export async function profileOf(accountId: string): Promise<string | null> {
 /** Everything a read answers with, for a screen that shows the lot. */
 export async function summaryOf(
   accountId: string,
-): Promise<Record<string, unknown> | null> {
+): Future<Record<string, unknown> | null> {
   const account = await user.get(accountId);
   if (account === null) return null;
 
@@ -43,7 +44,7 @@ export async function changePassword(
   current: string,
   next: string,
   confirmation: string,
-): Promise<string | null> {
+): Future<string | null> {
   const changed = await user.password.update(
     accountId,
     current,
@@ -68,7 +69,7 @@ export async function changePassword(
 export async function changeEmail(
   accountId: string,
   email: string,
-): Promise<string | null> {
+): Future<string | null> {
   const asked = await user.identifier.email(accountId, email);
   if (asked.ok) return null;
 
@@ -79,7 +80,7 @@ export async function changeEmail(
 export async function changePhone(
   accountId: string,
   phone: string,
-): Promise<boolean> {
+): Future<boolean> {
   const asked = await user.identifier.phone(accountId, phone);
   return asked.ok;
 }
@@ -89,7 +90,7 @@ export async function confirmPhone(
   accountId: string,
   phone: string,
   code: string,
-): Promise<boolean> {
+): Future<boolean> {
   const confirmed = await user.identifier.confirmPhone(accountId, phone, code);
   return confirmed.ok;
 }

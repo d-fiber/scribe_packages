@@ -42,6 +42,15 @@ export enum StorageUploadError {
   /** The file carries an extension the resource does not declare. */
   InvalidType = "invalid_type",
 
+  /**
+   * The file's first bytes do not match the signature its declared extension implies.
+   *
+   * Only raised for an extension this package knows a fixed byte header for. An extension it
+   * carries no signature for, SVG or a video container among them, is still trusted on its
+   * declaration alone.
+   */
+  ContentMismatch = "content_mismatch",
+
   /** An argument holds something a key cannot, so no path could be rendered from it. */
   InvalidPath = "invalid_path",
 

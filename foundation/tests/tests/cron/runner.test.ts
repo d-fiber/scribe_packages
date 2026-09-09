@@ -33,6 +33,8 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
+import "@scribe/scholium/runner.ts";
+import { Scribe } from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
 import "../../testing/settings.ts";
 
@@ -84,14 +86,14 @@ function intervalJob(name: string, every: Duration, timeout = Duration.minutes(1
 
 installDrivers();
 
-Deno.test("CronRunner.register() throws on a duplicate job name a second job would otherwise silently overwrite the first", () => {
+Scribe.test("CronRunner.register() throws on a duplicate job name a second job would otherwise silently overwrite the first", () => {
   const runner = new CronRunner();
   runner.register(intervalJob("dup", Duration.milliseconds(60_000)), () => Promise.resolve());
 
   assertThrows(() => runner.register(intervalJob("dup", Duration.milliseconds(60_000)), () => Promise.resolve()));
 });
 
-Deno.test(
+Scribe.test(
   "CronRunner.start() starts the loop even with no job, so a late registration still fires",
   async () => {
     const time = new FakeTime();
@@ -118,12 +120,12 @@ Deno.test(
   },
 );
 
-Deno.test("CronRunner.stop() is safe even if start() was never called", () => {
+Scribe.test("CronRunner.stop() is safe even if start() was never called", () => {
   const runner = new CronRunner();
   runner.stop();
 });
 
-Deno.test("CronRunner fires a due job on tick, then reschedules it for the next interval", async () => {
+Scribe.test("CronRunner fires a due job on tick, then reschedules it for the next interval", async () => {
   const time = new FakeTime(new Date("2026-01-01T00:00:00.000Z"));
   const claim = shadowOccurrenceClaim();
   try {
@@ -147,7 +149,7 @@ Deno.test("CronRunner fires a due job on tick, then reschedules it for the next 
   }
 });
 
-Deno.test("CronRunner skips a tick while the previous run of the same job is still in flight", async () => {
+Scribe.test("CronRunner skips a tick while the previous run of the same job is still in flight", async () => {
   const time = new FakeTime(new Date("2026-01-01T00:00:00.000Z"));
   const claim = shadowOccurrenceClaim();
   try {
@@ -182,7 +184,7 @@ Deno.test("CronRunner skips a tick while the previous run of the same job is sti
   }
 });
 
-Deno.test("CronRunner's watchdog frees a job that exceeds its timeout, without a late finish corrupting a newer run", async () => {
+Scribe.test("CronRunner's watchdog frees a job that exceeds its timeout, without a late finish corrupting a newer run", async () => {
   const time = new FakeTime(new Date("2026-01-01T00:00:00.000Z"));
   const claim = shadowOccurrenceClaim();
   try {
@@ -227,7 +229,7 @@ Deno.test("CronRunner's watchdog frees a job that exceeds its timeout, without a
   }
 });
 
-Deno.test("CronRunner: two instances on the same occurrence, only one runs it", async () => {
+Scribe.test("CronRunner: two instances on the same occurrence, only one runs it", async () => {
   const time = new FakeTime(new Date("2026-01-01T00:00:00.000Z"));
   const claim = shadowOccurrenceClaim();
   try {
@@ -257,7 +259,7 @@ Deno.test("CronRunner: two instances on the same occurrence, only one runs it", 
   }
 });
 
-Deno.test("CronRunner: Redis unreachable, the job is skipped rather than run N times", async () => {
+Scribe.test("CronRunner: Redis unreachable, the job is skipped rather than run N times", async () => {
   const time = new FakeTime(new Date("2026-01-01T00:00:00.000Z"));
   const claim = shadowUnreachableRedis();
   try {
@@ -281,7 +283,7 @@ Deno.test("CronRunner: Redis unreachable, the job is skipped rather than run N t
   }
 });
 
-Deno.test("CronRunner: two instances started out of sync on an interval share the same slot", async () => {
+Scribe.test("CronRunner: two instances started out of sync on an interval share the same slot", async () => {
   const time = new FakeTime(new Date("2026-01-01T00:00:00.000Z"));
   const claim = shadowOccurrenceClaim();
   try {
@@ -322,7 +324,7 @@ Deno.test("CronRunner: two instances started out of sync on an interval share th
   }
 });
 
-Deno.test(
+Scribe.test(
   "CronRunner caps concurrent executions instead of launching everything at once",
   async () => {
     const time = new FakeTime(new Date("2026-01-01T00:00:00.000Z"));
@@ -367,3 +369,65 @@ Deno.test(
     }
   },
 );
+
+Scribe.test("a handler that throws synchronously does not crash the loop, and frees the slot for the next tick", async () => {
+  const time = new FakeTime(new Date("2026-01-01T00:00:00.000Z"));
+  const claim = shadowOccurrenceClaim();
+  try {
+    const runner = new CronRunner();
+    let calls = 0;
+    runner.register(intervalJob("throws", Duration.milliseconds(60_000)), () => {
+      calls++;
+      throw new Error("boom");
+    });
+
+    runner.start(Duration.milliseconds(10_000));
+    await time.tickAsync(60_000);
+    await time.runMicrotasks();
+    assertEquals(calls, 1, "the first interval fired the handler, which threw");
+
+    await time.tickAsync(60_000);
+    await time.runMicrotasks();
+    assertEquals(calls, 2, "the throw did not leave the slot held, so the second interval fired it again");
+
+    runner.stop();
+  } finally {
+    claim.restore();
+    time.restore();
+  }
+});
+
+Scribe.test("a handler that rejects does not crash the loop, and frees the slot for the next tick", async () => {
+  const time = new FakeTime(new Date("2026-01-01T00:00:00.000Z"));
+  const claim = shadowOccurrenceClaim();
+  try {
+    const runner = new CronRunner();
+    let calls = 0;
+    runner.register(intervalJob("rejects", Duration.milliseconds(60_000)), () => {
+      calls++;
+      return Promise.reject(new Error("boom"));
+    });
+
+    runner.start(Duration.milliseconds(10_000));
+    await time.tickAsync(60_000);
+    await time.runMicrotasks();
+    assertEquals(calls, 1, "the first interval fired the handler, which rejected");
+
+    await time.tickAsync(60_000);
+    await time.runMicrotasks();
+    assertEquals(calls, 2, "the rejection did not leave the slot held, so the second interval fired it again");
+
+    runner.stop();
+  } finally {
+    claim.restore();
+    time.restore();
+  }
+});
+
+Scribe.test("jobs() answers every registered job, not just the ones that have run", () => {
+  const runner = new CronRunner();
+  runner.register(intervalJob("a", Duration.milliseconds(60_000)), () => Promise.resolve());
+  runner.register(intervalJob("b", Duration.milliseconds(120_000)), () => Promise.resolve());
+
+  assertEquals(runner.jobs().map((job) => job.name).sort(), ["a", "b"]);
+});

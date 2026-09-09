@@ -34,6 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import "@scribe/scholium/runner.ts";
+import { DateTime } from "@scribe/alchemy";
+import { equals, expect, fail, isFalse, isTrue, Scribe } from "@scribe/alchemy/test";
 import { fakeDevice, withRequest } from "@scribe/testing/runtime/device.ts";
 import { installAuthTestSettings } from "../testing/settings.ts";
 import { Channel } from "../../lib/contracts/channel.ts";
@@ -41,8 +44,6 @@ import { Account } from "../../lib/src/declaration/account.ts";
 import { session } from "../../lib/src/session.ts";
 import { installAuthMock } from "../testing/mock.ts";
 import { installGoTrueMock } from "../testing/gotrue.ts";
-import { assert, assertEquals, assertFalse } from "@std/assert";
-
 installAuthTestSettings();
 
 const ACCOUNT = "11111111-1111-1111-1111-111111111111";
@@ -82,7 +83,7 @@ function device() {
     is_physical_device: true,
     device_category: fakeDevice().device_category,
     trusted: true,
-    seen_at: Date.now(),
+    seen_at: DateTime.now().millisecondsSinceEpoch,
   };
 }
 
@@ -90,7 +91,9 @@ function stack(seed: { banned?: boolean; device?: boolean }) {
   const database = installAuthMock({
     __accounts__: [account()],
     __account_devices__: seed.device === false ? [] : [device()],
-    __account_bans__: seed.banned ? [{ account_id: ACCOUNT, since: Date.now(), until: null, reason: "spam" }] : [],
+    __account_bans__: seed.banned
+      ? [{ account_id: ACCOUNT, since: DateTime.now().millisecondsSinceEpoch, until: null, reason: "spam" }]
+      : [],
   });
 
   const gotrue = installGoTrueMock({
@@ -107,27 +110,29 @@ function stack(seed: { banned?: boolean; device?: boolean }) {
   };
 }
 
-Deno.test("a refresh answers a session when nothing stands against the account", async () => {
+Scribe.test("a refresh answers a session when nothing stands against the account", async () => {
   const installed = stack({});
 
   try {
     const renewal = await withRequest(fakeDevice(), () => session.refresh(REFRESH));
-    assert(renewal.ok, "an account with no ban and a known device keeps its session");
-    assertEquals(renewal.data.role, "guard-user");
+    if (!renewal.ok) fail("an account with no ban and a known device keeps its session");
+
+    expect(renewal.data.role, equals("guard-user"));
   } finally {
     installed.restore();
   }
 });
 
-Deno.test("a banned account cannot buy a new access token", async () => {
+Scribe.test("a banned account cannot buy a new access token", async () => {
   const installed = stack({ banned: true });
 
   try {
     const renewal = await withRequest(fakeDevice(), () => session.refresh(REFRESH));
 
-    assertFalse(renewal.ok, "a ban has to stop the refresh, or the session outlives it forever");
-    assert(
+    expect(renewal.ok, isFalse);
+    expect(
       installed.gotrue.paths().includes("POST /logout?scope=global"),
+      isTrue,
       "the sessions have to go with the refusal, or the access token lives out its hour",
     );
   } finally {
@@ -135,57 +140,62 @@ Deno.test("a banned account cannot buy a new access token", async () => {
   }
 });
 
-Deno.test("a ban whose deadline has passed lets the refresh through", async () => {
+Scribe.test("a ban whose deadline has passed lets the refresh through", async () => {
   const database = installAuthMock({
     __accounts__: [account()],
     __account_devices__: [device()],
     __account_bans__: [{
       account_id: ACCOUNT,
-      since: Date.now() - 2000,
-      until: Date.now() - 1000,
+      since: DateTime.now().millisecondsSinceEpoch - 2000,
+      until: DateTime.now().millisecondsSinceEpoch - 1000,
       reason: null,
     }],
   });
   const gotrue = installGoTrueMock({ "POST /token*": () => renewed(), "POST /logout*": () => ({ status: 204 }) });
 
   try {
-    assert((await withRequest(fakeDevice(), () => session.refresh(REFRESH))).ok);
+    expect((await withRequest(fakeDevice(), () => session.refresh(REFRESH))).ok, isTrue);
   } finally {
     gotrue.restore();
     database.restore();
   }
 });
 
-Deno.test("a device that was kicked cannot buy a new access token", async () => {
+Scribe.test("a device that was kicked cannot buy a new access token", async () => {
   const installed = stack({ device: false });
 
   try {
     const renewal = await withRequest(fakeDevice(), () => session.refresh(REFRESH));
 
-    assertFalse(renewal.ok, "a kick has to stop the refresh, or the device keeps working forever");
+    expect(renewal.ok, isFalse);
   } finally {
     installed.restore();
   }
 });
 
-Deno.test("a recovery is held to the same two conditions as a refresh", async () => {
+Scribe.test("a recovery is held to the same two conditions as a refresh", async () => {
   const installed = stack({ banned: true });
 
   try {
-    assertFalse((await withRequest(fakeDevice(), () => session.recover("access-token", REFRESH))).ok);
+    expect((await withRequest(fakeDevice(), () => session.recover("access-token", REFRESH))).ok, isFalse);
   } finally {
     installed.restore();
   }
 });
 
-Deno.test("the role scopes a ban read, so another role's ban is not this one's", async () => {
+Scribe.test("the role scopes a ban read, so another role's ban is not this one's", async () => {
   const database = installAuthMock({
     __accounts__: [{ id: ACCOUNT, role: "somebody-else", email: null, phone: null }],
-    __account_bans__: [{ account_id: ACCOUNT, since: Date.now(), until: null, reason: "spam" }],
+    __account_bans__: [{
+      account_id: ACCOUNT,
+      since: DateTime.now().millisecondsSinceEpoch,
+      until: null,
+      reason: "spam",
+    }],
   });
 
   try {
-    assertEquals(await role.bans.of(ACCOUNT), null, "this role does not answer for an account it does not hold");
+    expect(await role.bans.of(ACCOUNT), equals(null), "this role does not answer for an account it does not hold");
   } finally {
     database.restore();
   }

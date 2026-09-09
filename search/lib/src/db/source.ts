@@ -34,7 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { PostgrestClients, Table, TablesBase } from "@scribe/foundation/database";
+import type { Future } from "@scribe/alchemy";
+import { PostgrestClients, Table, TablesBase } from "@scribe/foundation";
 
 /** Any table of the project, seen as a bag of columns because this package knows no schema. */
 type ProjectSchema = Record<string, { row: Record<string, unknown> }>;
@@ -61,7 +62,7 @@ export function projectRows(
   key: string,
   columns: string,
   ids: readonly string[],
-): Promise<Record<string, unknown>[]> {
+): Future<Record<string, unknown>[]> {
   return new ProjectTable(table)
     .selectRaw<Record<string, unknown>>(columns)
     .where((f) => f[key].in([...ids]))
@@ -69,7 +70,7 @@ export function projectRows(
 }
 
 /** Calls the Postgres function `name`, and answers what it returned. */
-export async function call<T>(name: string, args: Record<string, unknown>): Promise<T | null> {
+export async function call<T>(name: string, args: Record<string, unknown>): Future<T | null> {
   const { data, error } = await functions.rpc(name, args) as { data: unknown; error: unknown };
 
   if (error) {

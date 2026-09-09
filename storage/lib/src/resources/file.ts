@@ -39,6 +39,7 @@ import type { StorageFile } from "../runtime/result.ts";
 
 /** Anything stored as the bytes it was given, with nothing derived from them. */
 export class FileResource<TArgs extends string[] = []> extends StorageResource<StorageFile, TArgs> {
+  /** The {@link StorageResource.decorate} implementation: the path and its URL, nothing derived. */
   protected decorate(path: string): StorageFile {
     return { path, url: this.urlOf(path) };
   }

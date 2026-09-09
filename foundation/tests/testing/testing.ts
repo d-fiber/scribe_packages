@@ -43,11 +43,14 @@
  * suites depend on, and changing anything it does not name breaks nobody.
  */
 
-export { installRateLimiterMock, installValkeryMock } from "./cache.ts";
+export { installRateLimiterMock, installValkeryMock } from "./valkery.ts";
 export { FakePostgrestClient } from "./database.ts";
 export type { FakePostgrestSeed, Row, RpcHandler } from "./database.ts";
 export { installDrivers } from "./drivers.ts";
+export { installInitDatabaseFake } from "./init.ts";
+export type { InstalledInitDatabase } from "./init.ts";
 export { installMock } from "./install.ts";
 export type { InstalledMock } from "./install.ts";
 export { recordLog } from "./logger.ts";
 export type { MemoryLogger } from "./logger.ts";
+export { installQueueMock } from "./queue.ts";

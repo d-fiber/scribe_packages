@@ -43,6 +43,7 @@ import { BaseProcessor } from "./base_processor.ts";
 
 /** Calls the body once per message, with the queue's concurrency, and acks each on its own. */
 export class JobProcessor extends BaseProcessor {
+  /** The {@link BaseProcessor.process} override: calls the body once per message, up to the queue's own concurrency. */
   override process(
     messages: UnmodifiableList<JsMsg>,
     tally: DrainTally,

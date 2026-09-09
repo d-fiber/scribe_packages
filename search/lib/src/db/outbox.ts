@@ -34,7 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { wrote } from "@scribe/foundation/database";
+import type { Future } from "@scribe/alchemy";
+import { wrote } from "@scribe/foundation";
 import type { SearchOperation } from "../../contracts/definition.ts";
 import { call } from "./source.ts";
 import { searchOutbox, type SearchOutboxRow } from "./tables.ts";
@@ -72,7 +73,7 @@ export async function enqueue(
   index: string,
   ids: readonly string[],
   operation: SearchOperation,
-): Promise<boolean> {
+): Future<boolean> {
   if (ids.length === 0) return true;
 
   const written = await call<unknown>("__search_enqueue__", {
@@ -91,8 +92,13 @@ export async function enqueue(
  * Nothing is locked. A row is left in place until the cluster acknowledged it, so two drains
  * running at once write the same document twice, which the cluster treats as one write. A lock
  * would buy nothing and would leave rows claimed by a process that died holding them.
+ *
+ * The `attempts` counter this leaves unprotected against two replicas draining the same row in
+ * the same window is not this package's own concern: `searchDrain` runs under the `CronRunner`'s
+ * `SlotLock`, which already keeps one occurrence of a job from overlapping another across the
+ * fleet, and it is that lock which keeps the counter from being incremented twice for one drain.
  */
-export function claim(limit: number = BATCH_SIZE): Promise<SearchOutboxRow[]> {
+export function claim(limit: number = BATCH_SIZE): Future<SearchOutboxRow[]> {
   return searchOutbox()
     .where((f) => f.failed_at.is(null))
     .order("enqueued_at")
@@ -101,7 +107,7 @@ export function claim(limit: number = BATCH_SIZE): Promise<SearchOutboxRow[]> {
 }
 
 /** Takes `ids` out of the line for `index`, which is what a written document leaves behind. */
-export async function settle(index: string, ids: readonly string[]): Promise<boolean> {
+export async function settle(index: string, ids: readonly string[]): Future<boolean> {
   if (ids.length === 0) return true;
 
   return wrote(
@@ -121,7 +127,7 @@ export async function fail(
   index: string,
   ids: readonly string[],
   reason: string,
-): Promise<boolean> {
+): Future<boolean> {
   if (ids.length === 0) return true;
 
   const written = await call<unknown>("__search_fail__", {
@@ -135,6 +141,6 @@ export async function fail(
 }
 
 /** What is waiting on `index`, or null when the line could not be read. */
-export function backlog(index: string): Promise<SearchBacklog | null> {
+export function backlog(index: string): Future<SearchBacklog | null> {
   return call<SearchBacklog>("__search_backlog__", { p_index: index });
 }

@@ -36,26 +36,36 @@
 
 import type { DrainResult } from "../queue_options.ts";
 
-/** What became of one message. */
+/** What became of one message: its handler ran and it was acknowledged, it was handed back for another attempt, or it moved to the dead letter. */
 export type JobOutcome = "done" | "retried" | "dead";
 
-/** Counts the outcomes of a pass, so a drain can report what it did. */
+/**
+ * Counts the outcomes of a pass, so a drain can report what it did.
+ *
+ * @remarks
+ * A processor records into the same tally across a whole batch or a whole group of messages,
+ * since a single pass over the shared consumer can mix messages from several queues and an
+ * operator watching the drain wants one figure for what the pass as a whole accomplished.
+ */
 export class DrainTally {
   #done = 0;
   #retried = 0;
   #dead = 0;
   #promoted = 0;
 
+  /** Adds `count` messages to `outcome`'s own running total. */
   record(outcome: JobOutcome, count = 1): void {
     if (outcome === "done") this.#done += count;
     else if (outcome === "retried") this.#retried += count;
     else this.#dead += count;
   }
 
+  /** Adds `count` to how many delayed messages this pass moved back onto their queue. */
   promote(count: number): void {
     this.#promoted += count;
   }
 
+  /** This tally's running totals, as a {@link DrainResult} a caller can report or return. */
   toResult(): DrainResult {
     return {
       done: this.#done,

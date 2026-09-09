@@ -34,16 +34,16 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import "@scribe/scholium/runner.ts";
+import { equals, expect, isFalse, Scribe } from "@scribe/alchemy/test";
 import { AudienceError } from "../../lib/contracts/audience.ts";
 import { Audience } from "../../lib/src/core/declaration.ts";
 import { audiencesOf } from "../../lib/src/core/member.ts";
 import { installAudienceMock } from "../testing/mock.ts";
-import { PostgrestClients } from "@scribe/foundation/database";
+import { PostgrestClients } from "@scribe/foundation";
 import { type InstalledMock, installMock } from "@scribe/testing/install.ts";
 import type { PostgrestClient } from "@supabase/postgrest-js";
-import { assertEquals, assertFalse } from "@std/assert";
-
-const editors = Audience.keyed("down-editors");
+const editors = Audience.for("down").namespaced("down-editors");
 
 function installUnreachableDatabase(): InstalledMock {
   const unreachable = {
@@ -59,40 +59,55 @@ function installUnreachableDatabase(): InstalledMock {
   );
 }
 
-Deno.test("a table that cannot be reached lets nobody through", async () => {
+Scribe.test("a table that cannot be reached lets nobody through", async () => {
   const audiences = installAudienceMock();
   const down = installUnreachableDatabase();
 
   try {
-    assertFalse(await editors.in("p1").has("a1"));
+    expect(await editors.in("p1").has("a1"), isFalse);
   } finally {
     down.restore();
     audiences.restore();
   }
 });
 
-Deno.test("a table that cannot be reached lists nobody", async () => {
+Scribe.test("a table that cannot be reached lists nobody", async () => {
   const audiences = installAudienceMock();
   const down = installUnreachableDatabase();
 
   try {
-    assertEquals(await editors.in("p1").members(), []);
-    assertEquals(await audiencesOf("a1"), []);
+    expect(await editors.in("p1").members(), equals({ members: [], cursor: null, truncated: false }));
+    expect(await audiencesOf("a1"), equals({ audiences: [], truncated: false }));
   } finally {
     down.restore();
     audiences.restore();
   }
 });
 
-Deno.test("a table that cannot be reached refuses a write instead of throwing", async () => {
+Scribe.test("a table that cannot be reached refuses a write instead of throwing", async () => {
   const audiences = installAudienceMock();
   const down = installUnreachableDatabase();
 
   try {
     const added = await editors.in("p1").add("a1");
 
-    assertFalse(added.ok);
-    assertEquals(added.ok ? null : added.error, AudienceError.Backend);
+    expect(added.ok, isFalse);
+    expect(added.ok ? null : added.error, equals(AudienceError.Backend));
+  } finally {
+    down.restore();
+    audiences.restore();
+  }
+});
+
+Scribe.test("a table that cannot be reached refuses a bulk write instead of throwing", async () => {
+  const audiences = installAudienceMock();
+  const down = installUnreachableDatabase();
+
+  try {
+    const added = await editors.in("p1").addMany(["a1", "a2"]);
+
+    expect(added.ok, isFalse);
+    expect(added.ok ? null : added.error, equals(AudienceError.Backend));
   } finally {
     down.restore();
     audiences.restore();

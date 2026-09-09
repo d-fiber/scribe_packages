@@ -49,11 +49,14 @@ export interface IntervalSchedule {
 /**
  * Runs the job once per `interval`.
  *
+ * @remarks
  * The interval has to be a whole number of minutes, and the refusal happens at declaration
  * rather than at the first occurrence. The reason is downstream: an occurrence is claimed
  * across replicas under a key derived from the interval, and a value that does not divide
  * into minutes rounds differently on two machines whose clocks differ slightly, so they would
  * claim two keys and the job would run twice.
+ *
+ * @throws {DeclarationError} When `interval` is not a positive whole number of minutes.
  */
 export function every(interval: Duration): IntervalSchedule {
   return { kind: "interval", every: wholeMinutes("every()", interval) };

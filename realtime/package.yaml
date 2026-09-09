@@ -9,13 +9,3 @@ dependencies:
   foundation: ^1.0.0
 
 dev_dependencies:
-  "@scribe/testing/": any
-  "@supabase/postgrest-js": any
-
-scribe:
-  db:
-    init: ./db/init/
-    provisioning: ./db/provisioning/
-  protocol: ./protocol/
-  ops:
-    - ./ops/

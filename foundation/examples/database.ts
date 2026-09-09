@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 
 import { type Future, type Result } from "@scribe/alchemy";
-import { Table } from "../lib/src/database/table.ts";
+import { Database } from "../lib/src/database/table.ts";
 
 /** One row of the orders table. */
 interface OrderRow {
@@ -55,33 +55,17 @@ interface OrderRow {
 }
 
 /**
- * The tables this example reads, as the query builder needs to see them.
- *
- * A project gets this from its generated schema; a package writes it by hand for the tables
- * whose SQL it owns. Either way the engine never holds a schema of its own, which is what
- * keeps it free of any knowledge of a particular database.
- */
-type ShopSchema = {
-  /** The orders a customer placed. */
-  orders: { row: OrderRow };
-};
-
-/**
- * A handle on one table of the schema, which is what a generated `Database` class is.
- *
- * Constraining the name by `keyof S` makes the SQL the single source of truth: a table nobody
- * declared, or a name with a typo in it, does not compile.
- */
-class ShopTable<K extends keyof ShopSchema & string> extends Table<ShopSchema, K> {}
-
-/**
- * A handle is safe to keep at module scope.
+ * A handle on the orders table, kept at module scope.
  *
  * It holds neither a client nor an identity: the owner filter is decided when a query is
  * compiled, from whoever is calling then, so one built at import time serves every request
  * without carrying anything from the first.
+ *
+ * A project with several tables to declare this way instead writes a shared schema and a bound
+ * `Table<S, K>`, which checks a table's name against every other one the schema names. `Database`
+ * skips that schema: it fits a single table nothing else needs to agree with on a name.
  */
-export const orders = new ShopTable("orders");
+export const orders = new Database<OrderRow>("orders");
 
 /** Reads a page, naming the columns it wants so the result type is the shape it asked for. */
 export function recentOrders(since: string): Future<{ id: string; total: number }[]> {

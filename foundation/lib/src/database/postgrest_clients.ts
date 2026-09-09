@@ -43,7 +43,7 @@ import { PostgrestClient } from "@supabase/postgrest-js";
  *
  * @remarks
  * There is one client and one role. Owner scoping is decided in TypeScript, by `ownerScope` in
- * `query/scope.ts`, and never delegated to a row level security policy: the framework reaches
+ * `query/owner_scope.ts`, and never delegated to a row level security policy: the framework reaches
  * PostgREST with the service role, so `auth.uid()` and `auth.jwt()` never see a caller's identity
  * on this path. A per-caller client passing the request's own `Authorization` header used to sit
  * beside this one, and nothing ever called it.

@@ -35,6 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import "@scribe/testing/settings.ts";
+import { Future } from "@scribe/alchemy";
 import type { InstalledMock } from "@scribe/testing/install.ts";
 import { RealtimeTransports } from "../../lib/src/transport/registry.ts";
 import type { RealtimeRow, RealtimeTransport } from "../../lib/src/transport/transport.ts";
@@ -55,9 +56,9 @@ export class RecordingTransport implements RealtimeTransport {
   }
 
   /** Keeps `row` and answers what the constructor was given. */
-  send(row: RealtimeRow): Promise<boolean> {
+  send(row: RealtimeRow): Future<boolean> {
     this.rows.push(row);
-    return Promise.resolve(this.#answer);
+    return Future.value(this.#answer);
   }
 
   /** The rows addressed to `channel`, in the order they were emitted. */

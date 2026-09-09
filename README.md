@@ -31,18 +31,18 @@ tests/tests/    the tests that need nothing running
 tests/testing/  what a consumer imports to stub this package
 tests/e2e/      the tests that need the stack up, with the compose that brings it
 examples/       what calling the package looks like
-db/init/        the SQL played when the stack is built
-ops/            the slices of the ops templates, when the package starts a container
+deploy/         everything the stack reads: the SQL, the compose fragments, the recipes, the configuration
 protocol/       the .proto files, when the package speaks to a worker
 ```
 
-`scribedev pkg create <name>` writes this, and `scribedev pkg analyze .` refuses a package that departs from it. The
-entry is named after the package and is never declared: the manifest names the package, the layout says where the entry
-sits, and a manifest able to point elsewhere would only be a chance for the two to disagree.
+`scribe create --package <name>` writes this, and `scribe analyze .` refuses a package that departs from it. The entry is
+named after the package and is never declared: the manifest names the package, the layout says where the entry sits, and
+a manifest able to point elsewhere would only be a chance for the two to disagree.
 
 Five things are mandatory: `package.yaml`, `.gitignore`, `lib/<name>.ts`, `lib/src/`, and a `tests/` that carries a
-`tests/e2e/` and at least one `.test.ts`. The rest depends on what the package does. A package that poses no SQL has no
-`db/`, and one that starts no container has no `ops/`.
+`tests/e2e/` and at least one `.test.ts`. The rest depends on what the package does. Everything the stack consumes lives
+under `deploy/`: `deploy/db/` for the SQL, `deploy/services/<service>/` for a container's fragments,
+`deploy/configuration.yaml` for what a project tunes. A package that hands the stack nothing has no `deploy/`.
 
 ## Nothing here runs on its own
 
@@ -62,12 +62,12 @@ TS2307 [ERROR]: Import "@scribe/foundation/lib/src/database/table.ts" not a depe
 cd realtime && scribedev pkg get && scribedev pkg test
 ```
 
-You verify the whole tree by putting these packages in a scribe checkout and checking that. `tool/test.sh` does it for
+You verify the whole tree by putting these packages in a scribe checkout and checking that. `tools/test.sh` does it for
 you:
 
 ```sh
-bash tool/test.sh                       # uses ../scribe
-SCRIBE_CHECKOUT=~/code/scribe bash tool/test.sh
+bash tools/test.sh                       # uses ../scribe
+SCRIBE_CHECKOUT=~/code/scribe bash tools/test.sh
 ```
 
 That is also what the CI does, and what the sync does before it pushes.
@@ -79,16 +79,16 @@ at `engine/packages/`, checks that the framework still type checks and passes it
 to its `dev`.
 
 What it leaves behind: this repository's own files. The licence, the four documents, `.github/`, `.githooks/` and
-`tool/test.sh` belong to working here, not to the framework.
+`tools/test.sh` belong to working here, not to the framework.
 
 ## The stack the end to end tests need
 
-`tool/e2e/` brings up the containers one package needs, and takes them down.
+`tools/e2e/` brings up the containers one package needs, and takes them down.
 
 ```sh
-bash tool/e2e/up.sh realtime
-bash tool/e2e/down.sh realtime
-bash tool/e2e/reset.sh realtime
+bash tools/e2e/up.sh realtime
+bash tools/e2e/down.sh realtime
+bash tools/e2e/reset.sh realtime
 ```
 
 Then the suite itself runs from the scribe checkout, with `deno task test:e2e:realtime`.

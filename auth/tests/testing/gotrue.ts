@@ -37,30 +37,58 @@
 import { installAuthTestSettings } from "./settings.ts";
 
 installAuthTestSettings();
+import { Future } from "@scribe/alchemy";
 import type { InstalledMock } from "@scribe/testing/install.ts";
 
+/** One call this package made to GoTrue, as this mock recorded it. */
 export interface GoTrueCall {
+  /** The HTTP method the package sent, uppercased. */
   readonly method: string;
+
+  /** The GoTrue path the call reached, `/auth/v1` already stripped. */
   readonly path: string;
+
+  /** The decoded request body, or `null` when the call carried none or it could not be parsed. */
   readonly body: Record<string, unknown> | null;
 }
 
+/**
+ * Answers a fixed response for a matched call, or `undefined` to let the next matching route
+ * try instead of failing the call outright.
+ */
 export type GoTrueHandler = (
   call: GoTrueCall,
 ) => { status: number; body?: unknown } | undefined;
 
+/** A stand-in for GoTrue that answers a test's own routed responses instead of a real service. */
 export interface GoTrueMock extends InstalledMock {
+  /** Every call this mock has answered so far, in the order it received them. */
   readonly calls: GoTrueCall[];
+
+  /** Every call this mock has answered so far, as `"METHOD /path"`, for a test that only cares which endpoints were reached. */
   paths(): string[];
+
+  /** How many recorded calls match `method` and `path` exactly, query string ignored. */
   called(method: string, path: string): number;
+
+  /**
+   * Adds `handler` for `matcher`, ahead of every route already registered.
+   *
+   * @remarks
+   * `matcher` is `"METHOD /path"`, with a trailing `*` matching any path that starts with the
+   * prefix. Routes added later run first, so a test can override the routes `installGoTrueMock`
+   * was given without having to rebuild the whole table.
+   */
   route(matcher: string, handler: GoTrueHandler): void;
 }
 
+/** `url`'s path and query, with the `/auth/v1` GoTrue mounts under stripped, to match {@link GoTrueCall.path}. */
 function _path(url: string): string {
   const parsed = new URL(url);
   return parsed.pathname.replace(/^\/auth\/v1/, "") + parsed.search;
 }
 
+/** Whether `matcher`'s method and path pattern, a trailing `*` meaning any prefix, matches `call`. */
 function _matches(matcher: string, call: GoTrueCall): boolean {
   const [method, pattern] = matcher.split(" ");
   if (method !== call.method) return false;
@@ -68,6 +96,15 @@ function _matches(matcher: string, call: GoTrueCall): boolean {
   return call.path === pattern;
 }
 
+/**
+ * Replaces `globalThis.fetch` with a router that answers `routes` and records every call, so a
+ * test can exercise this package's GoTrue calls without a real service behind them.
+ *
+ * @remarks
+ * A call that matches no route, or whose handler answers `undefined`, gets a `501` with an
+ * `error_code` of `not_mocked` rather than falling through to the real network: a test whose
+ * fixture is missing a route should fail loudly on that call, not make a live request.
+ */
 export function installGoTrueMock(
   routes: Record<string, GoTrueHandler> = {},
 ): GoTrueMock {
@@ -102,7 +139,7 @@ export function installGoTrueMock(
       if (!_matches(matcher, call)) continue;
       const result = handler(call);
       if (!result) continue;
-      return Promise.resolve(
+      return Future.value(
         new Response(
           result.body === undefined ? null : JSON.stringify(result.body),
           {
@@ -113,7 +150,7 @@ export function installGoTrueMock(
       );
     }
 
-    return Promise.resolve(
+    return Future.value(
       new Response(
         JSON.stringify({
           error_code: "not_mocked",
@@ -142,6 +179,11 @@ export function installGoTrueMock(
   };
 }
 
+/**
+ * A GoTrue session response with every field a real one carries, `overrides` replacing whichever
+ * a test needs to control, so a route handler never has to restate the fields it does not care
+ * about.
+ */
 export function goTrueSession(
   overrides: Record<string, unknown> = {},
 ): Record<string, unknown> {
@@ -155,6 +197,10 @@ export function goTrueSession(
   };
 }
 
+/**
+ * A GoTrue user with every field a real one carries, `overrides` replacing whichever a test
+ * needs to control, so a route handler never has to restate the fields it does not care about.
+ */
 export function goTrueUser(
   overrides: Record<string, unknown> = {},
 ): Record<string, unknown> {
@@ -177,6 +223,7 @@ export function goTrueUser(
   };
 }
 
+/** The body GoTrue answers an error with, `msg` defaulting to `code` when a test does not care about the message. */
 export function goTrueError(
   code: string,
   msg = code,

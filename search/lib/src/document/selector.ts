@@ -155,16 +155,14 @@ export type PreviewOf<TRow extends object, S> = {
     : never;
 };
 
-// deno-lint-ignore no-explicit-any
-type AnySelector = any;
-
 /** Hands a document declaration a selector over `TRow`. */
 export function documentSelector<TRow extends object>(): DocumentSelector<TRow> {
   const embed = (
     relation: string,
-    builder: (s: AnySelector) => DocumentShape,
+    builder: (s: unknown) => DocumentShape,
     options?: EmbedOptions,
-  ): AnySelector => new EmbeddedField(relation, builder(documentSelector()), options?.nested ?? false, options);
+  ): EmbeddedField<DocumentShape, boolean> =>
+    new EmbeddedField(relation, builder(documentSelector()), options?.nested ?? false, options);
 
   return proxyOver({ embed });
 }
@@ -173,9 +171,9 @@ export function documentSelector<TRow extends object>(): DocumentSelector<TRow> 
 export function previewSelector<TRow extends object>(): PreviewSelector<TRow> {
   const embed = (
     relation: string,
-    builder: (s: AnySelector) => PreviewShape,
+    builder: (s: unknown) => PreviewShape,
     options?: { many?: boolean; inner?: boolean },
-  ): AnySelector =>
+  ): PreviewEmbed<object, PreviewShape, boolean> =>
     new PreviewEmbed(
       relation,
       builder(previewSelector()),

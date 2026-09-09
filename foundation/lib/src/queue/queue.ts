@@ -34,27 +34,12 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { type Future, runPooled, type UnmodifiableList } from "@scribe/alchemy";
+import type { Future, UnmodifiableList } from "@scribe/alchemy";
 import type { BatchHandler, JobHandler, PushOptions, QueueOptions } from "./queue_options.ts";
 import { limitsFrom, type RegisteredQueue, subjectsOf } from "./queue_declaration.ts";
-import { delayedCounts } from "./delayed/delayed_counts.ts";
-import { pushDelayed } from "./delayed/delayed_schedule.ts";
-import { DEAD_STREAM, streamOf } from "./queue_naming.ts";
 import { queueRegistry } from "./queue_registry.ts";
-import { type QueueStatus, queueStatus } from "./queue_status.ts";
-import { ensureTopology } from "./topology/ensure_topology.ts";
-import { topology } from "./topology/topology.ts";
-import { encode } from "./wire_message.ts";
-
-/**
- * How many publications one call to {@link Queue.pushMany} keeps in flight.
- *
- * @remarks
- * High enough that a batch is not paced by the round trip time of one publication, low enough
- * that the memory a push costs is decided here and not by the length of the list a caller
- * happened to build.
- */
-export const PUBLISH_AT_ONCE = 64;
+import type { QueueStatus } from "./queue_status.ts";
+import { queueBackend } from "./queue_backend.ts";
 
 /** What declaring a queue takes. */
 export interface QueueDefinition {
@@ -90,76 +75,59 @@ export interface BatchQueueDefinition extends QueueDefinition {
  * there would register a second one under a name already taken, and throw.
  */
 export class QueuePublisher<in TJob> {
+  /** The queue this publisher pushes to, already registered by the host that declared it. */
   protected readonly queue: RegisteredQueue;
 
   constructor(queue: RegisteredQueue) {
     this.queue = queue;
   }
 
+  /** The name `queue` was declared under, read through so a `QueuePublisher` never carries a copy that could drift from the registration. */
   get name(): string {
     return this.queue.name;
   }
 
-  async push(data: TJob, opts: PushOptions = {}): Future<string> {
-    if (opts.delay && opts.delay.inMilliseconds > 0) {
-      return await pushDelayed(
-        this.queue.name,
-        this.queue.subject,
-        data,
-        opts.delay.inMilliseconds,
-      );
-    }
-
-    await ensureTopology();
-    return await this.#publish(data);
+  /** Publishes `data`, delayed by `opts.delay` when given, and answers the message's own identifier. */
+  push(data: TJob, opts: PushOptions = {}): Future<string> {
+    return queueBackend().push(this.queue, data, opts);
   }
 
   /**
-   * Publishes every item of `items`, at most {@link PUBLISH_AT_ONCE} of them in flight together.
+   * Publishes every item of `items`.
+   *
+   * It is not the same as pushing one at a time: either the queue takes them all or it takes none,
+   * so a producer cannot leave half a batch behind by failing in the middle.
+   */
+  pushMany(items: UnmodifiableList<TJob>): Future<string[]> {
+    return queueBackend().pushMany(this.queue, items);
+  }
+
+  /** How many messages of this queue are waiting to be delivered. */
+  size(): Future<number> {
+    return queueBackend().size(this.queue);
+  }
+
+  /** How many messages of this queue have exhausted their delivery attempts and moved to the dead letter, kept there for an operator to inspect or retry. */
+  deadCount(): Future<number> {
+    return queueBackend().deadCount(this.queue);
+  }
+
+  /** How many messages of this queue are delayed, waiting for their due date. */
+  delayedCount(): Future<number> {
+    return queueBackend().delayedCount(this.queue);
+  }
+
+  /**
+   * This queue's current status: its declaration, and how many messages are pending, dead, or
+   * delayed.
    *
    * @remarks
-   * The pool is what keeps the cost of a push independent of the size of the list. Handing the
-   * whole list over at once opened one publication per item, so the producer's memory and the
-   * server's inbox both grew with what the caller happened to pass: ten thousand items were ten
-   * thousand connections' worth of work asked for in the same tick.
+   * Bundles what {@link size}, {@link deadCount} and {@link delayedCount} would otherwise take
+   * three separate calls to assemble, for an operator dashboard or a health check that wants the
+   * whole picture of one queue in a single call rather than one per figure.
    */
-  async pushMany(items: UnmodifiableList<TJob>): Future<string[]> {
-    if (items.length === 0) return [];
-
-    await ensureTopology();
-    const ids: string[] = new Array(items.length);
-    await runPooled([...items.keys()], PUBLISH_AT_ONCE, async (at) => {
-      ids[at] = await this.#publish(items[at]);
-    });
-
-    return ids;
-  }
-
-  async size(): Future<number> {
-    await ensureTopology();
-    return await topology.countBySubject(
-      streamOf(this.queue.dedicated),
-      this.queue.subject,
-    );
-  }
-
-  async deadCount(): Future<number> {
-    await ensureTopology();
-    return await topology.countBySubject(DEAD_STREAM, this.queue.deadSubject);
-  }
-
-  async delayedCount(): Future<number> {
-    const delayed = await delayedCounts();
-    return delayed.counts[this.queue.name] ?? 0;
-  }
-
-  async status(): Future<QueueStatus> {
-    await ensureTopology();
-    return await queueStatus.one(this.queue);
-  }
-
-  #publish(data: TJob): Future<string> {
-    return topology.publish(this.queue.subject, encode({ data }));
+  status(): Future<QueueStatus> {
+    return queueBackend().status(this.queue);
   }
 }
 

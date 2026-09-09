@@ -1,0 +1,89 @@
+{
+  "terraform": {
+    "required_providers": {
+      "aws": {
+        "source": "hashicorp/aws",
+        "version": "6.19.0"
+      },
+      "random": {
+        "source": "hashicorp/random",
+        "version": "3.7.2"
+      }
+    }
+  },
+  "provider": {
+    "aws": {
+      "region": "{{region}}"
+    }
+  },
+  "resource": {
+    "random_password": {
+      "master": {
+        "length": 32,
+        "special": true,
+        "override_special": "!#$%&*()-_=+[]{}<>:?"
+      }
+    },
+    "aws_opensearch_domain": {
+      "opensearch": {
+        "domain_name": "{{name}}",
+        "engine_version": "{{version}}",
+        "cluster_config": [
+          {
+            "instance_type": "{{instance_type}}",
+            "instance_count": 1,
+            "zone_awareness_enabled": false
+          }
+        ],
+        "ebs_options": [
+          {
+            "ebs_enabled": true,
+            "volume_size": {{volume_size}},
+            "volume_type": "gp3"
+          }
+        ],
+        "encrypt_at_rest": [
+          {
+            "enabled": true
+          }
+        ],
+        "node_to_node_encryption": [
+          {
+            "enabled": true
+          }
+        ],
+        "domain_endpoint_options": [
+          {
+            "enforce_https": true,
+            "tls_security_policy": "Policy-Min-TLS-1-2-2019-07"
+          }
+        ],
+        "advanced_security_options": [
+          {
+            "enabled": true,
+            "internal_user_database_enabled": true,
+            "master_user_options": [
+              {
+                "master_user_name": "scribe_admin",
+                "master_user_password": "${random_password.master.result}"
+              }
+            ]
+          }
+        ],
+        "access_policies": "{\"Version\":\"2012-10-17\",\"Statement\":[{\"Effect\":\"Allow\",\"Principal\":{\"AWS\":\"*\"},\"Action\":\"es:*\",\"Resource\":\"arn:aws:es:{{region}}:{{account_id}}:domain/{{name}}/*\"}]}"
+      }
+    }
+  },
+  "output": {
+    "host": {
+      "value": "${aws_opensearch_domain.opensearch.endpoint}"
+    },
+    "port": {
+      "value": 443
+    },
+    "url": {
+      "value": "https://scribe_admin:${random_password.master.result}@${aws_opensearch_domain.opensearch.endpoint}:443",
+      "sensitive": true
+    }
+  }
+}

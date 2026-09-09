@@ -14,8 +14,8 @@ does not fail on your change, it fails on `not a dependency and not in import
 map`, which teaches nothing.
 
 ```sh
-bash tool/test.sh                       # uses ../scribe
-SCRIBE_CHECKOUT=~/code/scribe bash tool/test.sh
+bash tools/test.sh                       # uses ../scribe
+SCRIBE_CHECKOUT=~/code/scribe bash tools/test.sh
 ```
 
 It copies these packages into that checkout and runs the framework's own checks against them. That is what the CI does,
@@ -29,41 +29,37 @@ you are done.
 ## 2. Three kinds of test live here, and they are not reached the same way
 
 ```
-tests/tests/    needs nothing running        scribedev pkg test, from the package
-tests/e2e/      needs the containers up      deno task test:e2e:<package>, in scribe/engine
+tests/tests/    needs nothing running        scribe test, from the package
+tests/e2e/      needs the containers up      bash <package>/tests/e2e/scenario.sh
 tests/testing/  is not a test at all         it is what a consumer stubs you with
 ```
 
 `tests/tests/` is where most of the proof belongs: a declaration, a key, a mapper, a refusal. No container, no clock, no
-network.
+network. It is written against `@scribe/alchemy/test`, never against Deno directly: `Scribe.test` and `Scribe.group`
+declare a case, `expect` and a matcher assert on it, `mock`/`when`/`verify` and the `Memory*` doubles stand in for a
+port. A lint rule in the framework refuses `Deno.*`, `@std/*`, `node:*` and `npm:*` here, because the whole point of
+that layer is that a package's tests never have to name what they are running on.
 
-`tests/e2e/` is for what only the real stack can answer: a notification that actually crosses Postgres, an object that
-actually lands in the bucket, an index that actually returns a hit. Its files end in `.e2e.ts`, so `scribedev pkg test`
-walks past them.
+`tests/e2e/` is for what only the real stack can answer: an object that actually lands in the bucket, an index that
+actually returns a hit, a schema that actually applies to a live Postgres. Every package has a `scenario.sh` that starts
+the stack, exercises it and tears it down.
 
 `tests/testing/` is a published surface. It is documented like the rest, and its own correctness is proved by a case in
 `tests/tests/` that uses it, since somebody else's suite will.
 
 ---
 
-## 3. Bringing the stack up is one command per package
+## 3. Bringing the stack up
+
+One command per package, the scenario brings its own stack up and down:
 
 ```sh
-bash tool/e2e/up.sh realtime
+bash storage/tests/e2e/scenario.sh   # one package
+bash tools/e2e.sh                      # every package, then a sweep
+bash tools/e2e.sh audience             # just one, through the same runner
 ```
 
-Then run the suite from the scribe checkout:
-
-```sh
-deno task test:e2e:realtime
-```
-
-And take it down when you are done, because a stack left running is a stack the next suite inherits:
-
-```sh
-bash tool/e2e/down.sh realtime
-bash tool/e2e/reset.sh realtime     # and forget what Postgres kept
-```
+`KEEP=1` leaves the stack up after a scenario, for poking at it.
 
 An end to end test that passes against a stack somebody else left up has proved nothing about a fresh one.
 
@@ -98,11 +94,11 @@ genuinely depends on the real thing being there.
 
 ```ts
 // No: a container brought up to prove that a key is built from a name and a scope.
-Deno.test("e2e: a keyed audience builds its key", async () => { ... });
+Scribe.test("e2e: a keyed audience builds its key", async () => { ... });
 
 // Yes: the same proof, with nothing running.
-Deno.test("a keyed audience narrows its key by the scope it was given", () => {
-  assertEquals(keyOf("project-editors", "p1"), "audience:project-editors:p1");
+Scribe.test("a keyed audience narrows its key by the scope it was given", () => {
+  expect(keyOf("project-editors", "p1"), equals("audience:project-editors:p1"));
 });
 ```
 
@@ -130,14 +126,14 @@ They are what shows up when the suite is red. A comment shows up nowhere, so a t
 
 ```ts
 // No
-Deno.test("audience", async () => {
+Scribe.test("audience", async () => {
   // somebody who joined should belong
   ...
 });
 
 // Yes
-Deno.test("somebody who joined an audience belongs to it", async () => {
-  assert(await belongs("beta", "ada"), "ada joined beta and does not belong to it");
+Scribe.test("somebody who joined an audience belongs to it", async () => {
+  expect(await belongs("beta", "ada"), isTrue, "ada joined beta and does not belong to it");
 });
 ```
 
@@ -152,10 +148,10 @@ Otherwise every reword turns the suite red for nothing, and teaches nobody anyth
 
 ```ts
 // No
-assertEquals(error.message, "This audience does not hold that member, so there is nothing to take out.");
+expect(error.message, equals("This audience does not hold that member, so there is nothing to take out."));
 
 // Yes
-assertEquals(error.kind, AudienceError.NotFound, "the refusal is not the one that was expected");
+expect(error.kind, equals(AudienceError.NotFound), "the refusal is not the one that was expected");
 ```
 
 ---
@@ -188,7 +184,7 @@ const editors = Audience.keyed(`e2e-editors-${RUN_ID}`);
 
 ## 12. Take away what you made to test
 
-Rows, buckets, indexes, containers, and the copy `tool/test.sh` left in the scribe checkout. Left behind, they become a
+Rows, buckets, indexes, containers, and the copy `tools/test.sh` left in the scribe checkout. Left behind, they become a
 state somebody will eventually take for real.
 
 Delete by looking at what you delete. List first, name what goes, and never delete a pattern.
@@ -205,9 +201,9 @@ No
 Tested, everything passes.
 
 Yes
-tool/test.sh is green: the framework type checks with these packages and its 1064 tests pass.
-I brought up the realtime stack and ran test:e2e:realtime, 12 cases. I did not run the storage
-end to end suite, so the bucket change is unverified against a real MinIO.
+tools/test.sh is green: the framework type checks with these packages and its 1064 tests pass.
+I ran bash storage/tests/e2e/scenario.sh, green. I did not run the search
+scenario, so the index change is unverified against a real OpenSearch.
 ```
 
 When something fails, report it with the real output. A failure described from memory loses exactly the detail that
@@ -218,13 +214,12 @@ would have explained it.
 ## What runs it
 
 ```sh
-bash tool/test.sh                    # headers, version, then the framework's checks with these packages
-bash .github/headers/check.sh        # the licence notice on every source file
-bash .github/version/check.sh 1.1.0  # whether that version is free to cut
-
-bash tool/e2e/up.sh <package>        # the containers one package needs
-bash tool/e2e/down.sh <package>
+bash tools/test.sh                    # the version check, then the framework's checks with these packages
+bash tools/e2e.sh                     # every package end to end, then a sweep
+bash storage/tests/e2e/scenario.sh   # just one
 ```
+
+The licence headers are checked by the shared gate in CI, not from here.
 
 Green on all of them is the floor, not the finish. What the suite cannot tell you is whether the thing was worth writing
 that way, and `STYLE.md` is where that gets decided.

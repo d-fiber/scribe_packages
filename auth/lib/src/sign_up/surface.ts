@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import type { Future } from "@scribe/alchemy";
 import { Channel } from "../../contracts/channel.ts";
 import type { WriteOf, WriteShape } from "../declaration/columns.ts";
 import {
@@ -49,7 +50,7 @@ import { SignUpDoor, type SignUpResult, type SignUpTarget } from "./runner.ts";
 
 type Door<TCredentials, TSignUp extends WriteShape, TError> = (
   input: TCredentials & WriteOf<TSignUp>,
-) => Promise<SignUpResult<TError>>;
+) => Future<SignUpResult<TError>>;
 
 type Opens<TChannels extends readonly Channel[], C extends Channel, T> = C extends TChannels[number] ? T
   : Record<never, never>;
@@ -82,7 +83,7 @@ export type SignUpSurface<
     apple: Door<SocialCredentials, TSignUp, SocialSignUpError>;
   }>;
 
-// deno-lint-ignore no-explicit-any
+// deno-lint-ignore no-explicit-any -- TSignUp extends WriteShape, which unknown fails outright.
 type AnyDoor = SignUpDoor<any, any>;
 
 /** Builds the doors a declaration named, and nothing else. */

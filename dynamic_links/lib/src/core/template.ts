@@ -36,6 +36,9 @@
 
 const PLACEHOLDER_PATTERN = /\{([A-Za-z][A-Za-z0-9_]*)\}/g;
 
+/** What one field of a link may hold, which is what a JSON column reads back unchanged. */
+export type LinkValue = string | number | boolean;
+
 /** A template that names something no link could render. */
 export class LinkTemplateError extends Error {
   /** The template as it was declared. */
@@ -127,13 +130,19 @@ export class LinkTemplate {
   }
 
   /**
-   * The template with `params` written into it, or null when a placeholder has no value.
+   * The template with `data` written into it, or null when a placeholder has no value.
    *
+   * @remarks
    * Null rather than a throw because the parameters of an existing link come out of a row: a
    * declaration that gained a placeholder leaves the links written before it unrenderable, and
    * that is a link the caller cannot serve rather than a mistake in its code.
+   *
+   * Only the fields this template's placeholders name are read, and only those are turned into
+   * text. A declaration's data usually carries more fields than a route or an address ever
+   * writes, and converting the ones nobody asked for would cost every creation and every
+   * resolution a pass over the whole payload for nothing.
    */
-  render(params: Readonly<Record<string, string>>): string | null {
+  render(data: Readonly<Record<string, LinkValue>>): string | null {
     const parts: string[] = [];
 
     for (const segment of this.#segments) {
@@ -142,18 +151,22 @@ export class LinkTemplate {
         continue;
       }
 
-      const value = params[segment.name];
-      if (typeof value !== "string" || value.length === 0) return null;
-      parts.push(encodeURIComponent(value));
+      const text = textOf(data[segment.name]);
+      if (text === null) return null;
+      parts.push(encodeURIComponent(text));
     }
 
     return parts.join("");
   }
 
-  /** Whether `params` holds a usable value for every placeholder this template writes. */
-  accepts(params: Readonly<Record<string, string>>): boolean {
-    return this.names.every(
-      (name) => typeof params[name] === "string" && params[name].length > 0,
-    );
+  /** Whether `data` holds a usable value for every placeholder this template writes. */
+  accepts(data: Readonly<Record<string, LinkValue>>): boolean {
+    return this.names.every((name) => textOf(data[name]) !== null);
   }
+}
+
+function textOf(value: LinkValue | undefined): string | null {
+  if (value === undefined) return null;
+  const text = String(value);
+  return text.length === 0 ? null : text;
 }

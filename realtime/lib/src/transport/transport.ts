@@ -34,6 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import type { Future } from "@scribe/alchemy";
+
 /** One emission, addressed and ready to be written wherever the transport writes. */
 export interface RealtimeRow {
   /** The full channel this emission is addressed to, which decides who hears it. */
@@ -53,12 +55,12 @@ export interface RealtimeRow {
  * Where an emission goes once it has been addressed.
  *
  * @remarks
- * The port exists so that the channel is replaceable. `SyncEventsTransport` writes a row and
+ * The port exists so that the channel is replaceable. `EventLogTransport` writes a row and
  * lets Postgres broadcast it, which is what a mounted package does by default; a project that
  * would rather push into a queue or towards a third party swaps the implementation and leaves
  * every declaration alone.
  */
 export interface RealtimeTransport {
   /** Sends `row`, and answers whether it left. */
-  send(row: RealtimeRow): Promise<boolean>;
+  send(row: RealtimeRow): Future<boolean>;
 }

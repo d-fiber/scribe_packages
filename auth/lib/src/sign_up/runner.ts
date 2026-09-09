@@ -35,11 +35,11 @@
 // LICENSE file, the LICENSE file governs.
 
 import { Duration } from "@scribe/alchemy";
-import { Failure, Ok, type Result } from "@scribe/alchemy";
-import { requestDevice } from "@scribe/runtime/device/device.ts";
+import { Failure, type Future, Ok, type Result } from "@scribe/alchemy";
+import { requestDevice } from "@scribe/runtime/device/mod.ts";
 import { checkCaller } from "@scribe/runtime/http/caller.ts";
 import { rateLimit } from "@scribe/alchemy";
-import type { RateLimiter } from "@scribe/alchemy";
+import type { RateLimiterPort } from "@scribe/alchemy";
 import type { Channel } from "../../contracts/channel.ts";
 import type { WriteOf, WriteShape } from "../declaration/columns.ts";
 import { devices } from "../devices/devices.ts";
@@ -74,13 +74,13 @@ export interface SignUpTarget<TSignUp extends WriteShape> {
       readonly emailVerified?: boolean;
       readonly phoneVerified?: boolean;
     },
-  ): Promise<boolean>;
+  ): Future<boolean>;
 
   /** Removes the account, which is what undoes a sign-up the hook refused. */
-  forget(id: string): Promise<void>;
+  forget(id: string): Future<void>;
 }
 
-function callerLimit(role: string, channel: Channel): RateLimiter {
+function callerLimit(role: string, channel: Channel): RateLimiterPort {
   return rateLimit({
     key: `sign-up:${role}:${channel}`,
     limit: 5,
@@ -91,7 +91,7 @@ function callerLimit(role: string, channel: Channel): RateLimiter {
   });
 }
 
-function recipientLimit(role: string, channel: Channel): RateLimiter {
+function recipientLimit(role: string, channel: Channel): RateLimiterPort {
   return rateLimit({
     key: `sign-up:${role}:${channel}:to`,
     limit: 3,
@@ -118,8 +118,8 @@ function recipientLimit(role: string, channel: Channel): RateLimiter {
 export class SignUpDoor<TInput, TSignUp extends WriteShape> {
   readonly #target: SignUpTarget<TSignUp>;
   readonly #credential: SignUpCredential<TInput>;
-  readonly #caller: RateLimiter;
-  readonly #recipient: RateLimiter;
+  readonly #caller: RateLimiterPort;
+  readonly #recipient: RateLimiterPort;
 
   constructor(
     target: SignUpTarget<TSignUp>,
@@ -134,7 +134,7 @@ export class SignUpDoor<TInput, TSignUp extends WriteShape> {
   /** Creates the account, or answers what stopped it. */
   async run(
     input: TInput & WriteOf<TSignUp>,
-  ): Promise<SignUpResult<SignUpError>> {
+  ): Future<SignUpResult<SignUpError>> {
     const caller = await checkCaller(this.#caller);
     if (!caller.ok) return new Failure(SignUpError.TooManyRequests);
 
@@ -182,7 +182,7 @@ export class SignUpDoor<TInput, TSignUp extends WriteShape> {
     return new Ok({ device_token: token });
   }
 
-  async #undo(id: string): Promise<void> {
+  async #undo(id: string): Future<void> {
     await this.#target.forget(id);
     await goTrue.user.delete(id);
   }

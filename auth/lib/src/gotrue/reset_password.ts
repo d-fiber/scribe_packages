@@ -35,14 +35,29 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { AccountRole } from "../../contracts/role.ts";
-import type { Result } from "@scribe/alchemy";
+import type { Future, Result } from "@scribe/alchemy";
 import { anonHeaders, type AuthError, authUrl, requestAuthVoid } from "./transport.ts";
 
+/**
+ * GoTrue's password recovery endpoint.
+ *
+ * @remarks
+ * This step only triggers the recovery email; it returns no session, because the account has
+ * not been re-authenticated yet. Completing the reset goes through GoTrue's own verify flow
+ * once the account follows the link the email carries.
+ */
 export class GoTrueResetPassword {
+  /**
+   * Sends a password-recovery email to `email`, tagged with the account's `role`.
+   *
+   * @remarks
+   * Called with `anonHeaders()` rather than a session's token, since nothing has signed in
+   * yet when a password is forgotten.
+   */
   recoverPasswordByEmail(
     email: string,
     role: AccountRole,
-  ): Promise<Result<void, AuthError>> {
+  ): Future<Result<void, AuthError>> {
     return requestAuthVoid(`${authUrl()}/recover`, {
       method: "POST",
       headers: anonHeaders(),

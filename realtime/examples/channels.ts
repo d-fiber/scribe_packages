@@ -1,3 +1,5 @@
+import type { Future } from "@scribe/alchemy";
+
 import { Realtime } from "@scribe/realtime";
 
 /** What one order broadcast carries. */
@@ -45,7 +47,7 @@ export const announcements = Realtime.authenticated<Price>("announcement");
 export const prices = Realtime.public<Price>("price");
 
 /** The three shapes of change, sent to everyone the channel's openness lets in. */
-export async function broadcastOrder(order: Order): Promise<void> {
+export async function broadcastOrder(order: Order): Future<void> {
   await orders.all.insert(order);
   await orders.all.update(order);
   await orders.all.delete(order);
@@ -56,7 +58,7 @@ export async function broadcastOrder(order: Order): Promise<void> {
  *
  * The action is lowercase snake case, thirty-two characters at most.
  */
-export function shipped(order: Order): Promise<boolean> {
+export function shipped(order: Order): Future<boolean> {
   return orders.all.emit("shipped", order);
 }
 
@@ -66,7 +68,7 @@ export function shipped(order: Order): Promise<boolean> {
  * No grant opens this and none can: the channel carries the identifier, and a caller hears it
  * when their token says they are that account.
  */
-export function toAccount(accountId: string, order: Order): Promise<boolean> {
+export function toAccount(accountId: string, order: Order): Future<boolean> {
   return orders.to(accountId).update(order);
 }
 
@@ -76,6 +78,6 @@ export function toAccount(accountId: string, order: Order): Promise<boolean> {
  * A project that takes a topic from a caller checks it with `isValidTopic` first, since a name
  * a channel cannot carry throws here.
  */
-export function toSellers(order: Order): Promise<boolean> {
+export function toSellers(order: Order): Future<boolean> {
   return orders.topic("seller").update(order);
 }

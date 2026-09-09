@@ -48,12 +48,11 @@
  */
 
 import { wireAuth } from "./src/capability/wire.ts";
-import { capabilities } from "@scribe/contracts/capability.ts";
-import type { LifecycleSteps } from "@scribe/alchemy";
-import { extensions, OptionalExtension, runDeclarations } from "@scribe/runtime/support/extensions/mod.ts";
-import { optional, required } from "@scribe/foundation";
+import type { PackageRegistrar, ScribePlugin } from "@scribe/contracts/registrar.ts";
+import { optional, required } from "@scribe/scholium/env.ts";
 import { AUTH_EXTENSION } from "./src/declaration/registry.ts";
 import { authSettings } from "./src/settings.ts";
+import { Account } from "./src/declaration/account.ts";
 
 export { SignOutScope } from "./contracts/account.ts";
 export type {
@@ -71,21 +70,31 @@ export type { AccountRole } from "./contracts/role.ts";
 export type { AuthSettings } from "./contracts/settings.ts";
 
 /**
- * When this package runs, which is once, at import, to fill what a mounted module needs.
+ * The kinds a project may declare against this package, bucket to the symbol it imports.
  *
  * @remarks
- * The settings are the secrets and provider credentials this package reaches, read from the
- * process environment. They are read here rather than at the first call so that a checkout
- * missing one fails where the name of the variable is in front of the reader.
- *
- * The extension is where the project's own role declarations are loaded from, on the first token
- * that needs them. A declaration lives in the project, and a token can arrive in a process that
- * never imported it, so registering it here is what makes a role findable by name wherever the
- * token lands.
+ * Read by `scribe gen code`, which is the only reader: it is what tells the tool that mounting
+ * "auth" gives a project an "accounts" bucket to write into, without either the framework or the
+ * tool ever naming this package.
  */
-export const scribe: LifecycleSteps = {
-  wires: () => {
-    capabilities.register(wireAuth);
+export const declares = { accounts: Account };
+
+class AuthPlugin implements ScribePlugin {
+  /**
+   * Registers this package's defaults, once, at import: the settings and the extension bucket.
+   *
+   * @remarks
+   * The settings are the secrets and provider credentials this package reaches, read from the
+   * process environment. They are read here rather than at the first call so that a checkout
+   * missing one fails where the name of the variable is in front of the reader.
+   *
+   * The extension is where the project's own role declarations are loaded from, on the first token
+   * that needs them. A declaration lives in the project, and a token can arrive in a process that
+   * never imported it, so registering it here is what makes a role findable by name wherever the
+   * token lands.
+   */
+  registerWith(registrar: PackageRegistrar): void {
+    registrar.addCapability(wireAuth);
 
     authSettings.use({
       jwtSecret: optional("JWT_SECRET"),
@@ -99,8 +108,9 @@ export const scribe: LifecycleSteps = {
       twilioMessageServiceSid: optional("TWILIO_MESSAGE_SERVICE_SID"),
     });
 
-    if (!extensions.declares(AUTH_EXTENSION)) {
-      extensions.register(new OptionalExtension(AUTH_EXTENSION, () => runDeclarations("accounts")));
-    }
-  },
-};
+    registrar.addExtension(AUTH_EXTENSION, "accounts");
+  }
+}
+
+/** When this package runs, which is once, at import, to fill what a mounted module needs. */
+export const scribe: ScribePlugin = new AuthPlugin();

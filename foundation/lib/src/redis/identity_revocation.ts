@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import type { Future } from "@scribe/alchemy";
 import { KeyIndex } from "./key_index.ts";
 import { kv } from "./kv.ts";
 
@@ -62,18 +63,31 @@ function recheckKey(userId: string): string {
   return `${IDENTITY_CACHE_KEY}:recheck:${userId}`;
 }
 
+/** Tracks a user's live token fingerprints, so a revocation can force them back through GoTrue. */
 export class IdentityRevocation {
+  /**
+   * Indexes `fingerprint` under `userId` for `ttlSeconds`, the token's own lifetime; `false` when
+   * the index could not be written.
+   *
+   * @remarks
+   * The index is built fresh on every call rather than held on the class, because the window a
+   * fingerprint stays indexed for is the token's own: two tokens of the same user can expire at
+   * different times, so there is no single TTL this class could cache one index under.
+   */
   static async remember(
     userId: string,
     fingerprint: string,
     ttlSeconds: number,
-  ): Promise<boolean> {
-    // The window a fingerprint stays indexed for is the token's own, so the index is built per
-    // call rather than held: two tokens of the same user can expire at different times.
+  ): Future<boolean> {
     return await _index(ttlSeconds).remember(userId, fingerprint);
   }
 
-  static async revoke(userId: string): Promise<void> {
+  /**
+   * Forgets every fingerprint indexed for `userId`, and marks the account for a re-check against
+   * GoTrue until {@link RECHECK_WINDOW_SECONDS} has passed. Logs rather than throws on failure, so
+   * a store outage never turns a revocation into an unhandled error.
+   */
+  static async revoke(userId: string): Future<void> {
     try {
       const index = _index(RECHECK_WINDOW_SECONDS);
       const fingerprints = await index.members(userId);
@@ -94,7 +108,7 @@ export class IdentityRevocation {
    * Fails closed: when Redis cannot answer, the caller is told to re-check, so
    * a revocation is never lost to an unavailable cache.
    */
-  static async recheckRequired(userId: string): Promise<boolean> {
+  static async recheckRequired(userId: string): Future<boolean> {
     try {
       return (await kv().exists(recheckKey(userId))) === 1;
     } catch (e) {

@@ -60,8 +60,7 @@ const DEFAULT_KEY = "id";
  * function. It is the boundary where the types stop, so it is written down once here rather
  * than cast at each of the five call sites.
  */
-// deno-lint-ignore no-explicit-any
-type AnyChange = any;
+type AnyChange = unknown;
 
 /** What a declaration can say beyond its path. */
 export interface TriggerOptions {
@@ -375,7 +374,7 @@ function changeOf(event: TriggerEvent, param: string): AnyChange {
     table: event.table,
     key: event.key,
     params: { [param]: event.key },
-    at: DateTime.fromMillisecondsSinceEpoch(new Date(event.at).getTime()),
+    at: DateTime.parse(event.at),
   };
 
   if (event.field === null) {

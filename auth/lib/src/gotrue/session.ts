@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { SignOutScope } from "../../contracts/account.ts";
-import type { Result } from "@scribe/alchemy";
+import type { Future, Result } from "@scribe/alchemy";
 import {
   adminHeaders,
   anonHeaders,
@@ -48,10 +48,19 @@ import {
   userHeaders,
 } from "./transport.ts";
 
+/**
+ * Reading, refreshing and ending the GoTrue session a sign-in produced.
+ *
+ * @remarks
+ * Grouped apart from `GoTrueSignIn` because these calls all take an existing session's own access
+ * token, not credentials: a caller reaches this once already signed in, to keep that session
+ * alive or to close it, never to open a new one.
+ */
 export class GoTrueSession {
+  /** Exchanges `refreshToken` for a new session, as GoTrue's own refresh grant answers it. */
   refreshToken(
     refreshToken: string,
-  ): Promise<Result<GoTrueSessionResponse, AuthError>> {
+  ): Future<Result<GoTrueSessionResponse, AuthError>> {
     return requestAuth(`${authUrl()}/token?grant_type=refresh_token`, {
       method: "POST",
       headers: anonHeaders(),
@@ -59,17 +68,19 @@ export class GoTrueSession {
     });
   }
 
-  user(accessToken: string): Promise<Result<GoTrueUser, AuthError>> {
+  /** The GoTrue user `accessToken` names. */
+  user(accessToken: string): Future<Result<GoTrueUser, AuthError>> {
     return requestAuth(`${authUrl()}/user`, {
       method: "GET",
       headers: userHeaders(accessToken),
     });
   }
 
+  /** Changes the email or phone `accessToken`'s user signs in with. */
   updateIdentifier(
     accessToken: string,
     identifier: { email: string } | { phone: string },
-  ): Promise<Result<GoTrueUser, AuthError>> {
+  ): Future<Result<GoTrueUser, AuthError>> {
     return requestAuth(`${authUrl()}/user`, {
       method: "PUT",
       headers: userHeaders(accessToken),
@@ -77,10 +88,11 @@ export class GoTrueSession {
     });
   }
 
+  /** Confirms a phone number change with the one-time code `otp` sent to `phone`. */
   verifyPhoneChange(
     phone: string,
     otp: string,
-  ): Promise<Result<GoTrueUser, AuthError>> {
+  ): Future<Result<GoTrueUser, AuthError>> {
     return requestAuth(`${authUrl()}/verify`, {
       method: "POST",
       headers: anonHeaders(),
@@ -88,10 +100,11 @@ export class GoTrueSession {
     });
   }
 
+  /** Removes the external identity `identityId` from the user `accessToken` names. */
   unlinkIdentity(
     accessToken: string,
     identityId: string,
-  ): Promise<Result<void, AuthError>> {
+  ): Future<Result<void, AuthError>> {
     return requestAuthVoid(
       `${authUrl()}/user/identities/${encodeURIComponent(identityId)}`,
       {
@@ -101,10 +114,11 @@ export class GoTrueSession {
     );
   }
 
+  /** Ends the session `accessToken` names, at the reach `scope` describes. */
   logout(
     accessToken: string,
     scope: SignOutScope,
-  ): Promise<Result<void, AuthError>> {
+  ): Future<Result<void, AuthError>> {
     return requestAuthVoid(`${authUrl()}/logout?scope=${scope}`, {
       method: "POST",
       headers: { ...adminHeaders(), Authorization: `Bearer ${accessToken}` },

@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Failure, type Result } from "@scribe/alchemy";
+import { Failure, type Future, type Result } from "@scribe/alchemy";
 import { ConfigError } from "../../contracts/config.ts";
 
 /**
@@ -43,13 +43,19 @@ import { ConfigError } from "../../contracts/config.ts";
  * Every answer this package hands back as a `Result` goes through here. Reading a value does
  * not: a read answers the declared value when the table cannot be reached, because a caller
  * asking for a ceiling wants a number and has nothing to do with a `catch`.
+ *
+ * @remarks
+ * The caught error is logged before it is folded into {@link ConfigError.Backend}, because that
+ * single error code otherwise stands for a refused write, an unreachable store and a binding
+ * nobody wired up, and nothing short of reading this package's own source told them apart.
  */
 export async function guarded<T>(
-  query: () => Promise<Result<T, ConfigError>>,
-): Promise<Result<T, ConfigError>> {
+  query: () => Future<Result<T, ConfigError>>,
+): Future<Result<T, ConfigError>> {
   try {
     return await query();
-  } catch {
+  } catch (error) {
+    console.error("[remote-configs] a write failed", error);
     return new Failure(ConfigError.Backend);
   }
 }

@@ -33,7 +33,6 @@
 //
 // This header is a summary written for convenience. Where it differs from the
 
-// deno-lint-ignore-file no-explicit-any
 import "./settings.ts";
 
 export type Row = Record<string, unknown>;
@@ -41,12 +40,20 @@ export type Row = Record<string, unknown>;
 class FakeTable {
   rows: Row[];
 
+  /** The columns that must together be unique, so a fake insert can refuse a duplicate. None by default. */
+  uniqueKey: string[] | null = null;
+
   constructor(rows: Row[] = []) {
     this.rows = rows;
   }
 }
 
-type Op = "select" | "insert" | "update" | "delete";
+/** Thrown by a fake insert into a table with a declared unique key, when a row already holds it. */
+class FakeUniqueViolation {
+  constructor(readonly error: { code: string; message: string }) {}
+}
+
+type Op = "select" | "insert" | "update" | "delete" | "upsert";
 
 function likeToRegExp(pattern: string, insensitive = false): RegExp {
   const escaped = pattern
@@ -56,10 +63,14 @@ function likeToRegExp(pattern: string, insensitive = false): RegExp {
   return new RegExp(`^${escaped}$`, insensitive ? "i" : undefined);
 }
 
-class FakeQueryBuilder implements PromiseLike<{ data: unknown; error: null }> {
+/** What a fake query resolves with: a normal answer, or the shape a real PostgREST error takes. */
+type FakeAnswer = { data: unknown; error: null } | { data: null; error: { code: string; message: string } };
+
+class FakeQueryBuilder implements PromiseLike<FakeAnswer> {
   readonly #table: FakeTable;
   readonly #op: Op;
   readonly #payload?: Row | Row[];
+  readonly #onConflict?: string[];
   readonly #filters: Array<(row: Row) => boolean> = [];
   readonly #orders: { col: string; ascending: boolean }[] = [];
   #limitCount: number | null = null;
@@ -68,10 +79,11 @@ class FakeQueryBuilder implements PromiseLike<{ data: unknown; error: null }> {
   #returning: boolean;
   #selectCols: string[] | null = null;
 
-  constructor(table: FakeTable, op: Op, payload?: Row | Row[]) {
+  constructor(table: FakeTable, op: Op, payload?: Row | Row[], onConflict?: string[]) {
     this.#table = table;
     this.#op = op;
     this.#payload = payload;
+    this.#onConflict = onConflict;
     this.#returning = op === "select";
   }
 
@@ -112,27 +124,31 @@ class FakeQueryBuilder implements PromiseLike<{ data: unknown; error: null }> {
   }
 
   eq(col: string, value: unknown): this {
-    return this.#filter(col, (v) => v === value);
+    return this.#filter(col, (v) => v === coercedToRow(v, value));
   }
 
   neq(col: string, value: unknown): this {
-    return this.#filter(col, (v) => v !== value);
+    return this.#filter(col, (v) => v !== coercedToRow(v, value));
   }
 
   gt(col: string, value: unknown): this {
-    return this.#filter(col, (v) => (v as any) > (value as any));
+    // deno-lint-ignore no-explicit-any -- a fake row's column holds whatever the test fixture gave it, and this defers to the host's own comparison rather than pretending to know the type.
+    return this.#filter(col, (v) => v !== null && v !== undefined && (v as any) > (coercedToRow(v, value) as any));
   }
 
   gte(col: string, value: unknown): this {
-    return this.#filter(col, (v) => (v as any) >= (value as any));
+    // deno-lint-ignore no-explicit-any -- see gt: the value's real type is not known here.
+    return this.#filter(col, (v) => v !== null && v !== undefined && (v as any) >= (coercedToRow(v, value) as any));
   }
 
   lt(col: string, value: unknown): this {
-    return this.#filter(col, (v) => (v as any) < (value as any));
+    // deno-lint-ignore no-explicit-any -- see gt: the value's real type is not known here.
+    return this.#filter(col, (v) => v !== null && v !== undefined && (v as any) < (coercedToRow(v, value) as any));
   }
 
   lte(col: string, value: unknown): this {
-    return this.#filter(col, (v) => (v as any) <= (value as any));
+    // deno-lint-ignore no-explicit-any -- see gt: the value's real type is not known here.
+    return this.#filter(col, (v) => v !== null && v !== undefined && (v as any) <= (coercedToRow(v, value) as any));
   }
 
   is(col: string, value: unknown): this {
@@ -140,7 +156,7 @@ class FakeQueryBuilder implements PromiseLike<{ data: unknown; error: null }> {
   }
 
   in(col: string, values: unknown[]): this {
-    return this.#filter(col, (v) => values.includes(v));
+    return this.#filter(col, (v) => values.some((value) => v === coercedToRow(v, value)));
   }
 
   like(col: string, pattern: string): this {
@@ -171,19 +187,19 @@ class FakeQueryBuilder implements PromiseLike<{ data: unknown; error: null }> {
     return this;
   }
 
-  then<TResult1 = { data: unknown; error: null }, TResult2 = never>(
-    onfulfilled?:
-      | ((value: {
-        data: unknown;
-        error: null;
-      }) => TResult1 | PromiseLike<TResult1>)
-      | null,
+  then<TResult1 = FakeAnswer, TResult2 = never>(
+    onfulfilled?: ((value: FakeAnswer) => TResult1 | PromiseLike<TResult1>) | null,
     onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
   ): PromiseLike<TResult1 | TResult2> {
-    return Promise.resolve({ data: this.#execute(), error: null as null }).then(
-      onfulfilled,
-      onrejected,
-    );
+    try {
+      return Promise.resolve({ data: this.#execute(), error: null as null }).then(
+        onfulfilled,
+        onrejected,
+      );
+    } catch (raised) {
+      if (!(raised instanceof FakeUniqueViolation)) throw raised;
+      return Promise.resolve({ data: null, error: raised.error }).then(onfulfilled, onrejected);
+    }
   }
 
   #matched(): Row[] {
@@ -197,6 +213,7 @@ class FakeQueryBuilder implements PromiseLike<{ data: unknown; error: null }> {
         for (const { col, ascending } of [...this.#orders].reverse()) {
           rows = [...rows].sort((a, b) => {
             if (a[col] === b[col]) return 0;
+            // deno-lint-ignore no-explicit-any -- see FakePostgrestClient.gt: the column's real type is not known here.
             const cmp = (a[col] as any) > (b[col] as any) ? 1 : -1;
             return ascending ? cmp : -cmp;
           });
@@ -212,6 +229,20 @@ class FakeQueryBuilder implements PromiseLike<{ data: unknown; error: null }> {
         const items = (
           Array.isArray(this.#payload) ? this.#payload : [this.#payload!]
         ).map((item) => ({ ...item }));
+
+        if (this.#table.uniqueKey) {
+          const key = this.#table.uniqueKey;
+          for (const item of items) {
+            const conflict = this.#table.rows.some((row) => key.every((col) => row[col] === item[col]));
+            if (conflict) {
+              throw new FakeUniqueViolation({
+                code: "23505",
+                message: `duplicate key value violates unique constraint on (${key.join(", ")})`,
+              });
+            }
+          }
+        }
+
         this.#table.rows.push(...items);
         const projected = items.map((row) => this.#project(row));
         if (this.#single) return projected[0] ?? null;
@@ -233,6 +264,22 @@ class FakeQueryBuilder implements PromiseLike<{ data: unknown; error: null }> {
         if (this.#single) return projected[0] ?? null;
         return this.#returning ? projected : null;
       }
+      case "upsert": {
+        const conflictOn = this.#onConflict ?? [];
+        const items = (
+          Array.isArray(this.#payload) ? this.#payload : [this.#payload!]
+        ).map((item) => ({ ...item }));
+
+        for (const item of items) {
+          const existing = this.#table.rows.find((row) => conflictOn.every((col) => row[col] === item[col]));
+          if (existing) Object.assign(existing, item);
+          else this.#table.rows.push(item);
+        }
+
+        const projected = items.map((row) => this.#project(row));
+        if (this.#single) return projected[0] ?? null;
+        return this.#returning ? projected : null;
+      }
     }
   }
 }
@@ -240,6 +287,15 @@ class FakeQueryBuilder implements PromiseLike<{ data: unknown; error: null }> {
 export type FakePostgrestSeed = Record<string, Row[]>;
 export type RpcHandler = (args?: Record<string, unknown>) => unknown;
 
+/**
+ * A PostgREST client that keeps every table in memory, standing in for the real one in a test.
+ *
+ * @remarks
+ * `filter_builder.ts` calls `.filter(column, operator, literal)` on whatever client it is given,
+ * the literal already encoded the way `quoteFilterLiteral` writes it for the wire. This class
+ * decodes that same format in {@link readFilterLiteral} and {@link readFilterList}, so a test
+ * exercises the real encoding path end to end instead of a query object nothing ever serializes.
+ */
 export class FakePostgrestClient {
   readonly #tables = new Map<string, FakeTable>();
   readonly #rpcHandlers = new Map<string, RpcHandler>();
@@ -257,28 +313,45 @@ export class FakePostgrestClient {
     return table;
   }
 
+  /** Every row currently held under table `name`. */
   rows(name: string): Row[] {
     return this.#table(name).rows;
   }
 
+  /** Replaces table `name`'s rows with `rows`, keeping its declared unique key if it has one. */
   seed(name: string, rows: Row[]): void {
-    this.#tables.set(name, new FakeTable(rows.map((row) => ({ ...row }))));
+    this.#table(name).rows = rows.map((row) => ({ ...row }));
   }
 
+  /**
+   * Declares that `columns` together are unique in table `name`, so a fake `insert` refuses a row
+   * that would duplicate them the way a real primary key or `UNIQUE` constraint would.
+   *
+   * A table with no declared key accepts any insert, which is the default every other table keeps.
+   */
+  declareUniqueKey(name: string, columns: string[]): void {
+    this.#table(name).uniqueKey = columns;
+  }
+
+  /** Wires `handler` to answer calls to the RPC named `fn`. */
   onRpc(fn: string, handler: RpcHandler): void {
     this.#rpcHandlers.set(fn, handler);
   }
 
+  /** The query builder for table `name`, the same surface the real PostgREST client exposes. */
   from(name: string) {
     const table = this.#table(name);
     return {
       select: (cols?: string) => new FakeQueryBuilder(table, "select").select(cols),
       insert: (data: Row | Row[]) => new FakeQueryBuilder(table, "insert", data),
+      upsert: (data: Row | Row[], options?: { onConflict?: string }) =>
+        new FakeQueryBuilder(table, "upsert", data, options?.onConflict?.split(",").map((col) => col.trim())),
       update: (data: Row) => new FakeQueryBuilder(table, "update", data),
       delete: () => new FakeQueryBuilder(table, "delete"),
     };
   }
 
+  /** Calls the handler wired to `fn` with `args`, or answers `null` when nothing was wired. */
   rpc(
     fn: string,
     args?: Record<string, unknown>,
@@ -291,15 +364,23 @@ export class FakePostgrestClient {
   }
 }
 
+/**
+ * Decodes one value out of the wire: the quoted, escaped form `quoteFilterLiteral` writes for a
+ * list member, or the bare form `filterLiteral` writes for a filter compared on its own.
+ *
+ * @remarks
+ * A bare literal answers back as the plain string it is, rather than as a number guessed from its
+ * digits: `filterLiteral` writes a real PostgREST server never learns whether "5" started as the
+ * number 5 or the string "5", because it reads the answer off the column's own declared type
+ * instead. This fake has no such schema, so the guess is deferred to {@link coercedToRow}, which
+ * reads it off the row a comparison is actually run against.
+ */
 function readFilterLiteral(literal: string): unknown {
   if (literal === "null") return null;
   if (literal === "unknown") return undefined;
   if (literal === "true") return true;
   if (literal === "false") return false;
-  if (!literal.startsWith('"')) {
-    const asNumber = Number(literal);
-    return literal !== "" && Number.isFinite(asNumber) ? asNumber : literal;
-  }
+  if (!literal.startsWith('"')) return literal;
 
   let read = "";
   for (let at = 1; at < literal.length - 1; at++) {
@@ -308,6 +389,29 @@ function readFilterLiteral(literal: string): unknown {
   return read;
 }
 
+/**
+ * `value` adjusted to the type `rowValue` actually holds.
+ *
+ * @remarks
+ * `eq`, `neq`, `gt`, `lt`, `gte` and `lte` are called two ways: directly, with a value a test
+ * already typed by hand, and through `filter()`, with a bare wire string `readFilterLiteral` had
+ * no column type to decode against. The second case is what this answers: a row already holding a
+ * number or a boolean is what says the wire string was one too, the same way a real column's
+ * declared type would.
+ */
+function coercedToRow(rowValue: unknown, value: unknown): unknown {
+  if (typeof rowValue === "number" && typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : value;
+  }
+  if (typeof rowValue === "boolean" && typeof value === "string") {
+    if (value === "true") return true;
+    if (value === "false") return false;
+  }
+  return value;
+}
+
+/** Decodes the parenthesized, comma-separated form `quoteFilterList` writes for an `in` filter. */
 function readFilterList(literal: string): unknown[] {
   const members: string[] = [];
   let member = "";

@@ -35,8 +35,9 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { Future } from "@scribe/alchemy";
+import { currentStack } from "@scribe/scholium/host.ts";
 import { queueSettings } from "./queue_settings.ts";
-import { connect, type NatsConnection } from "@nats-io/transport-deno";
+import type { NatsConnection } from "@nats-io/transport-deno";
 import { jetstream, type JetStreamClient, type JetStreamManager, jetstreamManager } from "@nats-io/jetstream";
 
 let _connection: Future<NatsConnection> | null = null;
@@ -82,10 +83,66 @@ export function dialFrom(url: string): Dial {
   };
 }
 
+/** What either transport's own `connect` takes: a server, and the credentials split out of it. */
+interface ConnectOptions {
+  readonly servers: string[];
+  readonly token?: string;
+  readonly user?: string;
+  readonly pass?: string;
+}
+
+/**
+ * Dials [options] through the transport this process's own stack ships.
+ *
+ * `@nats-io/transport-deno` and `@nats-io/transport-node` both expose a `connect` of the same
+ * shape, over `NatsConnection` of the same shape, so this is the only place either is named:
+ * everything past this function reads the connection through the port `nats-core` defines, never
+ * through the transport that opened it. Reached by a dynamic import, never a static one, because
+ * Bun cannot load `@nats-io/transport-deno` and Deno is not proven to load
+ * `@nats-io/transport-node` either — a static import of the wrong one would run at the top of this
+ * module regardless of which branch below ever executes.
+ *
+ * There is no `node` case, the same reason `env.ts` and `runner.ts` have none: nothing under
+ * `engine/` runs bare under `node`, only under `deno` or `bun`.
+ *
+ * @throws {Error} When {@link currentStack} answers `node`.
+ */
+async function dial(options: ConnectOptions): Future<NatsConnection> {
+  switch (currentStack()) {
+    case "deno": {
+      const { connect } = await import("@nats-io/transport-deno");
+      return connect(options);
+    }
+    case "bun": {
+      const { connect } = await import("@nats-io/transport-node");
+      return connect(options);
+    }
+    case "node":
+      throw new Error(`No NATS transport ships for the "${currentStack()}" stack yet.`);
+  }
+}
+
+/**
+ * The NATS connection string the shared connection dials.
+ *
+ * @throws {Error} When the configured queue driver is not `"nats"`. Reaching this file at all
+ * means something asked for a NATS connection, and asking under another driver is a wiring bug
+ * this refuses rather than dials against a url that was never configured.
+ */
+function natsUrl(): string {
+  const settings = queueSettings.get();
+  if (settings.driver !== "nats") {
+    throw new Error(
+      `A NATS connection was asked for, but the configured queue driver is "${settings.driver}".`,
+    );
+  }
+  return settings.natsUrl;
+}
+
 function connection(): Future<NatsConnection> {
   if (!_connection) {
-    const { server, token, user, pass } = dialFrom(queueSettings.get().natsUrl);
-    _connection = connect({ servers: [server], token, user, pass });
+    const { server, token, user, pass } = dialFrom(natsUrl());
+    _connection = dial({ servers: [server], token, user, pass });
   }
   return _connection;
 }

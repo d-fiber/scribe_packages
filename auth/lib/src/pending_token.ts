@@ -34,10 +34,11 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import { DateTime, Duration, type Future } from "@scribe/alchemy";
 import { authSettings } from "./settings.ts";
 import { pendingTokens } from "./tables.ts";
 import type { AccountRole } from "../contracts/role.ts";
-import { fromHex, sha256Hex, toHex } from "@scribe/runtime/support/crypto/hash.ts";
+import { fromHex, sha256Hex, toHex } from "@scribe/runtime/primitives/crypto/hash.ts";
 
 export enum PendingTokenPurpose {
   SignIn = "sign-in",
@@ -45,23 +46,30 @@ export enum PendingTokenPurpose {
   VpnAccess = "vpn-access",
 }
 
-const _TTL_MS: Record<PendingTokenPurpose, number> = {
-  [PendingTokenPurpose.SignIn]: 10 * 60 * 1000,
-  [PendingTokenPurpose.PasswordReset]: 10 * 60 * 1000,
-  [PendingTokenPurpose.VpnAccess]: 4 * 60 * 60 * 1000,
+const _TTL: Record<PendingTokenPurpose, Duration> = {
+  [PendingTokenPurpose.SignIn]: Duration.minutes(10),
+  [PendingTokenPurpose.PasswordReset]: Duration.minutes(10),
+  [PendingTokenPurpose.VpnAccess]: Duration.hours(4),
 };
 
 export const MAX_PENDING_TOKEN_CHARS = 2048;
 
+/** What a pending token proves once it has been verified: who asked, and for what role. */
 export interface PendingTokenPayload {
+  /** What the caller identified itself by when the token was issued. */
   readonly identifier: string;
+
+  /** The role the token grants once redeemed. */
   readonly role: AccountRole;
+
+  /** The device the token was issued to, or `null` when none was recorded. */
   readonly deviceId: string | null;
 }
 
+/** A single-purpose, HMAC-signed token that stands in for a completed step until it is redeemed or expires. */
 export class PendingToken {
   readonly #purpose: PendingTokenPurpose;
-  #hmacKey: Promise<CryptoKey> | null = null;
+  #hmacKey: Future<CryptoKey> | null = null;
 
   constructor(purpose: PendingTokenPurpose = PendingTokenPurpose.SignIn) {
     this.#purpose = purpose;
@@ -74,7 +82,7 @@ export class PendingToken {
    * import time, before anything has filled the settings: reading the secret there would make
    * declaring an account depend on the order the modules happen to load in.
    */
-  get #key(): Promise<CryptoKey> {
+  get #key(): Future<CryptoKey> {
     if (this.#hmacKey === null) {
       this.#hmacKey = crypto.subtle.importKey(
         "raw",
@@ -88,16 +96,21 @@ export class PendingToken {
     return this.#hmacKey;
   }
 
-  get ttlMs(): number {
-    return _TTL_MS[this.#purpose];
+  /** How long a token issued for this purpose stays valid. */
+  get ttl(): Duration {
+    return _TTL[this.#purpose];
   }
 
+  /**
+   * Signs and records a token for `identifier`, `role` and `deviceId`, or `null` when the record
+   * could not be saved.
+   */
   async issue(
     identifier: string,
     role: AccountRole,
     deviceId: string | null,
-  ): Promise<string | null> {
-    const expiresAt = Date.now() + this.ttlMs;
+  ): Future<string | null> {
+    const expiresAt = DateTime.now().add(this.ttl).millisecondsSinceEpoch;
     const token = await this.#sign(identifier, role, deviceId, expiresAt);
 
     const saved = await pendingTokens().unscoped().insert({
@@ -113,7 +126,7 @@ export class PendingToken {
     role: AccountRole,
     deviceId: string | null,
     expiresAt: number,
-  ): Promise<string> {
+  ): Future<string> {
     const key = await this.#key;
     const utf8Bytes = new TextEncoder().encode(
       JSON.stringify({
@@ -136,7 +149,16 @@ export class PendingToken {
     return `${payloadB64}.${toHex(sigBuffer)}`;
   }
 
-  async payload(token: string): Promise<PendingTokenPayload | null> {
+  /**
+   * The payload `token` carries, once its signature verifies, it has not expired, and it was
+   * issued for this instance's own purpose; `null` on any other outcome, malformed input included.
+   *
+   * @remarks
+   * This checks the token's own signature and claims only. It does not consult the database, so
+   * a token already {@link consume}d still verifies here. A caller that must refuse reuse checks
+   * {@link exists} or consumes the token instead of relying on this alone.
+   */
+  async payload(token: string): Future<PendingTokenPayload | null> {
     try {
       if (!token || token.length > MAX_PENDING_TOKEN_CHARS) return null;
 
@@ -167,7 +189,7 @@ export class PendingToken {
         purpose?: PendingTokenPurpose;
         exp: number;
       };
-      if (Date.now() > exp) return null;
+      if (DateTime.now().millisecondsSinceEpoch > exp) return null;
       if (!identifier || !role) return null;
       if ((purpose ?? PendingTokenPurpose.SignIn) !== this.#purpose) {
         return null;
@@ -179,21 +201,23 @@ export class PendingToken {
     }
   }
 
-  async exists(token: string): Promise<boolean> {
+  /** Whether `token`'s record still exists and has not expired, without consuming it. */
+  async exists(token: string): Future<boolean> {
     const hash = await sha256Hex(token);
     const data = await pendingTokens()
       .unscoped()
       .select((s) => ({ token_hash: s.token_hash }))
-      .where((f) => [f.token_hash.eq(hash), f.expires_at.gt(Date.now())])
+      .where((f) => [f.token_hash.eq(hash), f.expires_at.gt(DateTime.now().millisecondsSinceEpoch)])
       .getOne();
     return data !== null;
   }
 
-  async consume(token: string): Promise<boolean> {
+  /** Deletes `token`'s record if it still exists and has not expired, so it cannot be redeemed twice. */
+  async consume(token: string): Future<boolean> {
     const hash = await sha256Hex(token);
     const deleted = await pendingTokens()
       .unscoped()
-      .where((f) => [f.token_hash.eq(hash), f.expires_at.gt(Date.now())])
+      .where((f) => [f.token_hash.eq(hash), f.expires_at.gt(DateTime.now().millisecondsSinceEpoch)])
       .deleteOne((s) => ({ token_hash: s.token_hash }));
     return deleted.ok;
   }

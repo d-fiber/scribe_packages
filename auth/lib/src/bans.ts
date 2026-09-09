@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Failure, okay, type Result } from "@scribe/alchemy";
+import { DateTime, Failure, type Future, okay, type Result } from "@scribe/alchemy";
 import type { Ban, BanOptions } from "../contracts/account.ts";
 import { accountBans } from "./tables.ts";
 import { AccountRevocation } from "./revocation.ts";
@@ -64,7 +64,7 @@ export function banOf(raw: unknown): Ban | null {
   if (raw === null || typeof raw !== "object") return null;
 
   const row = raw as { since: number; until: number | null; reason: string | null };
-  if (row.until !== null && row.until <= Date.now()) return null;
+  if (row.until !== null && row.until <= DateTime.now().millisecondsSinceEpoch) return null;
 
   return { since: row.since, until: row.until, reason: row.reason };
 }
@@ -76,7 +76,7 @@ export function banOf(raw: unknown): Ban | null {
  * which knows an identifier and nothing else. `Bans` is what scopes the question when an operator
  * asks it, and this is what the engine asks itself.
  */
-export async function standingBanOn(id: string): Promise<Ban | null> {
+export async function standingBanOn(id: string): Future<Ban | null> {
   const row = await accountBans()
     .unscoped()
     .select((s) => ({ since: s.since, until: s.until, reason: s.reason }))
@@ -93,9 +93,9 @@ export async function standingBanOn(id: string): Promise<Ban | null> {
  * account of another role by an operator who only holds this one.
  */
 export class Bans {
-  readonly #holds: (id: string) => Promise<boolean>;
+  readonly #holds: (id: string) => Future<boolean>;
 
-  constructor(holds: (id: string) => Promise<boolean>) {
+  constructor(holds: (id: string) => Future<boolean>) {
     this.#holds = holds;
   }
 
@@ -111,7 +111,7 @@ export class Bans {
    * outlives it, until it runs out on its own: closing that window would cost a read on every
    * request the process serves.
    */
-  async lay(id: string, options: BanOptions = {}): Promise<Result<void, BanError>> {
+  async lay(id: string, options: BanOptions = {}): Future<Result<void, BanError>> {
     if (!(await this.#holds(id))) return new Failure(BanError.NotFound);
 
     await accountBans()
@@ -119,9 +119,10 @@ export class Bans {
       .where((f) => f.account_id.eq(id))
       .delete();
 
+    const now = DateTime.now();
     const ban: Ban = {
-      since: Date.now(),
-      until: options.for ? Date.now() + options.for.inMilliseconds : null,
+      since: now.millisecondsSinceEpoch,
+      until: options.for ? now.add(options.for).millisecondsSinceEpoch : null,
       reason: options.reason ?? null,
     };
 
@@ -134,7 +135,7 @@ export class Bans {
   }
 
   /** Lets the account back in, whether its ban had a deadline or not. */
-  async lift(id: string): Promise<Result<void, BanError>> {
+  async lift(id: string): Future<Result<void, BanError>> {
     const lifted = await accountBans()
       .unscoped()
       .where((f) => f.account_id.eq(id))
@@ -144,12 +145,12 @@ export class Bans {
   }
 
   /** The ban standing over the account, or null when none stands or it holds another role. */
-  async of(id: string): Promise<Ban | null> {
+  async of(id: string): Future<Ban | null> {
     return (await this.#holds(id)) ? await standingBanOn(id) : null;
   }
 
   /** Every ban standing right now, for whoever has a screen to fill with them. */
-  async standing(): Promise<readonly ListedBan[]> {
+  async standing(): Future<readonly ListedBan[]> {
     const rows = await accountBans()
       .unscoped()
       .select((s) => ({ account_id: s.account_id, since: s.since, until: s.until, reason: s.reason }))

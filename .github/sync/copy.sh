@@ -59,14 +59,14 @@ rsync -a --delete \
   --exclude '/.git' \
   --exclude '/.github' \
   --exclude '/.gitignore' \
-  --exclude '/deno.json' \
+  --exclude 'deno.json' \
   --exclude '/LICENSE' \
   --exclude '/README.md' \
   --exclude '/CONTRIBUTING.md' \
   --exclude '/STYLE.md' \
   --exclude '/TESTING.md' \
   --exclude 'CHANGELOG.md' \
-  --exclude '/tool/test.sh' \
+  --exclude '/tools/test.sh' \
   --exclude '/.githooks' \
   --exclude 'tests/e2e/.generated' \
   --exclude 'tests/e2e/.postgres' \

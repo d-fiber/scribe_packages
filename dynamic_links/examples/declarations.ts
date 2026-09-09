@@ -1,4 +1,4 @@
-import { Duration } from "@scribe/alchemy";
+import { DateTime, Duration, type Future } from "@scribe/alchemy";
 import { DynamicLink, Link, LinkPlatform } from "@scribe/dynamic_links";
 
 /** What an invitation link carries to the application that opens it. */
@@ -66,7 +66,7 @@ export const shared = DynamicLink.routed<Invite>("shared", {
 export async function inviteFor(
   code: string,
   invitedBy: string,
-): Promise<string | null> {
+): Future<string | null> {
   const created = await invite.create({ code, invitedBy });
   return created.ok ? created.data.slug : null;
 }
@@ -75,18 +75,18 @@ export async function inviteFor(
 export async function shortLivedInvite(
   code: string,
   invitedBy: string,
-): Promise<string | null> {
+): Future<string | null> {
   const created = await invite.create(
     { code, invitedBy },
     {
-      expiresAt: Date.now() + Duration.hours(1).inMilliseconds,
+      expiresAt: DateTime.now().add(Duration.hours(1)).millisecondsSinceEpoch,
     },
   );
   return created.ok ? created.data.slug : null;
 }
 
 /** Stops one slug from resolving, without touching the others of the same declaration. */
-export async function cancel(slug: string): Promise<boolean> {
+export async function cancel(slug: string): Future<boolean> {
   const result = await invite.revoke(slug);
   return result.ok;
 }

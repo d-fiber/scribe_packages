@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import type { Duration, QueueMessage } from "@scribe/alchemy";
+import type { Duration, Future, QueueMessage } from "@scribe/alchemy";
 
 export type { QueueMessage };
 
@@ -75,7 +75,7 @@ export interface PushOptions {
 export type JobHandler<T> = (
   data: T,
   message: QueueMessage<T>,
-) => Promise<void>;
+) => Future<void>;
 
 /**
  * A body called once with a group of payloads.
@@ -83,7 +83,7 @@ export type JobHandler<T> = (
  * The group succeeds or fails whole. On failure each message is retried on its own count,
  * but the group runs again in full.
  */
-export type BatchHandler<T> = (items: readonly T[]) => Promise<void>;
+export type BatchHandler<T> = (items: readonly T[]) => Future<void>;
 
 /** What one pass over the queues did. */
 export interface DrainResult {

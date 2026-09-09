@@ -1,0 +1,4 @@
+services:
+  provision:
+    volumes:
+      - "{{sdk_root}}/packages/dynamic_links/deploy/db/init:/provision/modules/dynamic_links:ro"

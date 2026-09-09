@@ -34,8 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { cache, Duration } from "@scribe/alchemy";
-import { KeyIndex } from "@scribe/foundation/redis";
+import { Duration, Future, valkery } from "@scribe/alchemy";
+import { KeyIndex } from "@scribe/foundation";
 import type { AccountRole } from "../contracts/role.ts";
 import { accounts } from "./tables.ts";
 
@@ -50,19 +50,19 @@ const PHONE_ENTRY = "phone:";
  * The address and the number are indexed alongside the identifier because a revocation has to
  * drop them without knowing which of them the account was found by.
  */
-class RoleCache {
-  readonly #email = cache<AccountRole>({ key: "email:role", ttl: ROLE_TTL });
-  readonly #phone = cache<AccountRole>({ key: "phone:role", ttl: ROLE_TTL });
-  readonly #id = cache<AccountRole>({ key: "account:role", ttl: ROLE_TTL });
+class RoleValkery {
+  readonly #email = valkery<AccountRole>({ key: "email:role", ttl: ROLE_TTL });
+  readonly #phone = valkery<AccountRole>({ key: "phone:role", ttl: ROLE_TTL });
+  readonly #id = valkery<AccountRole>({ key: "account:role", ttl: ROLE_TTL });
   readonly #index = new KeyIndex(INDEX_KEY, ROLE_TTL.inSeconds, "auth-cache:role");
 
   /** The role remembered for this address, or null when none was. */
-  getByEmail(email: string): Promise<AccountRole | null> {
+  getByEmail(email: string): Future<AccountRole | null> {
     return this.#email.get(email);
   }
 
   /** Remembers that `email` belongs to `id`, and holds that role. */
-  async setByEmail(id: string, email: string, role: AccountRole): Promise<void> {
+  async setByEmail(id: string, email: string, role: AccountRole): Future<void> {
     await Promise.all([
       this.#email.add(email, role),
       this.#index.remember(id, `${EMAIL_ENTRY}${email}`),
@@ -70,12 +70,12 @@ class RoleCache {
   }
 
   /** The role remembered for this number, or null when none was. */
-  getByPhone(phone: string): Promise<AccountRole | null> {
+  getByPhone(phone: string): Future<AccountRole | null> {
     return this.#phone.get(phone);
   }
 
   /** Remembers that `phone` belongs to `id`, and holds that role. */
-  async setByPhone(id: string, phone: string, role: AccountRole): Promise<void> {
+  async setByPhone(id: string, phone: string, role: AccountRole): Future<void> {
     await Promise.all([
       this.#phone.add(phone, role),
       this.#index.remember(id, `${PHONE_ENTRY}${phone}`),
@@ -83,20 +83,20 @@ class RoleCache {
   }
 
   /** The role remembered for this account, or null when none was. */
-  getById(id: string): Promise<AccountRole | null> {
+  getById(id: string): Future<AccountRole | null> {
     return this.#id.get(id);
   }
 
   /** Remembers the role this account holds. */
-  setById(id: string, role: AccountRole): Promise<void> {
+  setById(id: string, role: AccountRole): Future<void> {
     return this.#id.add(id, role);
   }
 
   /** Drops the account and every address and number it was indexed under. */
-  async invalidate(id: string): Promise<void> {
+  async invalidate(id: string): Future<void> {
     const entries = await this.#index.members(id);
 
-    await Promise.all([
+    await Future.wait([
       this.#id.delete(id),
       ...entries.map((entry) =>
         entry.startsWith(EMAIL_ENTRY)
@@ -110,7 +110,7 @@ class RoleCache {
 }
 
 /** What role an identifier holds, for the five seconds a burst of requests lasts. */
-export const roleCache: RoleCache = new RoleCache();
+export const roleValkery: RoleValkery = new RoleValkery();
 
 /**
  * Which declaration an account belongs to, found from whatever the caller has in hand.
@@ -120,8 +120,8 @@ export const roleCache: RoleCache = new RoleCache();
  */
 export class AccountRoleResolver {
   /** The role of the account signing in with `email`, or null when the address is proven by none. */
-  static async withEmail(email: string): Promise<AccountRole | null> {
-    const cached = await roleCache.getByEmail(email);
+  static async withEmail(email: string): Future<AccountRole | null> {
+    const cached = await roleValkery.getByEmail(email);
     if (cached !== null) return cached;
 
     const row = await accounts()
@@ -132,13 +132,13 @@ export class AccountRoleResolver {
 
     if (row === null) return null;
 
-    await roleCache.setByEmail(row.id, email, row.role);
+    await roleValkery.setByEmail(row.id, email, row.role);
     return row.role;
   }
 
   /** The role of the account signing in with `phone`, or null when the number is proven by none. */
-  static async withPhone(phone: string): Promise<AccountRole | null> {
-    const cached = await roleCache.getByPhone(phone);
+  static async withPhone(phone: string): Future<AccountRole | null> {
+    const cached = await roleValkery.getByPhone(phone);
     if (cached !== null) return cached;
 
     const row = await accounts()
@@ -149,13 +149,13 @@ export class AccountRoleResolver {
 
     if (row === null) return null;
 
-    await roleCache.setByPhone(row.id, phone, row.role);
+    await roleValkery.setByPhone(row.id, phone, row.role);
     return row.role;
   }
 
   /** The role of the account `id` names, or null when no account answers to it. */
-  static async withId(id: string): Promise<AccountRole | null> {
-    const cached = await roleCache.getById(id);
+  static async withId(id: string): Future<AccountRole | null> {
+    const cached = await roleValkery.getById(id);
     if (cached !== null) return cached;
 
     const row = await accounts()
@@ -166,18 +166,18 @@ export class AccountRoleResolver {
 
     if (row === null) return null;
 
-    await roleCache.setById(id, row.role);
+    await roleValkery.setById(id, row.role);
     return row.role;
   }
 
   /** Whether the account `id` names holds `role`, which is what scopes a call to one declaration. */
-  static async holds(id: string, role: AccountRole): Promise<boolean> {
+  static async holds(id: string, role: AccountRole): Future<boolean> {
     return (await this.withId(id)) === role;
   }
 
   /** Forgets what was cached about this account, by identifier and by every address it was indexed under. */
-  static invalidate(id: string): Promise<void> {
-    return roleCache.invalidate(id);
+  static invalidate(id: string): Future<void> {
+    return roleValkery.invalidate(id);
   }
 }
 
@@ -196,7 +196,7 @@ export interface AccountIdentifiers {
  * There is one query because there is one table. The framework used to ask two, one per role,
  * and take whichever answered.
  */
-export async function identifiersOf(id: string): Promise<AccountIdentifiers | null> {
+export async function identifiersOf(id: string): Future<AccountIdentifiers | null> {
   const row = await accounts()
     .unscoped()
     .select((s) => ({ email: s.email, phone: s.phone }))
@@ -207,7 +207,7 @@ export async function identifiersOf(id: string): Promise<AccountIdentifiers | nu
 }
 
 /** The account that signs in with `identifier`, whether that is an address or a number. */
-export async function accountWith(identifier: string): Promise<string | null> {
+export async function accountWith(identifier: string): Future<string | null> {
   const byEmail = identifier.includes("@");
 
   const row = await accounts()

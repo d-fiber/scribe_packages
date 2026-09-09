@@ -34,6 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import type { Future } from "@scribe/alchemy";
+
 import { declaredChannels } from "../core/registry.ts";
 import { realtimeChannels } from "./tables.ts";
 
@@ -53,7 +55,7 @@ import { realtimeChannels } from "./tables.ts";
  * it, which costs a stale line; deleting instead would let a process that declares half the
  * channels close the other half every time it starts.
  */
-export async function syncDeclaredChannels(): Promise<void> {
+export async function syncDeclaredChannels(): Future<void> {
   for (const [channel, listen] of declaredChannels()) {
     const stored = await realtimeChannels()
       .selectRaw("listen")

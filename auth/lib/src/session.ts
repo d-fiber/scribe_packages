@@ -35,15 +35,15 @@
 // LICENSE file, the LICENSE file governs.
 
 import { SignOutScope } from "../contracts/account.ts";
-import { cache, Duration } from "@scribe/alchemy";
+import { Duration, Future, valkery } from "@scribe/alchemy";
 import { Failure, Ok, okay, type Result } from "@scribe/alchemy";
-import { requestDevice } from "@scribe/runtime/device/device.ts";
+import { requestDevice } from "@scribe/runtime/device/mod.ts";
 import { currentIdentity } from "@scribe/runtime/http/accessors/identity.ts";
 import { currentLocation } from "@scribe/runtime/http/accessors/location.ts";
 import { checkCaller } from "@scribe/runtime/http/caller.ts";
 import { request } from "@scribe/runtime/http/request.ts";
-import { sha256Hex } from "@scribe/runtime/support/crypto/hash.ts";
-import { KeyIndex } from "@scribe/foundation/redis";
+import { sha256Hex } from "@scribe/runtime/primitives/crypto/hash.ts";
+import { KeyIndex } from "@scribe/foundation";
 import { rateLimit } from "@scribe/alchemy";
 import type { AccountRole } from "../contracts/role.ts";
 import { standingBanOn } from "./bans.ts";
@@ -65,11 +65,11 @@ const RECOVER_ENTRY = "recover:";
  * under it. Fifteen seconds is the window a retry lands in.
  */
 class SessionIdempotence {
-  readonly #refresh = cache<unknown>({
+  readonly #refresh = valkery<unknown>({
     key: "refresh-idem",
     ttl: IDEMPOTENCE_TTL,
   });
-  readonly #recover = cache<unknown>({
+  readonly #recover = valkery<unknown>({
     key: "recover-idem",
     ttl: IDEMPOTENCE_TTL,
   });
@@ -80,12 +80,12 @@ class SessionIdempotence {
   );
 
   /** What the last refresh under `key` answered, or null when none did. */
-  refreshed<T>(key: string): Promise<T | null> {
-    return this.#refresh.get(key) as Promise<T | null>;
+  refreshed<T>(key: string): Future<T | null> {
+    return this.#refresh.get(key) as Future<T | null>;
   }
 
   /** Remembers what a refresh answered, indexed under the account so a revocation drops it. */
-  async rememberRefreshed<T>(id: string, key: string, value: T): Promise<void> {
+  async rememberRefreshed<T>(id: string, key: string, value: T): Future<void> {
     await Promise.all([
       this.#refresh.add(key, value),
       this.#index.remember(id, `${REFRESH_ENTRY}${key}`),
@@ -93,12 +93,12 @@ class SessionIdempotence {
   }
 
   /** What the last recovery under `key` answered, or null when none did. */
-  recovered<T>(key: string): Promise<T | null> {
-    return this.#recover.get(key) as Promise<T | null>;
+  recovered<T>(key: string): Future<T | null> {
+    return this.#recover.get(key) as Future<T | null>;
   }
 
   /** Remembers what a recovery answered, indexed under the account so a revocation drops it. */
-  async rememberRecovered<T>(id: string, key: string, value: T): Promise<void> {
+  async rememberRecovered<T>(id: string, key: string, value: T): Future<void> {
     await Promise.all([
       this.#recover.add(key, value),
       this.#index.remember(id, `${RECOVER_ENTRY}${key}`),
@@ -106,10 +106,10 @@ class SessionIdempotence {
   }
 
   /** Drops every answer remembered for this account, so a revoked session is not handed back. */
-  async invalidate(id: string): Promise<void> {
+  async invalidate(id: string): Future<void> {
     const entries = await this.#index.members(id);
 
-    await Promise.all(
+    await Future.wait(
       entries.map((entry) =>
         entry.startsWith(REFRESH_ENTRY)
           ? this.#refresh.delete(entry.slice(REFRESH_ENTRY.length))
@@ -219,7 +219,7 @@ export class AccountSession {
    * An access token already issued outlives this by whatever is left of its hour. Closing that
    * window would mean asking the same two questions on every request the process serves.
    */
-  async #stillAllowed(id: string): Promise<boolean> {
+  async #stillAllowed(id: string): Future<boolean> {
     if ((await standingBanOn(id)) !== null) return false;
 
     const device = await devices.verify(id);
@@ -227,7 +227,7 @@ export class AccountSession {
   }
 
   /** Buys a new access token with a refresh token. */
-  async refresh(refreshToken: string): Promise<SessionResult<SessionTokens>> {
+  async refresh(refreshToken: string): Future<SessionResult<SessionTokens>> {
     const key = await sha256Hex(refreshToken);
 
     const rate = await checkCaller(REFRESH, key);
@@ -275,7 +275,7 @@ export class AccountSession {
   async recover(
     accessToken: string,
     refreshToken: string,
-  ): Promise<SessionResult<SessionTokens>> {
+  ): Future<SessionResult<SessionTokens>> {
     if (!accessToken.trim() || !refreshToken.trim()) {
       return new Failure(SessionError.Unauthorized);
     }
@@ -319,7 +319,7 @@ export class AccountSession {
   }
 
   /** Ends the session this request came with, and drops everything that remembered it. */
-  async signOut(): Promise<SessionResult<void>> {
+  async signOut(): Future<SessionResult<void>> {
     const who = caller();
     if (who === null) return new Failure(SessionError.Unauthorized);
 
@@ -334,7 +334,7 @@ export class AccountSession {
    * The rows go by the foreign keys that point at the account, so nothing here has to know what a
    * project put beside it.
    */
-  async delete(): Promise<SessionResult<void>> {
+  async delete(): Future<SessionResult<void>> {
     const who = caller();
     if (who === null) return new Failure(SessionError.Unauthorized);
 
@@ -355,7 +355,7 @@ export class AccountSession {
   }
 
   /** Writes down where this request came from, so a session list shows where it was last used. */
-  async seen(id: string): Promise<boolean> {
+  async seen(id: string): Future<boolean> {
     const device = await requestDevice();
     if (!device) return false;
 

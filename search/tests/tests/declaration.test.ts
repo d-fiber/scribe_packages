@@ -34,10 +34,11 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { assertEquals, assertThrows } from "@std/assert";
+import "@scribe/scholium/runner.ts";
+import { allOf, equals, expect, isA, Scribe, throwsA, withMessage } from "@scribe/alchemy/test";
 import type { SearchParams } from "../../lib/contracts/definition.ts";
 import type { DocumentSelector } from "../../lib/src/document/selector.ts";
-import { Field, indexNamed, Search } from "@scribe/search";
+import { Field, indexNamed, QueryBuilder, Search } from "@scribe/search";
 
 interface StoreRow {
   store_id: string;
@@ -67,27 +68,27 @@ function declare(table: string, options?: { name?: string; index?: string }) {
     .query((params: StoreSearch, { q }) => q.text(params.text));
 }
 
-Deno.test("an index that names neither takes its table as name and as cluster index", () => {
+Scribe.test("an index that names neither takes its table as name and as cluster index", () => {
   const declared = declare("plain_stores");
 
-  assertEquals(declared.name, "plain_stores");
-  assertEquals(indexNamed("plain_stores")?.index, "plain_stores");
+  expect(declared.name, equals("plain_stores"));
+  expect(indexNamed("plain_stores")?.index, equals("plain_stores"));
 });
 
-Deno.test("a named index is found under its name and not under its table", () => {
+Scribe.test("a named index is found under its name and not under its table", () => {
   declare("named_stores", { name: "named_by_hand" });
 
-  assertEquals(indexNamed("named_by_hand")?.table, "named_stores");
-  assertEquals(indexNamed("named_stores"), null);
+  expect(indexNamed("named_by_hand")?.table, equals("named_stores"));
+  expect(indexNamed("named_stores"), equals(null));
 });
 
-Deno.test("an index rebuilt under a second cluster index keeps the name callers use", () => {
+Scribe.test("an index rebuilt under a second cluster index keeps the name callers use", () => {
   declare("rebuilt_stores", { name: "rebuilt", index: "rebuilt_v2" });
 
-  assertEquals(indexNamed("rebuilt")?.index, "rebuilt_v2");
+  expect(indexNamed("rebuilt")?.index, equals("rebuilt_v2"));
 });
 
-Deno.test("the tables feeding an index are the declared one and every relation folded in", () => {
+Scribe.test("the tables feeding an index are the declared one and every relation folded in", () => {
   Search.on<StoreRow>("sourced_stores", "store_id")
     .document((s) => ({
       name: Field.text(s.name),
@@ -96,14 +97,17 @@ Deno.test("the tables feeding an index are the declared one and every relation f
     .preview((s) => ({ id: s.store_id }))
     .query((params: StoreSearch, { q }) => q.text(params.text));
 
-  assertEquals(indexNamed("sourced_stores")?.sources, [
-    { table: "sourced_stores", key: "store_id" },
-    { table: "brands", key: "store_id" },
-  ]);
+  expect(
+    indexNamed("sourced_stores")?.sources,
+    equals([
+      { table: "sourced_stores", key: "store_id" },
+      { table: "brands", key: "store_id" },
+    ]),
+  );
 });
 
-Deno.test("a relation folded two levels deep with no key of its own is refused", () => {
-  assertThrows(
+Scribe.test("a relation folded two levels deep with no key of its own is refused", () => {
+  expect(
     () =>
       Search.on<StoreRow>("deep_stores", "store_id")
         .document((s) => ({
@@ -113,12 +117,11 @@ Deno.test("a relation folded two levels deep with no key of its own is refused",
         }))
         .preview((s) => ({ id: s.store_id }))
         .query((params: StoreSearch, { q }) => q.text(params.text)),
-    TypeError,
-    "is folded 2 levels deep and names no key",
+    throwsA(allOf(isA(TypeError), withMessage("is folded 2 levels deep and names no key"))),
   );
 });
 
-Deno.test("a relation folded two levels deep that names its key is accepted", () => {
+Scribe.test("a relation folded two levels deep that names its key is accepted", () => {
   Search.on<StoreRow>("keyed_deep_stores", "store_id")
     .document((s) => ({
       brands: s.embed("brands", (b: DocumentSelector<BrandRow>) => ({
@@ -132,35 +135,69 @@ Deno.test("a relation folded two levels deep that names its key is accepted", ()
     .preview((s) => ({ id: s.store_id }))
     .query((params: StoreSearch, { q }) => q.text(params.text));
 
-  assertEquals(indexNamed("keyed_deep_stores")?.sources, [
-    { table: "keyed_deep_stores", key: "store_id" },
-    { table: "brands", key: "store_id" },
-    { table: "lines", key: "store_id" },
-  ]);
+  expect(
+    indexNamed("keyed_deep_stores")?.sources,
+    equals([
+      { table: "keyed_deep_stores", key: "store_id" },
+      { table: "brands", key: "store_id" },
+      { table: "lines", key: "store_id" },
+    ]),
+  );
 });
 
-Deno.test("two declarations under the same name are refused", () => {
+Scribe.test("two declarations under the same name are refused", () => {
   declare("twice_first", { name: "declared_twice" });
 
-  assertThrows(
+  expect(
     () => declare("twice_second", { name: "declared_twice" }),
-    TypeError,
-    'is declared twice, on "twice_first" and on "twice_second"',
+    throwsA(allOf(isA(TypeError), withMessage('is declared twice, on "twice_first" and on "twice_second"'))),
   );
 });
 
-Deno.test("two declarations writing into the same cluster index are refused", () => {
+Scribe.test("two declarations writing into the same cluster index are refused", () => {
   declare("shared_first", { name: "shared_one", index: "shared_index" });
 
-  assertThrows(
+  expect(
     () => declare("shared_second", { name: "shared_two", index: "shared_index" }),
-    TypeError,
-    'both write into "shared_index"',
+    throwsA(allOf(isA(TypeError), withMessage('both write into "shared_index"'))),
   );
 });
 
-Deno.test("the same declaration walked twice under one name is accepted", () => {
+Scribe.test("the same declaration walked twice under one name is accepted", () => {
   const declared = declare("idempotent_stores", { name: "idempotent" });
 
-  assertEquals(indexNamed("idempotent")?.name, declared.name);
+  expect(indexNamed("idempotent")?.name, equals(declared.name));
+});
+
+Scribe.test("autoQuery derives one equality filter per keyword or boolean field, and a free-text clause", () => {
+  const auto = Search.on<StoreRow>("auto_stores", "store_id")
+    .document((s) => ({
+      name: Field.text(s.name),
+      code: Field.keyword(s.store_id),
+      open: Field.bool(s.is_open),
+    }))
+    .preview((s) => ({ id: s.store_id }))
+    .autoQuery();
+
+  const expected = new QueryBuilder(["name"])
+    .text("rosa")
+    .filter({ term: { code: "A1" } })
+    .filter({ term: { open: true } })
+    .build();
+
+  expect(auto.plan({ text: "rosa", code: "A1", open: true }), equals(expected));
+});
+
+Scribe.test("autoQuery leaves out a filter whose parameter was not given", () => {
+  const auto = Search.on<StoreRow>("auto_partial_stores", "store_id")
+    .document((s) => ({
+      name: Field.text(s.name),
+      open: Field.bool(s.is_open),
+    }))
+    .preview((s) => ({ id: s.store_id }))
+    .autoQuery();
+
+  const expected = new QueryBuilder(["name"]).text("rosa").build();
+
+  expect(auto.plan({ text: "rosa" }), equals(expected));
 });

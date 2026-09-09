@@ -57,6 +57,15 @@ export type SortableFields<P extends DocumentProperties> = {
   [K in keyof P]: P[K] extends { fields: { keyword: unknown } } ? K : never;
 }[keyof P];
 
+/** The fields of `P` a plain equality filter can compare against: a keyword or a boolean. */
+export type EqualityFields<P extends DocumentProperties> = {
+  [K in keyof P]: P[K] extends { type: "keyword" } | { type: "boolean" } ? K : never;
+}[keyof P];
+
+/** What an equality filter on the field `K` of `P` compares against. */
+export type EqualityValue<P extends DocumentProperties, K extends keyof P> = P[K] extends { type: "boolean" } ? boolean
+  : string;
+
 /** The paths one level inside a folded field of `P`, dotted as the cluster writes them. */
 export type NestedPaths<P extends DocumentProperties> = {
   [K in keyof P]: P[K] extends { properties: infer Sub }

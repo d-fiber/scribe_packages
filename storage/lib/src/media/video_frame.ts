@@ -34,6 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import { Commands, FileSystems } from "@scribe/alchemy";
+import type { Future } from "@scribe/alchemy";
 import type { RgbaImage } from "./rgba.ts";
 
 const BINARY = "ffmpeg";
@@ -80,13 +82,9 @@ function openingFrameArgs(source: string): string[] {
   ];
 }
 
-async function decodeFrames(args: string[]): Promise<Uint8Array | null> {
+async function decodeFrames(args: string[]): Future<Uint8Array | null> {
   try {
-    const { code, stdout, stderr } = await new Deno.Command(BINARY, {
-      args,
-      stdout: "piped",
-      stderr: "piped",
-    }).output();
+    const { code, stdout, stderr } = await Commands.get().run(BINARY, args);
 
     if (code !== 0) {
       const reason = new TextDecoder().decode(stderr).split("\n")[0];
@@ -130,12 +128,14 @@ export function pickPosterFrame(raw: Uint8Array): Uint8Array | null {
 
 async function withTempFile<T>(
   file: File,
-  use: (path: string) => Promise<T>,
-): Promise<T | null> {
+  use: (path: string) => Future<T>,
+): Future<T | null> {
+  const disk = FileSystems.get().open();
+
   let path: string;
   try {
-    path = await Deno.makeTempFile({ prefix: "poster-" });
-    await Deno.writeFile(path, new Uint8Array(await file.arrayBuffer()));
+    path = await disk.temporaryFile();
+    await disk.write(path, new Uint8Array(await file.arrayBuffer()));
   } catch (error) {
     console.error("[video-frame] could not stage the video on disk:", error);
     return null;
@@ -144,11 +144,11 @@ async function withTempFile<T>(
   try {
     return await use(path);
   } finally {
-    await Deno.remove(path).catch(() => {});
+    await Promise.resolve(disk.remove(path)).catch(() => {});
   }
 }
 
-export function extractPosterFrame(file: File): Promise<RgbaImage | null> {
+export function extractPosterFrame(file: File): Future<RgbaImage | null> {
   return withTempFile(file, async (source) => {
     const sampled = await decodeFrames(samplingArgs(source));
     const raw = sampled !== null && sampled.length >= FRAME_BYTES

@@ -34,8 +34,10 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { assertEquals } from "@std/assert";
+import "@scribe/scholium/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { Realtime } from "@scribe/realtime";
+import { grantedAccounts } from "../../lib/src/db/grants.ts";
 import { installDatabaseFake } from "./mocks/database.ts";
 
 interface Order {
@@ -48,61 +50,61 @@ const OTHER = "22222222-2222-2222-2222-222222222222";
 
 const order = Realtime.granted<Order>("grant_order", { key: "orderId" });
 
-Deno.test("a grant makes the account a listener of that channel", async () => {
+Scribe.test("a grant makes the account a listener of that channel", async () => {
   const db = installDatabaseFake();
 
-  assertEquals(await order.topic("seller").grant(ACCOUNT), true);
-  assertEquals(await order.topic("seller").allows(ACCOUNT), true);
+  expect(await order.topic("seller").grant(ACCOUNT), equals(true));
+  expect(await order.topic("seller").allows(ACCOUNT), equals(true));
   db.restore();
 });
 
-Deno.test("granting twice leaves one grant behind", async () => {
+Scribe.test("granting twice leaves one grant behind", async () => {
   const db = installDatabaseFake();
 
   await order.topic("seller").grant(ACCOUNT);
   await order.topic("seller").grant(ACCOUNT);
 
-  assertEquals(await order.topic("seller").grants(), [ACCOUNT]);
+  expect((await order.topic("seller").grants()).accounts, equals([ACCOUNT]));
   db.restore();
 });
 
-Deno.test("an account nobody granted is not a listener", async () => {
-  const db = installDatabaseFake();
-
-  await order.topic("seller").grant(ACCOUNT);
-
-  assertEquals(await order.topic("seller").allows(OTHER), false);
-  db.restore();
-});
-
-Deno.test("a grant opens one channel and not its neighbours", async () => {
+Scribe.test("an account nobody granted is not a listener", async () => {
   const db = installDatabaseFake();
 
   await order.topic("seller").grant(ACCOUNT);
 
-  assertEquals(await order.topic("buyer").allows(ACCOUNT), false);
-  assertEquals(await order.all.allows(ACCOUNT), false);
+  expect(await order.topic("seller").allows(OTHER), equals(false));
   db.restore();
 });
 
-Deno.test("revoking takes the listener back off", async () => {
+Scribe.test("a grant opens one channel and not its neighbours", async () => {
   const db = installDatabaseFake();
 
   await order.topic("seller").grant(ACCOUNT);
 
-  assertEquals(await order.topic("seller").revoke(ACCOUNT), true);
-  assertEquals(await order.topic("seller").allows(ACCOUNT), false);
+  expect(await order.topic("buyer").allows(ACCOUNT), equals(false));
+  expect(await order.all.allows(ACCOUNT), equals(false));
   db.restore();
 });
 
-Deno.test("revoking an account that was never granted changes nothing", async () => {
+Scribe.test("revoking takes the listener back off", async () => {
   const db = installDatabaseFake();
 
-  assertEquals(await order.topic("seller").revoke(ACCOUNT), false);
+  await order.topic("seller").grant(ACCOUNT);
+
+  expect(await order.topic("seller").revoke(ACCOUNT), equals(true));
+  expect(await order.topic("seller").allows(ACCOUNT), equals(false));
   db.restore();
 });
 
-Deno.test("revoking everyone empties the channel and leaves the others alone", async () => {
+Scribe.test("revoking an account that was never granted changes nothing", async () => {
+  const db = installDatabaseFake();
+
+  expect(await order.topic("seller").revoke(ACCOUNT), equals(false));
+  db.restore();
+});
+
+Scribe.test("revoking everyone empties the channel and leaves the others alone", async () => {
   const db = installDatabaseFake();
 
   await order.topic("seller").grant(ACCOUNT);
@@ -111,27 +113,58 @@ Deno.test("revoking everyone empties the channel and leaves the others alone", a
 
   await order.topic("seller").revokeAll();
 
-  assertEquals(await order.topic("seller").grants(), []);
-  assertEquals(await order.topic("buyer").grants(), [ACCOUNT]);
+  expect((await order.topic("seller").grants()).accounts, equals([]));
+  expect((await order.topic("buyer").grants()).accounts, equals([ACCOUNT]));
   db.restore();
 });
 
-Deno.test("the listing answers the accounts that were granted", async () => {
+Scribe.test("the listing answers the accounts that were granted", async () => {
   const db = installDatabaseFake();
 
   await order.topic("seller").grant(ACCOUNT);
   await order.topic("seller").grant(OTHER);
 
-  assertEquals((await order.topic("seller").grants()).sort(), [ACCOUNT, OTHER].sort());
+  const page = await order.topic("seller").grants();
+
+  expect(page.accounts.slice().sort(), equals([ACCOUNT, OTHER].sort()));
+  expect(page.full, equals(false));
   db.restore();
 });
 
-Deno.test("the broadcast channel of a closed declaration takes grants too", async () => {
+Scribe.test("an ungranted channel answers an empty page with nothing to resume from", async () => {
+  const db = installDatabaseFake();
+
+  const page = await order.topic("seller").grants();
+
+  expect(page.accounts, equals([]));
+  expect(page.last, equals(null));
+  expect(page.full, equals(false));
+  db.restore();
+});
+
+Scribe.test("a full page reports where the next one resumes", async () => {
+  const db = installDatabaseFake();
+  const seller = order.topic("seller");
+
+  await seller.grant(ACCOUNT);
+  await seller.grant(OTHER);
+
+  const first = await grantedAccounts(seller.channel, 1);
+  expect(first.full, equals(true));
+  expect(first.last, equals(first.accounts[0]));
+
+  const second = await grantedAccounts(seller.channel, 1, first.last ?? "");
+  expect(second.full, equals(false));
+  expect([...first.accounts, ...second.accounts].sort(), equals([ACCOUNT, OTHER].sort()));
+  db.restore();
+});
+
+Scribe.test("the broadcast channel of a closed declaration takes grants too", async () => {
   const db = installDatabaseFake();
 
   await order.all.grant(ACCOUNT);
 
-  assertEquals(await order.all.allows(ACCOUNT), true);
-  assertEquals(await order.topic("seller").allows(ACCOUNT), false);
+  expect(await order.all.allows(ACCOUNT), equals(true));
+  expect(await order.topic("seller").allows(ACCOUNT), equals(false));
   db.restore();
 });

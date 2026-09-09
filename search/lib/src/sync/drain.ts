@@ -34,9 +34,10 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Duration } from "@scribe/alchemy";
-import { extensions } from "@scribe/runtime/support/extensions/mod.ts";
-import { Cron, every } from "@scribe/foundation/cron";
+import { DateTime, Duration } from "@scribe/alchemy";
+import type { Future } from "@scribe/alchemy";
+import { extensions } from "@scribe/runtime/wiring/extensions/mod.ts";
+import { Cron, every } from "@scribe/foundation";
 import { SearchOperation } from "../../contracts/definition.ts";
 import { SEARCH_EXTENSION } from "../core/extension.ts";
 import type { AnySearchIndex } from "../core/registry.ts";
@@ -45,14 +46,24 @@ import { claim, fail, settle } from "../db/outbox.ts";
 import type { SearchOutboxRow } from "../db/tables.ts";
 
 /**
- * How many batches one occurrence takes before it stops and waits for the next.
+ * How long one occurrence keeps draining before it stops and waits for the next.
  *
  * A backlog is drained inside one occurrence rather than at one batch a minute, which is what
- * a bulk import needs: without it, ten thousand rows written in one go would take an hour to
- * become searchable. The bound is what keeps an occurrence from running until its timeout when
- * something upstream keeps writing faster than the cluster takes.
+ * a bulk import needs: without it, a hundred thousand rows written in one go would take
+ * twenty passes just to leave the first minute, regardless of how fast the cluster actually
+ * answers. The budget is what keeps an occurrence from running until its own timeout when
+ * something upstream keeps writing faster than the cluster takes, and it is kept well under
+ * the minute between two occurrences so the next one is never held up by this one.
  */
-const MAX_PASSES = 25;
+const DRAIN_BUDGET: Duration = Duration.seconds(50);
+
+/**
+ * The fewest passes one occurrence always takes, whatever {@link DRAIN_BUDGET} says.
+ *
+ * A cluster slow enough that one pass alone crosses the budget would otherwise never drain
+ * more than a single batch of the backlog behind it.
+ */
+const MIN_PASSES = 2;
 
 /** What one index has waiting, split by the way its documents move. */
 interface Work {
@@ -72,15 +83,16 @@ interface Work {
  *
  * A pass that settles nothing stops the drain even when the line is not empty. The rows are
  * claimed oldest first and nothing is locked, so a document the cluster keeps refusing stays
- * at the head of the line: without this the same batch would be tried twenty-five times in a
- * row and the ones behind it would never be reached.
+ * at the head of the line: without this the same batch would be tried pass after pass for the
+ * whole budget and the ones behind it would never be reached.
  */
-export async function drainSearchOutbox(): Promise<number> {
+export async function drainSearchOutbox(): Future<number> {
   await extensions.load(SEARCH_EXTENSION);
 
   let drained = 0;
+  const deadline = DateTime.now().add(DRAIN_BUDGET);
 
-  for (let pass = 0; pass < MAX_PASSES; pass++) {
+  for (let pass = 0; pass < MIN_PASSES || DateTime.now().isBefore(deadline); pass++) {
     const batch = await claim();
     if (batch.length === 0) break;
 
@@ -94,7 +106,7 @@ export async function drainSearchOutbox(): Promise<number> {
 }
 
 /** Applies one batch, index by index, and answers how many of its rows left the line. */
-async function drainBatch(rows: readonly SearchOutboxRow[]): Promise<number> {
+async function drainBatch(rows: readonly SearchOutboxRow[]): Future<number> {
   let settled = 0;
 
   for (const [name, work] of group(rows)) {
@@ -118,7 +130,7 @@ async function drainBatch(rows: readonly SearchOutboxRow[]): Promise<number> {
  * row's attempts. A row that runs out of attempts stops being claimed and keeps its reason,
  * which is what someone reads when a document is missing from a search.
  */
-async function apply(index: AnySearchIndex, work: Work): Promise<number> {
+async function apply(index: AnySearchIndex, work: Work): Future<number> {
   const removed = await index.erase(work.remove);
   const rebuilt = await index.rebuild(work.rebuild);
 

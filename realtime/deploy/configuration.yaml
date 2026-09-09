@@ -1,0 +1,10 @@
+settings:
+  max_connections:
+    doc: "The largest number of concurrent WebSocket connections realtime accepts."
+    type: integer
+    default: 100
+
+  num_acceptors:
+    doc: "How many acceptor processes realtime keeps ready for an incoming connection."
+    type: integer
+    default: 10

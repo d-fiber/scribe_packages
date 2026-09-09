@@ -37,6 +37,8 @@
 import { Storage as StorageService } from "@scribe/sdk/gen/scribe/packages/storage/protocol/storage_pb.ts";
 import type { CapabilityWiring } from "@scribe/contracts/capability.ts";
 import { create } from "@bufbuild/protobuf";
+import { DateTime } from "@scribe/alchemy";
+import type { Future } from "@scribe/alchemy";
 import {
   type DeleteRequest,
   type DeleteResult,
@@ -130,8 +132,11 @@ function pageOf(objects: readonly StorageObject[], offset: number, limit: number
 
 /** When `updatedAt` says the object was last written, in milliseconds, and zero when it says nothing. */
 function millisOf(updatedAt: string): bigint {
-  const parsed = Date.parse(updatedAt);
-  return Number.isNaN(parsed) ? 0n : BigInt(parsed);
+  try {
+    return BigInt(DateTime.parse(updatedAt).millisecondsSinceEpoch);
+  } catch {
+    return 0n;
+  }
 }
 
 /** What a worker is told about `object`, without the URL and the blur hash the contract has no field for. */
@@ -162,7 +167,7 @@ function summaryOf(object: StorageObject): ObjectSummary {
  * the size cap, only the bucket and the rendered key. An upload reads both, which is why this
  * file answers no upload.
  */
-export async function storageDelete(request: DeleteRequest): Promise<DeleteResult> {
+export async function storageDelete(request: DeleteRequest): Future<DeleteResult> {
   if (request.objects.length === 0) return create(DeleteResultSchema, { deleted: 0 });
 
   const batches = new Map<string, { folder: string; filename: string; args: string[][] }>();
@@ -228,7 +233,7 @@ export async function storageDelete(request: DeleteRequest): Promise<DeleteResul
  * never that it could not be read: a folder no project declared is refused under
  * `unknown_folder`, and an index that did not answer under `list_failed`.
  */
-export async function storageList(request: ListRequest): Promise<ListResult> {
+export async function storageList(request: ListRequest): Future<ListResult> {
   if (!request.folder) {
     return create(ListResultSchema, { error: failed("list", "invalid_object", "missing folder") });
   }

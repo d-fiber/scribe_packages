@@ -38,8 +38,9 @@ import { installAuthTestSettings } from "./settings.ts";
 
 installAuthTestSettings();
 
+import { DateTime, Duration, type Future } from "@scribe/alchemy";
 import { type PendingToken, PendingTokenPurpose } from "../../lib/src/pending_token.ts";
-import { toHex } from "@scribe/runtime/support/crypto/hash.ts";
+import { toHex } from "@scribe/runtime/primitives/crypto/hash.ts";
 import type { AccountRole } from "../../lib/contracts/role.ts";
 import { authSettings } from "../../lib/src/settings.ts";
 
@@ -55,7 +56,7 @@ export interface ForgedTokenOptions {
   readonly expiresAt?: number;
 }
 
-function hmacKey(): Promise<CryptoKey> {
+function hmacKey(): Future<CryptoKey> {
   return crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(authSettings.get().pendingTokenSecret),
@@ -77,7 +78,7 @@ export async function forgeToken(
   identifier: string,
   role: AccountRole,
   options: ForgedTokenOptions = {},
-): Promise<string> {
+): Future<string> {
   const utf8Bytes = new TextEncoder().encode(
     JSON.stringify({
       identifier,
@@ -85,7 +86,7 @@ export async function forgeToken(
       deviceId: options.deviceId ?? null,
       purpose: options.purpose ?? PendingTokenPurpose.SignIn,
       jti: crypto.randomUUID(),
-      exp: options.expiresAt ?? Date.now() + 10 * 60 * 1000,
+      exp: options.expiresAt ?? DateTime.now().add(Duration.minutes(10)).millisecondsSinceEpoch,
     }),
   );
 
@@ -114,7 +115,7 @@ export async function issueToken(
   identifier: string,
   role: AccountRole,
   deviceId: string | null = null,
-): Promise<string> {
+): Future<string> {
   const value = await token.issue(identifier, role, deviceId);
   if (value === null) {
     throw new Error(

@@ -1,3 +1,4 @@
+import type { Future } from "@scribe/alchemy";
 import { SessionError } from "@scribe/auth/session";
 import { user } from "./declaration.ts";
 
@@ -7,7 +8,7 @@ import { user } from "./declaration.ts";
  * A client that retries on a slow answer gets the session it was already handed rather than a
  * second one, for the fifteen seconds a retry lands in.
  */
-export async function refresh(refreshToken: string): Promise<string | null> {
+export async function refresh(refreshToken: string): Future<string | null> {
   const renewed = await user.session.refresh(refreshToken);
   return renewed.ok ? renewed.data.access_token : null;
 }
@@ -18,13 +19,13 @@ export async function refresh(refreshToken: string): Promise<string | null> {
  * The access token is tried first because it costs nothing when it is still good, which keeps a
  * client that opens on a warm token from rotating its refresh token for no reason.
  */
-export async function open(accessToken: string, refreshToken: string): Promise<string | null> {
+export async function open(accessToken: string, refreshToken: string): Future<string | null> {
   const recovered = await user.session.recover(accessToken, refreshToken);
   return recovered.ok ? recovered.data.access_token : null;
 }
 
 /** Ending the session this request came with, and everything that remembered it. */
-export async function signOut(): Promise<string | null> {
+export async function signOut(): Future<string | null> {
   const ended = await user.session.signOut();
   if (ended.ok) return null;
 
@@ -37,7 +38,7 @@ export async function signOut(): Promise<string | null> {
  * Nothing here names the project's own tables: they go by the foreign keys that point at the
  * account.
  */
-export async function deleteAccount(): Promise<boolean> {
+export async function deleteAccount(): Future<boolean> {
   const gone = await user.session.delete();
   return gone.ok;
 }

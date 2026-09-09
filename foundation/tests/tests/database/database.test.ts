@@ -32,13 +32,13 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
-import { assertEquals } from "@std/assert";
+import "@scribe/scholium/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { createDatabaseMock } from "./mocks/database.ts";
 import { from } from "../../../lib/src/database/tables_base.ts";
 import type { PostgrestClient } from "@supabase/postgrest-js";
 
-Deno.test("FakePostgrestClient: select applies where/order/range", async () => {
+Scribe.test("FakePostgrestClient: select applies where/order/range", async () => {
   const mock = createDatabaseMock({
     widgets: [
       { id: "1", position: 3 },
@@ -53,36 +53,62 @@ Deno.test("FakePostgrestClient: select applies where/order/range", async () => {
     .order("position")
     .range(0, 1);
 
-  assertEquals(
-    (data as { id: string }[]).map((row) => row.id),
-    ["2", "3"],
+  expect((data as { id: string }[]).map((row) => row.id), equals(["2", "3"]));
+});
+
+Scribe.test("DEFECT FakePostgrestClient: an ordering comparison must never match a null column", async () => {
+  const mock = createDatabaseMock({
+    widgets: [
+      { id: "1", expires_at: null },
+      { id: "2", expires_at: 5 },
+    ],
+  });
+
+  const { data: lte } = await mock.db.from("widgets").select("*").lte("expires_at", 10);
+  const { data: gte } = await mock.db.from("widgets").select("*").gte("expires_at", 0);
+
+  expect(
+    (lte as { id: string }[]).map((row) => row.id),
+    equals(["2"]),
+    "a null column is not less than or equal to anything, the way SQL's three-valued logic treats it",
+  );
+  expect(
+    (gte as { id: string }[]).map((row) => row.id),
+    equals(["2"]),
+    "a null column is not greater than or equal to anything either",
   );
 });
 
-Deno.test(
+Scribe.test(
   "FakePostgrestClient: insert appends and update/delete respect filters",
   async () => {
     const mock = createDatabaseMock({ widgets: [] });
 
     await mock.db.from("widgets").insert({ id: "1", name: "a" });
     await mock.db.from("widgets").insert({ id: "2", name: "b" });
-    assertEquals(mock.rows("widgets"), [
-      { id: "1", name: "a" },
-      { id: "2", name: "b" },
-    ]);
+    expect(
+      mock.rows("widgets"),
+      equals([
+        { id: "1", name: "a" },
+        { id: "2", name: "b" },
+      ]),
+    );
 
     await mock.db.from("widgets").update({ name: "a2" }).eq("id", "1");
-    assertEquals(mock.rows("widgets"), [
-      { id: "1", name: "a2" },
-      { id: "2", name: "b" },
-    ]);
+    expect(
+      mock.rows("widgets"),
+      equals([
+        { id: "1", name: "a2" },
+        { id: "2", name: "b" },
+      ]),
+    );
 
     await mock.db.from("widgets").delete().eq("id", "2");
-    assertEquals(mock.rows("widgets"), [{ id: "1", name: "a2" }]);
+    expect(mock.rows("widgets"), equals([{ id: "1", name: "a2" }]));
   },
 );
 
-Deno.test(
+Scribe.test(
   "DatabaseMock: a query written against the fake db reads through it",
   async () => {
     const mock = createDatabaseMock({
@@ -94,6 +120,6 @@ Deno.test(
       .where((f) => f.role.eq("owner"))
       .getOne();
 
-    assertEquals(found, { role: "owner" });
+    expect(found, equals({ role: "owner" }));
   },
 );

@@ -34,152 +34,235 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Duration } from "@scribe/alchemy";
+import "@scribe/scholium/runner.ts";
+import { equals, expect, expectLater, isA, isFalse, isTrue, Scribe, throwsA } from "@scribe/alchemy/test";
+import { DateTime, Duration } from "@scribe/alchemy";
 import { AudienceError } from "../../lib/contracts/audience.ts";
 import { Audience } from "../../lib/src/core/declaration.ts";
-import { AudienceKeyError } from "../../lib/src/core/key.ts";
+import { AudienceKeyError, AudienceMemberError } from "../../lib/src/core/key.ts";
 import { installAudienceMock } from "../testing/mock.ts";
-import { assert, assertEquals, assertFalse, assertThrows } from "@std/assert";
 
-const banned = Audience.plain("declaration-banned");
-const editors = Audience.keyed("declaration-editors");
-const invited = Audience.keyed("declaration-invited", { ttl: Duration.days(7) });
+const declaration = Audience.for("declaration");
+const banned = declaration.global("declaration-banned");
+const editors = declaration.namespaced("declaration-editors");
+const invited = declaration.namespaced("declaration-invited", { ttl: Duration.days(7) });
 
-Deno.test("a plain audience holds the members it was given", async () => {
+Scribe.test("a global audience holds the members it was given", async () => {
   const audiences = installAudienceMock();
 
   try {
-    assertFalse(await banned.has("a1"));
+    expect(await banned.has("a1"), isFalse);
 
-    assert((await banned.add("a1")).ok);
-    assert(await banned.has("a1"));
-    assertFalse(await banned.has("a2"), "only the member that was put in belongs");
+    expect((await banned.add("a1")).ok, isTrue);
+    expect(await banned.has("a1"), isTrue);
+    expect(await banned.has("a2"), isFalse);
   } finally {
     audiences.restore();
   }
 });
 
-Deno.test("a scope holds its own members and reads none of another's", async () => {
+Scribe.test("a scope holds its own members and reads none of another's", async () => {
   const audiences = installAudienceMock();
 
   try {
-    assert((await editors.in("p1").add("a1")).ok);
+    expect((await editors.in("p1").add("a1")).ok, isTrue);
 
-    assert(await editors.in("p1").has("a1"));
-    assertFalse(await editors.in("p2").has("a1"), "another scope must not inherit the member");
+    expect(await editors.in("p1").has("a1"), isTrue);
+    expect(await editors.in("p2").has("a1"), isFalse);
   } finally {
     audiences.restore();
   }
 });
 
-Deno.test("a nested scope is a different audience from the one it narrows", async () => {
+Scribe.test("a nested scope is a different audience from the one it narrows", async () => {
   const audiences = installAudienceMock();
 
   try {
-    assert((await editors.in("p1", "backend").add("a1")).ok);
+    expect((await editors.in("p1", "backend").add("a1")).ok, isTrue);
 
-    assert(await editors.in("p1", "backend").has("a1"));
-    assertFalse(await editors.in("p1").has("a1"));
+    expect(await editors.in("p1", "backend").has("a1"), isTrue);
+    expect(await editors.in("p1").has("a1"), isFalse);
   } finally {
     audiences.restore();
   }
 });
 
-Deno.test("a member put in twice is held once, with the last expiry", async () => {
+Scribe.test("a member put in twice is held once, with the last expiry", async () => {
   const audiences = installAudienceMock();
 
   try {
     await editors.in("p1").add("a1", { ttl: Duration.minutes(5) });
     await editors.in("p1").add("a1", { ttl: null });
 
-    assertEquals(audiences.memberships().length, 1);
-    assertEquals(audiences.memberships()[0].expires_at, null);
+    expect(audiences.memberships().length, equals(1));
+    expect(audiences.memberships()[0].expires_at, equals(null));
   } finally {
     audiences.restore();
   }
 });
 
-Deno.test("a membership that has expired stops answering", async () => {
+Scribe.test("a membership that has expired stops answering", async () => {
   const audiences = installAudienceMock();
 
   try {
     audiences.seed([{
+      feature: "declaration",
       audience: "declaration-editors:p1",
       member: "a1",
       created_at: 1,
-      expires_at: Date.now() - 1,
+      expires_at: DateTime.now().millisecondsSinceEpoch - 1,
     }]);
 
-    assertFalse(await editors.in("p1").has("a1"));
-    assertEquals(await editors.in("p1").members(), []);
+    expect(await editors.in("p1").has("a1"), isFalse);
+    expect((await editors.in("p1").members()).members, equals([]));
   } finally {
     audiences.restore();
   }
 });
 
-Deno.test("the declared delay is what a member inherits when the caller names none", async () => {
+Scribe.test("the declared delay is what a member inherits when the caller names none", async () => {
   const audiences = installAudienceMock();
 
   try {
-    const before = Date.now();
+    const before = DateTime.now().millisecondsSinceEpoch;
     await invited.in("p1").add("a1");
 
     const expiresAt = audiences.memberships()[0].expires_at as number;
-    assert(expiresAt >= before + Duration.days(7).inMilliseconds, "the declared delay must be applied");
+    expect(expiresAt >= before + Duration.days(7).inMilliseconds, isTrue, "the declared delay must be applied");
   } finally {
     audiences.restore();
   }
 });
 
-Deno.test("taking a member out that was never in answers not found", async () => {
+Scribe.test("taking a member out that was never in answers not found", async () => {
   const audiences = installAudienceMock();
 
   try {
     const removed = await editors.in("p1").remove("a1");
 
-    assertFalse(removed.ok);
-    assertEquals(removed.ok ? null : removed.error, AudienceError.NotFound);
+    expect(removed.ok, isFalse);
+    expect(removed.ok ? null : removed.error, equals(AudienceError.NotFound));
   } finally {
     audiences.restore();
   }
 });
 
-Deno.test("retiming a member that was never in answers not found", async () => {
+Scribe.test("retiming a member that was never in answers not found", async () => {
   const audiences = installAudienceMock();
 
   try {
     const retimed = await editors.in("p1").ttl("a1", null);
 
-    assertFalse(retimed.ok);
-    assertEquals(retimed.ok ? null : retimed.error, AudienceError.NotFound);
+    expect(retimed.ok, isFalse);
+    expect(retimed.ok ? null : retimed.error, equals(AudienceError.NotFound));
   } finally {
     audiences.restore();
   }
 });
 
-Deno.test("emptying an audience leaves the other scopes alone", async () => {
+Scribe.test("emptying an audience leaves the other scopes alone", async () => {
   const audiences = installAudienceMock();
 
   try {
     await editors.in("p1").add("a1");
     await editors.in("p2").add("a2");
 
-    assert((await editors.in("p1").clear()).ok);
-    assertEquals(await editors.in("p1").members(), []);
-    assertEquals(await editors.in("p2").members(), ["a2"]);
+    expect((await editors.in("p1").clear()).ok, isTrue);
+    expect((await editors.in("p1").members()).members, equals([]));
+    expect((await editors.in("p2").members()).members, equals(["a2"]));
   } finally {
     audiences.restore();
   }
 });
 
-Deno.test("a name taken twice is refused", () => {
-  Audience.plain("declaration-twice");
+Scribe.test("adding many members at once writes every one of them", async () => {
+  const audiences = installAudienceMock();
 
-  assertThrows(() => Audience.keyed("declaration-twice"), TypeError);
+  try {
+    const added = await editors.in("p1").addMany(["a1", "a2", "a3"]);
+
+    expect(added.ok, isTrue);
+    expect((await editors.in("p1").members()).members, equals(["a1", "a2", "a3"]));
+  } finally {
+    audiences.restore();
+  }
 });
 
-Deno.test("a name or a scope a key cannot hold is refused", () => {
-  assertThrows(() => Audience.plain("bad name"), AudienceKeyError);
-  assertThrows(() => Audience.plain(""), AudienceKeyError);
-  assertThrows(() => editors.in("p1:p2"), AudienceKeyError);
+Scribe.test("adding an empty list of members is a no-op that touches nothing", async () => {
+  const audiences = installAudienceMock();
+
+  try {
+    const added = await editors.in("p1").addMany([]);
+
+    expect(added.ok, isTrue);
+    expect(audiences.memberships().length, equals(0));
+  } finally {
+    audiences.restore();
+  }
+});
+
+Scribe.test("addMany applies the declared delay the same way add does", async () => {
+  const audiences = installAudienceMock();
+
+  try {
+    const before = DateTime.now().millisecondsSinceEpoch;
+    await invited.in("p1").addMany(["a1", "a2"]);
+
+    for (const row of audiences.memberships()) {
+      expect(row.expires_at as number >= before + Duration.days(7).inMilliseconds, isTrue);
+    }
+  } finally {
+    audiences.restore();
+  }
+});
+
+Scribe.test("reaping an audience removes only its own expired rows", async () => {
+  const audiences = installAudienceMock();
+
+  try {
+    audiences.seed([
+      { feature: "declaration", audience: "declaration-editors:p1", member: "a1", created_at: 1, expires_at: 1 },
+      { feature: "declaration", audience: "declaration-editors:p1", member: "a2", created_at: 1, expires_at: null },
+      { feature: "declaration", audience: "declaration-editors:p2", member: "b1", created_at: 1, expires_at: 1 },
+    ]);
+
+    const reaped = await editors.in("p1").reap();
+
+    expect(reaped.ok, isTrue);
+    expect(reaped.ok ? reaped.data : -1, equals(1));
+    expect(audiences.memberships().map((row) => row.member), equals(["a2", "b1"]));
+  } finally {
+    audiences.restore();
+  }
+});
+
+Scribe.test("a name taken twice under the same feature is refused", () => {
+  declaration.global("declaration-twice");
+
+  expect(() => declaration.namespaced("declaration-twice"), throwsA(isA(TypeError)));
+});
+
+Scribe.test("the same name under two different features is not a collision", () => {
+  const a = Audience.for("feature-a").global("shared-name");
+  const b = Audience.for("feature-b").global("shared-name");
+
+  expect(a.name, equals(b.name));
+});
+
+Scribe.test("a name, a scope or a feature a key cannot hold is refused", () => {
+  expect(() => declaration.global("bad name"), throwsA(isA(AudienceKeyError)));
+  expect(() => declaration.global(""), throwsA(isA(AudienceKeyError)));
+  expect(() => editors.in("p1:p2"), throwsA(isA(AudienceKeyError)));
+  expect(() => Audience.for("bad feature"), throwsA(isA(AudienceKeyError)));
+});
+
+Scribe.test("a member carrying a control character or the cache separator is refused", async () => {
+  const audiences = installAudienceMock();
+
+  try {
+    await expectLater(() => banned.has("a1\n"), throwsA(isA(AudienceMemberError)));
+    await expectLater(() => banned.add("a1|x"), throwsA(isA(AudienceMemberError)));
+  } finally {
+    audiences.restore();
+  }
 });

@@ -60,11 +60,20 @@ export class FetchClient extends BaseClient {
    *
    * @remarks
    * A body of zero bytes is left out rather than drained, because draining one costs a turn of
-   * the event loop and that turn is observable by a caller that sends without awaiting.
-   * Everything that can go wrong before a status arrives as a different type, and all of them
-   * leave here as one {@link ClientException}. Producing the body is one of them: a request that
-   * cannot be sealed twice, or a body whose bytes cannot be produced, used to escape as whatever
-   * the request itself decided to raise.
+   * the event loop and that turn is observable by a caller that sends without awaiting. The
+   * request's own stream is handed to `fetch` directly rather than collected into a buffer first:
+   * collecting pays a second copy on top of the one the platform makes internally, doubles the
+   * peak memory a large body costs, and holds the whole thing before the first byte can leave.
+   * `duplex: "half"` is what a streamed body requires of `fetch`, since a request with one is not
+   * a shape the platform sends without being told the response is only read after the request
+   * finishes going out.
+   *
+   * Everything that can go wrong before a status arrives reaches the caller as one
+   * {@link ClientException}. Producing the body's stream is one of them, a request that cannot be
+   * sealed twice raises before any of this runs; what changes with a streamed body is that a
+   * source erroring while `fetch` is draining it, a file read that fails partway for instance,
+   * is no longer caught here ahead of the call. It surfaces from `fetch` itself instead, on the
+   * same path a connection failure already takes, and is wrapped the same way.
    */
   override async send(request: BaseRequest): Future<StreamedResponse> {
     if (this.#closed) {
@@ -84,7 +93,7 @@ export class FetchClient extends BaseClient {
       }
 
       const carriesBytes = hasBody && request.contentLength !== 0;
-      payload = carriesBytes ? (await body.toBytes()) as BodyInit : undefined;
+      payload = carriesBytes ? body.stream : undefined;
     } catch (cause) {
       throw new ClientException(
         `HTTP request failed. ${_describe(cause, request.timeoutMs)}`,
@@ -103,7 +112,8 @@ export class FetchClient extends BaseClient {
         body: payload,
         redirect: request.redirect,
         signal: timeoutMs === null ? undefined : AbortSignal.timeout(timeoutMs),
-      });
+        ...(payload === undefined ? {} : { duplex: "half" }),
+      } as RequestInit);
     } catch (cause) {
       throw new ClientException(
         `HTTP request failed. ${_describe(cause, timeoutMs)}`,

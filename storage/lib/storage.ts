@@ -48,9 +48,8 @@
  */
 
 import { wireStorage } from "./src/capability/wire.ts";
-import { capabilities } from "@scribe/contracts/capability.ts";
-import type { LifecycleSteps } from "@scribe/alchemy";
-import { required } from "@scribe/foundation";
+import type { PackageRegistrar, ScribePlugin } from "@scribe/contracts/registrar.ts";
+import { required } from "@scribe/scholium/env.ts";
 import { SupabaseStorageTransport } from "./src/bucket/supabase.ts";
 import { StorageTransports } from "./src/bucket/registry.ts";
 import { storageSettings } from "./src/settings.ts";
@@ -87,17 +86,17 @@ export { StorageTransports } from "./src/bucket/registry.ts";
 export { SupabaseStorageTransport } from "./src/bucket/supabase.ts";
 export type { StorageBucket, StorageTransport } from "./src/bucket/transport.ts";
 
-/**
- * When this package runs, which is once, at import, to fill what a mounted module needs.
- *
- * @remarks
- * The settings are where this package reaches the storage service, read from the process
- * environment. The transport is what answers a bucket once they are filled, and it needs nothing
- * else to be built, so both belong at import.
- */
-export const scribe: LifecycleSteps = {
-  wires: () => {
-    capabilities.register(wireStorage);
+class StoragePlugin implements ScribePlugin {
+  /**
+   * Registers this package's defaults, once, at import.
+   *
+   * @remarks
+   * The settings are where this package reaches the storage service, read from the process
+   * environment. The transport is what answers a bucket once they are filled, and it needs nothing
+   * else to be built, so both belong at import.
+   */
+  registerWith(registrar: PackageRegistrar): void {
+    registrar.addCapability(wireStorage);
 
     storageSettings.use({
       apiUrl: required("STORAGE_INTERNAL_URL"),
@@ -107,5 +106,8 @@ export const scribe: LifecycleSteps = {
     });
 
     StorageTransports.use(new SupabaseStorageTransport());
-  },
-};
+  }
+}
+
+/** When this package runs, which is once, at import, to fill what a mounted module needs. */
+export const scribe: ScribePlugin = new StoragePlugin();

@@ -34,10 +34,12 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import "@scribe/scholium/runner.ts";
+import { Scribe } from "@scribe/alchemy/test";
 import { installAuthTestSettings } from "../testing/settings.ts";
 import { assertEquals, assertNotEquals } from "@std/assert";
 import { FakeTime } from "@std/testing/time";
-import { Duration } from "@scribe/alchemy";
+import { DateTime, Duration } from "@scribe/alchemy";
 import { PendingToken } from "../../lib/src/pending_token.ts";
 import { forgeToken } from "../testing/pending_token.ts";
 
@@ -45,7 +47,7 @@ const token = new PendingToken();
 
 installAuthTestSettings();
 
-Deno.test("pending token: the signed payload yields the identifier AND the role", async () => {
+Scribe.test("pending token: the signed payload yields the identifier AND the role", async () => {
   const value = await forgeToken("u1@example.com", "user");
   const payload = await token.payload(value);
 
@@ -53,7 +55,7 @@ Deno.test("pending token: the signed payload yields the identifier AND the role"
   assertEquals(payload?.role, "user");
 });
 
-Deno.test("pending token: the role is bound to the token, not inferred at verification", async () => {
+Scribe.test("pending token: the role is bound to the token, not inferred at verification", async () => {
   const asAdmin = await token.payload(
     await forgeToken("a1@example.com", "admin"),
   );
@@ -64,14 +66,14 @@ Deno.test("pending token: the role is bound to the token, not inferred at verifi
   assertNotEquals(asAdmin?.role, asUser?.role);
 });
 
-Deno.test("pending token: payload tampered without re-signing is rejected", async () => {
+Scribe.test("pending token: payload tampered without re-signing is rejected", async () => {
   const value = await forgeToken("u1@example.com", "user");
   const [payloadB64, signature] = value.split(".");
 
   const forged = JSON.stringify({
     identifier: "u1@example.com",
     role: "admin",
-    exp: Date.now() + 60_000,
+    exp: DateTime.now().millisecondsSinceEpoch + 60_000,
   });
   const forgedB64 = btoa(forged);
 
@@ -79,13 +81,13 @@ Deno.test("pending token: payload tampered without re-signing is rejected", asyn
   assertEquals(await token.payload(`${forgedB64}.${signature}`), null);
 });
 
-Deno.test("pending token: an invalid signature is rejected without throwing", async () => {
+Scribe.test("pending token: an invalid signature is rejected without throwing", async () => {
   assertEquals(await token.payload("not-a-token"), null);
   assertEquals(await token.payload("aGVsbG8=.zzzz"), null);
   assertEquals(await token.payload(""), null);
 });
 
-Deno.test("pending token: a correctly signed but expired token is rejected", async () => {
+Scribe.test("pending token: a correctly signed but expired token is rejected", async () => {
   const time = new FakeTime();
   try {
     const value = await forgeToken("u1@example.com", "user");
@@ -98,7 +100,7 @@ Deno.test("pending token: a correctly signed but expired token is rejected", asy
   }
 });
 
-Deno.test("two consecutive challenges never produce the same token", async () => {
+Scribe.test("two consecutive challenges never produce the same token", async () => {
   const seen = new Set<string>();
   for (let i = 0; i < 50; i++) {
     seen.add(await forgeToken("u1@example.com", "user", { deviceId: "device-1" }));

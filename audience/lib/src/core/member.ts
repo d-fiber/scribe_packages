@@ -34,26 +34,26 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { okay, type Result } from "@scribe/alchemy";
+import { type Future, okay, type Result } from "@scribe/alchemy";
 import type { AudienceError } from "../../contracts/audience.ts";
 import { audiencesOfMember, dropMember } from "../db/members.ts";
-import { forgetMemberIn } from "../runtime/cache.ts";
+import { forgetMemberIn } from "../runtime/valkery.ts";
 import { guarded } from "./guard.ts";
 
 /**
- * The audiences `member` belongs to, as their keys are stored.
+ * The audiences `member` belongs to, across every feature, as their keys are stored.
  *
  * It is what a route calls once to put every belonging in a token, instead of asking each
  * declaration in turn and paying one round trip per audience. It never fails: a table that cannot
- * be reached answers with an empty listing, reported, and a caller that turns that into a token
- * hands out one that opens nothing.
+ * be reached answers with an empty, non-truncated listing, reported, and a caller that turns that
+ * into a token hands out one that opens nothing.
  */
-export async function audiencesOf(member: string): Promise<string[]> {
+export async function audiencesOf(member: string): Future<{ audiences: string[]; truncated: boolean }> {
   try {
     return await audiencesOfMember(member);
   } catch {
     console.error("[audience:member] the audiences of a member could not be listed, so none are.");
-    return [];
+    return { audiences: [], truncated: false };
   }
 }
 
@@ -63,9 +63,9 @@ export async function audiencesOf(member: string): Promise<string[]> {
  * It is what an account being deleted calls. Without it every caller would have to know which
  * audiences it once put that member in, and one of them would be forgotten.
  */
-export function forgetMember(member: string): Promise<Result<void, AudienceError>> {
+export function forgetMember(member: string): Future<Result<void, AudienceError>> {
   return guarded(async () => {
-    const held = await audiencesOfMember(member);
+    const { audiences: held } = await audiencesOfMember(member);
     await dropMember(member);
 
     await forgetMemberIn(held, member);

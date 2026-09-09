@@ -44,7 +44,14 @@ import type { DrainTally } from "./drain_tally.ts";
 import { FailurePolicy } from "./failure_policy.ts";
 import { Duration } from "@scribe/alchemy";
 
-/** Runs a group of messages that all belong to the same queue. */
+/**
+ * Runs a group of messages that all belong to the same queue.
+ *
+ * @remarks
+ * A seam of its own so `MessageDispatcher` can hand a group to whichever processing mode the
+ * queue declared, {@link JobProcessor} or {@link BatchProcessor}, without knowing which one it
+ * is talking to.
+ */
 export interface MessageProcessor {
   /**
    * Hands `messages` to the queue's body and records each outcome on `tally`.
@@ -62,6 +69,7 @@ export interface MessageProcessor {
  * is the whole reason the split exists.
  */
 export abstract class BaseProcessor implements MessageProcessor {
+  /** The queue this processor was built for, and the one a subclass drains against. */
   protected readonly queue: RegisteredQueue;
   readonly #failures: FailurePolicy;
 
@@ -70,17 +78,27 @@ export abstract class BaseProcessor implements MessageProcessor {
     this.#failures = new FailurePolicy(queue);
   }
 
+  /** The {@link MessageProcessor.process} contract, left to each subclass's own processing mode. */
   abstract process(
     messages: UnmodifiableList<JsMsg>,
     tally: DrainTally,
   ): Future<void>;
 
+  /** Logs that this queue's handler raised while processing `messages` messages, so a raised body error is not silently swallowed by the failure policy that follows. */
   protected reportFailure(error: unknown, messages: number): void {
     log.error("queue.handler_failed", {
       metadata: { queue: this.queue.name, messages, error },
     });
   }
 
+  /**
+   * Runs `call` against this queue's own processing deadline.
+   *
+   * @remarks
+   * A handler that hangs would otherwise hold its messages unanswered for as long as the server's
+   * own ack deadline allows, so both subclasses wrap the body's call in this rather than trusting
+   * every handler to bound its own work.
+   */
   protected guarded<R>(call: Future<R>): Future<R> {
     return withDeadline(
       `queue:${this.queue.name}`,

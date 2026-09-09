@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { AccountRole } from "../../../contracts/role.ts";
-import { Failure, type Result } from "@scribe/alchemy";
+import { Failure, Future, type Result } from "@scribe/alchemy";
 import { isPhoneProviderConfigured, phoneNotConfiguredError } from "../primitives.ts";
 import {
   anonHeaders,
@@ -46,14 +46,28 @@ import {
   requestAuthVoid,
 } from "../transport.ts";
 
+/**
+ * GoTrue's phone sign-in paths: a one-time code, a verify step and a password path.
+ *
+ * @remarks
+ * Every method here refuses locally, without reaching GoTrue, when the project has no phone
+ * provider configured, since SMS delivery is a paid add-on GoTrue does not enable by default.
+ */
 export class GoTrueSignInPhone {
+  /**
+   * Sends a one-time code to `phone`, tagged with the account's `role`.
+   *
+   * @remarks
+   * `createUser` decides whether GoTrue may register a new account for a phone number it has
+   * not seen before, rather than refusing the request.
+   */
   send(
     phone: string,
     role: AccountRole,
     createUser = false,
-  ): Promise<Result<void, AuthError>> {
+  ): Future<Result<void, AuthError>> {
     if (!isPhoneProviderConfigured()) {
-      return Promise.resolve(new Failure(phoneNotConfiguredError));
+      return Future.value(new Failure(phoneNotConfiguredError));
     }
     return requestAuthVoid(`${authUrl()}/otp`, {
       method: "POST",
@@ -62,12 +76,19 @@ export class GoTrueSignInPhone {
     });
   }
 
+  /**
+   * Verifies the one-time code sent to `phone` and returns a session.
+   *
+   * @remarks
+   * Always verifies as an `"sms"` code; unlike `GoTrueSignInEmail.verifyToken`, there is no
+   * other kind of phone link to distinguish.
+   */
   verify(
     phone: string,
     otp: string,
-  ): Promise<Result<GoTrueSessionResponse, AuthError>> {
+  ): Future<Result<GoTrueSessionResponse, AuthError>> {
     if (!isPhoneProviderConfigured()) {
-      return Promise.resolve(new Failure(phoneNotConfiguredError));
+      return Future.value(new Failure(phoneNotConfiguredError));
     }
     return requestAuth(`${authUrl()}/verify`, {
       method: "POST",
@@ -76,12 +97,13 @@ export class GoTrueSignInPhone {
     });
   }
 
+  /** Signs in with `phone` and `password`, returning a session on success. */
   withPassword(
     phone: string,
     password: string,
-  ): Promise<Result<GoTrueSessionResponse, AuthError>> {
+  ): Future<Result<GoTrueSessionResponse, AuthError>> {
     if (!isPhoneProviderConfigured()) {
-      return Promise.resolve(new Failure(phoneNotConfiguredError));
+      return Future.value(new Failure(phoneNotConfiguredError));
     }
     return requestAuth(`${authUrl()}/token?grant_type=password`, {
       method: "POST",
@@ -90,12 +112,13 @@ export class GoTrueSignInPhone {
     });
   }
 
+  /** Resends the phone sign-up confirmation code to `phone`, tagged with the account's `role`. */
   resendConfirmation(
     phone: string,
     role: AccountRole,
-  ): Promise<Result<void, AuthError>> {
+  ): Future<Result<void, AuthError>> {
     if (!isPhoneProviderConfigured()) {
-      return Promise.resolve(new Failure(phoneNotConfiguredError));
+      return Future.value(new Failure(phoneNotConfiguredError));
     }
     return requestAuthVoid(`${authUrl()}/resend`, {
       method: "POST",

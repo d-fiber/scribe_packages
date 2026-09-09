@@ -34,6 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import type { Future } from "@scribe/alchemy";
 import type { StorageVisibility } from "../core/visibility.ts";
 
 /**
@@ -45,10 +46,10 @@ import type { StorageVisibility } from "../core/visibility.ts";
  */
 export interface StorageBucket {
   /** Writes `body` at `path`, replacing whatever was there, and answers whether it landed. */
-  upload(path: string, body: ArrayBuffer, contentType: string): Promise<boolean>;
+  upload(path: string, body: ArrayBuffer, contentType: string): Future<boolean>;
 
   /** Removes `paths` in one call, and answers whether the bucket took them all. */
-  remove(paths: readonly string[]): Promise<boolean>;
+  remove(paths: readonly string[]): Future<boolean>;
 }
 
 /** Where a process gets the bucket that holds the objects of a given visibility. */

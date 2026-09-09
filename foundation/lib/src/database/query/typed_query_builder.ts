@@ -34,9 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-// deno-lint-ignore-file no-explicit-any
-
 import { Failure, type Future, Ok, Refusal, type Result } from "@scribe/alchemy";
+import type { PostgrestClient } from "@supabase/postgrest-js";
 import { log } from "@scribe/alchemy/observe";
 
 import { ownerOf } from "../table_owners.ts";
@@ -66,6 +65,7 @@ function describeCause(cause: unknown): string {
   return text.length > MAX_CAUSE_CHARS ? `${text.slice(0, MAX_CAUSE_CHARS)}...` : text;
 }
 
+/** Raised when a query throws rather than answering a `Result`: a read failure, not a refused write. */
 export class DatabaseQueryError extends Error {
   constructor(
     readonly table: string,
@@ -84,8 +84,17 @@ export class DatabaseQueryError extends Error {
  * and building the client there would read the database settings before the boot has filled
  * them, which throws. Taking a thunk is what lets the two happen in either order.
  */
-export type PostgrestClientSource = any | (() => any);
+export type PostgrestClientSource = PostgrestClient | (() => PostgrestClient);
 
+/**
+ * A chainable, owner-scoped query over one table, compiled against PostgREST only when it runs.
+ *
+ * @remarks
+ * Every chaining method returns a new builder rather than mutating this one, so a base query can
+ * be shared and specialized without the branches interfering with each other. Reads throw a
+ * {@link DatabaseQueryError} on failure; writes answer a `Result` instead, since a write has ways
+ * of not happening that are worth telling apart, not just one failure to raise.
+ */
 export class TypedQueryBuilder<
   Row extends object,
   Answer = Row,
@@ -95,7 +104,7 @@ export class TypedQueryBuilder<
   readonly #table: string;
   readonly #state: QueryState;
 
-  #client: any = null;
+  #client: PostgrestClient | null = null;
 
   constructor(
     source: PostgrestClientSource,
@@ -113,7 +122,7 @@ export class TypedQueryBuilder<
    * Chaining passes the source along rather than the resolved client, so a chain built before
    * the boot filled the settings still works.
    */
-  get #db(): any {
+  get #db(): PostgrestClient {
     return (this.#client ??= typeof this.#source === "function" ? this.#source() : this.#source);
   }
 
@@ -140,6 +149,7 @@ export class TypedQueryBuilder<
           filters: [
             ...this.#state.filters,
             ...embedded,
+            // deno-lint-ignore no-explicit-any -- FilterSpec.apply takes the builder untyped, since its shape differs at each chained call.
             { column: decision.column, apply: (qb: any) => qb.eq(decision.column, NOBODY) },
           ],
         },
@@ -161,6 +171,7 @@ export class TypedQueryBuilder<
           ...embedded,
           {
             column: decision.column,
+            // deno-lint-ignore no-explicit-any -- see above: FilterSpec.apply takes the builder untyped.
             apply: (qb: any) => qb.eq(decision.column, decision.id),
           },
         ],
@@ -262,10 +273,12 @@ export class TypedQueryBuilder<
     return named === undefined || named === decision.id ? null : _FOREIGN_OWNER;
   }
 
+  /** Reads or writes without the owner scope, for code that runs outside a caller's own request. */
   unscoped(): TypedQueryBuilder<Row, Answer, Rels> {
     return this.#with({ unscoped: true });
   }
 
+  /** Allows a write with no `where` to reach every row, rather than being refused as unbounded. */
   entireTable(): TypedQueryBuilder<Row, Answer, Rels> {
     return this.#with({ entireTable: true });
   }
@@ -277,6 +290,7 @@ export class TypedQueryBuilder<
     });
   }
 
+  /** Selects `cols` as a raw PostgREST column list, for a shape {@link select}'s own selector cannot express. */
   selectRaw<R extends object = Row>(
     cols: string,
   ): TypedQueryBuilder<Row, R, Rels> {
@@ -286,16 +300,18 @@ export class TypedQueryBuilder<
     });
   }
 
+  /** Selects the shape `builder` describes, typed by what it picks off `Row` and its declared relations. */
   select<const Shape extends Record<string, unknown>>(
     builder: (s: Selector<Row, Rels>) => Shape,
   ): TypedQueryBuilder<Row, ExtractShape<Row, Shape>, Rels> {
     const shape = builder(selector<Row, Rels>());
-    return new TypedQueryBuilder(this.#source, this.#table, {
+    return new TypedQueryBuilder<Row, ExtractShape<Row, Shape>, Rels>(this.#source, this.#table, {
       ...this.#state,
       selectCols: columnsOf(shape),
-    }) as any;
+    });
   }
 
+  /** Adds the filters `builder` describes, on top of whatever this query already filters on. */
   where(
     builder: (f: FilterBuilder<Row>) => FilterSpec | FilterSpec[],
   ): TypedQueryBuilder<Row, Answer, Rels> {
@@ -308,6 +324,7 @@ export class TypedQueryBuilder<
     });
   }
 
+  /** Orders the result by `column`, ascending unless `options.ascending` says otherwise. */
   order<K extends keyof Row & string>(
     column: K,
     options?: {
@@ -341,10 +358,12 @@ export class TypedQueryBuilder<
     return this.#with({ limitCount: count });
   }
 
+  /** Asks for rows `from` through `to`, inclusive, in the order the query would otherwise answer them. */
   range(from: number, to: number): TypedQueryBuilder<Row, Answer, Rels> {
     return this.#with({ rangeVal: [from, to] });
   }
 
+  /** Runs this query and answers every row it reaches, scoped and shaped by whatever was chained. */
   async get(): Future<Answer[]> {
     const qb = buildRead(this.#db, this.#table, this.#scoped().state);
     const { data, error } = (await qb) as { data: unknown; error: unknown };
@@ -353,6 +372,7 @@ export class TypedQueryBuilder<
     return (data ?? []) as Answer[];
   }
 
+  /** Runs this query and answers its one row, or `null` when it reaches none. */
   async getOne(): Future<Answer | null> {
     const qb = buildRead(
       this.#db,
@@ -385,6 +405,33 @@ export class TypedQueryBuilder<
     const { error } = await this.#db.from(this.#table).insert(owned.data);
 
     return this.#failed("insert", error) ? new Failure(_refusalOf(error)) : new Ok(rows);
+  }
+
+  /**
+   * Writes `data`, updating whatever row already shares the columns named by `onConflict`, and
+   * answers how many rows were sent.
+   *
+   * @remarks
+   * This is what turns a bulk load into one round trip instead of one read and one write per
+   * row: a caller that does not know which of `data` already exist sends all of them, and the
+   * store decides row by row whether that was an insert or an update. It carries the same owner
+   * rules as {@link insert} — the owning column is filled where a row leaves it out, and a row
+   * naming another owner refuses the whole batch — because an upsert that skipped that guard
+   * would let a caller overwrite a row it does not own by conflicting into it.
+   */
+  async upsert(
+    data: Partial<Row> | Partial<Row>[],
+    options: { onConflict: string },
+  ): Future<Result<number>> {
+    const owned = this.#owned(data);
+    if (!owned.ok) return owned;
+
+    const rows = Array.isArray(data) ? data.length : 1;
+    const { error } = await this.#db
+      .from(this.#table)
+      .upsert(owned.data, { onConflict: options.onConflict });
+
+    return this.#failed("upsert", error) ? new Failure(_refusalOf(error)) : new Ok(rows);
   }
 
   /** Writes one row and answers it as the store wrote it, or what stopped the write. */
@@ -440,9 +487,11 @@ export class TypedQueryBuilder<
 
   /** Removes the one row this query reaches, and answers it as it was before. */
   async deleteOne(): Future<Result<Row>>;
+  /** The same removal, answering the shape `builder` describes instead of the whole row. */
   async deleteOne<const Shape extends Record<string, unknown>>(
     builder: (s: Selector<Row, Rels>) => Shape,
   ): Future<Result<ExtractShape<Row, Shape>>>;
+  /** The shared implementation behind both overloads above. */
   async deleteOne<const Shape extends Record<string, unknown>>(
     builder?: (s: Selector<Row, Rels>) => Shape,
   ): Future<Result<Row | ExtractShape<Row, Shape>>> {

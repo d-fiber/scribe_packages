@@ -1,8 +1,0 @@
-services:
-  storage:
-    environment:
-      UV_THREADPOOL_SIZE: "{{storage_uv_threadpool}}"
-  imgproxy:
-    environment:
-      IMGPROXY_WORKERS: "{{imgproxy_workers}}"
-      GOMAXPROCS: "{{imgproxy_gomaxprocs}}"

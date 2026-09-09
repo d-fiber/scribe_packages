@@ -34,6 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import { Future } from "@scribe/alchemy";
+
 import type { RealtimeRow, RealtimeTransport } from "./transport.ts";
 
 let transport: RealtimeTransport | null = null;
@@ -64,10 +66,10 @@ export const RealtimeTransports: {
  * An emission is a side effect nobody has a recovery for, so failing the request that happened
  * to trigger it would cost more than the event it lost.
  */
-export function emit(row: RealtimeRow): Promise<boolean> {
+export function emit(row: RealtimeRow): Future<boolean> {
   if (!transport) {
     console.error("[realtime] no transport registered, broadcast dropped.");
-    return Promise.resolve(false);
+    return Future.value(false);
   }
 
   return transport.send(row);

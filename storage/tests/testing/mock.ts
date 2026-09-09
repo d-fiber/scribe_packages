@@ -38,6 +38,7 @@ import { installStorageTestSettings } from "./settings.ts";
 
 installStorageTestSettings();
 import type { InstalledMock } from "@scribe/testing/install.ts";
+import { Future } from "@scribe/alchemy";
 import { StorageTransports } from "../../lib/src/bucket/registry.ts";
 import type { StorageBucket, StorageTransport } from "../../lib/src/bucket/transport.ts";
 import { bucketNameOf, type StorageVisibility } from "../../lib/src/core/visibility.ts";
@@ -91,11 +92,11 @@ export class RecordingTransport implements StorageTransport {
     return {
       upload: (path: string, body: ArrayBuffer, contentType: string) => {
         this.uploads.push({ bucket, path, contentType, byteSize: body.byteLength });
-        return Promise.resolve(this.#answer);
+        return Future.value(this.#answer);
       },
       remove: (paths: readonly string[]) => {
         this.removals.push({ bucket, paths: [...paths] });
-        return Promise.resolve(this.#answer);
+        return Future.value(this.#answer);
       },
     };
   }

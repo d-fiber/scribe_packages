@@ -37,7 +37,7 @@
 import { Duration } from "@scribe/alchemy";
 import { log } from "@scribe/alchemy/observe";
 import type { Future } from "@scribe/alchemy";
-import type { RateLimiter, RateLimiterDriver, RateLimitOptions, RateLimitOutcome } from "@scribe/alchemy";
+import type { RateLimiterPort, RateLimiterDriver, RateLimitOptions, RateLimitOutcome } from "@scribe/alchemy";
 import { kv } from "../redis/kv.ts";
 import { RateLimitBucket } from "./rate_limit_bucket.ts";
 import { rateLimitCommands } from "./rate_limit_commands.ts";
@@ -80,7 +80,7 @@ export { SHARED_ADDRESS_MAX_PENALTY, SHARED_ADDRESS_STRIKE_MEMORY } from "@scrib
  * Nothing here throws. An unreachable Redis is reported and answered according to `failOpen`, so
  * a limiter outage degrades into a decision the declaration already made.
  */
-export class RedisRateLimiter implements RateLimiter {
+export class RedisRateLimiter implements RateLimiterPort {
   /** The name every bucket of this limit carries in the middle of its key. */
   readonly key: string;
 
@@ -225,7 +225,8 @@ export class RedisRateLimiter implements RateLimiter {
  * `rateLimit` and the host fills {@link RateLimiters} with this at boot.
  */
 export class RedisRateLimiters implements RateLimiterDriver {
-  open(options: RateLimitOptions): RateLimiter {
+  /** The {@link RateLimiterDriver.open} implementation: a new {@link RedisRateLimiter} for `options`. */
+  open(options: RateLimitOptions): RateLimiterPort {
     return new RedisRateLimiter(options);
   }
 }

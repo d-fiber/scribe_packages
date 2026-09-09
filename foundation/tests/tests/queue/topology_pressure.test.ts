@@ -34,6 +34,8 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import "@scribe/scholium/runner.ts";
+import { equals, expect, isNot, Scribe } from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
 import type { MemoryLogger } from "../../testing/logger.ts";
 import { TopologyProvisioner } from "../../../lib/src/queue/topology/topology_provisioner.ts";
@@ -47,8 +49,6 @@ import {
 import { DEAD_STREAM, DEDICATED_STREAM, SHARED_CONSUMER, SHARED_STREAM } from "../../../lib/src/queue/queue_naming.ts";
 import type { JetStreamManager } from "@nats-io/jetstream";
 import { Duration } from "@scribe/alchemy";
-import { assertEquals, assertNotEquals } from "@std/assert";
-
 const logger: MemoryLogger = installDrivers();
 
 interface Added {
@@ -61,6 +61,7 @@ interface Consumer {
   readonly filter: string;
   readonly ackWaitNs: number;
   readonly maxDeliver: number;
+  readonly maxAckPending: number;
 }
 
 interface Server {
@@ -71,7 +72,9 @@ interface Server {
   refuseUpdate: boolean;
 }
 
-function server(over: Partial<Pick<Server, "streams" | "consumers" | "refuseUpdate">> = {}): Server {
+function server(
+  over: Partial<Pick<Server, "streams" | "consumers" | "refuseUpdate">> = {},
+): Server {
   return {
     streams: over.streams ?? new Map<string, number>(),
     consumers: over.consumers ?? new Map<string, Consumer>(),
@@ -86,11 +89,16 @@ function manager(state: Server): JetStreamManager {
     streams: {
       info: (name: string) =>
         state.streams.has(name)
-          ? Promise.resolve({ config: { max_msgs_per_subject: state.streams.get(name) } })
+          ? Promise.resolve({
+            config: { max_msgs_per_subject: state.streams.get(name) },
+          })
           : Promise.reject(new Error("stream not found")),
       add: (config: { name: string; max_msgs_per_subject: number }) => {
         state.streams.set(config.name, config.max_msgs_per_subject);
-        state.added.push({ name: config.name, maxPerSubject: config.max_msgs_per_subject });
+        state.added.push({
+          name: config.name,
+          maxPerSubject: config.max_msgs_per_subject,
+        });
         return Promise.resolve({});
       },
       update: (name: string, config: { max_msgs_per_subject: number }) => {
@@ -102,7 +110,11 @@ function manager(state: Server): JetStreamManager {
       info: (stream: string, durable: string) => {
         const held = state.consumers.get(`${stream}/${durable}`);
         return held === undefined ? Promise.reject(new Error("consumer not found")) : Promise.resolve({
-          config: { ack_wait: held.ackWaitNs, max_deliver: held.maxDeliver },
+          config: {
+            ack_wait: held.ackWaitNs,
+            max_deliver: held.maxDeliver,
+            max_ack_pending: held.maxAckPending,
+          },
         });
       },
       add: (
@@ -112,6 +124,7 @@ function manager(state: Server): JetStreamManager {
           filter_subject: string;
           ack_wait: number;
           max_deliver: number;
+          max_ack_pending: number;
         },
       ) => {
         state.consumers.set(`${stream}/${config.durable_name}`, {
@@ -119,11 +132,18 @@ function manager(state: Server): JetStreamManager {
           filter: config.filter_subject,
           ackWaitNs: config.ack_wait,
           maxDeliver: config.max_deliver,
+          maxAckPending: config.max_ack_pending,
         });
         return Promise.resolve({});
       },
-      update: (stream: string, durable: string, widened: Record<string, number>) => {
-        if (state.refuseUpdate) return Promise.reject(new Error("consumer is locked"));
+      update: (
+        stream: string,
+        durable: string,
+        widened: Record<string, number>,
+      ) => {
+        if (state.refuseUpdate) {
+          return Promise.reject(new Error("consumer is locked"));
+        }
         state.updates.push({ durable, widened });
         const held = state.consumers.get(`${stream}/${durable}`);
         if (held) {
@@ -131,6 +151,7 @@ function manager(state: Server): JetStreamManager {
             ...held,
             ackWaitNs: widened.ack_wait ?? held.ackWaitNs,
             maxDeliver: widened.max_deliver ?? held.maxDeliver,
+            maxAckPending: widened.max_ack_pending ?? held.maxAckPending,
           });
         }
         return Promise.resolve({});
@@ -155,20 +176,26 @@ function provision(state: Server, plan: TopologyPlan): Promise<void> {
   return new TopologyProvisioner(manager(state)).provision(plan);
 }
 
-Deno.test("provisioning an empty server creates the three streams and the shared consumer", async () => {
+Scribe.test("provisioning an empty server creates the three streams and the shared consumer", async () => {
   const state = server();
 
   await provision(state, planFor([]));
 
-  assertEquals(state.added.map((one) => one.name), [
-    SHARED_STREAM,
-    DEDICATED_STREAM,
-    DEAD_STREAM,
-  ]);
-  assertEquals(state.consumers.get(`${SHARED_STREAM}/${SHARED_CONSUMER}`)?.filter, "q.>");
+  expect(
+    state.added.map((one) => one.name),
+    equals([
+      SHARED_STREAM,
+      DEDICATED_STREAM,
+      DEAD_STREAM,
+    ]),
+  );
+  expect(
+    state.consumers.get(`${SHARED_STREAM}/${SHARED_CONSUMER}`)?.filter,
+    equals("q.>"),
+  );
 });
 
-Deno.test("provisioning twice over adds nothing the second time", async () => {
+Scribe.test("provisioning twice over adds nothing the second time", async () => {
   const state = server();
   const plan = planFor([queue()]);
 
@@ -176,63 +203,120 @@ Deno.test("provisioning twice over adds nothing the second time", async () => {
   const afterFirst = state.added.length;
   await provision(state, plan);
 
-  assertEquals(state.added.length, afterFirst);
-  assertEquals(state.updates, []);
+  expect(state.added.length, equals(afterFirst));
+  expect(state.updates, equals([]));
 });
 
-Deno.test("two queues fighting over the ceiling both live under the larger one", async () => {
+Scribe.test("two queues fighting over the ceiling both live under the larger one", async () => {
   const state = server();
   const plan = planFor([
-    queue({ name: "small", maxLen: 10, maxRetries: 2, processingTimeoutMs: 1_000 }),
-    queue({ name: "large", maxLen: 900_000, maxRetries: 30, processingTimeoutMs: 3_600_000 }),
+    queue({
+      name: "small",
+      maxLen: 10,
+      maxRetries: 2,
+      processingTimeoutMs: 1_000,
+    }),
+    queue({
+      name: "large",
+      maxLen: 900_000,
+      maxRetries: 30,
+      processingTimeoutMs: 3_600_000,
+    }),
   ]);
 
   await provision(state, plan);
 
-  assertEquals(state.streams.get(SHARED_STREAM), 900_000);
-  assertEquals(state.consumers.get(`${SHARED_STREAM}/${SHARED_CONSUMER}`)?.maxDeliver, 31);
-  assertEquals(
+  expect(state.streams.get(SHARED_STREAM), equals(900_000));
+  expect(
+    state.consumers.get(`${SHARED_STREAM}/${SHARED_CONSUMER}`)?.maxDeliver,
+    equals(31),
+  );
+  expect(
     state.consumers.get(`${SHARED_STREAM}/${SHARED_CONSUMER}`)?.ackWaitNs,
-    3_600_000 * 1_000_000,
+    equals(3_600_000 * 1_000_000),
   );
 });
 
-Deno.test("a dedicated queue declared after a shared one changes the plan that gets applied", async () => {
+Scribe.test("a fresh shared consumer is provisioned with room for every queue's concurrency at once", async () => {
+  const state = server();
+
+  await provision(
+    state,
+    planFor([
+      queue({ name: "a", concurrency: 700 }),
+      queue({ name: "b", concurrency: 900 }),
+    ]),
+  );
+
+  expect(
+    state.consumers.get(`${SHARED_STREAM}/${SHARED_CONSUMER}`)?.maxAckPending,
+    equals(1_600),
+  );
+});
+
+Scribe.test("a dedicated queue declared after a shared one changes the plan that gets applied", async () => {
   const shared = queue({ name: "first" });
   const later = queue({ name: "second", dedicated: true });
 
-  assertNotEquals(planSignature(planFor([shared])), planSignature(planFor([shared, later])));
+  expect(
+    planSignature(planFor([shared])),
+    isNot(equals(planSignature(planFor([shared, later])))),
+  );
 
   const state = server();
   await provision(state, planFor([shared]));
-  assertEquals(state.consumers.has(`${DEDICATED_STREAM}/second`), false);
+  expect(state.consumers.has(`${DEDICATED_STREAM}/second`), equals(false));
 
   await provision(state, planFor([shared, later]));
-  assertEquals(state.consumers.get(`${DEDICATED_STREAM}/second`)?.filter, "qd.second");
+  expect(
+    state.consumers.get(`${DEDICATED_STREAM}/second`)?.filter,
+    equals("qd.second"),
+  );
 });
 
-Deno.test("a consumer an older deployment left too narrow is widened, never narrowed", async () => {
+Scribe.test("a consumer an older deployment left too narrow is widened, never narrowed", async () => {
   const state = server({
     consumers: new Map([[`${SHARED_STREAM}/${SHARED_CONSUMER}`, {
       durable: SHARED_CONSUMER,
       filter: "q.>",
       ackWaitNs: 1_000 * 1_000_000,
       maxDeliver: 2,
+      maxAckPending: 50,
     }]]),
   });
 
-  await provision(state, planFor([queue({ processingTimeoutMs: 60_000, maxRetries: 9 })]));
+  await provision(
+    state,
+    planFor([
+      queue({ processingTimeoutMs: 60_000, maxRetries: 9, concurrency: 1_500 }),
+    ]),
+  );
   const widened = state.consumers.get(`${SHARED_STREAM}/${SHARED_CONSUMER}`);
-  assertEquals(widened?.maxDeliver, 10);
-  assertEquals(widened?.ackWaitNs, QUEUE_DEFAULTS.processingTimeout.inMilliseconds * 1_000_000);
+  expect(widened?.maxDeliver, equals(10));
+  expect(
+    widened?.ackWaitNs,
+    equals(QUEUE_DEFAULTS.processingTimeout.inMilliseconds * 1_000_000),
+  );
+  expect(widened?.maxAckPending, equals(1_500));
 
   state.updates.length = 0;
-  await provision(state, planFor([queue({ processingTimeoutMs: 1, maxRetries: 1 })]));
-  assertEquals(state.updates, []);
-  assertEquals(state.consumers.get(`${SHARED_STREAM}/${SHARED_CONSUMER}`)?.maxDeliver, 10);
+  await provision(
+    state,
+    planFor([queue({ processingTimeoutMs: 1, maxRetries: 1, concurrency: 1 })]),
+  );
+  expect(state.updates, equals([]));
+  expect(
+    state.consumers.get(`${SHARED_STREAM}/${SHARED_CONSUMER}`)?.maxDeliver,
+    equals(10),
+  );
+  expect(
+    state.consumers.get(`${SHARED_STREAM}/${SHARED_CONSUMER}`)?.maxAckPending,
+    equals(1_500),
+    "a plan that now needs less in flight does not narrow what an earlier one already raised",
+  );
 });
 
-Deno.test("a widening the server refuses is written to the log and does not stop the run", async () => {
+Scribe.test("a widening the server refuses is written to the log and does not stop the run", async () => {
   logger.clear();
   const state = server({
     refuseUpdate: true,
@@ -241,72 +325,72 @@ Deno.test("a widening the server refuses is written to the log and does not stop
       filter: "q.>",
       ackWaitNs: 1,
       maxDeliver: 1,
+      maxAckPending: 1,
     }]]),
   });
 
   await provision(state, planFor([queue()]));
 
-  assertEquals(logger.actions.includes("queue.widen_failed"), true);
+  expect(logger.actions.includes("queue.widen_failed"), equals(true));
 });
 
-Deno.test({
-  name: "a stream that already exists keeps the ceiling of the deployment that created it",
-  fn: async () => {
-    const state = server({ streams: new Map([[SHARED_STREAM, 100]]) });
+Scribe.test("a stream that already exists keeps the ceiling of the deployment that created it", async () => {
+  const state = server({ streams: new Map([[SHARED_STREAM, 100]]) });
 
-    await provision(state, planFor([queue({ maxLen: 900_000 })]));
+  await provision(state, planFor([queue({ maxLen: 900_000 })]));
 
-    assertEquals(
-      state.streams.get(SHARED_STREAM),
-      900_000,
-      "a stream is left entirely alone once it exists, so maxLen is read on the day the " +
-        "stream is first created and never again: every declaration after that names a " +
-        "ceiling the server will not honour, and nothing says so",
-    );
-  },
+  expect(
+    state.streams.get(SHARED_STREAM),
+    equals(900_000),
+    "a stream is left entirely alone once it exists, so maxLen is read on the day the " +
+      "stream is first created and never again: every declaration after that names a " +
+      "ceiling the server will not honour, and nothing says so",
+  );
 });
 
-Deno.test({
-  name: "a stream provisioned with other settings is never reconciled with the plan",
-  fn: async () => {
-    const state = server({ streams: new Map([[DEAD_STREAM, 5]]) });
+Scribe.test("a stream provisioned with other settings is never reconciled with the plan", async () => {
+  const state = server({ streams: new Map([[DEAD_STREAM, 5]]) });
 
-    await provision(state, planFor([queue({ maxLen: 400_000 })]));
+  await provision(state, planFor([queue({ maxLen: 400_000 })]));
 
-    assertEquals(
-      state.streams.get(DEAD_STREAM),
-      400_000,
-      "the dead letter of a project that raised its ceiling still drops its oldest failures " +
-        "at whatever the first deployment asked for",
-    );
-  },
+  expect(
+    state.streams.get(DEAD_STREAM),
+    equals(400_000),
+    "the dead letter of a project that raised its ceiling still drops its oldest failures " +
+      "at whatever the first deployment asked for",
+  );
 });
 
-Deno.test("a dedicated queue gets a consumer filtered on its own subject alone", async () => {
+Scribe.test("a dedicated queue gets a consumer filtered on its own subject alone", async () => {
   const state = server();
 
   await provision(
     state,
-    planFor([queue({ name: "mail.send", dedicated: true }), queue({ name: "other" })]),
+    planFor([
+      queue({ name: "mail.send", dedicated: true }),
+      queue({ name: "other" }),
+    ]),
   );
 
   const own = state.consumers.get(`${DEDICATED_STREAM}/mail_send`);
-  assertEquals(own?.filter, "qd.mail_send");
-  assertEquals(state.consumers.has(`${DEDICATED_STREAM}/other`), false);
+  expect(own?.filter, equals("qd.mail_send"));
+  expect(state.consumers.has(`${DEDICATED_STREAM}/other`), equals(false));
 });
 
-Deno.test("a processing timeout of a year keeps an ack_wait a number can still hold", async () => {
+Scribe.test("a processing timeout of a year keeps an ack_wait a number can still hold", async () => {
   const state = server();
 
   await provision(
     state,
-    planFor([queue({ processingTimeoutMs: Duration.days(365).inMilliseconds })]),
+    planFor([
+      queue({ processingTimeoutMs: Duration.days(365).inMilliseconds }),
+    ]),
   );
 
   const ackWaitNs = state.consumers.get(`${SHARED_STREAM}/${SHARED_CONSUMER}`)?.ackWaitNs ?? 0;
-  assertEquals(
+  expect(
     Number.isSafeInteger(ackWaitNs),
-    false,
+    equals(false),
     "the plan multiplies milliseconds by a million to reach nanoseconds, and a timeout past " +
       "about a hundred days leaves the range an integer is exact in",
   );

@@ -35,7 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { Session } from "../../contracts/account.ts";
-import { Failure, Ok, type Result } from "@scribe/alchemy";
+import { Failure, Future, Ok, type Result } from "@scribe/alchemy";
 import { SocialProvider } from "@scribe/contracts/enums.ts";
 import { Channel } from "../../contracts/channel.ts";
 import type { AccountRole } from "../../contracts/role.ts";
@@ -86,13 +86,13 @@ export interface SignInCredential<TInput> {
   /** Reads the credentials and answers what a rate limit on the recipient is keyed on. */
   read(
     input: TInput,
-  ): Promise<Result<{ identifier: string | null }, SignInError>>;
+  ): Future<Result<{ identifier: string | null }, SignInError>>;
 
   /** Turns the credentials into a session, or says why they open nothing. */
   authenticate(
     input: TInput,
     role: AccountRole,
-  ): Promise<Result<Authenticated, SignInError>>;
+  ): Future<Result<Authenticated, SignInError>>;
 }
 
 /** What a caller sends to sign in with an address. */
@@ -125,6 +125,16 @@ export interface SocialCredentials {
   readonly accessToken?: string;
 }
 
+/**
+ * `raw` turned into an {@link Authenticated} answer, once it actually carries a user and an
+ * access token, or {@link SignInError.Unexpected} when it does not.
+ *
+ * @remarks
+ * This is the one place that checks `raw.user` and `raw.access_token` before trusting the
+ * response as a real session. `AuthMapper.account.session` itself only maps the fields, casting
+ * rather than checking them, so every door funnels its GoTrue answer through here rather than
+ * building an `Authenticated` by hand.
+ */
 function sessionOf(
   raw: GoTrueSessionResponse,
 ): Result<Authenticated, SignInError> {
@@ -140,74 +150,85 @@ function sessionOf(
   });
 }
 
+/** The email half of {@link EmailCredential.otp}. */
 class EmailOtp implements OtpChannel {
   readonly channel = Channel.Email;
 
-  send(email: string, role: AccountRole): Promise<Result<void, AuthError>> {
+  send(email: string, role: AccountRole): Future<Result<void, AuthError>> {
     return goTrue.signIn.email.otp.send(email, role);
   }
 
   verify(
     email: string,
     otp: string,
-  ): Promise<Result<GoTrueSessionResponse, AuthError>> {
+  ): Future<Result<GoTrueSessionResponse, AuthError>> {
     return goTrue.signIn.email.otp.verify(email, otp);
   }
 
-  roleOf(email: string): Promise<AccountRole | null> {
+  roleOf(email: string): Future<AccountRole | null> {
     return AccountRoleResolver.withEmail(email);
   }
 }
 
+/** The phone half of {@link PhoneCredential.otp}. */
 class PhoneOtp implements OtpChannel {
   readonly channel = Channel.Phone;
 
-  send(phone: string, role: AccountRole): Promise<Result<void, AuthError>> {
+  send(phone: string, role: AccountRole): Future<Result<void, AuthError>> {
     return goTrue.signIn.phone.send(phone, role);
   }
 
   verify(
     phone: string,
     otp: string,
-  ): Promise<Result<GoTrueSessionResponse, AuthError>> {
+  ): Future<Result<GoTrueSessionResponse, AuthError>> {
     return goTrue.signIn.phone.verify(phone, otp);
   }
 
-  roleOf(phone: string): Promise<AccountRole | null> {
+  roleOf(phone: string): Future<AccountRole | null> {
     return AccountRoleResolver.withPhone(phone);
   }
 }
 
 /** The door an address opens. */
 export class EmailCredential implements SignInCredential<EmailCredentials> {
+  /** The door this credential opens, always the email channel. */
   readonly channel = Channel.Email;
+
+  /** Sending and verifying a one-time passcode by email. */
   readonly otp: OtpChannel = new EmailOtp();
 
+  /** The {@link SignInCredential.read} implementation: validates `input.email` and that a password was sent. */
   read(
     input: EmailCredentials,
-  ): Promise<Result<{ identifier: string | null }, SignInError>> {
+  ): Future<Result<{ identifier: string | null }, SignInError>> {
     const email = AuthValidator.email.check(input.email);
     if (email.status === EmailCheckStatus.Empty) {
-      return Promise.resolve(new Failure(SignInError.EmailRequired));
+      return Future.value(new Failure(SignInError.EmailRequired));
     }
     if (email.status === EmailCheckStatus.Invalid) {
-      return Promise.resolve(new Failure(SignInError.InvalidCredentials));
+      return Future.value(new Failure(SignInError.InvalidCredentials));
     }
 
     switch (AuthValidator.password.presence(input.password)) {
       case PasswordPresenceStatus.Empty:
-        return Promise.resolve(new Failure(SignInError.PasswordRequired));
+        return Future.value(new Failure(SignInError.PasswordRequired));
       case PasswordPresenceStatus.TooLong:
-        return Promise.resolve(new Failure(SignInError.InvalidCredentials));
+        return Future.value(new Failure(SignInError.InvalidCredentials));
     }
 
-    return Promise.resolve(new Ok({ identifier: email.value }));
+    return Future.value(new Ok({ identifier: email.value }));
   }
 
+  /**
+   * The {@link SignInCredential.authenticate} implementation: signs in with `input.email` and
+   * `input.password`, resending the confirmation email when GoTrue reports the account as
+   * unconfirmed.
+   */
   async authenticate(
     input: EmailCredentials,
     role: AccountRole,
-  ): Promise<Result<Authenticated, SignInError>> {
+  ): Future<Result<Authenticated, SignInError>> {
     const email = AuthValidator.email.check(input.email).value ?? input.email;
     const answer = await goTrue.signIn.email.withPassword(
       email,
@@ -240,35 +261,40 @@ export class EmailCredential implements SignInCredential<EmailCredentials> {
 
 /** The door a number opens. */
 export class PhoneCredential implements SignInCredential<PhoneCredentials> {
+  /** The door this credential opens, always the phone channel. */
   readonly channel = Channel.Phone;
+
+  /** Sending and verifying a one-time passcode by text message. */
   readonly otp: OtpChannel = new PhoneOtp();
 
+  /** The {@link SignInCredential.read} implementation: validates `input.phone` and that a password was sent. */
   read(
     input: PhoneCredentials,
-  ): Promise<Result<{ identifier: string | null }, SignInError>> {
+  ): Future<Result<{ identifier: string | null }, SignInError>> {
     const phone = AuthValidator.phone.check(input.phone);
     if (phone.status === PhoneCheckStatus.Empty) {
-      return Promise.resolve(new Failure(SignInError.PhoneRequired));
+      return Future.value(new Failure(SignInError.PhoneRequired));
     }
     if (phone.status === PhoneCheckStatus.Invalid) {
-      return Promise.resolve(new Failure(SignInError.InvalidCredentials));
+      return Future.value(new Failure(SignInError.InvalidCredentials));
     }
 
     switch (AuthValidator.password.presence(input.password)) {
       case PasswordPresenceStatus.Empty:
-        return Promise.resolve(new Failure(SignInError.PasswordRequired));
+        return Future.value(new Failure(SignInError.PasswordRequired));
       case PasswordPresenceStatus.TooLong:
-        return Promise.resolve(new Failure(SignInError.InvalidCredentials));
+        return Future.value(new Failure(SignInError.InvalidCredentials));
     }
 
-    return Promise.resolve(
+    return Future.value(
       new Ok({ identifier: AuthValidator.phone.format(input.phone) }),
     );
   }
 
+  /** The {@link SignInCredential.authenticate} implementation: signs in with `input.phone` and `input.password`. */
   async authenticate(
     input: PhoneCredentials,
-  ): Promise<Result<Authenticated, SignInError>> {
+  ): Future<Result<Authenticated, SignInError>> {
     const phone = AuthValidator.phone.format(input.phone);
     const answer = await goTrue.signIn.phone.withPassword(
       phone,
@@ -295,6 +321,7 @@ export class PhoneCredential implements SignInCredential<PhoneCredentials> {
 
 /** The door an identity another provider vouched for opens. */
 export class SocialCredential implements SignInCredential<SocialCredentials> {
+  /** The door this credential opens, `Channel.Google` or `Channel.Apple` depending on the provider. */
   readonly channel: Channel;
   readonly #provider: SocialProvider;
 
@@ -303,19 +330,21 @@ export class SocialCredential implements SignInCredential<SocialCredentials> {
     this.#provider = channel === Channel.Google ? SocialProvider.GOOGLE : SocialProvider.APPLE;
   }
 
+  /** The {@link SignInCredential.read} implementation: checks that `input.idToken` and `input.nonce` are non-empty. */
   read(
     input: SocialCredentials,
-  ): Promise<Result<{ identifier: string | null }, SignInError>> {
+  ): Future<Result<{ identifier: string | null }, SignInError>> {
     const malformed = input.idToken.trim().length === 0 || input.nonce.trim().length === 0;
 
-    return Promise.resolve(
+    return Future.value(
       malformed ? new Failure(SignInError.InvalidCredentials) : new Ok({ identifier: null }),
     );
   }
 
+  /** The {@link SignInCredential.authenticate} implementation: exchanges `input.idToken` with this door's own provider. */
   async authenticate(
     input: SocialCredentials,
-  ): Promise<Result<Authenticated, SignInError>> {
+  ): Future<Result<Authenticated, SignInError>> {
     const answer = this.#provider === SocialProvider.GOOGLE
       ? await goTrue.signIn.social.google.signIn(
         input.idToken,

@@ -34,7 +34,7 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { Failure, type Result } from "@scribe/alchemy";
+import { Failure, type Future, type Result } from "@scribe/alchemy";
 import { AudienceError } from "../../contracts/audience.ts";
 
 /**
@@ -45,8 +45,8 @@ import { AudienceError } from "../../contracts/audience.ts";
  * is deciding whether to let something through and has nothing to do with a `catch`.
  */
 export async function guarded<T>(
-  query: () => Promise<Result<T, AudienceError>>,
-): Promise<Result<T, AudienceError>> {
+  query: () => Future<Result<T, AudienceError>>,
+): Future<Result<T, AudienceError>> {
   try {
     return await query();
   } catch {

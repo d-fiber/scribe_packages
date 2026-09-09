@@ -36,7 +36,7 @@
 
 import type { Duration } from "@scribe/alchemy";
 import type { IndexSettings, QueryPlan, Search as SearchHandle, SearchParams } from "../../contracts/definition.ts";
-import type { SearchSort } from "../../contracts/query.ts";
+import type { SearchQuery, SearchSort } from "../../contracts/query.ts";
 import { compilePreview } from "../document/preview.ts";
 import { compileDocument } from "../document/projection.ts";
 import {
@@ -48,9 +48,16 @@ import {
   type PreviewShape,
 } from "../document/selector.ts";
 import { DEFAULT_SETTINGS, type DocumentShape, type EmbeddedField, type MappedField } from "../fields/mapping.ts";
-import { type DocumentProperties, type QueryFields, queryFields } from "../fields/projection.ts";
+import {
+  type DocumentProperties,
+  type EqualityFields,
+  type EqualityValue,
+  type QueryFields,
+  queryFields,
+  type TextFields,
+} from "../fields/projection.ts";
 import { QueryBuilder } from "../fields/query.ts";
-import { DEFAULT_TTL } from "./cache.ts";
+import { DEFAULT_TTL } from "./valkery.ts";
 import { declareIndex } from "./registry.ts";
 import { SearchIndex } from "./search_index.ts";
 
@@ -78,6 +85,20 @@ export type PropertiesOf<S extends DocumentShape> = {
 
 /** The sorts a declaration names, so a query picks one by name rather than writing it again. */
 export type DeclaredSorts = Record<string, SearchSort | readonly SearchSort[]>;
+
+/**
+ * What a search derived by {@link QueryStep.autoQuery} accepts: one equality filter per
+ * keyword or boolean field of the document, plus a free-text clause when it holds analysed
+ * text.
+ *
+ * @remarks
+ * Numeric, date and geo fields are left out, since an equality filter on any of them is rarely
+ * what a caller wants. `.query()` remains the way to filter on those, to sort, or to weigh a
+ * clause conditionally.
+ */
+export type AutoQueryParams<P extends DocumentProperties> =
+  & ([TextFields<P>] extends [never] ? unknown : { readonly text?: string })
+  & { readonly [K in EqualityFields<P> & string]?: EqualityValue<P, K> };
 
 /** What a declaration's query is handed besides the parameters it was called with. */
 export interface QueryContext<P extends DocumentProperties, S extends DeclaredSorts> {
@@ -115,6 +136,15 @@ export interface IndexOptions {
 
   /** How long a page and a preview are kept. Five minutes when absent. */
   readonly ttl?: Duration;
+
+  /**
+   * How long a call to this index's page or preview cache has, before it is treated as a miss.
+   *
+   * The cache's own default when absent, which is short enough that a slow cache never holds
+   * up a request. An index that draws real contention on a hot key raises it here rather than
+   * everywhere it is searched.
+   */
+  readonly valkeryDeadline?: Duration;
 
   /** The analysis the index is created with. Lowercased and accent-folded when absent. */
   readonly settings?: IndexSettings;
@@ -173,6 +203,29 @@ export interface QueryStep<P extends DocumentProperties, TPreview, S extends Dec
   query<TParams extends SearchParams>(
     builder: (params: TParams, context: QueryContext<P, S>) => QueryBuilder | QueryPlan,
   ): Search<TParams, TPreview>;
+
+  /**
+   * Compiles a search directly from the document, with nothing written by hand.
+   *
+   * ```ts
+   * const stores = Search.on<StoreRow>("stores", "store_id")
+   *   .document((s) => ({
+   *     name: Field.text(s.name, { boost: 3 }),
+   *     status: Field.keyword(s.status),
+   *     open: Field.bool(s.is_open),
+   *   }))
+   *   .preview((s) => ({ id: s.store_id, name: s.name }))
+   *   .autoQuery();
+   * // stores.search({ text: "rosa", status: "open", open: true })
+   * ```
+   *
+   * One equality filter is derived per keyword or boolean field, and a free-text clause looks
+   * across the document's own analysed fields when it names any: it is the same weighing
+   * `q.text` already reads off the document, without a declaration having to name it again.
+   * `.query()` remains the way in for a custom sort, a geo clause, or a filter conditioned on
+   * more than one parameter at once.
+   */
+  autoQuery(): Search<AutoQueryParams<P> & SearchParams, TPreview>;
 }
 
 /** What one declaration has accumulated as its steps are walked. */
@@ -195,11 +248,14 @@ interface Draft {
   /** How long a page and a preview are kept. */
   ttl: Duration;
 
+  /** How long a call to the page or preview cache has. The cache's own default when null. */
+  valkeryDeadline: Duration | null;
+
   /** The analysis the index is created with. */
   settings: IndexSettings;
 }
 
-// deno-lint-ignore no-explicit-any
+// deno-lint-ignore no-explicit-any -- the builder chain below crosses several constrained generics (DocumentShape, DocumentProperties), each rejecting unknown at a different step.
 type Loose = any;
 
 /**
@@ -255,6 +311,7 @@ export const Search: {
       key,
       pageSize: options.pageSize ?? DEFAULT_PAGE_SIZE,
       ttl: options.ttl ?? DEFAULT_TTL,
+      valkeryDeadline: options.valkeryDeadline ?? null,
       settings: options.settings ?? DEFAULT_SETTINGS,
     });
   },
@@ -292,6 +349,10 @@ function queryStep(
 ): Loose {
   const fields = document.textFields.map(({ path, boost }) => boost === null ? path : `${path}^${boost}`);
 
+  const equalityFields = Object.entries(document.mappings)
+    .filter(([, mapping]) => mapping.type === "keyword" || mapping.type === "boolean")
+    .map(([field]) => field);
+
   return {
     sorts: (builder: (f: QueryFields<Loose>) => DeclaredSorts): Loose =>
       queryStep(draft, document, preview, builder(queryFields())),
@@ -304,6 +365,27 @@ function queryStep(
         plan: (params: Loose): QueryPlan => {
           const built = builder(params, { q: new QueryBuilder(fields), f: queryFields(), sorts });
           return built instanceof QueryBuilder ? built.build() : built;
+        },
+      });
+
+      declareIndex(index);
+      return index;
+    },
+
+    autoQuery: (): Loose => {
+      const index = new SearchIndex({
+        ...draft,
+        document,
+        preview,
+        plan: (params: Loose): QueryPlan => {
+          const builder = new QueryBuilder(fields).text(params.text);
+
+          for (const field of equalityFields) {
+            const value = params[field];
+            if (value !== undefined) builder.filter({ term: { [field]: value } } as SearchQuery);
+          }
+
+          return builder.build();
         },
       });
 

@@ -1,0 +1,6 @@
+scribe: 1.0.0
+
+packages:
+  foundation:
+    version: 1.0.0
+    source: workspace

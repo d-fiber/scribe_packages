@@ -42,8 +42,12 @@ export enum EmailCheckStatus {
   Ok = "ok",
 }
 
+/** What checking an email address answers: its canonical form, or why it did not pass. */
 export interface EmailFormatResult {
+  /** The address in its checked, canonical form, or the empty string when it did not pass. */
   value: string;
+
+  /** Why `value` is empty, or `EmailCheckStatus.Ok` when it is not. */
   status: EmailCheckStatus;
 }
 
@@ -52,7 +56,16 @@ const EMAIL_PATTERN =
 
 const MAX_EMAIL_LOCAL_LENGTH = 64;
 
+/** The email half of {@link AuthValidator}. */
 class EmailValidator {
+  /**
+   * Whether `email` is a syntactically valid address short enough for this package to store.
+   *
+   * @remarks
+   * Refuses a local part past {@link MAX_EMAIL_LOCAL_LENGTH} and two dots in a row before ever
+   * reaching the pattern, because those are cheap to reject and the regular expression alone would
+   * otherwise spend backtracking on an input built to be long or ambiguous.
+   */
   static isValid(email: string): boolean {
     if (!email) return false;
     if (email.length > 254) return false;
@@ -64,6 +77,14 @@ class EmailValidator {
     return EMAIL_PATTERN.test(email);
   }
 
+  /**
+   * `email` with any `+tag` suffix on the local part removed.
+   *
+   * @remarks
+   * A provider that honors plus addressing treats `name+anything@host` as the same inbox as
+   * `name@host`, so this is what a caller uses to compare two addresses for the underlying account
+   * they actually reach, such as refusing a second signup that only differs by its tag.
+   */
   static inbox(email: string): string {
     const at = email.lastIndexOf("@");
     if (at === -1) return email;
@@ -72,6 +93,7 @@ class EmailValidator {
     return (plus === -1 ? local : local.slice(0, plus)) + email.slice(at);
   }
 
+  /** Trims and lowercases `email`, then reports whether the result passes {@link isValid}. */
   static check(email: string): EmailFormatResult {
     const value = email.trim().toLowerCase();
     if (value.length === 0) return { value, status: EmailCheckStatus.Empty };
@@ -88,8 +110,12 @@ export enum PhoneCheckStatus {
   Ok = "ok",
 }
 
+/** What checking a phone number answers: its canonical form, or why it did not pass. */
 export interface PhoneCheckResult {
+  /** The number in its checked, canonical form, or the empty string when it did not pass. */
   value: string;
+
+  /** Why `value` is empty, or `PhoneCheckStatus.Ok` when it is not. */
   status: PhoneCheckStatus;
 }
 
@@ -99,8 +125,12 @@ export enum PasswordCheckStatus {
   Ok = "ok",
 }
 
+/** What checking a password answers: the password as given, or why it did not pass. */
 export interface PasswordCheckResult {
+  /** The password as given, or the empty string when it did not pass. */
   value: string;
+
+  /** Why `value` is empty, or `PasswordCheckStatus.Ok` when it is not. */
   status: PasswordCheckStatus;
 }
 
@@ -179,6 +209,16 @@ const COMMON_BASES: ReadonlySet<string> = new Set([
   "wxcvbn",
 ]);
 
+/**
+ * `password` with its trailing digits or punctuation, casing and leetspeak substitutions all
+ * stripped, so it can be compared against {@link COMMON_BASES}.
+ *
+ * @remarks
+ * `Password1!` and `p4ssw0rd` both reduce to `password`. Checking the complexity rules alone
+ * would let both through, since each satisfies the letter, digit and length requirements on its
+ * own, so a dictionary check that only matched the literal string would miss the common password
+ * hiding under a cosmetic substitution.
+ */
 function passwordBase(password: string): string {
   const withoutTrailingSuffix = password.replace(/[^A-Za-zÀ-ÿ]+$/, "");
   const folded = [...withoutTrailingSuffix.toLowerCase()]
@@ -187,15 +227,18 @@ function passwordBase(password: string): string {
   return folded.replace(/[^a-zà-ÿ]/g, "");
 }
 
+/** Whether `password` folds down to one of {@link COMMON_BASES}, by {@link passwordBase}. */
 function isCommonPassword(password: string): boolean {
   const base = passwordBase(password);
   return base.length === 0 || COMMON_BASES.has(base);
 }
 
+/** Whether `password` repeats the same character four or more times in a row, like `aaaa1`. */
 function hasRepeatedRun(password: string): boolean {
   return /(.)\1{3,}/.test(password);
 }
 
+/** Whether `password` contains four characters in a row that ascend or descend by one code point, like `abcd` or `4321`. */
 function hasSequentialRun(password: string): boolean {
   const lower = password.toLowerCase();
   for (let i = 0; i + 4 <= lower.length; i++) {
@@ -213,7 +256,17 @@ function hasSequentialRun(password: string): boolean {
   return false;
 }
 
+/** The password half of {@link AuthValidator}. */
 class PasswordValidator {
+  /**
+   * Whether `password` is empty, longer than {@link MAX_PASSWORD_LENGTH}, or neither.
+   *
+   * @remarks
+   * Kept separate from {@link isValid}, whose refusal reasons all collapse into `false`, because
+   * a length past the maximum is a cost the request itself should refuse before hashing the
+   * password at all, while the complexity rules `isValid` checks are a signup decision, not a
+   * request-size one.
+   */
   static presence(password: string): PasswordPresenceStatus {
     if (password.trim().length === 0) return PasswordPresenceStatus.Empty;
     if (password.length > MAX_PASSWORD_LENGTH) {
@@ -222,6 +275,10 @@ class PasswordValidator {
     return PasswordPresenceStatus.Ok;
   }
 
+  /**
+   * Whether `password` meets this package's complexity rules: long enough, an upper, a lower and
+   * a digit, not a known common password even folded, and free of a repeated or sequential run.
+   */
   static isValid(password: string): boolean {
     if (password.trim().length === 0) return false;
     if (password.length < MIN_PASSWORD_LENGTH) return false;
@@ -235,6 +292,7 @@ class PasswordValidator {
     return true;
   }
 
+  /** Reports whether `password` is empty or passes {@link isValid}, without altering it either way. */
   static check(password: string): PasswordCheckResult {
     if (password.trim().length === 0) {
       return { value: password, status: PasswordCheckStatus.Empty };
@@ -246,12 +304,23 @@ class PasswordValidator {
   }
 }
 
+/** The phone half of {@link AuthValidator}. */
 class PhoneValidator {
+  /**
+   * `phone` in E.164 form, once `libphonenumber-js` can parse it, or `phone` with its separators
+   * stripped and a leading `00` turned into `+` when it cannot.
+   *
+   * @remarks
+   * The `00` prefix is the international dialing code used outside of North America; folding it to
+   * `+` before parsing is what lets a number typed the way a caller's own country writes it still
+   * resolve to the same E.164 form GoTrue expects.
+   */
   static format(phone: string): string {
     const normalized = phone.replace(/[\s\-().]/g, "").replace(/^00/, "+");
     return parsePhoneNumberFromString(normalized)?.number ?? normalized;
   }
 
+  /** Whether `phone`, once formatted by {@link format}, is a number `libphonenumber-js` recognizes as valid. */
   static isValid(phone: string): boolean {
     if (!phone) return false;
     return (
@@ -260,6 +329,7 @@ class PhoneValidator {
     );
   }
 
+  /** Formats `phone` and reports whether the result passes {@link isValid}. */
   static check(phone: string): PhoneCheckResult {
     const trimmed = phone.trim();
     if (trimmed.length === 0) {
@@ -274,8 +344,14 @@ class PhoneValidator {
   }
 }
 
+/** This package's whole validation surface: an email, a password and a phone number, each checked and formatted. */
 export class AuthValidator {
+  /** Checks and formats an email address. */
   static readonly email = EmailValidator;
+
+  /** Checks a password against the package's own rules. */
   static readonly password = PasswordValidator;
+
+  /** Checks and formats a phone number. */
   static readonly phone = PhoneValidator;
 }

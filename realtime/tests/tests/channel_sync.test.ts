@@ -34,7 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { assertEquals } from "@std/assert";
+import "@scribe/scholium/runner.ts";
+import type { Future } from "@scribe/alchemy";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { Listen, Realtime, syncDeclaredChannels } from "@scribe/realtime";
 import { realtimeChannels } from "../../lib/src/db/tables.ts";
 import { installDatabaseFake } from "./mocks/database.ts";
@@ -46,7 +48,7 @@ interface Item {
 Realtime.public<Item>("sync_public");
 Realtime.granted<Item>("sync_granted");
 
-async function storedListen(channel: string): Promise<string | null> {
+async function storedListen(channel: string): Future<string | null> {
   const row = await realtimeChannels()
     .selectRaw("listen")
     .where((f) => f.channel.eq(channel))
@@ -55,34 +57,34 @@ async function storedListen(channel: string): Promise<string | null> {
   return row === null ? null : String(row.listen);
 }
 
-Deno.test("a declaration nobody stored yet is written with its openness", async () => {
+Scribe.test("a declaration nobody stored yet is written with its openness", async () => {
   const db = installDatabaseFake();
 
   await syncDeclaredChannels();
 
-  assertEquals(await storedListen("sync_public"), Listen.Public);
-  assertEquals(await storedListen("sync_granted"), Listen.Granted);
+  expect(await storedListen("sync_public"), equals(Listen.Public));
+  expect(await storedListen("sync_granted"), equals(Listen.Granted));
   db.restore();
 });
 
-Deno.test("an openness that changed in the code is written over the stored one", async () => {
+Scribe.test("an openness that changed in the code is written over the stored one", async () => {
   const db = installDatabaseFake({
     __realtime_channels__: [{ channel: "sync_public", listen: Listen.Granted }],
   });
 
   await syncDeclaredChannels();
 
-  assertEquals(await storedListen("sync_public"), Listen.Public);
+  expect(await storedListen("sync_public"), equals(Listen.Public));
   db.restore();
 });
 
-Deno.test("a channel nobody declares any more keeps its row", async () => {
+Scribe.test("a channel nobody declares any more keeps its row", async () => {
   const db = installDatabaseFake({
     __realtime_channels__: [{ channel: "sync_retired", listen: Listen.Public }],
   });
 
   await syncDeclaredChannels();
 
-  assertEquals(await storedListen("sync_retired"), Listen.Public);
+  expect(await storedListen("sync_retired"), equals(Listen.Public));
   db.restore();
 });

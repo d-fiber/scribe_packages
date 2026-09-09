@@ -34,7 +34,9 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
-import { wrote } from "@scribe/foundation/database";
+import { wrote } from "@scribe/foundation";
+import { DateTime } from "@scribe/alchemy";
+import type { Future } from "@scribe/alchemy";
 import type { StorageVisibility } from "../core/visibility.ts";
 import { type StorageObjectRow, storageObjects } from "./tables.ts";
 
@@ -74,45 +76,44 @@ export interface RecordedWrite {
  * Writes what `object` says, and answers what that did.
  *
  * @remarks
- * The row is read before being written because a path is unique in the index and PostgREST is
- * reached without an upsert here: a second upload to the same path updates the row it already
- * has. The read is the same indexed lookup the write needs anyway, so it also answers whether
- * the object changed bucket.
+ * The write itself is a single upsert on `path`, so two uploads racing to the same new key no
+ * longer depend on which one PostgREST sees first: both converge on one row instead of one of
+ * them tripping the primary key and losing bytes it already wrote. The read that decides
+ * {@link RecordedWrite.displaced} stays a plain lookup taken before the write, which keeps it
+ * possible, in that same race, to miss a bucket change: a rarer case than the one this fixes,
+ * since it only fires when a folder's declared bucket itself changes between two racing uploads,
+ * not on ordinary concurrent traffic to one key.
  */
-export async function recordObject(object: RecordedObject): Promise<RecordedWrite> {
+export async function recordObject(object: RecordedObject): Future<RecordedWrite> {
   const stored = await storedObject(object.path);
-  const row = {
-    visibility: object.visibility,
-    mime_type: object.mimeType,
-    byte_size: object.byteSize,
-    blur_hash: object.blurHash,
-    updated_at: new Date().toISOString(),
-  };
-
   const displaced = stored !== null && stored.visibility !== object.visibility
     ? stored.visibility as StorageVisibility
     : null;
 
-  if (stored === null) {
-    return { stored: wrote(await storageObjects().insert({ path: object.path, ...row })), displaced };
-  }
-
-  const written = await storageObjects()
-    .where((f) => f.path.eq(object.path))
-    .update(row);
+  const written = await storageObjects().upsert(
+    {
+      path: object.path,
+      visibility: object.visibility,
+      mime_type: object.mimeType,
+      byte_size: object.byteSize,
+      blur_hash: object.blurHash,
+      updated_at: DateTime.now().toIso8601String(),
+    },
+    { onConflict: "path" },
+  );
 
   return { stored: wrote(written), displaced };
 }
 
 /** What the index holds about `path`, or null when it holds nothing. */
-export function storedObject(path: string): Promise<StorageObjectRow | null> {
+export function storedObject(path: string): Future<StorageObjectRow | null> {
   return storageObjects()
     .where((f) => f.path.eq(path))
     .getOne();
 }
 
 /** Takes `paths` out of the index, and answers whether the rows went. */
-export async function forgetObjects(paths: readonly string[]): Promise<boolean> {
+export async function forgetObjects(paths: readonly string[]): Future<boolean> {
   if (paths.length === 0) return true;
 
   return wrote(
@@ -148,26 +149,35 @@ export interface ObjectPage {
  * one it kept: a page made entirely of a neighbour's objects keeps nothing, and a caller walking
  * the pages would ask for the same one forever if it resumed from what it had.
  *
+ * The query asks for one row more than `limit`. A folder holding exactly `limit` objects then
+ * comes back under that cap, so `full` reads false instead of mistaking the last row for proof
+ * that more exist; a folder holding more comes back over it, and the extra row is dropped rather
+ * than handed to the caller.
+ *
  * @param after - The path to resume after, exclusive. Empty starts at the beginning.
  */
 export async function objectsUnder(
   prefix: string,
   limit: number,
   after = "",
-): Promise<ObjectPage | null> {
+): Future<ObjectPage | null> {
   const under = `${prefix}/`;
 
   try {
     const rows = await storageObjects()
       .where((f) => after === "" ? f.path.like(`${under}%`) : [f.path.like(`${under}%`), f.path.gt(after)])
       .order("path")
-      .limit(limit)
+      .limit(limit + 1)
       .get();
 
+    const full = rows.length > limit;
+    const matched = rows.filter((row) => row.path.startsWith(under));
+    const objects = full ? matched.slice(0, limit) : matched;
+
     return {
-      objects: rows.filter((row) => row.path.startsWith(under)),
-      last: rows.length === 0 ? null : rows[rows.length - 1].path,
-      full: rows.length >= limit,
+      objects,
+      last: objects.length === 0 ? null : objects[objects.length - 1].path,
+      full,
     };
   } catch (e) {
     console.error(`[storage:index] ${prefix} could not be read:`, e);

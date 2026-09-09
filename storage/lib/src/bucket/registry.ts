@@ -34,12 +34,13 @@
 // This header is a summary written for convenience. Where it differs from the
 // LICENSE file, the LICENSE file governs.
 
+import { Future } from "@scribe/alchemy";
 import type { StorageVisibility } from "../core/visibility.ts";
 import type { StorageBucket, StorageTransport } from "./transport.ts";
 
 const UNAVAILABLE: StorageBucket = {
-  upload: () => Promise.resolve(false),
-  remove: () => Promise.resolve(false),
+  upload: () => Future.value(false),
+  remove: () => Future.value(false),
 };
 
 let transport: StorageTransport | null = null;

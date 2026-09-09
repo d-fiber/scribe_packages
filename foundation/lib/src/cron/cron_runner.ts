@@ -57,6 +57,8 @@ const RESTART_AFTER: Duration = Duration.seconds(5);
 
 /** The shortest the loop sleeps, so a schedule that is always due cannot spin it. */
 const SLEEP_AT_LEAST: Duration = Duration.milliseconds(50);
+
+/** How many occurrences one replica runs at once, when `start` names none of its own. */
 const DEFAULT_MAX_CONCURRENT = 20;
 
 /**

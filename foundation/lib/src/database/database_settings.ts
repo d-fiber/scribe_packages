@@ -37,6 +37,7 @@
 import type { DatabaseSettings } from "../settings.ts";
 import { Slot } from "@scribe/alchemy";
 
+/** The address and keys this process reaches PostgREST through, filled once by the host at boot. */
 export const databaseSettings: Slot<DatabaseSettings> = new Slot<DatabaseSettings>(
   "database",
 );

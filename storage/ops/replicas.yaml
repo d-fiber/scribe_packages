@@ -1,4 +1,0 @@
-services:
-  storage:
-    deploy:
-      replicas: {{storage_replicas}}

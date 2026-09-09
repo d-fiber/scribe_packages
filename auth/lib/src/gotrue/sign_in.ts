@@ -38,8 +38,14 @@ import { GoTrueSignInEmail } from "./sign_in/email.ts";
 import { GoTrueSignInPhone } from "./sign_in/phone.ts";
 import { GoTrueSignInSocial } from "./sign_in/social.ts";
 
+/** Every way this package signs a user in against GoTrue: by email, by phone, or by social provider. */
 export class GoTrueSignIn {
+  /** Signing in with an email address, by password or by one-time passcode. */
   readonly email = new GoTrueSignInEmail();
+
+  /** Signing in with a phone number, by password or by one-time passcode. */
   readonly phone = new GoTrueSignInPhone();
+
+  /** Signing in with an external identity provider. */
   readonly social = new GoTrueSignInSocial();
 }

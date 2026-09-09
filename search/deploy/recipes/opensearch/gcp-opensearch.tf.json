@@ -1,0 +1,45 @@
+{
+  "terraform": {
+    "required_providers": {
+      "aiven": {
+        "source": "aiven/aiven",
+        "version": "4.61.0"
+      }
+    }
+  },
+  "provider": {
+    "aiven": {}
+  },
+  "resource": {
+    "aiven_opensearch": {
+      "opensearch": {
+        "project": "{{aiven_project}}",
+        "cloud_name": "google-{{region}}",
+        "plan": "{{plan}}",
+        "service_name": "{{name}}",
+        "opensearch_user_config": [
+          {
+            "opensearch_version": "{{version}}",
+            "public_access": [
+              {
+                "opensearch": true
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "output": {
+    "host": {
+      "value": "${aiven_opensearch.opensearch.service_host}"
+    },
+    "port": {
+      "value": "${aiven_opensearch.opensearch.service_port}"
+    },
+    "url": {
+      "value": "${aiven_opensearch.opensearch.service_uri}",
+      "sensitive": true
+    }
+  }
+}

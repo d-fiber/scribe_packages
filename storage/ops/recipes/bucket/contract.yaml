@@ -1,7 +1,0 @@
-outputs:
-  - backend
-  - name
-  - endpoint
-  - region
-  - access_key
-  - secret_key

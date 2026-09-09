@@ -47,8 +47,8 @@
  */
 
 import { wireRealtime } from "./src/capability/wire.ts";
-import { capabilities } from "@scribe/contracts/capability.ts";
-import type { LifecycleSteps } from "@scribe/alchemy";
+import type { Future } from "@scribe/alchemy";
+import type { PackageRegistrar, ScribePlugin } from "@scribe/contracts/registrar.ts";
 import { syncDeclaredChannels } from "./src/db/channels.ts";
 import { EventLogTransport } from "./src/transport/event_log.ts";
 import { RealtimeTransports } from "./src/transport/registry.ts";
@@ -65,20 +65,29 @@ export type { RealtimeRow, RealtimeTransport } from "./src/transport/transport.t
 
 export { syncDeclaredChannels } from "./src/db/channels.ts";
 export type { RealtimeChannelRow, RealtimeEventRow, RealtimeGrantRow } from "./src/db/tables.ts";
+export type { GrantPage } from "./src/db/grants.ts";
 
-/**
- * When this package runs: the transport at import, the openness once the database answers.
- *
- * @remarks
- * The transport needs nothing, so it is wired as soon as the entry is imported. The openness
- * cannot be: a declaration lives at module scope and is evaluated before anything is connected,
- * so the row it asks for is written after boot, where the process can reach the database.
- */
-export const scribe: LifecycleSteps = {
-  wires: () => {
-    capabilities.register(wireRealtime);
+class RealtimePlugin implements ScribePlugin {
+  /**
+   * Registers this package's transport, once, at import, since it needs nothing to be built.
+   */
+  registerWith(registrar: PackageRegistrar): void {
+    registrar.addCapability(wireRealtime);
 
     RealtimeTransports.use(new EventLogTransport());
-  },
-  starts: () => syncDeclaredChannels(),
-};
+  }
+
+  /**
+   * Opens the channels a project declared, once the process can reach the database.
+   *
+   * @remarks
+   * A declaration lives at module scope and is evaluated before anything is connected, so the row
+   * it asks for is written after boot rather than at import.
+   */
+  starts(): Future<void> {
+    return syncDeclaredChannels();
+  }
+}
+
+/** When this package runs: the transport at import, the openness once the database answers. */
+export const scribe: ScribePlugin = new RealtimePlugin();

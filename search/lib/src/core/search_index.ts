@@ -35,6 +35,7 @@
 // LICENSE file, the LICENSE file governs.
 
 import type { Duration } from "@scribe/alchemy";
+import type { Future } from "@scribe/alchemy";
 import { Pagination } from "@scribe/alchemy";
 import { Failure, Ok, type Result } from "@scribe/alchemy";
 import type {
@@ -45,15 +46,15 @@ import type {
   SearchParams,
   SearchSource,
 } from "../../contracts/definition.ts";
-import { SearchOperation } from "../../contracts/definition.ts";
+import { SearchError, SearchOperation } from "../../contracts/definition.ts";
 import type { IndexedDocument } from "../../contracts/transport.ts";
 import { enqueue } from "../db/outbox.ts";
 import { projectRows } from "../db/source.ts";
 import type { CompiledPreview } from "../document/preview.ts";
 import { type CompiledDocument, readDocument } from "../document/projection.ts";
 import { searchTransport } from "../transport/registry.ts";
-import { SearchCache } from "./cache.ts";
-import { stableKey } from "./cache_key.ts";
+import { SearchValkery } from "./valkery.ts";
+import { stableKey } from "./valkery_key.ts";
 
 /** One declaration, once every builder step has been walked and compiled. */
 export interface ResolvedIndex<TParams extends SearchParams, TPreview> {
@@ -84,8 +85,18 @@ export interface ResolvedIndex<TParams extends SearchParams, TPreview> {
   /** How long a page and a preview are kept. */
   readonly ttl: Duration;
 
+  /** How long a call to the page or preview cache has, before it is treated as a miss. The cache's own default when null. */
+  readonly valkeryDeadline: Duration | null;
+
   /** What one set of parameters compiles into. */
   readonly plan: (params: TParams) => QueryPlan;
+}
+
+/** Thrown out of the cache's own compute step to carry why a page could not be produced. */
+class AnswerFailure extends Error {
+  constructor(readonly reason: SearchError) {
+    super(reason);
+  }
 }
 
 /**
@@ -115,7 +126,7 @@ export class SearchIndex<TParams extends SearchParams, TPreview> implements Sear
   readonly key: string;
 
   readonly #resolved: ResolvedIndex<TParams, TPreview>;
-  readonly #cache: SearchCache<TPreview>;
+  readonly #cache: SearchValkery<TPreview>;
 
   constructor(resolved: ResolvedIndex<TParams, TPreview>) {
     this.name = resolved.name;
@@ -123,7 +134,7 @@ export class SearchIndex<TParams extends SearchParams, TPreview> implements Sear
     this.table = resolved.table;
     this.key = resolved.key;
     this.#resolved = resolved;
-    this.#cache = new SearchCache<TPreview>(resolved.name, resolved.ttl);
+    this.#cache = new SearchValkery<TPreview>(resolved.name, resolved.ttl, resolved.valkeryDeadline ?? undefined);
   }
 
   /** Every table feeding this index, the one it is declared on first. */
@@ -140,17 +151,17 @@ export class SearchIndex<TParams extends SearchParams, TPreview> implements Sear
   }
 
   /** Queues the document `id` for a rebuild, and answers whether the request was recorded. */
-  add(id: string): Promise<boolean> {
+  add(id: string): Future<boolean> {
     return enqueue(this.name, [id], SearchOperation.Index);
   }
 
   /** Queues every identifier of `ids` for a rebuild, in one write. */
-  addMany(ids: readonly string[]): Promise<boolean> {
+  addMany(ids: readonly string[]): Future<boolean> {
     return enqueue(this.name, ids, SearchOperation.Index);
   }
 
   /** Queues the document `id` for removal, and answers whether the request was recorded. */
-  delete(id: string): Promise<boolean> {
+  delete(id: string): Future<boolean> {
     return enqueue(this.name, [id], SearchOperation.Delete);
   }
 
@@ -169,7 +180,7 @@ export class SearchIndex<TParams extends SearchParams, TPreview> implements Sear
    * rounded by `timeBucket` are what make a search over a place or a period cacheable at all,
    * and both are written inside the declaration's own query.
    */
-  async search(params: TParams): Promise<Result<Pagination<TPreview>, void>> {
+  async search(params: TParams): Future<Result<Pagination<TPreview>, SearchError>> {
     const from = params.page?.from ?? 0;
     const size = params.page?.size ?? this.#resolved.pageSize;
     const plan = this.plan(params);
@@ -179,7 +190,7 @@ export class SearchIndex<TParams extends SearchParams, TPreview> implements Sear
       return new Ok(page);
     } catch (error) {
       console.error(`[search:${this.name}] the page could not be answered.`, error);
-      return new Failure(undefined);
+      return new Failure(error instanceof AnswerFailure ? error.reason : SearchError.Unavailable);
     }
   }
 
@@ -191,11 +202,11 @@ export class SearchIndex<TParams extends SearchParams, TPreview> implements Sear
    * row was read after the outbox line was written, so a document deleted between the two
    * would otherwise be retried until it ran out of attempts and stayed in the index for good.
    *
-   * A batch the cluster only partly took answers nothing at all, since a bulk call reports a
-   * count and not which lines it refused. The whole batch is then drained again, and writing a
-   * document that is already there is what an index call does anyway.
+   * A batch the cluster only partly took answers with the documents it did take: the transport
+   * reports per identifier, so the ones it refused stay in the outbox to be drained again
+   * without holding back the ones that already went in.
    */
-  async rebuild(ids: readonly string[]): Promise<readonly string[]> {
+  async rebuild(ids: readonly string[]): Future<readonly string[]> {
     const transport = searchTransport();
     if (transport === null || ids.length === 0) return [];
 
@@ -214,24 +225,19 @@ export class SearchIndex<TParams extends SearchParams, TPreview> implements Sear
     const gone = ids.filter((id) => !built.has(id));
     const handled: string[] = [];
 
-    if (documents.length > 0 && await transport.index(this.index, documents) === documents.length) {
-      handled.push(...documents.map((one) => one.id));
-    }
-
-    if (gone.length > 0 && await transport.remove(this.index, gone) === gone.length) {
-      handled.push(...gone);
-    }
+    if (documents.length > 0) handled.push(...await transport.index(this.index, documents));
+    if (gone.length > 0) handled.push(...await transport.remove(this.index, gone));
 
     await this.#cache.invalidate(handled);
     return handled;
   }
 
-  /** Takes `ids` out of the index, and answers the ones that left. */
-  async erase(ids: readonly string[]): Promise<readonly string[]> {
+  /** Takes `ids` out of the index, and answers the ones that are now, or already were, absent from it. */
+  async erase(ids: readonly string[]): Future<readonly string[]> {
     const transport = searchTransport();
     if (transport === null || ids.length === 0) return [];
 
-    const removed = await transport.remove(this.index, ids) === ids.length ? [...ids] : [];
+    const removed = await transport.remove(this.index, ids);
     await this.#cache.invalidate(removed);
 
     return removed;
@@ -240,33 +246,35 @@ export class SearchIndex<TParams extends SearchParams, TPreview> implements Sear
   /**
    * The page `plan` matches, read from the cluster and hydrated.
    *
-   * @throws {Error} When no transport is registered, or when the cluster did not answer. It
-   * throws rather than answering an empty page because the answer would be cached, and an
-   * outage that lasted a second would then be served for as long as a page is kept.
+   * @throws {AnswerFailure} When no transport is registered, or when the cluster did not
+   * answer. It throws rather than answering an empty page because the answer would be cached,
+   * and an outage that lasted a second would then be served for as long as a page is kept.
+   *
+   * @remarks
+   * One row more than `size` is asked for, and never hydrated past `size`: its presence alone
+   * is what tells {@link Pagination.of} there is a page after this one, which is the contract
+   * every other paginated read in this framework already follows.
    */
-  async #answer(plan: QueryPlan, from: number, size: number): Promise<Pagination<TPreview>> {
+  async #answer(plan: QueryPlan, from: number, size: number): Future<Pagination<TPreview>> {
     const transport = searchTransport();
-    if (transport === null) throw new Error(`search index "${this.name}" has no transport to ask.`);
+    if (transport === null) throw new AnswerFailure(SearchError.Unavailable);
 
-    const hits = await transport.search({ index: this.index, plan, key: this.key, from, size });
+    const answered = await transport.search({ index: this.index, plan, key: this.key, from, size: size + 1 });
+    if (!answered.ok) throw new AnswerFailure(answered.error);
 
-    if (hits === null) throw new Error(`search index "${this.name}" was not answered by the cluster.`);
+    const { ids } = answered.data;
+    if (ids.length === 0) return Pagination.of([], from, size);
 
-    if (hits.ids.length === 0) {
-      return Pagination.of([], from, 0);
-    }
-
-    const byId = await this.#cache.hydrate(hits.ids, (missing) => this.#previewsOf(missing));
-    const items = hits.ids
+    const byId = await this.#cache.hydrate(ids, (missing) => this.#previewsOf(missing));
+    const items = ids
       .map((id) => byId.get(id))
       .filter((preview): preview is TPreview => preview !== undefined);
 
-    const offset = from + items.length;
-    return Pagination.of(items, offset, items.length);
+    return Pagination.of(items, from, size);
   }
 
   /** The previews of `ids`, read in one call and keyed by identifier. */
-  async #previewsOf(ids: readonly string[]): Promise<ReadonlyMap<string, TPreview>> {
+  async #previewsOf(ids: readonly string[]): Future<ReadonlyMap<string, TPreview>> {
     const rows = await projectRows(this.table, this.key, this.#resolved.preview.columns, ids);
     const byId = new Map<string, TPreview>();
 

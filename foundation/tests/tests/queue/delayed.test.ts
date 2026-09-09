@@ -32,7 +32,8 @@
 // KIND OF LEGAL CLAIM.
 //
 // This header is a summary written for convenience. Where it differs from the
-
+import "@scribe/scholium/runner.ts";
+import { equals, expect, Scribe } from "@scribe/alchemy/test";
 import { installDrivers } from "../../testing/drivers.ts";
 import "../../testing/settings.ts";
 import { type Kv, kv } from "../../../lib/src/redis/kv.ts";
@@ -41,13 +42,12 @@ import { decodeMember, type DelayedMember, encodeMember } from "../../../lib/src
 import { promoteDue } from "../../../lib/src/queue/delayed/delayed_promoter.ts";
 import { topology } from "../../../lib/src/queue/topology/topology.ts";
 import { installMock } from "../../testing/install.ts";
-import { assertEquals } from "@std/assert";
 
 function member(over: Partial<DelayedMember> = {}): string {
   return encodeMember({
     id: "m1",
     queue: "emails",
-    subject: "q.emails",
+    address: "q.emails",
     data: { to: "a@b.c" },
     ...over,
   });
@@ -61,6 +61,7 @@ interface Promotion {
 async function promote(scenario: Promotion) {
   const removed: string[] = [];
   const published: string[] = [];
+  let zremCalls = 0;
 
   const mocks = [
     installMock(
@@ -71,9 +72,10 @@ async function promote(scenario: Promotion) {
     installMock(
       kv(),
       "zrem",
-      ((_key: string, raw: string) => {
-        removed.push(raw);
-        return Promise.resolve(1);
+      ((_key: string, ...raws: string[]) => {
+        zremCalls++;
+        removed.push(...raws);
+        return Promise.resolve(raws.length);
       }) as unknown as Kv["zrem"],
     ),
     installMock(topology, "publish", (subject: string) => {
@@ -83,7 +85,7 @@ async function promote(scenario: Promotion) {
   ];
 
   try {
-    return { promoted: await promoteDue(), removed, published };
+    return { promoted: await promoteDue(), removed, published, zremCalls };
   } finally {
     for (const mock of mocks) mock.restore();
   }
@@ -91,29 +93,32 @@ async function promote(scenario: Promotion) {
 
 installDrivers();
 
-Deno.test("decodeMember round-trips what encodeMember wrote", () => {
-  assertEquals(decodeMember(member())?.queue, "emails");
-  assertEquals(decodeMember(member())?.data, { to: "a@b.c" });
+Scribe.test("decodeMember round-trips what encodeMember wrote", () => {
+  expect(decodeMember(member())?.queue, equals("emails"));
+  expect(decodeMember(member())?.data, equals({ to: "a@b.c" }));
 });
 
-Deno.test("decodeMember rejects a member no promotion could ever use", () => {
-  assertEquals(decodeMember("not json at all"), null);
-  assertEquals(decodeMember(JSON.stringify({ queue: "emails" })), null);
-  assertEquals(decodeMember(JSON.stringify({ id: "m", queue: "e" })), null);
-  assertEquals(decodeMember(JSON.stringify({ id: "m", subject: "q.e" })), null);
+Scribe.test("decodeMember rejects a member no promotion could ever use", () => {
+  expect(decodeMember("not json at all"), equals(null));
+  expect(decodeMember(JSON.stringify({ queue: "emails" })), equals(null));
+  expect(decodeMember(JSON.stringify({ id: "m", queue: "e" })), equals(null));
+  expect(
+    decodeMember(JSON.stringify({ id: "m", subject: "q.e" })),
+    equals(null),
+  );
 });
 
-Deno.test("promoteDue publishes a due job then forgets it", async () => {
+Scribe.test("promoteDue publishes a due job then forgets it", async () => {
   const raw = member();
 
   const { promoted, removed, published } = await promote({ due: [raw] });
 
-  assertEquals(promoted, 1);
-  assertEquals(published, ["q.emails"]);
-  assertEquals(removed, [raw]);
+  expect(promoted, equals(1));
+  expect(published, equals(["q.emails"]));
+  expect(removed, equals([raw]));
 });
 
-Deno.test("promoteDue drops an unreadable member instead of wedging the set", async () => {
+Scribe.test("promoteDue drops an unreadable member instead of wedging the set", async () => {
   const poison = "{ broken";
   const healthy = member();
 
@@ -121,23 +126,57 @@ Deno.test("promoteDue drops an unreadable member instead of wedging the set", as
     due: [poison, healthy],
   });
 
-  assertEquals(promoted, 1);
-  assertEquals(published, ["q.emails"]);
-  assertEquals(removed.includes(poison), true);
-  assertEquals(removed.includes(healthy), true);
+  expect(promoted, equals(1));
+  expect(published, equals(["q.emails"]));
+  expect(removed.includes(poison), equals(true));
+  expect(removed.includes(healthy), equals(true));
 });
 
-Deno.test("promoteDue keeps a job it could not publish, for the next pass", async () => {
+Scribe.test("promoteDue keeps a job it could not publish, for the next pass", async () => {
   const { promoted, removed } = await promote({
     due: [member()],
     publish: () => Promise.reject(new Error("nats down")),
   });
 
-  assertEquals(promoted, 0);
-  assertEquals(removed, []);
+  expect(promoted, equals(0));
+  expect(removed, equals([]));
 });
 
-Deno.test("promoteDue reports nothing promoted when the delayed set is unreadable", async () => {
+Scribe.test("promoteDue removes a whole pass of published members in one ZREM call", async () => {
+  const raws = Array.from({ length: 12 }, (_, at) => member({ id: `m${at}` }));
+
+  const { promoted, removed, zremCalls } = await promote({ due: raws });
+
+  expect(promoted, equals(12));
+  expect(removed.length, equals(12));
+  expect(
+    zremCalls,
+    equals(1),
+    "12 published members must cost one ZREM, not one per member",
+  );
+});
+
+Scribe.test("promoteDue removes unreadable members separately from published ones, both batched", async () => {
+  const healthy = Array.from(
+    { length: 5 },
+    (_, at) => member({ id: `m${at}` }),
+  );
+  const poison = ["{ broken", "]]]", "not json"];
+
+  const { promoted, removed, zremCalls } = await promote({
+    due: [...poison, ...healthy],
+  });
+
+  expect(promoted, equals(5));
+  expect(removed.length, equals(8));
+  expect(
+    zremCalls,
+    equals(2),
+    "the unreadable members and the published ones are two groups, so two calls, not eight",
+  );
+});
+
+Scribe.test("promoteDue reports nothing promoted when the delayed set is unreadable", async () => {
   const mock = installMock(
     kv(),
     "zrangebyscore",
@@ -147,13 +186,13 @@ Deno.test("promoteDue reports nothing promoted when the delayed set is unreadabl
   );
 
   try {
-    assertEquals(await promoteDue(), 0);
+    expect(await promoteDue(), equals(0));
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("delayedCounts tallies the backlog by queue", async () => {
+Scribe.test("delayedCounts tallies the backlog by queue", async () => {
   const mock = installMock(
     kv(),
     "zscan",
@@ -167,14 +206,14 @@ Deno.test("delayedCounts tallies the backlog by queue", async () => {
   try {
     const counts = await delayedCounts();
 
-    assertEquals(counts.counts, { emails: 2, push: 1 });
-    assertEquals(counts.truncated, false);
+    expect(counts.counts, equals({ emails: 2, push: 1 }));
+    expect(counts.truncated, equals(false));
   } finally {
     mock.restore();
   }
 });
 
-Deno.test("delayedCounts announces itself truncated when the scan fails", async () => {
+Scribe.test("delayedCounts announces itself truncated when the scan fails", async () => {
   const mock = installMock(
     kv(),
     "zscan",
@@ -184,8 +223,8 @@ Deno.test("delayedCounts announces itself truncated when the scan fails", async 
   try {
     const counts = await delayedCounts();
 
-    assertEquals(counts.counts, {});
-    assertEquals(counts.truncated, true);
+    expect(counts.counts, equals({}));
+    expect(counts.truncated, equals(true));
   } finally {
     mock.restore();
   }

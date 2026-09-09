@@ -43,15 +43,15 @@ Fiber/scribe/
 
 ```sh
 git config core.hooksPath .githooks
-bash tool/test.sh
+bash tools/test.sh
 ```
 
 The hooks line is worth the five seconds: `pre-push` runs what CI runs, so a fault stays in your terminal instead of
 turning up somewhere it blocks a release. `git push --no-verify` skips it when you know what you are doing.
 
-`tool/test.sh` copies these packages into the checkout beside this one and runs the framework's own `deno task check`,
+`tools/test.sh` copies these packages into the checkout beside this one and runs the framework's own `deno task check`,
 `deno lint` and `deno task test` against them. Name another checkout with
-`SCRIBE_CHECKOUT=~/code/scribe bash tool/test.sh`.
+`SCRIBE_CHECKOUT=~/code/scribe bash tools/test.sh`.
 
 It leaves the copy in place. What you just proved is what is now sitting in that checkout, so discard it there when you
 are done.
@@ -83,12 +83,12 @@ what `headers` refuses, and without the hook it refuses it after you pushed rath
 
 ### Run what you wrote
 
-Not the suite alone. If your change touches what only the real stack can answer, bring it up:
+Not the suite alone. If your change touches what only the real stack can answer, bring it up. Every package carries a
+self-contained shell scenario that starts the stack, exercises it and tears it down:
 
 ```sh
-bash tool/e2e/up.sh realtime
-deno task test:e2e:realtime    # from the scribe checkout
-bash tool/e2e/down.sh realtime
+bash storage/tests/e2e/scenario.sh   # one package
+bash tools/e2e.sh                      # every package, then a sweep of whatever was left
 ```
 
 An end to end suite that was never run is a claim, not a proof, and it is the half of the testing that the CI cannot do
@@ -103,26 +103,41 @@ those paths are never walked by ordinary use, so nothing will report the day the
 
 ## Adding a package
 
-A package is a directory carrying a `package.yaml`, and nothing else says so. `scribedev pkg create <name> --in .`
-writes the mandatory layout, and `scribedev pkg analyze .` reads every package here and reports what is wrong with each.
+A package is a directory carrying a `package.yaml`, and nothing else says so. `scribe create --package <name>` writes the
+mandatory layout, and `scribe analyze .` reads every package here and reports what is wrong with each.
 
 ```
 <name>/package.yaml   the name, the version, the framework it accepts, what it hands the stack
 <name>/.gitignore     what the tools write, kept out of your commits
 <name>/lib/<name>.ts  a list of re-exports, plus the `scribe` lifecycle
+<name>/lib/contracts/ the types that cross the boundary, no behaviour
 <name>/lib/src/       the code
-<name>/tests/         the cases that need nothing running, plus tests/e2e/
+<name>/tests/         the cases that need nothing running, plus tests/testing/ and tests/e2e/
+<name>/deploy/        everything the stack reads, and nothing lives anywhere else
 CHANGELOG.md          nothing to write, the CI writes it from your commit messages
 ```
 
-Fill in `description:`, which the skeleton leaves as an instruction, then the dependencies and the `scribe:` block,
-which is written commented out.
+Everything the stack consumes sits under `deploy/`, and only there:
+
+```
+deploy/
+  configuration.yaml   the settings a project tunes, and the resources it requires
+  db/{provisioning,init,migrations}/   the SQL, each played at its own moment
+  services/<service>/   a service's compose fragments: docker-compose.yaml, capacity.yaml, resources.yaml, ...
+  recipes/<type>/<class>.yaml   what answers a resource this package requires
+  overlay.yaml          the minimal case: mounts db/ into a socle service
+```
+
+Fill in `description:`, which the skeleton leaves as an instruction, then the dependencies and the `scribe:` block. Its
+paths point into `deploy/`: `db.init: ./deploy/db/init/`, and `services: [./deploy/services/<service>/]` for a package
+that starts a container. `configuration.yaml`, `recipes/` and `overlay.yaml` are found where they sit and are not
+declared.
 
 Then, in the scribe checkout, the package gets one `imports` entry mapping `@scribe/<name>/` to its directory. It is not
 a `workspace` member: a member needs a `deno.json`, and a package carries none.
 
-A package that starts a container also adds its fragment under `ops/`, declares it under `scribe: ops:`, puts its
-compose override under `tests/e2e/`, and adds its name to the list `tool/e2e/stack.sh` accepts.
+A package's `tests/e2e/` holds a `scenario.sh` and its own copy of the harness: `support/stack.sh` and the
+`fixtures/mini/` project. `tools/test.sh` runs every package's suite, `tools/e2e.sh` runs every package's scenario.
 
 ## Commit messages
 
@@ -191,7 +206,7 @@ sections `main` had not yet seen.
 
 The arrival on `main` fires `sync`, which puts these packages into `scribe` at `engine/packages/`, checks that the
 framework still type checks and passes its suite with them, and only then commits to its `dev`. It leaves this
-repository's own files behind: the licence, the four documents, `.github/`, `.githooks/` and `tool/test.sh` belong to
+repository's own files behind: the licence, the four documents, `.github/`, `.githooks/` and `tools/test.sh` belong to
 working here, not to the framework.
 
 You never copy anything into `scribe` by hand. Two copies of the same code, one of them edited, is the one failure this
